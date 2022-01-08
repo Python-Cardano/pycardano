@@ -1,0 +1,4 @@
+*.pyc
+.coverage
+cov_html
+docs/build
