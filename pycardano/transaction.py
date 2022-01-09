@@ -79,7 +79,7 @@ class TransactionBody(MapCBORSerializable):
     network_id: Network = field(default=None, metadata={"key": 15, "optional": True})
 
     def hash(self) -> bytes:
-        return blake2b(self.to_cbor(), TRANSACTION_HASH_SIZE, encoder=RawEncoder)
+        return blake2b(self.to_cbor(encoding="bytes"), TRANSACTION_HASH_SIZE, encoder=RawEncoder)
 
 
 @dataclass

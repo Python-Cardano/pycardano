@@ -11,14 +11,14 @@ from test.pycardano.util import check_two_way_cbor
 def test_transaction_input():
     tx_id_hex = "732bfd67e66be8e8288349fcaaa2294973ef6271cc189a239bb431275401b8e5"
     tx_in = TransactionInput(TransactionHash(bytes.fromhex(tx_id_hex)), 0)
-    assert tx_in.to_cborhex() == "825820732bfd67e66be8e8288349fcaaa2294973ef6271cc189a239bb431275401b8e500"
+    assert tx_in.to_cbor() == "825820732bfd67e66be8e8288349fcaaa2294973ef6271cc189a239bb431275401b8e500"
     check_two_way_cbor(tx_in)
 
 
 def test_transaction_output():
     addr = Address.decode("addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x")
     output = TransactionOutput(addr, 100000000000)
-    assert output.to_cborhex() == "82581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f41b000000174876e800"
+    assert output.to_cbor() == "82581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f41b000000174876e800"
     check_two_way_cbor(output)
 
 
@@ -39,7 +39,7 @@ def make_transaction_body():
 
 def test_transaction_body():
     tx_body = make_transaction_body()
-    assert tx_body.to_cborhex() == "a50081825820732bfd67e66be8e8288349fcaaa2294973ef6271cc189a239bb431275401b8e" \
+    assert tx_body.to_cbor() == "a50081825820732bfd67e66be8e8288349fcaaa2294973ef6271cc189a239bb431275401b8e" \
                                    "500018282581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f41b00" \
                                    "0000174876e80082581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e" \
                                    "5f41b000000ba43b4b7f7021a000288090d800e80"

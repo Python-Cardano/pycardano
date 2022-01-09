@@ -56,6 +56,10 @@ Run all tests:
 
 `pytest`
 
+Run all tests including doctests:
+
+`pytest --doctest-modules`
+
 Run all tests in a specific test file:
 
 `pytest test/pycardano/test_transaction.py`
@@ -63,7 +67,6 @@ Run all tests in a specific test file:
 Run a specific test function: 
 
 `pytest -k "test_transaction_body"`
-
 
 Run a specific test function in a test file: 
 

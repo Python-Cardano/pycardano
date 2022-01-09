@@ -11,7 +11,7 @@ from typing import Any, Callable, List, Union, get_type_hints
 from cbor2 import dumps, loads
 from cbor2.types import undefined, CBORSimpleValue, CBORTag
 
-from pycardano.exception import DeserializeException, SerializeException
+from pycardano.exception import DeserializeException, InvalidArgumentException, SerializeException
 
 CBOR_PRIMITIVE = (bytes, bytearray, str, int, float, Decimal,
                   bool, type(None), tuple, list, dict, defaultdict,
@@ -27,14 +27,14 @@ A list of types that could be encoded by
 class CBORSerializable:
     """
     CBORSerializable standardizes the interfaces a class should implement in order for it to be serialized to and
-    deserialized from CBOR hex.
+    deserialized from CBOR.
 
     Two required interfaces to implement are :meth:`serialize` and :meth:`deserialize`.
     :meth:`serialize` converts an object to a CBOR primitive type, which could be encoded by
     CBOR library. :meth:`deserialize` restores an object from a CBOR primitive type.
 
-    To convert a CBORSerializable to CBOR hex, use :meth:`to_cborhex`.
-    To restore a CBORSerializable from CBOR hex, use :meth:`from_cborhex`.
+    To convert a CBORSerializable to CBOR, use :meth:`to_cbor`.
+    To restore a CBORSerializable from CBOR, use :meth:`from_cbor`.
     """
 
     def serialize(self) -> Union[CBOR_PRIMITIVE]:
@@ -63,11 +63,14 @@ class CBORSerializable:
         """
         raise NotImplementedError(f"'deserialize()' is not implemented by {cls.__name__}.")
 
-    def to_cborhex(self) -> str:
-        """Encode an object into a CBOR hex string.
+    def to_cbor(self, encoding: str = "hex") -> Union[str, bytes]:
+        """Encode a Python object into CBOR format.
+
+        Args:
+            encoding (str): Encoding to use. Choose from "hex" or "bytes".
 
         Returns:
-            str: CBOR hex encoded from the object
+            Union[str, bytes]: CBOR encoded in a hex string if encoding is hex (default) or bytes if encoding is bytes.
 
         Examples:
             >>> class Test(CBORSerializable):
@@ -85,17 +88,32 @@ class CBORSerializable:
             ...     def __repr__(self):
             ...         return f"Test({self.number1}, {self.number2})"
             >>> a = Test(1, 2)
-            >>> a.to_cborhex()
+            >>> a.to_cbor()
             '820102'
         """
-        return self.to_cbor().hex()
+        valid_encodings = ("hex", "bytes")
+
+        # Make sure encoding is selected correctly before proceeding further.
+        if encoding not in ("hex", "bytes"):
+            raise InvalidArgumentException(f"Invalid encoding: {encoding}. Please choose from {valid_encodings}")
+
+        def _default_encoder(encoder, value):
+            assert isinstance(value, CBORSerializable), f"Type of input value is not CBORSerializable, " \
+                                                        f"got {type(value)} instead."
+            encoder.encode(value.serialize())
+
+        cbor = dumps(self, default=_default_encoder)
+        if encoding == "hex":
+            return cbor.hex()
+        else:
+            return cbor
 
     @classmethod
-    def from_cborhex(cls, payload: str) -> CBORSerializable:
-        """Restore a CBORSerializable object from a CBOR hex.
+    def from_cbor(cls, payload: Union[str, bytes]) -> CBORSerializable:
+        """Restore a CBORSerializable object from a CBOR.
 
         Args:
-            payload (str): CBOR hex to restore.
+            payload (Union[str, bytes]): CBOR bytes or hex string to restore from.
 
         Returns:
             CBORSerializable: Restored CBORSerializable object.
@@ -119,8 +137,8 @@ class CBORSerializable:
             ...     def __repr__(self):
             ...         return f"Test({self.number1}, {self.number2})"
             >>> a = Test(1, 2)
-            >>> cbor_hex = a.to_cborhex()
-            >>> print(Test.from_cborhex(cbor_hex))
+            >>> cbor_hex = a.to_cbor()
+            >>> print(Test.from_cbor(cbor_hex))
             Test(1, 2)
 
             For a CBORSerializable that has CBORSerializables as attributes, we will need to pass
@@ -145,28 +163,15 @@ class CBORSerializable:
             >>> b = TestParent(3, a)
             >>> b
             TestParent(3, Test(1, 2))
-            >>> cbor_hex = b.to_cborhex()
+            >>> cbor_hex = b.to_cbor()
             >>> cbor_hex
             '8203820102'
-            >>> print(TestParent.from_cborhex(cbor_hex))
+            >>> print(TestParent.from_cbor(cbor_hex))
             TestParent(3, Test(1, 2))
 
         """
-        value = loads(bytes.fromhex(payload))
-        return cls.deserialize(value)
-
-    def to_cbor(self) -> bytes:
-        """Same as :meth:`to_cborhex`, except the output type is bytes."""
-        def _default_encoder(encoder, value):
-            assert isinstance(value, CBORSerializable), f"Type of input value is not CBORSerializable, " \
-                                                        f"got {type(value)} instead."
-            encoder.encode(value.serialize())
-
-        return dumps(self, default=_default_encoder)
-
-    @classmethod
-    def from_cbor(cls, payload: bytes) -> CBORSerializable:
-        """Same as :meth:`from_cborhex`, except the input type is bytes."""
+        if type(payload) == str:
+            payload = bytes.fromhex(payload)
         value = loads(payload)
         return cls.deserialize(value)
 
@@ -191,10 +196,10 @@ class ArrayCBORSerializable(CBORSerializable):
         >>> t = Test2(c="c", test1=Test1(a="a"))
         >>> t
         Test2(c='c', test1=Test1(a='a', b=None))
-        >>> cbor_hex = t.to_cborhex()
+        >>> cbor_hex = t.to_cbor()
         >>> cbor_hex
         '826163826161f6'
-        >>> Test2.from_cborhex(cbor_hex) # doctest: +SKIP
+        >>> Test2.from_cbor(cbor_hex) # doctest: +SKIP
         Test2(c='c', test1=Test1(a='a', b=None))
 
         A value of `None` will be encoded as nil (#7.22) in cbor. This will become a problem if the field is meant to be
@@ -221,10 +226,10 @@ class ArrayCBORSerializable(CBORSerializable):
         ['c', Test1(a='a', b=None)]
         >>> t.test1.serialize() # Notice 'b' is not included in the serialized object.
         ['a']
-        >>> cbor_hex = t.to_cborhex()
+        >>> cbor_hex = t.to_cbor()
         >>> cbor_hex
         '826163816161'
-        >>> Test2.from_cborhex(cbor_hex) # doctest: +SKIP
+        >>> Test2.from_cbor(cbor_hex) # doctest: +SKIP
         Test2(c='c', test1=Test1(a='a', b=None))
     """
 
@@ -277,10 +282,10 @@ class MapCBORSerializable(CBORSerializable):
         >>> t = Test2(test1=Test1(a="a"))
         >>> t
         Test2(c=None, test1=Test1(a='a', b=''))
-        >>> cbor_hex = t.to_cborhex()
+        >>> cbor_hex = t.to_cbor()
         >>> cbor_hex
         'a26163f6657465737431a261616161616260'
-        >>> Test2.from_cborhex(cbor_hex) # doctest: +SKIP
+        >>> Test2.from_cbor(cbor_hex) # doctest: +SKIP
         Test2(c=None, test1=Test1(a='a', b=''))
 
         In the example above, all keys in the map share the same name as their corresponding attributes. However,
@@ -303,10 +308,10 @@ class MapCBORSerializable(CBORSerializable):
         {'1': Test1(a='a', b='')}
         >>> t.test1.serialize() # Keys are now '0' and '1' instead of 'c' and 'test1'.
         {'0': 'a', '1': ''}
-        >>> cbor_hex = t.to_cborhex()
+        >>> cbor_hex = t.to_cbor()
         >>> cbor_hex
         'a16131a261306161613160'
-        >>> Test2.from_cborhex(cbor_hex) # doctest: +SKIP
+        >>> Test2.from_cbor(cbor_hex) # doctest: +SKIP
         Test2(c=None, test1=Test1(a='a', b=''))
     """
 
@@ -349,7 +354,7 @@ class MapCBORSerializable(CBORSerializable):
 
 
 def homogenous_list_hook(cls: type(CBORSerializable)) -> Callable[[List[Any]], List[CBORSerializable]]:
-    """A helper function that generates an object hook for a list of CBORSerializables who share the same type.
+    """A helper function that generates an object hook for a list that contains only CBORSerializables.
 
     Args:
         cls: Type of CBORSerializable

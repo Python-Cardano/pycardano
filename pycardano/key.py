@@ -52,7 +52,7 @@ class Key(CBORSerializable):
         return json.dumps({
             "type": self.key_type,
             "description": self.description,
-            "cborHex": self.to_cborhex()
+            "cborHex": self.to_cbor()
         })
 
     @classmethod
@@ -76,7 +76,7 @@ class Key(CBORSerializable):
         if validate_type and obj["type"] != cls.KEY_TYPE:
             raise InvalidKeyTypeException(f"Expect key type: {cls.KEY_TYPE}, got {obj['type']} instead.")
 
-        return cls(cls.from_cborhex(obj["cborHex"]).payload,
+        return cls(cls.from_cbor(obj["cborHex"]).payload,
                    key_type=obj["type"],
                    description=obj["description"])
 

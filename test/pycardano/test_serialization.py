@@ -15,7 +15,7 @@ def test_array_cbor_serializable():
         test1: Test1
 
     t = Test2(c="c", test1=Test1(a="a"))
-    assert t.to_cborhex() == "826163826161f6"
+    assert t.to_cbor() == "826163826161f6"
     check_two_way_cbor(t)
 
 
@@ -32,7 +32,7 @@ def test_array_cbor_serializable_optional_field():
 
     t = Test2(c="c", test1=Test1(a="a"))
     assert t.test1.serialize() == ["a"]
-    assert t.to_cborhex() == "826163816161"
+    assert t.to_cbor() == "826163816161"
     check_two_way_cbor(t)
 
 
@@ -48,7 +48,7 @@ def test_map_cbor_serializable():
         test1: Test1 = Test1()
 
     t = Test2(test1=Test1(a="a"))
-    assert t.to_cborhex() == "a26163f6657465737431a261616161616260"
+    assert t.to_cbor() == "a26163f6657465737431a261616161616260"
     check_two_way_cbor(t)
 
 
@@ -66,6 +66,6 @@ def test_map_cbor_serializable_custom_keys():
     t = Test2(test1=Test1(a="a"))
     assert t.serialize() == {'1': Test1(a='a', b='')}
     assert t.test1.serialize() == {'0': 'a', '1': ''}
-    assert t.to_cborhex() == "a16131a261306161613160"
+    assert t.to_cbor() == "a16131a261306161613160"
     check_two_way_cbor(t)
 
