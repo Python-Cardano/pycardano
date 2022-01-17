@@ -2,66 +2,124 @@ from __future__ import annotations
 
 import re
 from collections import defaultdict, OrderedDict
-from dataclasses import fields
+from dataclasses import dataclass, fields, field as dataclass_field
 from datetime import datetime
 from decimal import Decimal
 from inspect import isclass
-from typing import Any, Callable, List, Union, get_type_hints
+from pprint import pformat
+from typing import Any, Callable, List, TypeVar, Type, Union, get_args, get_origin, get_type_hints
 
 from cbor2 import dumps, loads
 from cbor2.types import undefined, CBORSimpleValue, CBORTag
+from typeguard import check_type, typechecked
 
 from pycardano.exception import DeserializeException, InvalidArgumentException, SerializeException
 
-CBOR_PRIMITIVE = (bytes, bytearray, str, int, float, Decimal,
-                  bool, type(None), tuple, list, dict, defaultdict,
-                  OrderedDict, type(undefined), datetime,
-                  type(re.compile("")), CBORSimpleValue, CBORTag,
-                  set, frozenset)
+Primitive = TypeVar("Primitive", bytes, bytearray, str, int, float, Decimal,
+                    bool, type(None), tuple, list, dict, defaultdict,
+                    OrderedDict, type(undefined), datetime,
+                    re.Pattern, CBORSimpleValue, CBORTag,
+                    set, frozenset)
 """
 A list of types that could be encoded by
 `Cbor2 encoder <https://cbor2.readthedocs.io/en/latest/modules/encoder.html>`_ directly.
 """
 
+CBORBase = TypeVar("CBORBase", bound="CBORSerializable")
 
+
+@typechecked
 class CBORSerializable:
     """
     CBORSerializable standardizes the interfaces a class should implement in order for it to be serialized to and
     deserialized from CBOR.
 
-    Two required interfaces to implement are :meth:`serialize` and :meth:`deserialize`.
-    :meth:`serialize` converts an object to a CBOR primitive type, which could be encoded by
-    CBOR library. :meth:`deserialize` restores an object from a CBOR primitive type.
+    Two required interfaces to implement are :meth:`to_primitive` and :meth:`from_primitive`.
+    :meth:`to_primitive` converts an object to a CBOR primitive type (see :const:`Primitive`), which could be then
+    encoded by CBOR library. :meth:`from_primitive` restores an object from a CBOR primitive type.
 
     To convert a CBORSerializable to CBOR, use :meth:`to_cbor`.
     To restore a CBORSerializable from CBOR, use :meth:`from_cbor`.
+
+    .. note::
+        :meth:`to_primitive` needs to return a pure CBOR primitive type, meaning that the returned value and all its
+        child elements have to be CBOR primitives, which could mean a good amount of work. An alternative but simpler
+        approach is to implement :meth:`to_shallow_primitive` instead. `to_shallow_primitive` allows the returned object
+        to be either CBOR :const:`Primitive` or a :class:`CBORSerializable`, as long as the :class:`CBORSerializable`
+        does not refer to itself, which could cause infinite loops.
     """
 
-    def serialize(self) -> Union[CBOR_PRIMITIVE]:
-        """Serialize the instance to a CBOR primitive type.
+    def to_shallow_primitive(self) -> Primitive:
+        """
+        Convert the instance to a CBOR primitive. If the primitive is a container, e.g. list, dict, the type of
+        its elements could be either a Primitive or a CBORSerializable.
 
         Returns:
-            Union[CBOR_PRIMITIVE]: A CBOR primitive type.
+            :const:`Primitive`: A CBOR primitive.
 
         Raises:
-            :class:`pycardano.exception.SerializeException`: When the object could not be serialized.
+            :class:`pycardano.exception.SerializeException`: When the object could not be converted to CBOR primitive
+                types.
         """
-        raise NotImplementedError(f"'serialize()' is not implemented by {self.__class__}.")
+        raise NotImplementedError(f"'to_shallow_primitive()' is not implemented by {self.__class__}.")
+
+    def to_primitive(self) -> Primitive:
+        """Convert the instance and its elements to CBOR primitives recursively.
+
+        Returns:
+            :const:`Primitive`: A CBOR primitive.
+
+        Raises:
+            :class:`pycardano.exception.SerializeException`: When the object or its elements could not be converted to
+                CBOR primitive types.
+        """
+        result = self.to_shallow_primitive()
+        container_types = (dict, OrderedDict, defaultdict, set, frozenset, tuple, list)
+
+        def _helper(value):
+            if isinstance(value, CBORSerializable):
+                return value.to_primitive()
+            elif isinstance(value, container_types):
+                return _dfs(value)
+            else:
+                return value
+
+        def _dfs(value):
+            if isinstance(value, (dict, OrderedDict, defaultdict)):
+                new_result = type(value)()
+                if hasattr(value, "default_factory"):
+                    new_result.setdefault(value.default_factory)
+                for k, v in value.items():
+                    new_result[_helper(k)] = _helper(v)
+                return new_result
+            elif isinstance(value, set):
+                return {_helper(v) for v in value}
+            elif isinstance(value, frozenset):
+                return frozenset({_helper(v) for v in value})
+            elif isinstance(value, tuple):
+                return tuple([_helper(k) for k in value])
+            elif isinstance(value, list):
+                return [_helper(k) for k in value]
+            else:
+                return value
+
+        return _dfs(result)
 
     @classmethod
-    def deserialize(cls, value: Union[CBOR_PRIMITIVE]) -> CBORSerializable:
-        """Turn a CBOR primitive type to its original class type.
+    def from_primitive(cls: Type[CBORBase], value: Primitive) -> CBORBase:
+        """Turn a CBOR primitive to its original class type.
 
         Args:
-            value (Union[CBOR_PRIMITIVE]): A CBOR primitive type.
+            cls (Type[CBORBase]): The original class type.
+            value (:const:`Primitive`): A CBOR primitive.
 
         Returns:
-            CBORSerializable: A CBOR serializable object.
+            CBORBase: A CBOR serializable object.
 
         Raises:
-            :class:`pycardano.exception.DeserializeException`: When the object could not be deserialized.
+            :class:`pycardano.exception.DeserializeException`: When the object could not be restored from primitives.
         """
-        raise NotImplementedError(f"'deserialize()' is not implemented by {cls.__name__}.")
+        raise NotImplementedError(f"'from_primitive()' is not implemented by {cls.__name__}.")
 
     def to_cbor(self, encoding: str = "hex") -> Union[str, bytes]:
         """Encode a Python object into CBOR format.
@@ -78,11 +136,11 @@ class CBORSerializable:
             ...         self.number1 = number1
             ...         self.number2 = number2
             ...
-            ...     def serialize(value):
+            ...     def to_primitive(value):
             ...         return [value.number1, value.number2]
             ...
             ...     @classmethod
-            ...     def deserialize(cls, value):
+            ...     def from_primitive(cls, value):
             ...         return cls(value[0], value[1])
             ...
             ...     def __repr__(self):
@@ -100,7 +158,7 @@ class CBORSerializable:
         def _default_encoder(encoder, value):
             assert isinstance(value, CBORSerializable), f"Type of input value is not CBORSerializable, " \
                                                         f"got {type(value)} instead."
-            encoder.encode(value.serialize())
+            encoder.encode(value.to_primitive())
 
         cbor = dumps(self, default=_default_encoder)
         if encoding == "hex":
@@ -127,11 +185,11 @@ class CBORSerializable:
             ...         self.number1 = number1
             ...         self.number2 = number2
             ...
-            ...     def serialize(value):
+            ...     def to_primitive(value):
             ...         return [value.number1, value.number2]
             ...
             ...     @classmethod
-            ...     def deserialize(cls, value):
+            ...     def from_primitive(cls, value):
             ...         return cls(value[0], value[1])
             ...
             ...     def __repr__(self):
@@ -142,19 +200,20 @@ class CBORSerializable:
             Test(1, 2)
 
             For a CBORSerializable that has CBORSerializables as attributes, we will need to pass
-            each child value to the :meth:`deserialized` method of its corresponding CBORSerializable. Example:
+            each child value to the :meth:`from_primitive` method of its corresponding CBORSerializable. Example:
 
             >>> class TestParent(CBORSerializable):
             ...     def __init__(self, number1, test):
             ...         self.number1 = number1
             ...         self.test = test
             ...
-            ...     def serialize(value):
+            ...     def to_shallow_primitive(value): # Implementing `to_shallow_primitive` simplifies the work.
             ...         return [value.number1, value.test]
             ...
             ...     @classmethod
-            ...     def deserialize(cls, value):
-            ...         test = Test.deserialize(value[1]) # Restore test by passing `value[1]` to `Test.deserialize`
+            ...     def from_primitive(cls, value):
+            ...         test = Test.from_primitive(value[1]) # Restore test by passing `value[1]` to
+            ...                                              # `Test.from_primitive`
             ...         return cls(value[0], test)
             ...
             ...     def __repr__(self):
@@ -173,17 +232,53 @@ class CBORSerializable:
         if type(payload) == str:
             payload = bytes.fromhex(payload)
         value = loads(payload)
-        return cls.deserialize(value)
+        return cls.from_primitive(value)
+
+    def __repr__(self):
+        return pformat(vars(self))
 
 
+def _restore_dataclass_field(f: dataclass_field, v: Primitive) -> \
+        Union[Primitive, CBORSerializable]:
+    """Try to restore a value back to its original type based on information given in field.
+
+    Args:
+        f (dataclass_field): A data class field.
+        v (:const:`Primitive`): A CBOR primitive.
+
+    Returns:
+        Union[:const:`Primitive`, CBORSerializable]: A CBOR primitive or a CBORSerializable.
+    """
+    if "object_hook" in f.metadata:
+        return f.metadata["object_hook"](v)
+    elif isclass(f.type) and issubclass(f.type, CBORSerializable):
+        return f.type.from_primitive(v)
+    elif get_origin(f.type) is Union:
+        for t in get_args(f.type):
+            if isclass(t) and issubclass(t, CBORSerializable):
+                return t.from_primitive(v)
+            elif isinstance(v, Primitive.__constraints__):
+                return v
+        raise DeserializeException(f"Cannot deserialize object: \n{v}\n in any valid type from {get_args(f.type)}.")
+    return v
+
+
+ArrayBase = TypeVar("ArrayBase", bound="ArrayCBORSerializable")
+"""A generic type that is bounded by ArrayCBORSerializable."""
+
+
+@dataclass(repr=False)
 class ArrayCBORSerializable(CBORSerializable):
     """
     A base class that can serialize its child `dataclass <https://docs.python.org/3/library/dataclasses.html>`_
     into a `CBOR array <https://datatracker.ietf.org/doc/html/rfc8610#section-3.4>`_.
 
-    Examples
+    The class is useful when the position of each item in a list have its own semantic meaning.
+
+    Examples:
 
         Basic usages:
+
         >>> from dataclasses import dataclass
         >>> @dataclass
         ... class Test1(ArrayCBORSerializable):
@@ -206,7 +301,8 @@ class ArrayCBORSerializable(CBORSerializable):
         optional. To exclude an optional attribute from cbor, we can use `field` constructor with a metadata field
         "optional" set to True and default value set to `None`.
 
-        **Note:** In ArrayCBORSerializable, all non-optional fields have to be declared before any optional field.
+        .. Note::
+            In ArrayCBORSerializable, all non-optional fields have to be declared before any optional field.
 
         Example:
 
@@ -222,10 +318,8 @@ class ArrayCBORSerializable(CBORSerializable):
         >>> t = Test2(c="c", test1=Test1(a="a"))
         >>> t
         Test2(c='c', test1=Test1(a='a', b=None))
-        >>> t.serialize()
-        ['c', Test1(a='a', b=None)]
-        >>> t.test1.serialize() # Notice 'b' is not included in the serialized object.
-        ['a']
+        >>> t.to_primitive() # Notice below that attribute "b" is not included in converted primitive.
+        ['c', ['a']]
         >>> cbor_hex = t.to_cbor()
         >>> cbor_hex
         '826163816161'
@@ -233,38 +327,65 @@ class ArrayCBORSerializable(CBORSerializable):
         Test2(c='c', test1=Test1(a='a', b=None))
     """
 
-    def serialize(self) -> Union[CBOR_PRIMITIVE]:
-        serialized = []
+    def to_shallow_primitive(self) -> Primitive:
+        """
+        Returns:
+            :const:`Primitive`: A CBOR primitive.
+
+        Raises:
+            :class:`pycardano.exception.SerializeException`: When the object could not be converted to CBOR primitive
+                types.
+        """
+        primitives = []
         for field in fields(self):
             val = getattr(self, field.name)
             if val is None and field.metadata.get("optional"):
                 continue
-            serialized.append(val)
-        return serialized
+            primitives.append(val)
+        return primitives
 
     @classmethod
-    def deserialize(cls, values: Union[CBOR_PRIMITIVE]) -> CBORSerializable:
+    def from_primitive(cls: Type[ArrayBase], values: List[Primitive]) -> ArrayBase:
+        """Restore a primitive value to its original class type.
+
+        Args:
+            cls (Type[ArrayBase]): The original class type.
+            values (List[Primitive]): A list whose elements are CBOR primitives.
+
+        Returns:
+            :const:`ArrayBase`: Restored object.
+
+        Raises:
+            :class:`pycardano.exception.DeserializeException`: When the object could not be restored from primitives.
+        """
         all_fields = fields(cls)
         if type(values) != list:
             raise DeserializeException(f"Expect input value to be a list, got a {type(values)} instead.")
 
-        wrapped_vals = []
+        restored_vals = []
         type_hints = get_type_hints(cls)
         for field, v in zip(all_fields, values):
             if not isclass(field.type):
                 field.type = type_hints[field.name]
-            if "object_hook" in field.metadata:
-                v = field.metadata["object_hook"](v)
-            elif isclass(field.type) and issubclass(field.type, CBORSerializable):
-                v = field.type.deserialize(v)
-            wrapped_vals.append(v)
-        return cls(*wrapped_vals)
+            v = _restore_dataclass_field(field, v)
+            restored_vals.append(v)
+        return cls(*restored_vals)
+
+    def __repr__(self):
+        return super().__repr__()
 
 
+MapBase = TypeVar("MapBase", bound="MapCBORSerializable")
+"""A generic type that is bounded by MapCBORSerializable."""
+
+
+@dataclass(repr=False)
 class MapCBORSerializable(CBORSerializable):
     """
     A base class that can serialize its child `dataclass <https://docs.python.org/3/library/dataclasses.html>`_
     into a `CBOR Map <https://datatracker.ietf.org/doc/html/rfc8610#section-3.5.1>`_.
+
+    The class is useful when each key in a map have its own semantic meaning.
 
     Examples:
 
@@ -282,6 +403,8 @@ class MapCBORSerializable(CBORSerializable):
         >>> t = Test2(test1=Test1(a="a"))
         >>> t
         Test2(c=None, test1=Test1(a='a', b=''))
+        >>> t.to_primitive()
+        {'c': None, 'test1': {'a': 'a', 'b': ''}}
         >>> cbor_hex = t.to_cbor()
         >>> cbor_hex
         'a26163f6657465737431a261616161616260'
@@ -289,7 +412,7 @@ class MapCBORSerializable(CBORSerializable):
         Test2(c=None, test1=Test1(a='a', b=''))
 
         In the example above, all keys in the map share the same name as their corresponding attributes. However,
-        sometimes we want to use different keys when serialize the attributes, this could be achieved by adding a
+        sometimes we want to use different keys when serializing some attributes, this could be achieved by adding a
         "key" value to the metadata of a field. Example:
 
         >>> from dataclasses import dataclass, field
@@ -304,10 +427,8 @@ class MapCBORSerializable(CBORSerializable):
         >>> t = Test2(test1=Test1(a="a"))
         >>> t
         Test2(c=None, test1=Test1(a='a', b=''))
-        >>> t.serialize() # Notice the key is '1' now. Also, '0' is missing because it is marked as optional.
-        {'1': Test1(a='a', b='')}
-        >>> t.test1.serialize() # Keys are now '0' and '1' instead of 'c' and 'test1'.
-        {'0': 'a', '1': ''}
+        >>> t.to_primitive()
+        {'1': {'0': 'a', '1': ''}}
         >>> cbor_hex = t.to_cbor()
         >>> cbor_hex
         'a16131a261306161613160'
@@ -315,23 +436,35 @@ class MapCBORSerializable(CBORSerializable):
         Test2(c=None, test1=Test1(a='a', b=''))
     """
 
-    def serialize(self) -> Union[CBOR_PRIMITIVE]:
-        serialized = {}
+    def to_shallow_primitive(self) -> Primitive:
+        primitives = {}
         for field in fields(self):
             if "key" in field.metadata:
                 key = field.metadata["key"]
             else:
                 key = field.name
-            if key in serialized:
+            if key in primitives:
                 raise SerializeException(f"Key: '{key}' already exists in the map.")
             val = getattr(self, field.name)
             if val is None and field.metadata.get("optional"):
                 continue
-            serialized[key] = val
-        return serialized
+            primitives[key] = val
+        return primitives
 
     @classmethod
-    def deserialize(cls, values: Union[CBOR_PRIMITIVE]) -> CBORSerializable:
+    def from_primitive(cls: Type[MapBase], values: Primitive) -> MapBase:
+        """Restore a primitive value to its original class type.
+
+        Args:
+            cls (Type[MapBase]): The original class type.
+            value (:const:`Primitive`): A CBOR primitive.
+
+        Returns:
+            :const:`MapBase`: Restored object.
+
+        Raises:
+            :class:`pycardano.exception.DeserializeException`: When the object could not be restored from primitives.
+        """
         all_fields = {f.metadata.get("key", f.name): f for f in fields(cls)}
         if type(values) != dict:
             raise DeserializeException(f"Expect input value to be a dict, got a {type(values)} instead.")
@@ -345,22 +478,86 @@ class MapCBORSerializable(CBORSerializable):
             v = values[key]
             if not isclass(field.type):
                 field.type = type_hints[field.name]
-            if "object_hook" in field.metadata:
-                v = field.metadata["object_hook"](v)
-            elif isclass(field.type) and issubclass(field.type, CBORSerializable):
-                v = field.type.deserialize(v)
+            v = _restore_dataclass_field(field, v)
             kwargs[field.name] = v
         return cls(**kwargs)
 
+    def __repr__(self):
+        return super().__repr__()
 
-def homogenous_list_hook(cls: type(CBORSerializable)) -> Callable[[List[Any]], List[CBORSerializable]]:
-    """A helper function that generates an object hook for a list that contains only CBORSerializables.
+
+DictBase = TypeVar("DictBase", bound="DictCBORSerializable")
+"""A generic type that is bounded by DictCBORSerializable."""
+
+
+class DictCBORSerializable(dict, CBORSerializable):
+    """A dictionary class where all keys share the same type and all values share the same type.
+
+    Examples:
+
+        >>> @dataclass
+        ... class Test1(ArrayCBORSerializable):
+        ...     a: int
+        ...     b: str
+        >>>
+        >>> class Test2(DictCBORSerializable):
+        ...     KEY_TYPE = str
+        ...     VALUE_TYPE = Test1
+        >>>
+        >>> t = Test2()
+        >>> t["x"] = Test1(a=1, b="x")
+        >>> t["y"] = Test1(a=2, b="y")
+        >>> primitives = t.to_primitive()
+        >>> deserialized = Test2.from_primitive(primitives)
+        >>> assert t == deserialized
+        >>> t[1] = 2
+        Traceback (most recent call last):
+         ...
+        TypeError: type of key must be str; got int instead
+    """
+
+    KEY_TYPE = Any
+    VALUE_TYPE = Any
+
+    def __setitem__(self, key: KEY_TYPE, value: VALUE_TYPE):
+        check_type("key", key, self.KEY_TYPE)
+        check_type("value", value, self.VALUE_TYPE)
+        super().__setitem__(key, value)
+
+    def to_shallow_primitive(self) -> dict:
+        return dict(self)
+
+    @classmethod
+    def from_primitive(cls: Type[DictBase], value: dict) -> DictBase:
+        """Restore a primitive value to its original class type.
+
+        Args:
+            cls (Type[DictBase]): The original class type.
+            value (:const:`Primitive`): A CBOR primitive.
+
+        Returns:
+            :const:`DictBase`: Restored object.
+
+        Raises:
+            :class:`pycardano.exception.DeserializeException`: When the object could not be restored from primitives.
+        """
+        restored = cls()
+        for k, v in value.items():
+            k = cls.KEY_TYPE.from_primitive(k) if issubclass(cls.KEY_TYPE, CBORSerializable) else k
+            v = cls.VALUE_TYPE.from_primitive(v) if issubclass(cls.VALUE_TYPE, CBORSerializable) else v
+            restored[k] = v
+        return restored
+
+
+@typechecked
+def list_hook(cls: Type[CBORBase]) -> Callable[[List[Primitive]], List[CBORBase]]:
+    """A factory that generates a Callable which turns a list of Primitive to a list of CBORSerializables.
 
     Args:
-        cls: Type of CBORSerializable
+        cls (CBORBase): The type of CBORSerializable the list will be converted to.
 
     Returns:
-        Callable[[List[Any]], List[CBORSerializable]]: An object hook (Callable) that deserializes each item
-        into a CBORSerializable.
+        Callable[[List[Primitive]], List[CBORBase]]: An Callable that restores a list of Primitive to a list of
+            CBORSerializables.
     """
-    return lambda vals: [cls.deserialize(v) for v in vals]
+    return lambda vals: [cls.from_primitive(v) for v in vals]

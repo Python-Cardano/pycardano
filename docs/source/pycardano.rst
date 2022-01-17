@@ -6,13 +6,6 @@ pycardano package
    :undoc-members:
    :show-inheritance:
 
-Subpackages
------------
-
-.. toctree::
-   :maxdepth: 4
-
-   pycardano.crypto
 
 Submodules
 ----------

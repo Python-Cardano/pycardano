@@ -12,9 +12,9 @@ class Network(CBORSerializable, Enum):
     TESTNET = 0
     MAINNET = 1
 
-    def serialize(self) -> int:
+    def to_primitive(self) -> int:
         return self.value
 
     @classmethod
-    def deserialize(cls, value: int) -> Network:
+    def from_primitive(cls, value: int) -> Network:
         return cls(value)

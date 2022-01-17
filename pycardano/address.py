@@ -144,11 +144,11 @@ class PointerAddress(CBORSerializable):
 
         return cls(*ints)
 
-    def serialize(self) -> bytes:
+    def to_primitive(self) -> bytes:
         return self.encode()
 
     @classmethod
-    def deserialize(cls, value: bytes) -> PointerAddress:
+    def from_primitive(cls, value: bytes) -> PointerAddress:
         return cls.decode(value)
 
     def __eq__(self, other):
@@ -303,13 +303,13 @@ class Address(CBORSerializable):
             >>> assert addr == Address(khash)
         """
         decoded = decode(data)
-        return cls.deserialize(bytes(decoded))
+        return cls.from_primitive(bytes(decoded))
 
-    def serialize(self) -> bytes:
+    def to_primitive(self) -> bytes:
         return bytes(self)
 
     @classmethod
-    def deserialize(cls, value: bytes) -> Address:
+    def from_primitive(cls, value: bytes) -> Address:
         header = value[0]
         payload = value[1:]
         addr_type = AddressType((header & 0xF0) >> 4)
@@ -346,10 +346,4 @@ class Address(CBORSerializable):
                 other.network == self.network
 
     def __repr__(self):
-        return f"Shelley Address\n" \
-               f"   type: {self.address_type.name}\n" \
-               f"   payment_part: {self.payment_part}\n" \
-               f"   staking_part:{self.staking_part}\n" \
-               f"   network: {self.network.name}\n" \
-               f"   header: {self.header_byte}\n" \
-               f"   human-readable prefix: {self.hrp}\n"
+        return f"{self.encode()}"

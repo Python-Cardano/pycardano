@@ -8,60 +8,67 @@ AUXILIARY_DATA_HASH_SIZE = 32
 SIGNATURE_SIZE = 32
 
 
-class _FixedSizeBytes(CBORSerializable):
-    """A wrapped class of bytes with fixed size.
+class ConstrainedBytes(CBORSerializable):
+    """A wrapped class of bytes with constrained size.
 
     Args:
         payload (bytes): Hash in bytes.
     """
 
-    SIZE = ADDR_KEYHASH_SIZE
+    __slots__ = "_payload"
+
+    MAX_SIZE = 32
+    MIN_SIZE = 0
 
     def __init__(self, payload: bytes):
-        assert len(payload) == self.SIZE, f"Invalid byte size: {len(payload)}, expecting size: {self.SIZE}"
+        assert self.MIN_SIZE <= len(payload) <= self.MAX_SIZE, \
+            f"Invalid byte size: {len(payload)}, expected size range: [{self.MIN_SIZE}, {self.MAX_SIZE}]"
         self._payload = payload
 
     def __bytes__(self):
         return self.payload
 
+    def __hash__(self):
+        return hash(self.payload)
+
     @property
     def payload(self) -> bytes:
         return self._payload
 
-    def serialize(self) -> bytes:
+    def to_primitive(self) -> bytes:
         return self.payload
 
     @classmethod
-    def deserialize(cls, value: bytes) -> CBORSerializable:
+    def from_primitive(cls, value: bytes) -> CBORSerializable:
         return cls(value)
 
     def __eq__(self, other):
-        if isinstance(other, _FixedSizeBytes):
+        if isinstance(other, ConstrainedBytes):
             return self.payload == other.payload
         else:
             return False
 
 
-class AddrKeyHash(_FixedSizeBytes):
+class AddrKeyHash(ConstrainedBytes):
     """Hash of a Cardano verification key."""
-    SIZE = ADDR_KEYHASH_SIZE
+    MAX_SIZE = MIN_SIZE = ADDR_KEYHASH_SIZE
 
 
-class ScriptHash(_FixedSizeBytes):
+class ScriptHash(ConstrainedBytes):
     """Hash of a policy/plutus script."""
-    SIZE = SCRIPT_HASH_SIZE
+    MAX_SIZE = MIN_SIZE = SCRIPT_HASH_SIZE
 
 
-class TransactionHash(_FixedSizeBytes):
+class TransactionHash(ConstrainedBytes):
     """Hash of a transaction."""
-    SIZE = TRANSACTION_HASH_SIZE
+    MAX_SIZE = MIN_SIZE = TRANSACTION_HASH_SIZE
 
 
-class DatumHash(_FixedSizeBytes):
+class DatumHash(ConstrainedBytes):
     """Hash of a datum"""
-    SIZE = DATUM_HASH_SIZE
+    MAX_SIZE = MIN_SIZE = DATUM_HASH_SIZE
 
 
-class AuxiliaryDataHash(_FixedSizeBytes):
+class AuxiliaryDataHash(ConstrainedBytes):
     """Hash of auxiliary data"""
-    SIZE = AUXILIARY_DATA_HASH_SIZE
+    MAX_SIZE = MIN_SIZE = AUXILIARY_DATA_HASH_SIZE

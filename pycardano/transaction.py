@@ -1,46 +1,75 @@
-from dataclasses import dataclass, field
-from typing import List, Any, Union
+from __future__ import annotations
 
-from nacl.hash import blake2b
+from dataclasses import dataclass, field
+from typing import Any, List, Union
+
 from nacl.encoding import RawEncoder
+from nacl.hash import blake2b
 
 from pycardano.address import Address
-from pycardano.hash import TransactionHash, DatumHash, AuxiliaryDataHash, ScriptHash, AddrKeyHash, TRANSACTION_HASH_SIZE
+from pycardano.hash import (TransactionHash, DatumHash, AuxiliaryDataHash, ScriptHash, AddrKeyHash,
+                            TRANSACTION_HASH_SIZE, ConstrainedBytes)
 from pycardano.network import Network
-from pycardano.serialization import ArrayCBORSerializable, MapCBORSerializable, homogenous_list_hook
+from pycardano.serialization import (ArrayCBORSerializable, DictCBORSerializable,
+                                     MapCBORSerializable, list_hook)
 from pycardano.witness import TransactionWitnessSet
 
 
-@dataclass
+@dataclass(repr=False)
 class TransactionInput(ArrayCBORSerializable):
-
     transaction_id: TransactionHash
 
     index: int
 
 
-@dataclass
-class TransactionOutput(ArrayCBORSerializable):
+class AssetName(ConstrainedBytes):
+    MAX_SIZE = 32
 
+    def __repr__(self):
+        return self.payload.hex()
+
+
+class Asset(DictCBORSerializable):
+    KEY_TYPE = AssetName
+
+    VALUE_TYPE = int
+
+
+class MultiAsset(DictCBORSerializable):
+    KEY_TYPE = ScriptHash
+
+    VALUE_TYPE = Asset
+
+
+@dataclass(repr=False)
+class FullMultiAsset(ArrayCBORSerializable):
+    coin: int
+    """Amount of ADA"""
+
+    multi_asset: MultiAsset
+    """Multi-assets associated with the UTxO"""
+
+
+@dataclass(repr=False)
+class TransactionOutput(ArrayCBORSerializable):
     address: Address
 
-    amount: int
+    amount: Union[int, FullMultiAsset]
 
     datum_hash: DatumHash = field(default=None, metadata={"optional": True})
 
 
-@dataclass
+@dataclass(repr=False)
 class TransactionBody(MapCBORSerializable):
-
     inputs: List[TransactionInput] = field(
         default_factory=list,
         metadata={"key": 0,
-                  "object_hook": homogenous_list_hook(TransactionInput)})
+                  "object_hook": list_hook(TransactionInput)})
 
     outputs: List[TransactionOutput] = field(
         default_factory=list,
         metadata={"key": 1,
-                  "object_hook": homogenous_list_hook(TransactionOutput)})
+                  "object_hook": list_hook(TransactionOutput)})
 
     fee: int = field(default=0, metadata={"key": 2})
 
@@ -59,8 +88,7 @@ class TransactionBody(MapCBORSerializable):
 
     validity_start: int = field(default=None, metadata={"key": 8, "optional": True})
 
-    # TODO: Add multi-asset minting support
-    mint: Any = field(default=None, metadata={"key": 9, "optional": True})
+    mint: MultiAsset = field(default=None, metadata={"key": 9, "optional": True})
 
     script_data_hash: ScriptHash = field(default=None, metadata={"key": 11, "optional": True})
 
@@ -68,13 +96,13 @@ class TransactionBody(MapCBORSerializable):
         default=None,
         metadata={"key": 13,
                   "optional": True,
-                  "object_hook": homogenous_list_hook(TransactionInput)})
+                  "object_hook": list_hook(TransactionInput)})
 
     required_signers: List[AddrKeyHash] = field(
         default=None,
         metadata={"key": 14,
                   "optional": True,
-                  "object_hook": homogenous_list_hook(AddrKeyHash)})
+                  "object_hook": list_hook(AddrKeyHash)})
 
     network_id: Network = field(default=None, metadata={"key": 15, "optional": True})
 
@@ -82,9 +110,8 @@ class TransactionBody(MapCBORSerializable):
         return blake2b(self.to_cbor(encoding="bytes"), TRANSACTION_HASH_SIZE, encoder=RawEncoder)
 
 
-@dataclass
+@dataclass(repr=False)
 class Transaction(ArrayCBORSerializable):
-
     transaction_body: TransactionBody
 
     transaction_witness_set: TransactionWitnessSet

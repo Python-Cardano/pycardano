@@ -2,22 +2,22 @@ from dataclasses import dataclass, field
 from typing import Any, List
 
 from pycardano.key import AddressKey
-from pycardano.serialization import ArrayCBORSerializable, MapCBORSerializable, homogenous_list_hook
+from pycardano.serialization import ArrayCBORSerializable, MapCBORSerializable, list_hook
 
 
-@dataclass
+@dataclass(repr=False)
 class VerificationKeyWitness(ArrayCBORSerializable):
     vkey: AddressKey
     signature: bytes
 
 
-@dataclass
+@dataclass(repr=False)
 class TransactionWitnessSet(MapCBORSerializable):
     vkey_witnesses: List[VerificationKeyWitness] = \
         field(default=None,
               metadata={"optional": True,
                         "key": 0,
-                        "object_hook": homogenous_list_hook(VerificationKeyWitness)})
+                        "object_hook": list_hook(VerificationKeyWitness)})
 
     # TODO: Add native script support
     native_scripts: List[Any] = field(default=None,

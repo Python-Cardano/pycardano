@@ -147,16 +147,16 @@ Go to the main page:
 
 ### Roadmap
 
-| Feature                  | Status    |
-|--------------------------|-----------|
-| Shelly address           | Supported |
-| Transaction builder      | Supported |
-| Transaction signing      | Supported |
-| Multi-asset minting      | Planned   |
-| Native script            | Planned   |
-| Plutus                   | Planned   |
-| Byron Address            | Planned   |
-| Reward withdraw          | Planned   |
-| HD Wallet                |           |
-| Staking certificates     |           |
-| Protocol proposal update |           |
+| Feature                  | Status |
+|--------------------------|--------|
+| Shelly address           | - [x]  |
+| Transaction builder      | - [x]  |
+| Transaction signing      | - [x]  |
+| Multi-asset              | - [x]  |
+| Native script            |        |
+| Plutus                   |        |
+| Byron Address            |        |
+| Reward withdraw          |        |
+| HD Wallet                |        |
+| Staking certificates     |        |
+| Protocol proposal update |        |

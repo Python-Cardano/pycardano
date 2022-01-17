@@ -34,11 +34,11 @@ class Key(CBORSerializable):
     def description(self) -> str:
         return self._description
 
-    def serialize(self) -> bytes:
+    def to_primitive(self) -> bytes:
         return self.payload
 
     @classmethod
-    def deserialize(cls, value: bytes) -> Key:
+    def from_primitive(cls, value: bytes) -> Key:
         return cls(value)
 
     def to_json(self) -> str:
@@ -85,7 +85,7 @@ class Key(CBORSerializable):
             return False
         else:
             return self.payload == other.payload and self.description == other.description and \
-                self.key_type == other.key_type
+                   self.key_type == other.key_type
 
     def __repr__(self) -> str:
         return self.to_json()

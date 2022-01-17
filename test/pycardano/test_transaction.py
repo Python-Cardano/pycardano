@@ -1,8 +1,8 @@
 from pycardano.address import Address
-from pycardano.hash import TransactionHash
-from pycardano.key import PaymentKeyPair, PaymentSigningKey, AddressKey, blake2b
-from pycardano.transaction import (Transaction, TransactionBody, TransactionInput, TransactionOutput,
-                                                                TransactionWitnessSet)
+from pycardano.hash import TransactionHash, SCRIPT_HASH_SIZE
+from pycardano.key import PaymentKeyPair, PaymentSigningKey, AddressKey
+from pycardano.transaction import (FullMultiAsset, Transaction, TransactionBody, TransactionInput, TransactionOutput,
+                                   TransactionWitnessSet)
 from pycardano.witness import VerificationKeyWitness
 
 from test.pycardano.util import check_two_way_cbor
@@ -40,9 +40,9 @@ def make_transaction_body():
 def test_transaction_body():
     tx_body = make_transaction_body()
     assert tx_body.to_cbor() == "a50081825820732bfd67e66be8e8288349fcaaa2294973ef6271cc189a239bb431275401b8e" \
-                                   "500018282581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f41b00" \
-                                   "0000174876e80082581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e" \
-                                   "5f41b000000ba43b4b7f7021a000288090d800e80"
+                                "500018282581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f41b00" \
+                                "0000174876e80082581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e" \
+                                "5f41b000000ba43b4b7f7021a000288090d800e80"
     check_two_way_cbor(tx_body)
 
 
@@ -61,3 +61,14 @@ def test_transaction():
     vk_witness = [VerificationKeyWitness(vk, signature)]
     signed_tx = Transaction(tx_body, TransactionWitnessSet(vkey_witnesses=vk_witness))
     check_two_way_cbor(signed_tx)
+
+
+def test_multi_asset():
+    serialized_full_multi_asset = [100,
+                                   {b"1" * SCRIPT_HASH_SIZE: {
+                                       b"TestToken1": 10000000,
+                                       b"TestToken2": 20000000
+                                   }}]
+    full_multi_asset = FullMultiAsset.from_primitive(serialized_full_multi_asset)
+    assert full_multi_asset.to_primitive() == serialized_full_multi_asset
+    check_two_way_cbor(full_multi_asset)
