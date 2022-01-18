@@ -145,18 +145,16 @@ Go to the main page:
 `open build/html/index.html` 
 
 
-### Roadmap
+### Feature support
 
-| Feature                  | Status |
-|--------------------------|--------|
-| Shelly address           | - [x]  |
-| Transaction builder      | - [x]  |
-| Transaction signing      | - [x]  |
-| Multi-asset              | - [x]  |
-| Native script            |        |
-| Plutus                   |        |
-| Byron Address            |        |
-| Reward withdraw          |        |
-| HD Wallet                |        |
-| Staking certificates     |        |
-| Protocol proposal update |        |
+- [x] Shelly address           
+- [x] Transaction builder      
+- [x] Transaction signing      
+- [x] Multi-asset              
+- [ ] Native script            
+- [ ] Plutus script                  
+- [ ] Byron Address            
+- [ ] Reward withdraw          
+- [ ] HD Wallet                
+- [ ] Staking certificates     
+- [ ] Protocol proposal update 
