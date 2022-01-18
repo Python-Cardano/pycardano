@@ -6,7 +6,7 @@ from pycardano import (Address, AddressKey, FullMultiAsset, PaymentKeyPair, Paym
 
 # Define a transaction input
 tx_id_hex = "732bfd67e66be8e8288349fcaaa2294973ef6271cc189a239bb431275401b8e5"
-tx_in = TransactionInput(TransactionId(bytes.fromhex(tx_id_hex)), 0)
+tx_in = TransactionInput.from_primitive([tx_id_hex, 0])
 
 # Define an output address
 addr = Address.decode("addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x")

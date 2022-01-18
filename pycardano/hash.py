@@ -1,3 +1,5 @@
+from typing import Union
+
 from pycardano.serialization import CBORSerializable
 
 ADDR_KEYHASH_SIZE = 28
@@ -39,7 +41,9 @@ class ConstrainedBytes(CBORSerializable):
         return self.payload
 
     @classmethod
-    def from_primitive(cls, value: bytes) -> CBORSerializable:
+    def from_primitive(cls, value: Union[bytes, str]) -> CBORSerializable:
+        if isinstance(value, str):
+            value = bytes.fromhex(value)
         return cls(value)
 
     def __eq__(self, other):
