@@ -302,14 +302,15 @@ class Address(CBORSerializable):
             >>> khash = AddrKeyHash(bytes.fromhex("cc30497f4ff962f4c1dca54cceefe39f86f1d7179668009f8eb71e59"))
             >>> assert addr == Address(khash)
         """
-        decoded = decode(data)
-        return cls.from_primitive(bytes(decoded))
+        return cls.from_primitive(data)
 
     def to_primitive(self) -> bytes:
         return bytes(self)
 
     @classmethod
-    def from_primitive(cls, value: bytes) -> Address:
+    def from_primitive(cls, value: Union[bytes, str]) -> Address:
+        if isinstance(value, str):
+            value = bytes(decode(value))
         header = value[0]
         payload = value[1:]
         addr_type = AddressType((header & 0xF0) >> 4)
