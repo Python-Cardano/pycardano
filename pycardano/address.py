@@ -178,11 +178,11 @@ class Address(CBORSerializable):
         self._payment_part = payment_part
         self._staking_part = staking_part
         self._network = network
-        self._address_type = self._guess_address_type()
+        self._address_type = self._infer_address_type()
         self._header_byte = self._compute_header_byte()
         self._hrp = self._compute_hrp()
 
-    def _guess_address_type(self):
+    def _infer_address_type(self):
         """Guess address type from the combination of payment part and staking part."""
         payment_type = type(self.payment_part)
         staking_type = type(self.staking_part)
