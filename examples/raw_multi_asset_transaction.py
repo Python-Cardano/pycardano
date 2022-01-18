@@ -1,7 +1,7 @@
-"""An example that demonstrates low-level construction of a transaction."""
+"""An example that demonstrates low-level construction of a transaction that involves multi-asset."""
 
-from pycardano import (Address, AddressKey, PaymentKeyPair, PaymentSigningKey, Transaction, TransactionBody,
-                       TransactionInput, TransactionId, TransactionOutput, TransactionWitnessSet,
+from pycardano import (Address, AddressKey, FullMultiAsset, PaymentKeyPair, PaymentSigningKey, Transaction,
+                       TransactionBody, TransactionInput, TransactionId, TransactionOutput, TransactionWitnessSet,
                        VerificationKeyWitness)
 
 # Define a transaction input
@@ -11,9 +11,21 @@ tx_in = TransactionInput(TransactionId(bytes.fromhex(tx_id_hex)), 0)
 # Define an output address
 addr = Address.decode("addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x")
 
-# Define two transaction outputs, both to the same address, but with different amount.
+# Define two transaction outputs, both to the same address, but one with multi-assets.
 output1 = TransactionOutput(addr, 100000000000)
-output2 = TransactionOutput(addr, 799999834103)
+
+# Output2 will send ADA along with multi-assets
+policy_id = b"1" * 28  # A dummy policy ID
+multi_asset = FullMultiAsset.from_primitive(
+    [2,  # Amount of ADA (in lovelace) to send
+     {
+         policy_id: {
+             b"Token1": 100,  # Send 100 Token1 under `policy_id`
+             b"Token2": 200   # Send 200 Token2 under `policy_id`
+         }
+     }]
+)
+output2 = TransactionOutput(addr, multi_asset)
 
 # Create a transaction body from inputs and outputs
 tx_body = TransactionBody(inputs=[tx_in],
@@ -38,3 +50,4 @@ vk_witnesses = [VerificationKeyWitness(vk, signature)]
 
 # Create final signed transaction
 signed_tx = Transaction(tx_body, TransactionWitnessSet(vkey_witnesses=vk_witnesses))
+
