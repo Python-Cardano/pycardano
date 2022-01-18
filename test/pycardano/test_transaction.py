@@ -1,5 +1,5 @@
 from pycardano.address import Address
-from pycardano.hash import TransactionHash, SCRIPT_HASH_SIZE
+from pycardano.hash import TransactionId, SCRIPT_HASH_SIZE
 from pycardano.key import PaymentKeyPair, PaymentSigningKey, AddressKey
 from pycardano.transaction import (FullMultiAsset, Transaction, TransactionBody, TransactionInput, TransactionOutput,
                                    TransactionWitnessSet)
@@ -10,7 +10,7 @@ from test.pycardano.util import check_two_way_cbor
 
 def test_transaction_input():
     tx_id_hex = "732bfd67e66be8e8288349fcaaa2294973ef6271cc189a239bb431275401b8e5"
-    tx_in = TransactionInput(TransactionHash(bytes.fromhex(tx_id_hex)), 0)
+    tx_in = TransactionInput(TransactionId(bytes.fromhex(tx_id_hex)), 0)
     assert tx_in.to_cbor() == "825820732bfd67e66be8e8288349fcaaa2294973ef6271cc189a239bb431275401b8e500"
     check_two_way_cbor(tx_in)
 
@@ -24,7 +24,7 @@ def test_transaction_output():
 
 def make_transaction_body():
     tx_id_hex = "732bfd67e66be8e8288349fcaaa2294973ef6271cc189a239bb431275401b8e5"
-    tx_in = TransactionInput(TransactionHash(bytes.fromhex(tx_id_hex)), 0)
+    tx_in = TransactionInput(TransactionId(bytes.fromhex(tx_id_hex)), 0)
     addr = Address.decode("addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x")
     output1 = TransactionOutput(addr, 100000000000)
     output2 = TransactionOutput(addr, 799999834103)

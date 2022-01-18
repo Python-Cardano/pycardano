@@ -7,7 +7,7 @@ from nacl.encoding import RawEncoder
 from nacl.hash import blake2b
 
 from pycardano.address import Address
-from pycardano.hash import (TransactionHash, DatumHash, AuxiliaryDataHash, ScriptHash, AddrKeyHash,
+from pycardano.hash import (TransactionId, DatumHash, AuxiliaryDataHash, ScriptHash, AddrKeyHash,
                             TRANSACTION_HASH_SIZE, ConstrainedBytes)
 from pycardano.network import Network
 from pycardano.serialization import (ArrayCBORSerializable, DictCBORSerializable,
@@ -17,7 +17,7 @@ from pycardano.witness import TransactionWitnessSet
 
 @dataclass(repr=False)
 class TransactionInput(ArrayCBORSerializable):
-    transaction_id: TransactionHash
+    transaction_id: TransactionId
 
     index: int
 

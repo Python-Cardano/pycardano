@@ -59,7 +59,7 @@ class ScriptHash(ConstrainedBytes):
     MAX_SIZE = MIN_SIZE = SCRIPT_HASH_SIZE
 
 
-class TransactionHash(ConstrainedBytes):
+class TransactionId(ConstrainedBytes):
     """Hash of a transaction."""
     MAX_SIZE = MIN_SIZE = TRANSACTION_HASH_SIZE
 
