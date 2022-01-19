@@ -60,6 +60,14 @@ class TransactionOutput(ArrayCBORSerializable):
 
 
 @dataclass(repr=False)
+class UTxO:
+
+    input: TransactionInput
+
+    output: TransactionOutput
+
+
+@dataclass(repr=False)
 class TransactionBody(MapCBORSerializable):
     inputs: List[TransactionInput] = field(
         default_factory=list,

@@ -147,10 +147,13 @@ Go to the main page:
 
 ### Feature support
 
-- [x] Shelly address           
-- [x] Transaction builder      
-- [x] Transaction signing      
-- [x] Multi-asset              
+- [x] Shelly address
+- [x] Transaction builder
+- [x] Transaction signing
+- [x] Multi-asset
+- [ ] Chain backend integration
+- [ ] Fee calculation
+- [ ] UTxO selection
 - [ ] Native script            
 - [ ] Plutus script                  
 - [ ] Byron Address            
