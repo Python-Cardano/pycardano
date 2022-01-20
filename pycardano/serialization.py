@@ -548,6 +548,9 @@ class DictCBORSerializable(dict, CBORSerializable):
             restored[k] = v
         return restored
 
+    def copy(self) -> DictBase:
+        return self.__class__(self)
+
 
 @typechecked
 def list_hook(cls: Type[CBORBase]) -> Callable[[List[Primitive]], List[CBORBase]]:

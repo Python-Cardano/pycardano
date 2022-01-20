@@ -1,8 +1,8 @@
 from pycardano.address import Address
 from pycardano.hash import TransactionId, SCRIPT_HASH_SIZE
 from pycardano.key import PaymentKeyPair, PaymentSigningKey, AddressKey
-from pycardano.transaction import (FullMultiAsset, Transaction, TransactionBody, TransactionInput, TransactionOutput,
-                                   TransactionWitnessSet)
+from pycardano.transaction import (FullMultiAsset, MultiAsset, Transaction, TransactionBody, TransactionInput,
+                                   TransactionOutput, TransactionWitnessSet)
 from pycardano.witness import VerificationKeyWitness
 
 from test.pycardano.util import check_two_way_cbor
@@ -72,3 +72,34 @@ def test_multi_asset():
     full_multi_asset = FullMultiAsset.from_primitive(serialized_full_multi_asset)
     assert full_multi_asset.to_primitive() == serialized_full_multi_asset
     check_two_way_cbor(full_multi_asset)
+
+
+def test_multi_asset_union():
+    a = MultiAsset.from_primitive({
+        b"1" * SCRIPT_HASH_SIZE: {
+            b"Token1": 1,
+            b"Token2": 2
+        }
+    })
+
+    b = MultiAsset.from_primitive({
+        b"1" * SCRIPT_HASH_SIZE: {
+            b"Token1": 10,
+            b"Token2": 20
+        },
+        b"2" * SCRIPT_HASH_SIZE: {
+            b"Token1": 1,
+            b"Token2": 2
+        }
+    })
+
+    assert a + b == MultiAsset.from_primitive({
+        b"1" * SCRIPT_HASH_SIZE: {
+            b"Token1": 11,
+            b"Token2": 22
+        },
+        b"2" * SCRIPT_HASH_SIZE: {
+            b"Token1": 1,
+            b"Token2": 2
+        }
+    })

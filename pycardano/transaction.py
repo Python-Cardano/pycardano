@@ -35,11 +35,31 @@ class Asset(DictCBORSerializable):
 
     VALUE_TYPE = int
 
+    def union(self, other: Asset) -> Asset:
+        return self + other
+
+    def __add__(self, other: Asset) -> Asset:
+        new_asset = self.copy()
+        for n in other:
+            new_asset[n] = new_asset.get(n, 0) + other[n]
+        return new_asset
+
 
 class MultiAsset(DictCBORSerializable):
     KEY_TYPE = ScriptHash
 
     VALUE_TYPE = Asset
+
+    def union(self, other: MultiAsset) -> MultiAsset:
+        return self + other
+
+    def __add__(self, other):
+        new_multi_asset = self.copy()
+        for p in other:
+            if p not in new_multi_asset:
+                new_multi_asset[p] = Asset()
+            new_multi_asset[p] += other[p]
+        return new_multi_asset
 
 
 @dataclass(repr=False)
