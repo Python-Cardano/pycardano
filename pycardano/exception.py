@@ -18,6 +18,10 @@ class InvalidArgumentException(PyCardanoException):
     pass
 
 
+class InvalidOperationException(PyCardanoException):
+    pass
+
+
 class SerializeException(PyCardanoException):
     pass
 

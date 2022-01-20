@@ -1,4 +1,7 @@
+import pytest
+
 from pycardano.address import Address
+from pycardano.exception import InvalidOperationException
 from pycardano.hash import TransactionId, SCRIPT_HASH_SIZE
 from pycardano.key import PaymentKeyPair, PaymentSigningKey, AddressKey
 from pycardano.transaction import (FullMultiAsset, MultiAsset, Transaction, TransactionBody, TransactionInput,
@@ -74,7 +77,7 @@ def test_multi_asset():
     check_two_way_cbor(full_multi_asset)
 
 
-def test_multi_asset_union():
+def test_multi_asset_addition():
     a = MultiAsset.from_primitive({
         b"1" * SCRIPT_HASH_SIZE: {
             b"Token1": 1,
@@ -103,3 +106,37 @@ def test_multi_asset_union():
             b"Token2": 2
         }
     })
+
+
+def test_multi_asset_subtraction():
+    a = MultiAsset.from_primitive({
+        b"1" * SCRIPT_HASH_SIZE: {
+            b"Token1": 1,
+            b"Token2": 2
+        }
+    })
+
+    b = MultiAsset.from_primitive({
+        b"1" * SCRIPT_HASH_SIZE: {
+            b"Token1": 10,
+            b"Token2": 20
+        },
+        b"2" * SCRIPT_HASH_SIZE: {
+            b"Token1": 1,
+            b"Token2": 2
+        }
+    })
+
+    assert b - a == MultiAsset.from_primitive({
+        b"1" * SCRIPT_HASH_SIZE: {
+            b"Token1": 9,
+            b"Token2": 18
+        },
+        b"2" * SCRIPT_HASH_SIZE: {
+            b"Token1": 1,
+            b"Token2": 2
+        }
+    })
+
+    with pytest.raises(InvalidOperationException):
+        a - b

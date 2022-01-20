@@ -8,6 +8,7 @@ from nacl.encoding import RawEncoder
 from nacl.hash import blake2b
 
 from pycardano.address import Address
+from pycardano.exception import InvalidOperationException
 from pycardano.hash import (TransactionId, DatumHash, AuxiliaryDataHash, ScriptHash, AddrKeyHash,
                             TRANSACTION_HASH_SIZE, ConstrainedBytes)
 from pycardano.network import Network
@@ -44,6 +45,17 @@ class Asset(DictCBORSerializable):
             new_asset[n] = new_asset.get(n, 0) + other[n]
         return new_asset
 
+    def __sub__(self, other: Asset) -> Asset:
+        new_asset = self.copy()
+        for n in other:
+            if n not in new_asset:
+                raise InvalidOperationException(f"Asset: {new_asset} does not have asset with name: {n}")
+            # According to ledger rule, the value of an asset could be negative, so we don't check the value here and
+            # will leave the check to user when necessary.
+            # https://github.com/input-output-hk/cardano-ledger/blob/master/eras/alonzo/test-suite/cddl-files/alonzo.cddl#L378
+            new_asset[n] -= other[n]
+        return new_asset
+
 
 class MultiAsset(DictCBORSerializable):
     KEY_TYPE = ScriptHash
@@ -59,6 +71,14 @@ class MultiAsset(DictCBORSerializable):
             if p not in new_multi_asset:
                 new_multi_asset[p] = Asset()
             new_multi_asset[p] += other[p]
+        return new_multi_asset
+
+    def __sub__(self, other: MultiAsset) -> MultiAsset:
+        new_multi_asset = self.copy()
+        for p in other:
+            if p not in new_multi_asset:
+                raise InvalidOperationException(f"MultiAsset: {new_multi_asset} doesn't have policy: {p}")
+            new_multi_asset[p] -= other[p]
         return new_multi_asset
 
 
