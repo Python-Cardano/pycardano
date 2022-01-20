@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Union, TypeVar, Type
 
 from pycardano.serialization import CBORSerializable
 
@@ -8,6 +8,9 @@ TRANSACTION_HASH_SIZE = 32
 DATUM_HASH_SIZE = 32
 AUXILIARY_DATA_HASH_SIZE = 32
 SIGNATURE_SIZE = 32
+
+
+T = TypeVar("T", bound="ConstrainedBytes")
 
 
 class ConstrainedBytes(CBORSerializable):
@@ -41,7 +44,7 @@ class ConstrainedBytes(CBORSerializable):
         return self.payload
 
     @classmethod
-    def from_primitive(cls, value: Union[bytes, str]) -> CBORSerializable:
+    def from_primitive(cls: Type[T], value: Union[bytes, str]) -> T:
         if isinstance(value, str):
             value = bytes.fromhex(value)
         return cls(value)
@@ -51,6 +54,9 @@ class ConstrainedBytes(CBORSerializable):
             return self.payload == other.payload
         else:
             return False
+
+    def __repr__(self):
+        return self.payload.hex()
 
 
 class AddrKeyHash(ConstrainedBytes):

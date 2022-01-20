@@ -10,6 +10,7 @@ python = "^3.7"
 PyNaCl = "^1.4.0"
 cbor2 = "^5.4.2"
 typeguard = "^2.13.3"
+blockfrost-python = "^0.4.2"
 
 [tool.poetry.dev-dependencies]
 Sphinx = "^4.3.2"

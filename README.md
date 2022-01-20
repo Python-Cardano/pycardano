@@ -151,13 +151,14 @@ Go to the main page:
 - [x] Transaction builder
 - [x] Transaction signing
 - [x] Multi-asset
-- [ ] Chain backend integration
+- [X] Chain backend integration
 - [ ] Fee calculation
 - [ ] UTxO selection
-- [ ] Native script            
-- [ ] Plutus script                  
-- [ ] Byron Address            
-- [ ] Reward withdraw          
-- [ ] HD Wallet                
-- [ ] Staking certificates     
-- [ ] Protocol proposal update 
+- [ ] Native script
+- [ ] Plutus script
+- [ ] Mnemonic 
+- [ ] Byron Address
+- [ ] Reward withdraw
+- [ ] HD Wallet
+- [ ] Staking certificates
+- [ ] Protocol proposal update

@@ -24,3 +24,7 @@ class SerializeException(PyCardanoException):
 
 class DeserializeException(PyCardanoException):
     pass
+
+
+class TransactionFailedException(PyCardanoException):
+    pass

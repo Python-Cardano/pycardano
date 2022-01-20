@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Any, List, Union
+from pprint import pformat
 
 from nacl.encoding import RawEncoder
 from nacl.hash import blake2b
@@ -26,7 +27,7 @@ class AssetName(ConstrainedBytes):
     MAX_SIZE = 32
 
     def __repr__(self):
-        return self.payload.hex()
+        return str(self.payload)
 
 
 class Asset(DictCBORSerializable):
@@ -65,6 +66,9 @@ class UTxO:
     input: TransactionInput
 
     output: TransactionOutput
+
+    def __repr__(self):
+        return pformat(vars(self))
 
 
 @dataclass(repr=False)
