@@ -21,20 +21,20 @@ might be beneficial for faster R&D iterations.
 ```python
 """An example that demonstrates low-level construction of a transaction."""
 
-from pycardano import (Address, AddressKey, PaymentKeyPair, PaymentSigningKey, Transaction, TransactionBody,
-                       TransactionInput, TransactionId, TransactionOutput, TransactionWitnessSet,
+from pycardano import (PaymentSigningKey, PaymentVerificationKey, Transaction, TransactionBody,
+                       TransactionInput, TransactionOutput, TransactionWitnessSet,
                        VerificationKeyWitness)
 
 # Define a transaction input
-tx_id_hex = "732bfd67e66be8e8288349fcaaa2294973ef6271cc189a239bb431275401b8e5"
-tx_in = TransactionInput(TransactionId(bytes.fromhex(tx_id_hex)), 0)
+tx_id = "732bfd67e66be8e8288349fcaaa2294973ef6271cc189a239bb431275401b8e5"
+tx_in = TransactionInput.from_primitive([tx_id, 0])
 
 # Define an output address
-addr = Address.decode("addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x")
+addr = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
 
 # Define two transaction outputs, both to the same address, but with different amount.
-output1 = TransactionOutput(addr, 100000000000)
-output2 = TransactionOutput(addr, 799999834103)
+output1 = TransactionOutput.from_primitive([addr, 100000000000])
+output2 = TransactionOutput.from_primitive([addr, 799999834103])
 
 # Create a transaction body from inputs and outputs
 tx_body = TransactionBody(inputs=[tx_in],
@@ -49,7 +49,7 @@ sk = PaymentSigningKey.from_json("""{
     }""")
 
 # Derive a verification key from the signing key
-vk = AddressKey(PaymentKeyPair.from_private_key(sk.payload).verification_key.payload)
+vk = PaymentVerificationKey.from_signing_key(sk)
 
 # Sign the transaction body hash
 signature = sk.sign(tx_body.hash())
@@ -59,6 +59,7 @@ vk_witnesses = [VerificationKeyWitness(vk, signature)]
 
 # Create final signed transaction
 signed_tx = Transaction(tx_body, TransactionWitnessSet(vkey_witnesses=vk_witnesses))
+
 ```
 
 See more usages under [examples](https://github.com/cffls/pycardano/tree/main/examples).

@@ -56,7 +56,7 @@ def test_transaction():
         "description": "Genesis Initial UTxO Signing Key",
         "cborHex": "5820093be5cd3987d0c9fd8854ef908f7746b69e2d73320db6dc0f780d81585b84c2"
     }""")
-    vk = AddressKey(PaymentKeyPair.from_private_key(sk.payload).verification_key.payload)
+    vk = AddressKey(PaymentKeyPair.from_signing_key(sk.payload).verification_key.payload)
     signature = sk.sign(tx_body.hash())
     assert signature == b"\xb6+-g\xba\x18TL\xe0\xa1\x975\xf9R\x8b\x89\x0b\x1a*\x7f\x8a\xf9\x03\xa3\xde\x92\x7f\x91" \
                         b"\xb8\x1f\xdbF\xbdy\xc9\x15\xc7\x05T\xdb\xa4i\xaa\xb8\xa39\x90\xa7\x1d\xe0\xb0$\x9fL~p" \

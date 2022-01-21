@@ -80,6 +80,18 @@ class Key(CBORSerializable):
                    key_type=obj["type"],
                    description=obj["description"])
 
+    def save(self, path: str):
+        with open(path) as f:
+            f.write(self.to_json())
+
+    @classmethod
+    def load(cls, path: str):
+        with open(path) as f:
+            cls.from_json(f.read())
+
+    def __bytes__(self):
+        return self.payload
+
     def __eq__(self, other):
         if not isinstance(other, Key):
             return False
@@ -103,12 +115,22 @@ class AddressKey(Key):
         """
         return AddrKeyHash(blake2b(self.payload, ADDR_KEYHASH_SIZE, encoder=RawEncoder))
 
+    @classmethod
+    def from_signing_key(cls, key: SigningKey) -> AddressKey:
+        verification_key = NACLSigningKey(bytes(key)).verify_key
+        return cls(bytes(verification_key))
+
 
 class SigningKey(Key):
 
     def sign(self, data: bytes) -> bytes:
         signed_message = NACLSigningKey(self.payload).sign(data)
         return signed_message.signature
+
+    @classmethod
+    def generate(cls) -> SigningKey:
+        signing_key = PrivateKey.generate()
+        return cls(bytes(signing_key))
 
 
 class PaymentSigningKey(SigningKey):
@@ -122,19 +144,22 @@ class PaymentVerificationKey(AddressKey):
 
 
 class PaymentKeyPair:
-    def __init__(self, signing_key: bytes, verification_key: bytes):
-        self.signing_key = PaymentSigningKey(signing_key)
-        self.verification_key = PaymentVerificationKey(verification_key)
+    def __init__(self, signing_key: PaymentSigningKey, verification_key: PaymentVerificationKey):
+        self.signing_key = signing_key
+        self.verification_key = verification_key
 
     @classmethod
     def generate(cls) -> PaymentKeyPair:
-        signing_key = PrivateKey.generate()
-        return cls.from_private_key(bytes(signing_key))
+        signing_key = PaymentSigningKey.generate()
+        return cls.from_signing_key(signing_key)
 
     @classmethod
-    def from_private_key(cls, signing_key: bytes) -> PaymentKeyPair:
-        verification_key = NACLSigningKey(bytes(signing_key)).verify_key
-        return cls(signing_key, bytes(verification_key))
+    def from_signing_key(cls, signing_key: PaymentSigningKey) -> PaymentKeyPair:
+        return cls(signing_key, PaymentVerificationKey.from_signing_key(signing_key))
+
+    def __eq__(self, other):
+        if isinstance(other, PaymentKeyPair):
+            return other.signing_key == self.signing_key and other.verification_key == self.verification_key
 
 
 class StakeSigningKey(SigningKey):
@@ -148,16 +173,15 @@ class StakeVerificationKey(AddressKey):
 
 
 class StakeKeyPair:
-    def __init__(self, signing_key: bytes, verification_key: bytes):
-        self.signing_key = StakeSigningKey(signing_key)
-        self.verification_key = StakeVerificationKey(verification_key)
+    def __init__(self, signing_key: StakeSigningKey, verification_key: StakeVerificationKey):
+        self.signing_key = signing_key
+        self.verification_key = verification_key
 
     @classmethod
     def generate(cls) -> StakeKeyPair:
-        signing_key = PrivateKey.generate()
-        return cls.from_private_key(bytes(signing_key))
+        signing_key = StakeSigningKey.generate()
+        return cls.from_signing_key(signing_key)
 
     @classmethod
-    def from_private_key(cls, signing_key: bytes) -> StakeKeyPair:
-        verification_key = NACLSigningKey(bytes(signing_key)).verify_key
-        return cls(signing_key, bytes(verification_key))
+    def from_signing_key(cls, signing_key: StakeSigningKey) -> StakeKeyPair:
+        return cls(signing_key, StakeVerificationKey.from_signing_key(signing_key))

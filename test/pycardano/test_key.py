@@ -18,4 +18,10 @@ def test_payment_key():
     assert VK.payload == b"\x8b\xe83\x9e\x9f:\xdd\xfah\x10\xd5\x9e/\x07/\x85\xe6ML\x02L\x08~\r$\xf81|eD\xf6/"
     assert VK.hash().payload == b"\xd4\x13\xc1t]0`#\xe4\x95\x89\xe6X\xa7\xb7\xa4" \
                                 b"\xb4\xdd\xa1e\xff\\\x97\xd8\xc8\xb9y\xbf"
-    assert PaymentKeyPair.from_private_key(SK.payload).verification_key.payload == VK.payload
+    assert PaymentKeyPair.from_signing_key(SK).verification_key.payload == VK.payload
+
+
+def test_key_pair():
+    sk = PaymentSigningKey.generate()
+    vk = PaymentVerificationKey.from_signing_key(sk)
+    assert PaymentKeyPair(sk, vk) == PaymentKeyPair.from_signing_key(sk)

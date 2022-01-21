@@ -1,7 +1,7 @@
 """An example that demonstrates low-level construction of a transaction."""
 
-from pycardano import (Address, AddressKey, PaymentKeyPair, PaymentSigningKey, Transaction, TransactionBody,
-                       TransactionInput, TransactionId, TransactionOutput, TransactionWitnessSet,
+from pycardano import (PaymentSigningKey, PaymentVerificationKey, Transaction, TransactionBody,
+                       TransactionInput, TransactionOutput, TransactionWitnessSet,
                        VerificationKeyWitness)
 
 # Define a transaction input
@@ -28,7 +28,7 @@ sk = PaymentSigningKey.from_json("""{
     }""")
 
 # Derive a verification key from the signing key
-vk = AddressKey(PaymentKeyPair.from_private_key(sk.payload).verification_key.payload)
+vk = PaymentVerificationKey.from_signing_key(sk)
 
 # Sign the transaction body hash
 signature = sk.sign(tx_body.hash())

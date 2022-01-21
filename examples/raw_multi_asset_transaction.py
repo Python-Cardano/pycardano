@@ -1,7 +1,7 @@
 """An example that demonstrates low-level construction of a transaction that involves multi-asset."""
 
-from pycardano import (Address, AddressKey, FullMultiAsset, PaymentKeyPair, PaymentSigningKey, Transaction,
-                       TransactionBody, TransactionInput, TransactionId, TransactionOutput, TransactionWitnessSet,
+from pycardano import (Address, FullMultiAsset, PaymentSigningKey, PaymentVerificationKey, Transaction,
+                       TransactionBody, TransactionInput, TransactionOutput, TransactionWitnessSet,
                        VerificationKeyWitness)
 
 # Define a transaction input
@@ -21,7 +21,7 @@ multi_asset = FullMultiAsset.from_primitive(
      {
          policy_id: {
              b"Token1": 100,  # Send 100 Token1 under `policy_id`
-             b"Token2": 200   # Send 200 Token2 under `policy_id`
+             b"Token2": 200  # Send 200 Token2 under `policy_id`
          }
      }]
 )
@@ -40,7 +40,7 @@ sk = PaymentSigningKey.from_json("""{
     }""")
 
 # Derive a verification key from the signing key
-vk = AddressKey(PaymentKeyPair.from_private_key(sk.payload).verification_key.payload)
+vk = PaymentVerificationKey.from_signing_key(sk)
 
 # Sign the transaction body hash
 signature = sk.sign(tx_body.hash())
@@ -50,4 +50,3 @@ vk_witnesses = [VerificationKeyWitness(vk, signature)]
 
 # Create final signed transaction
 signed_tx = Transaction(tx_body, TransactionWitnessSet(vkey_witnesses=vk_witnesses))
-
