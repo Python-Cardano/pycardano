@@ -4,10 +4,9 @@ from pycardano.address import Address
 from pycardano.exception import InvalidOperationException
 from pycardano.hash import TransactionId, SCRIPT_HASH_SIZE
 from pycardano.key import PaymentKeyPair, PaymentSigningKey, AddressKey
-from pycardano.transaction import (FullMultiAsset, MultiAsset, Transaction, TransactionBody, TransactionInput,
+from pycardano.transaction import (Asset, FullMultiAsset, MultiAsset, Transaction, TransactionBody, TransactionInput,
                                    TransactionOutput, TransactionWitnessSet)
 from pycardano.witness import VerificationKeyWitness
-
 from test.pycardano.util import check_two_way_cbor
 
 
@@ -140,3 +139,93 @@ def test_multi_asset_subtraction():
 
     with pytest.raises(InvalidOperationException):
         a - b
+
+
+def test_asset_comparison():
+    a = Asset.from_primitive({
+        b"Token1": 1,
+        b"Token2": 2
+    })
+
+    b = Asset.from_primitive({
+        b"Token1": 1,
+        b"Token2": 3
+    })
+
+    c = Asset.from_primitive({
+        b"Token1": 1,
+        b"Token2": 2,
+        b"Token3": 3
+    })
+
+    d = Asset.from_primitive({
+        b"Token3": 1,
+        b"Token4": 2
+    })
+
+    assert a == a
+
+    assert a <= b
+    assert not b <= a
+    assert a != b
+
+    assert a <= c
+    assert not c <= a
+    assert a != c
+
+    assert not any([a == d, a <= d, d <= a])
+
+    with pytest.raises(TypeError):
+        a <= 1
+        a == 1
+
+
+def test_multi_asset_comparison():
+    a = MultiAsset.from_primitive({
+        b"1" * SCRIPT_HASH_SIZE: {
+            b"Token1": 1,
+            b"Token2": 2
+        }
+    })
+
+    b = MultiAsset.from_primitive({
+        b"1" * SCRIPT_HASH_SIZE: {
+            b"Token1": 1,
+            b"Token2": 2,
+            b"Token3": 3
+        },
+    })
+
+    c = MultiAsset.from_primitive({
+        b"1" * SCRIPT_HASH_SIZE: {
+            b"Token1": 1,
+            b"Token2": 3
+        },
+        b"2" * SCRIPT_HASH_SIZE: {
+            b"Token1": 1,
+            b"Token2": 2
+        }
+    })
+
+    d = MultiAsset.from_primitive({
+        b"2" * SCRIPT_HASH_SIZE: {
+            b"Token1": 1,
+            b"Token2": 2
+        },
+    })
+
+    assert a != b
+    assert a <= b
+    assert not b <= a
+
+    assert a != c
+    assert a <= c
+    assert not c <= a
+
+    assert a != d
+    assert not a <= d
+    assert not d <= a
+
+    with pytest.raises(TypeError):
+        a == 1
+        a <= 1

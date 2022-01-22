@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, List, Union
+from functools import total_ordering
 from pprint import pformat
+from typing import Any, List, Union
 
 from nacl.encoding import RawEncoder
 from nacl.hash import blake2b
+from typeguard import typechecked
 
 from pycardano.address import Address
 from pycardano.exception import InvalidOperationException
@@ -51,10 +53,28 @@ class Asset(DictCBORSerializable):
             if n not in new_asset:
                 raise InvalidOperationException(f"Asset: {new_asset} does not have asset with name: {n}")
             # According to ledger rule, the value of an asset could be negative, so we don't check the value here and
-            # will leave the check to user when necessary.
+            # will leave the check to users when necessary.
             # https://github.com/input-output-hk/cardano-ledger/blob/master/eras/alonzo/test-suite/cddl-files/alonzo.cddl#L378
             new_asset[n] -= other[n]
         return new_asset
+
+    def __eq__(self, other):
+        if not isinstance(other, Asset):
+            return False
+        else:
+            if len(self) != len(other):
+                return False
+            for n in self:
+                if n not in other or self[n] != other[n]:
+                    return False
+            return True
+
+    @typechecked
+    def __le__(self, other: Asset) -> bool:
+        for n in self:
+            if n not in other or self[n] > other[n]:
+                return False
+        return True
 
 
 class MultiAsset(DictCBORSerializable):
@@ -81,6 +101,24 @@ class MultiAsset(DictCBORSerializable):
             new_multi_asset[p] -= other[p]
         return new_multi_asset
 
+    def __eq__(self, other):
+        if not isinstance(other, MultiAsset):
+            return False
+        else:
+            if len(self) != len(other):
+                return False
+            for p in self:
+                if p not in other or self[p] != other[p]:
+                    return False
+            return True
+
+    @typechecked
+    def __le__(self, other: MultiAsset):
+        for p in self:
+            if p not in other or not self[p] <= other[p]:
+                return False
+        return True
+
 
 @dataclass(repr=False)
 class FullMultiAsset(ArrayCBORSerializable):
@@ -102,7 +140,6 @@ class TransactionOutput(ArrayCBORSerializable):
 
 @dataclass(repr=False)
 class UTxO:
-
     input: TransactionInput
 
     output: TransactionOutput
