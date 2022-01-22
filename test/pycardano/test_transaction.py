@@ -177,7 +177,6 @@ def test_asset_comparison():
 
     with pytest.raises(TypeError):
         a <= 1
-        a == 1
 
 
 def test_multi_asset_comparison():
@@ -227,5 +226,80 @@ def test_multi_asset_comparison():
     assert not d <= a
 
     with pytest.raises(TypeError):
-        a == 1
         a <= 1
+
+
+def test_full_multi_assets():
+    a = FullMultiAsset.from_primitive(
+        [1,
+         {
+            b"1" * SCRIPT_HASH_SIZE: {
+                b"Token1": 1,
+                b"Token2": 2
+            }
+         }]
+    )
+
+    b = FullMultiAsset.from_primitive(
+        [11,
+         {
+            b"1" * SCRIPT_HASH_SIZE: {
+                b"Token1": 11,
+                b"Token2": 22
+            }
+         }]
+    )
+
+    c = FullMultiAsset.from_primitive(
+        [11,
+         {
+            b"1" * SCRIPT_HASH_SIZE: {
+                b"Token1": 11,
+                b"Token2": 22
+            },
+            b"2" * SCRIPT_HASH_SIZE: {
+                 b"Token1": 11,
+                 b"Token2": 22
+            }
+         }]
+    )
+
+    assert a != b
+    assert a <= b
+    assert not b <= a
+
+    assert a <= c
+    assert not c <= a
+
+    assert b <= c
+    assert not c <= b
+
+    assert b - a == FullMultiAsset.from_primitive(
+        [10,
+         {
+            b"1" * SCRIPT_HASH_SIZE: {
+                b"Token1": 10,
+                b"Token2": 20
+            }
+         }]
+    )
+
+    assert c - a == FullMultiAsset.from_primitive(
+        [10,
+         {
+            b"1" * SCRIPT_HASH_SIZE: {
+                b"Token1": 10,
+                b"Token2": 20
+            },
+            b"2" * SCRIPT_HASH_SIZE: {
+                 b"Token1": 11,
+                 b"Token2": 22
+            }
+         }]
+    )
+
+    with pytest.raises(InvalidOperationException):
+        a - c
+
+    with pytest.raises(InvalidOperationException):
+        b - c

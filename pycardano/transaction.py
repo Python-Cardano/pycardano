@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from functools import total_ordering
 from pprint import pformat
 from typing import Any, List, Union
 
@@ -31,8 +30,7 @@ class AssetName(ConstrainedBytes):
 
     def __repr__(self):
         return str(self.payload)
-
-
+@typechecked
 class Asset(DictCBORSerializable):
     KEY_TYPE = AssetName
 
@@ -69,7 +67,6 @@ class Asset(DictCBORSerializable):
                     return False
             return True
 
-    @typechecked
     def __le__(self, other: Asset) -> bool:
         for n in self:
             if n not in other or self[n] > other[n]:
@@ -77,6 +74,7 @@ class Asset(DictCBORSerializable):
         return True
 
 
+@typechecked
 class MultiAsset(DictCBORSerializable):
     KEY_TYPE = ScriptHash
 
@@ -112,7 +110,6 @@ class MultiAsset(DictCBORSerializable):
                     return False
             return True
 
-    @typechecked
     def __le__(self, other: MultiAsset):
         for p in self:
             if p not in other or not self[p] <= other[p]:
@@ -120,6 +117,7 @@ class MultiAsset(DictCBORSerializable):
         return True
 
 
+@typechecked
 @dataclass(repr=False)
 class FullMultiAsset(ArrayCBORSerializable):
     coin: int
@@ -127,6 +125,26 @@ class FullMultiAsset(ArrayCBORSerializable):
 
     multi_asset: MultiAsset
     """Multi-assets associated with the UTxO"""
+
+    def union(self, other: FullMultiAsset) -> FullMultiAsset:
+        return self + other
+
+    def __add__(self, other: FullMultiAsset):
+        return FullMultiAsset(self.coin + other.coin, self.multi_asset + other.multi_asset)
+
+    def __sub__(self, other: FullMultiAsset) -> FullMultiAsset:
+        if self.coin < other.coin:
+            raise InvalidOperationException(f"Subtraction results in negative ADA value: {self.coin - other.coin}")
+        return FullMultiAsset(self.coin - other.coin, self.multi_asset - other.multi_asset)
+
+    def __eq__(self, other):
+        if not isinstance(other, FullMultiAsset):
+            return False
+        else:
+            return self.coin == other.coin and self.multi_asset == other.multi_asset
+
+    def __le__(self, other: FullMultiAsset):
+        return self.coin <= other.coin and self.multi_asset <= other.multi_asset
 
 
 @dataclass(repr=False)
