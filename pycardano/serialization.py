@@ -457,7 +457,7 @@ class MapCBORSerializable(CBORSerializable):
 
         Args:
             cls (Type[MapBase]): The original class type.
-            value (:const:`Primitive`): A CBOR primitive.
+            values (:const:`Primitive`): A CBOR primitive.
 
         Returns:
             :const:`MapBase`: Restored object.

@@ -30,6 +30,8 @@ class AssetName(ConstrainedBytes):
 
     def __repr__(self):
         return str(self.payload)
+
+
 @typechecked
 class Asset(DictCBORSerializable):
     KEY_TYPE = AssetName
@@ -225,5 +227,5 @@ class Transaction(ArrayCBORSerializable):
 
     valid: bool = True
 
-    # TODO: Add axuiliary data support
+    # TODO: Add auxiliary data support
     auxiliary_data: Union[Any, type(None)] = None
