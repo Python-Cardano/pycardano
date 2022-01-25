@@ -32,3 +32,7 @@ class DeserializeException(PyCardanoException):
 
 class TransactionFailedException(PyCardanoException):
     pass
+
+
+class UTxOSelectionException(PyCardanoException):
+    pass

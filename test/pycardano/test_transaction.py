@@ -2,10 +2,10 @@ import pytest
 
 from pycardano.address import Address
 from pycardano.exception import InvalidOperationException
-from pycardano.hash import TransactionId, SCRIPT_HASH_SIZE
+from pycardano.hash import TransactionId, ScriptHash, SCRIPT_HASH_SIZE
 from pycardano.key import PaymentKeyPair, PaymentSigningKey, AddressKey
-from pycardano.transaction import (Asset, FullMultiAsset, MultiAsset, Transaction, TransactionBody, TransactionInput,
-                                   TransactionOutput, TransactionWitnessSet)
+from pycardano.transaction import (Asset, AssetName, FullMultiAsset, MultiAsset, Transaction, TransactionBody,
+                                   TransactionInput, TransactionOutput, TransactionWitnessSet)
 from pycardano.witness import VerificationKeyWitness
 from test.pycardano.util import check_two_way_cbor
 
@@ -72,6 +72,15 @@ def test_multi_asset():
                                        b"TestToken2": 20000000
                                    }}]
     full_multi_asset = FullMultiAsset.from_primitive(serialized_full_multi_asset)
+    assert full_multi_asset == FullMultiAsset(
+        100,
+        MultiAsset({
+            ScriptHash(b"1" * SCRIPT_HASH_SIZE): Asset({
+                AssetName(b"TestToken1"): 10000000,
+                AssetName(b"TestToken2"): 20000000
+            })
+        })
+    )
     assert full_multi_asset.to_primitive() == serialized_full_multi_asset
     check_two_way_cbor(full_multi_asset)
 
@@ -233,34 +242,34 @@ def test_full_multi_assets():
     a = FullMultiAsset.from_primitive(
         [1,
          {
-            b"1" * SCRIPT_HASH_SIZE: {
-                b"Token1": 1,
-                b"Token2": 2
-            }
+             b"1" * SCRIPT_HASH_SIZE: {
+                 b"Token1": 1,
+                 b"Token2": 2
+             }
          }]
     )
 
     b = FullMultiAsset.from_primitive(
         [11,
          {
-            b"1" * SCRIPT_HASH_SIZE: {
-                b"Token1": 11,
-                b"Token2": 22
-            }
+             b"1" * SCRIPT_HASH_SIZE: {
+                 b"Token1": 11,
+                 b"Token2": 22
+             }
          }]
     )
 
     c = FullMultiAsset.from_primitive(
         [11,
          {
-            b"1" * SCRIPT_HASH_SIZE: {
-                b"Token1": 11,
-                b"Token2": 22
-            },
-            b"2" * SCRIPT_HASH_SIZE: {
+             b"1" * SCRIPT_HASH_SIZE: {
                  b"Token1": 11,
                  b"Token2": 22
-            }
+             },
+             b"2" * SCRIPT_HASH_SIZE: {
+                 b"Token1": 11,
+                 b"Token2": 22
+             }
          }]
     )
 
@@ -277,24 +286,34 @@ def test_full_multi_assets():
     assert b - a == FullMultiAsset.from_primitive(
         [10,
          {
-            b"1" * SCRIPT_HASH_SIZE: {
-                b"Token1": 10,
-                b"Token2": 20
-            }
+             b"1" * SCRIPT_HASH_SIZE: {
+                 b"Token1": 10,
+                 b"Token2": 20
+             }
          }]
     )
 
     assert c - a == FullMultiAsset.from_primitive(
         [10,
          {
-            b"1" * SCRIPT_HASH_SIZE: {
-                b"Token1": 10,
-                b"Token2": 20
-            },
-            b"2" * SCRIPT_HASH_SIZE: {
+             b"1" * SCRIPT_HASH_SIZE: {
+                 b"Token1": 10,
+                 b"Token2": 20
+             },
+             b"2" * SCRIPT_HASH_SIZE: {
                  b"Token1": 11,
                  b"Token2": 22
-            }
+             }
+         }]
+    )
+
+    assert a + 100 == FullMultiAsset.from_primitive(
+        [101,
+         {
+             b"1" * SCRIPT_HASH_SIZE: {
+                 b"Token1": 1,
+                 b"Token2": 2
+             }
          }]
     )
 

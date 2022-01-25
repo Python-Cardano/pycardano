@@ -56,7 +56,7 @@ class ConstrainedBytes(CBORSerializable):
             return False
 
     def __repr__(self):
-        return self.payload.hex()
+        return f"{self.__class__.__name__}(hex='{self.payload.hex()}')"
 
 
 class AddrKeyHash(ConstrainedBytes):

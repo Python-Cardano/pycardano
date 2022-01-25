@@ -29,7 +29,7 @@ class AssetName(ConstrainedBytes):
     MAX_SIZE = 32
 
     def __repr__(self):
-        return str(self.payload)
+        return f"AssetName({self.payload})"
 
 
 @typechecked
@@ -122,30 +122,38 @@ class MultiAsset(DictCBORSerializable):
 @typechecked
 @dataclass(repr=False)
 class FullMultiAsset(ArrayCBORSerializable):
-    coin: int
+    coin: int = 0
     """Amount of ADA"""
 
-    multi_asset: MultiAsset
+    multi_asset: MultiAsset = field(default_factory=MultiAsset)
     """Multi-assets associated with the UTxO"""
 
-    def union(self, other: FullMultiAsset) -> FullMultiAsset:
+    def union(self, other: Union[FullMultiAsset, int]) -> FullMultiAsset:
         return self + other
 
-    def __add__(self, other: FullMultiAsset):
+    def __add__(self, other: Union[FullMultiAsset, int]):
+        if isinstance(other, int):
+            other = FullMultiAsset(other)
         return FullMultiAsset(self.coin + other.coin, self.multi_asset + other.multi_asset)
 
-    def __sub__(self, other: FullMultiAsset) -> FullMultiAsset:
+    def __sub__(self, other: Union[FullMultiAsset, int]) -> FullMultiAsset:
+        if isinstance(other, int):
+            other = FullMultiAsset(other)
         if self.coin < other.coin:
             raise InvalidOperationException(f"Subtraction results in negative ADA value: {self.coin - other.coin}")
         return FullMultiAsset(self.coin - other.coin, self.multi_asset - other.multi_asset)
 
     def __eq__(self, other):
-        if not isinstance(other, FullMultiAsset):
+        if not isinstance(other, (FullMultiAsset, int)):
             return False
         else:
+            if isinstance(other, int):
+                other = FullMultiAsset(other)
             return self.coin == other.coin and self.multi_asset == other.multi_asset
 
-    def __le__(self, other: FullMultiAsset):
+    def __le__(self, other: Union[FullMultiAsset, int]):
+        if isinstance(other, int):
+            other = FullMultiAsset(other)
         return self.coin <= other.coin and self.multi_asset <= other.multi_asset
 
 
@@ -156,6 +164,13 @@ class TransactionOutput(ArrayCBORSerializable):
     amount: Union[int, FullMultiAsset]
 
     datum_hash: DatumHash = field(default=None, metadata={"optional": True})
+
+    @property
+    def lovelace(self) -> int:
+        if isinstance(self.amount, int):
+            return self.amount
+        else:
+            return self.amount.coin
 
 
 @dataclass(repr=False)

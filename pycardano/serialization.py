@@ -257,7 +257,7 @@ def _restore_dataclass_field(f: dataclass_field, v: Primitive) -> \
         for t in get_args(f.type):
             if isclass(t) and issubclass(t, CBORSerializable):
                 return t.from_primitive(v)
-            elif isinstance(v, Primitive.__constraints__):
+            elif t in Primitive.__constraints__ and isinstance(v, t):
                 return v
         raise DeserializeException(f"Cannot deserialize object: \n{v}\n in any valid type from {get_args(f.type)}.")
     return v
