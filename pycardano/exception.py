@@ -36,3 +36,15 @@ class TransactionFailedException(PyCardanoException):
 
 class UTxOSelectionException(PyCardanoException):
     pass
+
+
+class InsufficientUTxOBalanceException(UTxOSelectionException):
+    pass
+
+
+class MaxInputCountExceededException(UTxOSelectionException):
+    pass
+
+
+class InputUTxODepletedException(UTxOSelectionException):
+    pass

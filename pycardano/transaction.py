@@ -47,6 +47,11 @@ class Asset(DictCBORSerializable):
             new_asset[n] = new_asset.get(n, 0) + other[n]
         return new_asset
 
+    def __iadd__(self, other: Asset) -> Asset:
+        new_item = self + other
+        self.update(new_item)
+        return self
+
     def __sub__(self, other: Asset) -> Asset:
         new_asset = self.copy()
         for n in other:
@@ -93,6 +98,11 @@ class MultiAsset(DictCBORSerializable):
             new_multi_asset[p] += other[p]
         return new_multi_asset
 
+    def __iadd__(self, other):
+        new_item = self + other
+        self.update(new_item)
+        return self
+
     def __sub__(self, other: MultiAsset) -> MultiAsset:
         new_multi_asset = self.copy()
         for p in other:
@@ -135,6 +145,12 @@ class FullMultiAsset(ArrayCBORSerializable):
         if isinstance(other, int):
             other = FullMultiAsset(other)
         return FullMultiAsset(self.coin + other.coin, self.multi_asset + other.multi_asset)
+
+    def __iadd__(self, other: Union[FullMultiAsset, int]):
+        new_item = self + other
+        self.coin = new_item.coin
+        self.multi_asset = new_item.multi_asset
+        return self
 
     def __sub__(self, other: Union[FullMultiAsset, int]) -> FullMultiAsset:
         if isinstance(other, int):

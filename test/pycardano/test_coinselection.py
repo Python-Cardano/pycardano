@@ -3,15 +3,17 @@ import pytest
 from functools import reduce
 from typing import List
 
-from pycardano.coinselection import LargestFirstSelector
-from pycardano.exception import UTxOSelectionException
+from pycardano.coinselection import LargestFirstSelector, RandomImproveMultiAsset
+from pycardano.exception import (InputUTxODepletedException, InsufficientUTxOBalanceException,
+                                 MaxInputCountExceededException, UTxOSelectionException)
 from pycardano.transaction import FullMultiAsset, TransactionInput, TransactionOutput, UTxO
 from test.pycardano.util import chain_context
 
 address = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
 
 # 10 UTxOs with different ADA amount and assets
-utxos = [UTxO(TransactionInput.from_primitive([b"1" * 32, i]),
+TOTAL_UTXOS = 10
+UTXOS = [UTxO(TransactionInput.from_primitive([b"1" * 32, i]),
               TransactionOutput.from_primitive(
                   [address,
                    [(i + 1) * 1000000,
@@ -22,7 +24,7 @@ utxos = [UTxO(TransactionInput.from_primitive([b"1" * 32, i]),
                         }
                     }]
                    ]))
-         for i in range(10)]
+         for i in range(TOTAL_UTXOS)]
 
 
 def assert_request_fulfilled(request: List[TransactionOutput], selected: List[UTxO]):
@@ -39,9 +41,9 @@ class TestLargestFirst:
             TransactionOutput.from_primitive([address, [15000000]])
         ]
 
-        selected, change = self.selector.select(utxos, request, chain_context)
+        selected, change = self.selector.select(UTXOS, request, chain_context)
 
-        assert selected == [utxos[-1], utxos[-2]]
+        assert selected == [UTXOS[-1], UTXOS[-2]]
         assert_request_fulfilled(request, selected)
 
     def test_multiple_request_outputs(self, chain_context):
@@ -50,43 +52,41 @@ class TestLargestFirst:
             TransactionOutput.from_primitive([address, [6000000]])
         ]
 
-        selected, change = self.selector.select(utxos, request, chain_context)
+        selected, change = self.selector.select(UTXOS, request, chain_context)
 
-        assert selected == [utxos[-1], utxos[-2]]
+        assert selected == [UTXOS[-1], UTXOS[-2]]
         assert_request_fulfilled(request, selected)
 
     def test_fee_effect(self, chain_context):
         request = [
             TransactionOutput.from_primitive([address, [10000000]])
         ]
-        selected, change = self.selector.select(utxos, request, chain_context)
-        assert selected == [utxos[-1], utxos[-2]]
+        selected, change = self.selector.select(UTXOS, request, chain_context)
+        assert selected == [UTXOS[-1], UTXOS[-2]]
         assert_request_fulfilled(request, selected)
 
     def test_no_fee_effect(self, chain_context):
         request = [
             TransactionOutput.from_primitive([address, [10000000]])
         ]
-        selected, change = self.selector.select(utxos, request, chain_context, include_max_fee=False)
-        assert selected == [utxos[-1]]
+        selected, change = self.selector.select(UTXOS, request, chain_context, include_max_fee=False)
+        assert selected == [UTXOS[-1]]
 
     def test_insufficient_balance(self, chain_context):
         request = [
             TransactionOutput.from_primitive([address, [1000000000]])
         ]
 
-        with pytest.raises(UTxOSelectionException) as e_info:
-            self.selector.select(utxos, request, chain_context)
-            assert "insufficient" in e_info.value
+        with pytest.raises(InsufficientUTxOBalanceException):
+            self.selector.select(UTXOS, request, chain_context)
 
     def test_max_input_count(self, chain_context):
         request = [
             TransactionOutput.from_primitive([address, [15000000]])
         ]
 
-        with pytest.raises(UTxOSelectionException) as e_info:
-            self.selector.select(utxos, request, chain_context, max_input_count=1)
-            assert "Max input count: 1 exceeded!" in e_info.value
+        with pytest.raises(MaxInputCountExceededException):
+            self.selector.select(UTXOS, request, chain_context, max_input_count=1)
 
     def test_multi_asset(self, chain_context):
         request = [
@@ -102,9 +102,96 @@ class TestLargestFirst:
                  ])
         ]
 
-        selected, change = self.selector.select(utxos, request, chain_context)
+        selected, change = self.selector.select(UTXOS, request, chain_context)
 
         # token0 is attached to the smallest utxo, which will be the last utxo during selection,
         # so we expect all utxos to be selected.
-        assert selected == list(reversed(utxos))
+        assert selected == list(reversed(UTXOS))
+        assert_request_fulfilled(request, selected)
+
+
+class TestRandomImproveMultiAsset:
+
+    @property
+    def selector(self):
+        return RandomImproveMultiAsset(random_generator=reversed(range(TOTAL_UTXOS)))
+
+    def test_ada_only(self, chain_context):
+        request = [
+            TransactionOutput.from_primitive([address, [15000000]])
+        ]
+
+        selected, change = self.selector.select(UTXOS, request, chain_context)
+
+        assert selected == list(reversed(UTXOS[-4:]))
+        assert_request_fulfilled(request, selected)
+
+        request = [
+            TransactionOutput.from_primitive([address, [9000000]]),
+            TransactionOutput.from_primitive([address, [6000000]])
+        ]
+
+        selected, change = self.selector.select(UTXOS, request, chain_context)
+
+        assert selected == list(reversed(UTXOS[-4:]))
+        assert_request_fulfilled(request, selected)
+
+    def test_fee_effect(self, chain_context):
+        request = [
+            TransactionOutput.from_primitive([address, [9000000]])
+        ]
+        selected, change = self.selector.select(UTXOS, request, chain_context)
+        assert selected == [UTXOS[9], UTXOS[8], UTXOS[5]]
+        assert_request_fulfilled(request, selected)
+
+    def test_no_fee_effect(self, chain_context):
+        request = [
+            TransactionOutput.from_primitive([address, [9000000]])
+        ]
+        selected, change = self.selector.select(UTXOS, request, chain_context, include_max_fee=False)
+        assert selected == list(reversed(UTXOS[-2:]))
+        assert_request_fulfilled(request, selected)
+
+    def test_utxo_depleted(self, chain_context):
+        request = [
+            TransactionOutput.from_primitive([address, [1000000000]])
+        ]
+
+        with pytest.raises(InputUTxODepletedException):
+            self.selector.select(UTXOS, request, chain_context)
+
+    def test_max_input_count(self, chain_context):
+        request = [
+            TransactionOutput.from_primitive([address, [15000000]])
+        ]
+
+        with pytest.raises(MaxInputCountExceededException):
+            self.selector.select(UTXOS, request, chain_context, max_input_count=1)
+
+    def test_multi_asset(self, chain_context):
+        request = [
+            TransactionOutput.from_primitive(
+                [address,
+                 [1500000,
+                  {
+                      b"1" * 28: {
+                          bytes(f"token0",
+                                encoding="utf-8"): 50,
+                          bytes(f"token3",
+                                encoding="utf-8"): 50,
+                      }
+                  }]
+                 ])
+        ]
+
+        sequence = [9, 8, 3, 6, 0]
+        selector = RandomImproveMultiAsset(random_generator=sequence)
+
+        selected, change = selector.select(UTXOS, request, chain_context)
+
+        assert selected == [UTXOS[9],
+                            UTXOS[8],
+                            UTXOS[3],
+                            UTXOS[7],  # Because utxo3 is selected, the random index of 6 will result in selecting utxo7
+                            UTXOS[0]]
         assert_request_fulfilled(request, selected)
