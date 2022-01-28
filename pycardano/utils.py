@@ -1,6 +1,8 @@
+from typing import Union
+
 from pycardano.backend.base import ChainContext
 from pycardano.hash import SCRIPT_HASH_SIZE
-from pycardano.transaction import TransactionOutput, MultiAsset
+from pycardano.transaction import MultiAsset, FullMultiAsset
 
 
 def max_tx_fee(context: ChainContext) -> int:
@@ -37,25 +39,26 @@ def bundle_size(multi_asset: MultiAsset) -> int:
     return 6 + (byte_len + 7) // 8
 
 
-def min_lovelace(tx_out: TransactionOutput, context: ChainContext) -> int:
+def min_lovelace(amount: Union[int, FullMultiAsset], context: ChainContext, has_datum: bool = False) -> int:
     """Calculate minimum lovelace a transaction output needs to hold.
 
     More info could be found in
     `this <https://github.com/input-output-hk/cardano-ledger/blob/master/doc/explanations/min-utxo-alonzo.rst>`_ page.
 
     Args:
-        tx_out (TransactionOutput): A transaction output.
+        amount (Union[int, FullMultiAsset]): Amount from a transaction output.
         context (ChainContext): A chain context.
+        has_datum (bool): Whether the transaction output contains datum hash.
 
     Returns:
-        int: Minimum required lovelace amount for this output.
+        int: Minimum required lovelace amount for this transaction output.
     """
-    if isinstance(tx_out.amount, int):
+    if isinstance(amount, int):
         return context.protocol_param.min_utxo
 
-    b_size = bundle_size(tx_out.amount.multi_asset)
+    b_size = bundle_size(amount.multi_asset)
     utxo_entry_size = 27
-    data_hash_size = 10 if tx_out.datum_hash else 0
+    data_hash_size = 10 if has_datum else 0
     finalized_size = utxo_entry_size + b_size + data_hash_size
 
     return finalized_size * context.protocol_param.coins_per_utxo_word

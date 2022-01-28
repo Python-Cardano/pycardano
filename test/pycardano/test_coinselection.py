@@ -61,7 +61,7 @@ class TestLargestFirst:
         request = [
             TransactionOutput.from_primitive([address, [10000000]])
         ]
-        selected, change = self.selector.select(UTXOS, request, chain_context)
+        selected, change = self.selector.select(UTXOS, request, chain_context, respect_min_utxo=False)
         assert selected == [UTXOS[-1], UTXOS[-2]]
         assert_request_fulfilled(request, selected)
 
@@ -69,8 +69,17 @@ class TestLargestFirst:
         request = [
             TransactionOutput.from_primitive([address, [10000000]])
         ]
-        selected, change = self.selector.select(UTXOS, request, chain_context, include_max_fee=False)
+        selected, change = self.selector.select(UTXOS, request, chain_context, include_max_fee=False,
+                                                respect_min_utxo=False)
         assert selected == [UTXOS[-1]]
+
+    def test_no_fee_but_respect_min_utxo(self, chain_context):
+        request = [
+            TransactionOutput.from_primitive([address, [10000000]])
+        ]
+        selected, change = self.selector.select(UTXOS, request, chain_context, include_max_fee=False,
+                                                respect_min_utxo=True)
+        assert selected == [UTXOS[-1], UTXOS[-2]]
 
     def test_insufficient_balance(self, chain_context):
         request = [
@@ -150,6 +159,15 @@ class TestRandomImproveMultiAsset:
         ]
         selected, change = self.selector.select(UTXOS, request, chain_context, include_max_fee=False)
         assert selected == list(reversed(UTXOS[-2:]))
+        assert_request_fulfilled(request, selected)
+
+    def test_no_fee_but_respect_min_utxo(self, chain_context):
+        request = [
+            TransactionOutput.from_primitive([address, [10000000]])
+        ]
+        selected, change = self.selector.select(UTXOS, request, chain_context, include_max_fee=False,
+                                                respect_min_utxo=True)
+        assert selected == [UTXOS[9], UTXOS[8], UTXOS[0]]  # UTXOS[0] is selected to respect min utxo amount
         assert_request_fulfilled(request, selected)
 
     def test_utxo_depleted(self, chain_context):

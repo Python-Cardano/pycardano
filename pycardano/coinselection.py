@@ -9,7 +9,7 @@ from pycardano.backend.base import ChainContext
 from pycardano.exception import (InputUTxODepletedException, InsufficientUTxOBalanceException,
                                  MaxInputCountExceededException, UTxOSelectionException)
 from pycardano.transaction import UTxO, TransactionOutput, FullMultiAsset
-from pycardano.utils import max_tx_fee
+from pycardano.utils import max_tx_fee, min_lovelace
 
 
 class UTxOSelector:
@@ -22,7 +22,8 @@ class UTxOSelector:
                outputs: List[TransactionOutput],
                context: ChainContext,
                max_input_count: int = None,
-               include_max_fee: bool = True
+               include_max_fee: bool = True,
+               respect_min_utxo: bool = True
                ) -> Tuple[List[UTxO], FullMultiAsset]:
         """From an input list of UTxOs, select a subset of UTxOs whose sum (including ADA and multi-assets)
             is equal to or larger than the sum of a set of outputs.
@@ -34,6 +35,9 @@ class UTxOSelector:
             max_input_count (int): Max number of input UTxOs to select.
             include_max_fee (bool): Have selected UTxOs to cover transaction fee. Defaults to True. If disabled,
                 there is a possibility that selected UTxO are not able to cover the fee of the transaction.
+            respect_min_utxo (bool): Respect minimum amount of ADA required to hold a multi-asset bundle in the change.
+                Defaults to True. If disabled, the selection will not add addition amount of ADA to change even
+                when the amount is too small to hold a multi-asset bundle.
 
         Returns:
             Tuple[List[UTxO], FullMultiAsset]: A tuple containing:
@@ -59,7 +63,8 @@ class LargestFirstSelector(UTxOSelector):
                outputs: List[TransactionOutput],
                context: ChainContext,
                max_input_count: int = None,
-               include_max_fee: bool = True
+               include_max_fee: bool = True,
+               respect_min_utxo: bool = True
                ) -> Tuple[List[UTxO], FullMultiAsset]:
 
         available: List[UTxO] = sorted(utxos, key=lambda utxo: utxo.output.lovelace)
@@ -80,6 +85,21 @@ class LargestFirstSelector(UTxOSelector):
 
             if max_input_count and len(selected) > max_input_count:
                 raise MaxInputCountExceededException(f"Max input count: {max_input_count} exceeded!")
+
+        if respect_min_utxo:
+            change = selected_amount - total_requested
+            min_change_amount = min_lovelace(change, context, False)
+
+            if change.coin < min_change_amount:
+                additional, _ = self.select(available,
+                                            [TransactionOutput(None, min_change_amount)],
+                                            context,
+                                            max_input_count - len(selected) if max_input_count else None,
+                                            include_max_fee=False,
+                                            respect_min_utxo=False)
+                for u in additional:
+                    selected.append(u)
+                    selected_amount += u.output.amount
 
         return selected, selected_amount - total_requested
 
@@ -191,7 +211,8 @@ class RandomImproveMultiAsset(UTxOSelector):
                outputs: List[TransactionOutput],
                context: ChainContext,
                max_input_count: int = None,
-               include_max_fee: bool = True
+               include_max_fee: bool = True,
+               respect_min_utxo: bool = True
                ) -> Tuple[List[UTxO], FullMultiAsset]:
         # Shallow copy the list
         remaining = list(utxos)
@@ -222,5 +243,20 @@ class RandomImproveMultiAsset(UTxOSelector):
                 pass
             new_selected = selected[num_selected_before:]
             remaining = [utxo for utxo in remaining if utxo not in new_selected]
+
+        if respect_min_utxo:
+            change = selected_amount - request_sum
+            min_change_amount = min_lovelace(change, context, False)
+
+            if change.coin < min_change_amount:
+                additional, _ = self.select(remaining,
+                                            [TransactionOutput(None, min_change_amount)],
+                                            context,
+                                            max_input_count - len(selected) if max_input_count else None,
+                                            include_max_fee=False,
+                                            respect_min_utxo=False)
+                for u in additional:
+                    selected.append(u)
+                    selected_amount += u.output.amount
 
         return selected, selected_amount - request_sum
