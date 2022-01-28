@@ -154,7 +154,7 @@ Go to the main page:
 - [x] Multi-asset
 - [X] Chain backend integration
 - [ ] Fee calculation
-- [ ] UTxO selection
+- [X] UTxO selection
 - [ ] Native script
 - [ ] Plutus script
 - [ ] Mnemonic 
