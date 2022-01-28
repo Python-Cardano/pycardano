@@ -7,6 +7,8 @@ from pycardano.network import Network
 from pycardano.serialization import CBORSerializable
 from pycardano.transaction import FullMultiAsset, TransactionInput, TransactionOutput, UTxO
 
+TEST_ADDR = "addr_test1vr2p8st5t5cxqglyjky7vk98k7jtfhdpvhl4e97cezuhn0cqcexl7"
+
 
 def check_two_way_cbor(serializable: CBORSerializable):
     restored = serializable.from_cbor(serializable.to_cbor())
