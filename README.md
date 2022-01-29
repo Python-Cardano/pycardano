@@ -1,6 +1,7 @@
 ## PyCardano
 
 [![PyCardano](https://github.com/cffls/pycardano/actions/workflows/main.yml/badge.svg)](https://github.com/cffls/pycardano/actions/workflows/main.yml)
+[![codecov](https://codecov.io/gh/cffls/pycardano/branch/main/graph/badge.svg?token=62N0IL9IMQ)](https://codecov.io/gh/cffls/pycardano)
 
 PyCardano is a standalone Cardano client written in Python. The library is able to create and sign transactions without 
 depending on third-party Cardano serialization tools, such as
