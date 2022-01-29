@@ -12,7 +12,9 @@
 #
 import os
 import sys
-sys.path.insert(0, os.path.abspath('../pycardano'))
+sys.path.insert(0, os.path.abspath('../'))
+# For readthedocs whose working dir is at docs/source
+sys.path.insert(0, os.path.abspath('../../'))
 
 
 # -- Project information -----------------------------------------------------
@@ -32,6 +34,8 @@ extensions = [
     'sphinx.ext.napoleon',
     'sphinx_rtd_theme'
 ]
+
+master_doc = 'index'
 
 napoleon_google_docstring = True
 napoleon_include_init_with_doc = False
