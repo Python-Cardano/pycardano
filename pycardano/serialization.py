@@ -9,7 +9,7 @@ from datetime import datetime
 from decimal import Decimal
 from inspect import isclass
 from pprint import pformat
-from typing import Any, Callable, List, TypeVar, Type, Union, get_args, get_origin, get_type_hints
+from typing import Any, Callable, List, TypeVar, Type, Union, get_type_hints
 
 from cbor2 import dumps, loads
 from cbor2.types import undefined, CBORSimpleValue, CBORTag
@@ -255,13 +255,14 @@ def _restore_dataclass_field(f: dataclass_field, v: Primitive) -> \
         return f.metadata["object_hook"](v)
     elif isclass(f.type) and issubclass(f.type, CBORSerializable):
         return f.type.from_primitive(v)
-    elif get_origin(f.type) is Union:
-        for t in get_args(f.type):
+    elif hasattr(f.type, "__origin__") and f.type.__origin__ is Union:
+        t_args = f.type.__args__
+        for t in t_args:
             if isclass(t) and issubclass(t, CBORSerializable):
                 return t.from_primitive(v)
             elif t in Primitive.__constraints__ and isinstance(v, t):
                 return v
-        raise DeserializeException(f"Cannot deserialize object: \n{v}\n in any valid type from {get_args(f.type)}.")
+        raise DeserializeException(f"Cannot deserialize object: \n{v}\n in any valid type from {t_args}.")
     return v
 
 
