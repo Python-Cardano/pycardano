@@ -26,4 +26,8 @@ jobs:
           poetry run flake8 pycardano
       - name: Run unit tests
         run: |
-          poetry run pytest --doctest-modules
+          poetry run pytest --doctest-modules --cov=pycardano --cov-config=.coveragerc --cov-report=xml
+      - name: "Upload coverage to Codecov"
+        uses: codecov/codecov-action@v2
+        with:
+          fail_ci_if_error: true
