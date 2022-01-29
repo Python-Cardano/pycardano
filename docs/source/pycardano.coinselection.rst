@@ -1,7 +1,7 @@
-pycardano.serialization
+pycardano.coinselection
 ==============================
 
-.. automodule:: pycardano.serialization
+.. automodule:: pycardano.coinselection
    :members:
    :undoc-members:
    :show-inheritance:

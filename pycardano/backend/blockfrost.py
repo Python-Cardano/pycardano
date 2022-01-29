@@ -15,6 +15,12 @@ from pycardano.transaction import (TransactionInput, TransactionOutput, UTxO,
 
 
 class BlockFrostChainContext(ChainContext):
+    """A `BlockFrost <https://blockfrost.io/>`_ API wrapper for the client code to interact with.
+
+    Args:
+        project_id (str): A BlockFrost project ID obtained from https://blockfrost.io.
+        network (Network): Network to use.
+    """
 
     def __init__(self, project_id: str, network: Network = Network.TESTNET):
         self._network = network

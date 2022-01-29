@@ -1,3 +1,5 @@
+"""Defines interfaces for client codes to interact (read/write) with the blockchain."""
+
 from dataclasses import dataclass
 from typing import List, Union
 

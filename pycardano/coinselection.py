@@ -26,7 +26,7 @@ class UTxOSelector:
                respect_min_utxo: bool = True
                ) -> Tuple[List[UTxO], FullMultiAsset]:
         """From an input list of UTxOs, select a subset of UTxOs whose sum (including ADA and multi-assets)
-            is equal to or larger than the sum of a set of outputs.
+        is equal to or larger than the sum of a set of outputs.
 
         Args:
             utxos (List[UTxO]): A list of UTxO to select from.
@@ -41,11 +41,16 @@ class UTxOSelector:
 
         Returns:
             Tuple[List[UTxO], FullMultiAsset]: A tuple containing:
+
                 selected (List[UTxO]): A list of selected UTxOs.
+
                 changes (FullMultiAsset): Change amount to be returned.
 
         Raises:
-            UTxOSelectionException: When it is impossible to select a satisfying set of UTxOs.
+            InsufficientUTxOBalanceException: When total value of input UTxO is less than requested outputs.
+            MaxInputCountExceededException: When number of selected UTxOs exceeds `max_input_count`.
+            InputUTxODepletedException: When the algorithm has depleted input UTxOs but selection should continue.
+            UTxOSelectionException: When selection fails for reasons besides the three above.
         """
         raise NotImplementedError()
 
@@ -53,7 +58,7 @@ class UTxOSelector:
 class LargestFirstSelector(UTxOSelector):
     """
     Largest first selection algorithm as specified in
-        https://github.com/cardano-foundation/CIPs/tree/master/CIP-0002#largest-first.
+    https://github.com/cardano-foundation/CIPs/tree/master/CIP-0002#largest-first.
 
     This implementation adds transaction fee into consideration.
     """
@@ -105,9 +110,8 @@ class LargestFirstSelector(UTxOSelector):
 
 
 class RandomImproveMultiAsset(UTxOSelector):
-    """
-    Random-improve selection algorithm as specified in
-        https://github.com/cardano-foundation/CIPs/tree/master/CIP-0002#random-improve
+    """Random-improve selection algorithm as specified in
+    https://github.com/cardano-foundation/CIPs/tree/master/CIP-0002#random-improve.
 
     Because the original algorithm does not take multi-assets into consideration, this implementation is slightly
     different from the algorithm. The main modification is that it merges all requested transaction outputs into one,
@@ -115,11 +119,11 @@ class RandomImproveMultiAsset(UTxOSelector):
 
     This idea is inspired by Nami wallet: https://github.com/Berry-Pool/nami-wallet/blob/main/src/lib/coinSelection.js
 
-    ..Warning::
+    .. Note::
         Although this implementation is similar to the original Random-improve algorithm, and it is being used by some
         wallets, there are no substantial evidences or proofs showing that this implementation will still be able to
         correctly optimize UTxO selection based on
-        `three heuristics https://github.com/cardano-foundation/CIPs/tree/master/CIP-0002#motivating-principles`_
+        `three heuristics <https://github.com/cardano-foundation/CIPs/tree/master/CIP-0002#motivating-principles>`_
         mentioned in the doc.
     """
 

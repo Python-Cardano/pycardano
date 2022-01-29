@@ -1,3 +1,5 @@
+"""A collection of utility functions."""
+
 from typing import Union
 
 from pycardano.backend.base import ChainContext
@@ -21,6 +23,14 @@ def max_tx_fee(context: ChainContext) -> int:
 
 
 def bundle_size(multi_asset: MultiAsset) -> int:
+    """Calculate size of a multi-asset in words. (1 word = 8 bytes)
+
+    Args:
+        multi_asset (MultiAsset): Input multi asset.
+
+    Returns:
+        int: Number of words.
+    """
     num_policies = len(multi_asset)
     num_assets = 0
     total_asset_name_len = 0

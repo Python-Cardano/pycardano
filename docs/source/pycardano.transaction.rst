@@ -1,4 +1,4 @@
-pycardano.transaction module
+pycardano.transaction
 ============================
 
 .. automodule:: pycardano.transaction

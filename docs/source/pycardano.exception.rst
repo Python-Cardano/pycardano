@@ -1,4 +1,4 @@
-pycardano.exception module
+pycardano.exception
 ==========================
 
 .. automodule:: pycardano.exception

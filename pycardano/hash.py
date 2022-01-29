@@ -1,3 +1,5 @@
+"""All type of hashes in Cardano ledger spec."""
+
 from typing import Union, TypeVar, Type
 
 from pycardano.serialization import CBORSerializable

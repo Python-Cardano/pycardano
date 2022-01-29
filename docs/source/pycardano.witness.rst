@@ -1,4 +1,4 @@
-pycardano.witness module
+pycardano.witness
 ========================
 
 .. automodule:: pycardano.witness

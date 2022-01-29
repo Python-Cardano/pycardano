@@ -1,3 +1,5 @@
+"""Cryptographic keys that could be used in address generation and transaction signing."""
+
 from __future__ import annotations
 
 import json

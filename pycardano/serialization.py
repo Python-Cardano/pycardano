@@ -1,3 +1,5 @@
+"""Defines CBOR serialization interfaces and provides useful serialization classes."""
+
 from __future__ import annotations
 
 import re
