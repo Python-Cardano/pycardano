@@ -39,9 +39,8 @@ class BlockFrostChainContext(ChainContext):
     @property
     def slot(self) -> int:
         slot_length = self.genesis_param.slot_length
-        epoch = self.api.epoch_latest()
         cur_time = int(time.time())
-        return (cur_time - epoch.start_time) // slot_length
+        return (cur_time - self.genesis_param.system_start) // slot_length
 
     @property
     def genesis_param(self) -> GenesisParameters:
