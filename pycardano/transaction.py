@@ -157,8 +157,6 @@ class FullMultiAsset(ArrayCBORSerializable):
     def __sub__(self, other: Union[FullMultiAsset, int]) -> FullMultiAsset:
         if isinstance(other, int):
             other = FullMultiAsset(other)
-        if self.coin < other.coin:
-            raise InvalidOperationException(f"Subtraction results in negative ADA value: {self.coin - other.coin}")
         return FullMultiAsset(self.coin - other.coin, self.multi_asset - other.multi_asset)
 
     def __eq__(self, other):
