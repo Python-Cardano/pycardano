@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import json
 
+from nacl.bindings import crypto_sign_PUBLICKEYBYTES
 from nacl.encoding import RawEncoder
 from nacl.hash import blake2b
 from nacl.public import PrivateKey
 from nacl.signing import SigningKey as NACLSigningKey
 
 from pycardano.exception import InvalidKeyTypeException
-from pycardano.hash import AddrKeyHash, ADDR_KEYHASH_SIZE
+from pycardano.hash import VerificationKeyHash, VERIFICATION_KEY_HASH_SIZE
 from pycardano.serialization import CBORSerializable
 
 
@@ -105,20 +106,23 @@ class Key(CBORSerializable):
         return self.to_json()
 
 
-class AddressKey(Key):
-    def hash(self) -> AddrKeyHash:
+class VerificationKey(Key):
+
+    KEY_SIZE = crypto_sign_PUBLICKEYBYTES
+
+    def hash(self) -> VerificationKeyHash:
         """Compute a blake2b hash from the key
 
         Args:
             hash_size: Size of the hash output in bytes.
 
         Returns:
-            AddrKeyHash: Hash output in bytes.
+            VerificationKeyHash: Hash output in bytes.
         """
-        return AddrKeyHash(blake2b(self.payload, ADDR_KEYHASH_SIZE, encoder=RawEncoder))
+        return VerificationKeyHash(blake2b(self.payload, VERIFICATION_KEY_HASH_SIZE, encoder=RawEncoder))
 
     @classmethod
-    def from_signing_key(cls, key: SigningKey) -> AddressKey:
+    def from_signing_key(cls, key: SigningKey) -> VerificationKey:
         verification_key = NACLSigningKey(bytes(key)).verify_key
         return cls(bytes(verification_key))
 
@@ -140,7 +144,7 @@ class PaymentSigningKey(SigningKey):
     DESCRIPTION = "Payment Verification Key"
 
 
-class PaymentVerificationKey(AddressKey):
+class PaymentVerificationKey(VerificationKey):
     KEY_TYPE = "PaymentVerificationKeyShelley_ed25519"
     DESCRIPTION = "Payment Verification Key"
 
@@ -169,7 +173,7 @@ class StakeSigningKey(SigningKey):
     DESCRIPTION = "Stake Verification Key"
 
 
-class StakeVerificationKey(AddressKey):
+class StakeVerificationKey(VerificationKey):
     KEY_TYPE = "StakeVerificationKeyShelley_ed25519"
     DESCRIPTION = "Stake Verification Key"
 

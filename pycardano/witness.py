@@ -3,13 +3,13 @@
 from dataclasses import dataclass, field
 from typing import Any, List
 
-from pycardano.key import AddressKey
+from pycardano.key import VerificationKey
 from pycardano.serialization import ArrayCBORSerializable, MapCBORSerializable, list_hook
 
 
 @dataclass(repr=False)
 class VerificationKeyWitness(ArrayCBORSerializable):
-    vkey: AddressKey
+    vkey: VerificationKey
     signature: bytes
 
 

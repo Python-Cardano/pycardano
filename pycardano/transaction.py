@@ -12,7 +12,7 @@ from typeguard import typechecked
 
 from pycardano.address import Address
 from pycardano.exception import InvalidOperationException
-from pycardano.hash import (TransactionId, DatumHash, AuxiliaryDataHash, ScriptHash, AddrKeyHash,
+from pycardano.hash import (TransactionId, DatumHash, AuxiliaryDataHash, ScriptHash, VerificationKeyHash,
                             TRANSACTION_HASH_SIZE, ConstrainedBytes)
 from pycardano.network import Network
 from pycardano.serialization import (ArrayCBORSerializable, DictCBORSerializable,
@@ -172,6 +172,9 @@ class Value(ArrayCBORSerializable):
             other = Value(other)
         return self.coin <= other.coin and self.multi_asset <= other.multi_asset
 
+    def __lt__(self, other: Union[Value, int]):
+        return self <= other and self != other
+
 
 @dataclass(repr=False)
 class TransactionOutput(ArrayCBORSerializable):
@@ -238,11 +241,11 @@ class TransactionBody(MapCBORSerializable):
                   "optional": True,
                   "object_hook": list_hook(TransactionInput)})
 
-    required_signers: List[AddrKeyHash] = field(
+    required_signers: List[VerificationKeyHash] = field(
         default=None,
         metadata={"key": 14,
                   "optional": True,
-                  "object_hook": list_hook(AddrKeyHash)})
+                  "object_hook": list_hook(VerificationKeyHash)})
 
     network_id: Network = field(default=None, metadata={"key": 15, "optional": True})
 

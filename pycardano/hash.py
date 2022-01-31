@@ -4,7 +4,7 @@ from typing import Union, TypeVar, Type
 
 from pycardano.serialization import CBORSerializable
 
-ADDR_KEYHASH_SIZE = 28
+VERIFICATION_KEY_HASH_SIZE = 28
 SCRIPT_HASH_SIZE = 28
 TRANSACTION_HASH_SIZE = 32
 DATUM_HASH_SIZE = 32
@@ -61,9 +61,9 @@ class ConstrainedBytes(CBORSerializable):
         return f"{self.__class__.__name__}(hex='{self.payload.hex()}')"
 
 
-class AddrKeyHash(ConstrainedBytes):
+class VerificationKeyHash(ConstrainedBytes):
     """Hash of a Cardano verification key."""
-    MAX_SIZE = MIN_SIZE = ADDR_KEYHASH_SIZE
+    MAX_SIZE = MIN_SIZE = VERIFICATION_KEY_HASH_SIZE
 
 
 class ScriptHash(ConstrainedBytes):
