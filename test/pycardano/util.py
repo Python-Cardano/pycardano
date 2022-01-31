@@ -5,7 +5,7 @@ import pytest
 from pycardano.backend.base import ChainContext, GenesisParameters, ProtocolParameters
 from pycardano.network import Network
 from pycardano.serialization import CBORSerializable
-from pycardano.transaction import FullMultiAsset, TransactionInput, TransactionOutput, UTxO
+from pycardano.transaction import Value, TransactionInput, TransactionOutput, UTxO
 
 TEST_ADDR = "addr_test1vr2p8st5t5cxqglyjky7vk98k7jtfhdpvhl4e97cezuhn0cqcexl7"
 

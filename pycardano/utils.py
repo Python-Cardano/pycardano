@@ -1,10 +1,12 @@
 """A collection of utility functions."""
 
+from __future__ import annotations
+
 from typing import Union
 
 from pycardano.backend.base import ChainContext
 from pycardano.hash import SCRIPT_HASH_SIZE
-from pycardano.transaction import MultiAsset, FullMultiAsset
+from pycardano.transaction import MultiAsset, Value
 
 
 def max_tx_fee(context: ChainContext) -> int:
@@ -49,14 +51,14 @@ def bundle_size(multi_asset: MultiAsset) -> int:
     return 6 + (byte_len + 7) // 8
 
 
-def min_lovelace(amount: Union[int, FullMultiAsset], context: ChainContext, has_datum: bool = False) -> int:
+def min_lovelace(amount: Union[int, Value], context: ChainContext, has_datum: bool = False) -> int:
     """Calculate minimum lovelace a transaction output needs to hold.
 
     More info could be found in
     `this <https://github.com/input-output-hk/cardano-ledger/blob/master/doc/explanations/min-utxo-alonzo.rst>`_ page.
 
     Args:
-        amount (Union[int, FullMultiAsset]): Amount from a transaction output.
+        amount (Union[int, Value]): Amount from a transaction output.
         context (ChainContext): A chain context.
         has_datum (bool): Whether the transaction output contains datum hash.
 

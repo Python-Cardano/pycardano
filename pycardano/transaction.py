@@ -133,43 +133,43 @@ class MultiAsset(DictCBORSerializable):
 
 @typechecked
 @dataclass(repr=False)
-class FullMultiAsset(ArrayCBORSerializable):
+class Value(ArrayCBORSerializable):
     coin: int = 0
     """Amount of ADA"""
 
     multi_asset: MultiAsset = field(default_factory=MultiAsset)
     """Multi-assets associated with the UTxO"""
 
-    def union(self, other: Union[FullMultiAsset, int]) -> FullMultiAsset:
+    def union(self, other: Union[Value, int]) -> Value:
         return self + other
 
-    def __add__(self, other: Union[FullMultiAsset, int]):
+    def __add__(self, other: Union[Value, int]):
         if isinstance(other, int):
-            other = FullMultiAsset(other)
-        return FullMultiAsset(self.coin + other.coin, self.multi_asset + other.multi_asset)
+            other = Value(other)
+        return Value(self.coin + other.coin, self.multi_asset + other.multi_asset)
 
-    def __iadd__(self, other: Union[FullMultiAsset, int]):
+    def __iadd__(self, other: Union[Value, int]):
         new_item = self + other
         self.coin = new_item.coin
         self.multi_asset = new_item.multi_asset
         return self
 
-    def __sub__(self, other: Union[FullMultiAsset, int]) -> FullMultiAsset:
+    def __sub__(self, other: Union[Value, int]) -> Value:
         if isinstance(other, int):
-            other = FullMultiAsset(other)
-        return FullMultiAsset(self.coin - other.coin, self.multi_asset - other.multi_asset)
+            other = Value(other)
+        return Value(self.coin - other.coin, self.multi_asset - other.multi_asset)
 
     def __eq__(self, other):
-        if not isinstance(other, (FullMultiAsset, int)):
+        if not isinstance(other, (Value, int)):
             return False
         else:
             if isinstance(other, int):
-                other = FullMultiAsset(other)
+                other = Value(other)
             return self.coin == other.coin and self.multi_asset == other.multi_asset
 
-    def __le__(self, other: Union[FullMultiAsset, int]):
+    def __le__(self, other: Union[Value, int]):
         if isinstance(other, int):
-            other = FullMultiAsset(other)
+            other = Value(other)
         return self.coin <= other.coin and self.multi_asset <= other.multi_asset
 
 
@@ -177,7 +177,7 @@ class FullMultiAsset(ArrayCBORSerializable):
 class TransactionOutput(ArrayCBORSerializable):
     address: Address
 
-    amount: Union[int, FullMultiAsset]
+    amount: Union[int, Value]
 
     datum_hash: DatumHash = field(default=None, metadata={"optional": True})
 

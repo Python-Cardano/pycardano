@@ -4,7 +4,7 @@ from pycardano.address import Address
 from pycardano.exception import InvalidOperationException
 from pycardano.hash import TransactionId, ScriptHash, SCRIPT_HASH_SIZE
 from pycardano.key import PaymentKeyPair, PaymentSigningKey, AddressKey
-from pycardano.transaction import (Asset, AssetName, FullMultiAsset, MultiAsset, Transaction, TransactionBody,
+from pycardano.transaction import (Asset, AssetName, Value, MultiAsset, Transaction, TransactionBody,
                                    TransactionInput, TransactionOutput, TransactionWitnessSet)
 from pycardano.witness import VerificationKeyWitness
 from test.pycardano.util import check_two_way_cbor
@@ -66,13 +66,13 @@ def test_transaction():
 
 
 def test_multi_asset():
-    serialized_full_multi_asset = [100,
+    serialized_value = [100,
                                    {b"1" * SCRIPT_HASH_SIZE: {
                                        b"TestToken1": 10000000,
                                        b"TestToken2": 20000000
                                    }}]
-    full_multi_asset = FullMultiAsset.from_primitive(serialized_full_multi_asset)
-    assert full_multi_asset == FullMultiAsset(
+    value = Value.from_primitive(serialized_value)
+    assert value == Value(
         100,
         MultiAsset({
             ScriptHash(b"1" * SCRIPT_HASH_SIZE): Asset({
@@ -81,8 +81,8 @@ def test_multi_asset():
             })
         })
     )
-    assert full_multi_asset.to_primitive() == serialized_full_multi_asset
-    check_two_way_cbor(full_multi_asset)
+    assert value.to_primitive() == serialized_value
+    check_two_way_cbor(value)
 
 
 def test_multi_asset_addition():
@@ -238,8 +238,8 @@ def test_multi_asset_comparison():
         a <= 1
 
 
-def test_full_multi_assets():
-    a = FullMultiAsset.from_primitive(
+def test_values():
+    a = Value.from_primitive(
         [1,
          {
              b"1" * SCRIPT_HASH_SIZE: {
@@ -249,7 +249,7 @@ def test_full_multi_assets():
          }]
     )
 
-    b = FullMultiAsset.from_primitive(
+    b = Value.from_primitive(
         [11,
          {
              b"1" * SCRIPT_HASH_SIZE: {
@@ -259,7 +259,7 @@ def test_full_multi_assets():
          }]
     )
 
-    c = FullMultiAsset.from_primitive(
+    c = Value.from_primitive(
         [11,
          {
              b"1" * SCRIPT_HASH_SIZE: {
@@ -283,7 +283,7 @@ def test_full_multi_assets():
     assert b <= c
     assert not c <= b
 
-    assert b - a == FullMultiAsset.from_primitive(
+    assert b - a == Value.from_primitive(
         [10,
          {
              b"1" * SCRIPT_HASH_SIZE: {
@@ -293,7 +293,7 @@ def test_full_multi_assets():
          }]
     )
 
-    assert c - a == FullMultiAsset.from_primitive(
+    assert c - a == Value.from_primitive(
         [10,
          {
              b"1" * SCRIPT_HASH_SIZE: {
@@ -307,7 +307,7 @@ def test_full_multi_assets():
          }]
     )
 
-    assert a + 100 == FullMultiAsset.from_primitive(
+    assert a + 100 == Value.from_primitive(
         [101,
          {
              b"1" * SCRIPT_HASH_SIZE: {

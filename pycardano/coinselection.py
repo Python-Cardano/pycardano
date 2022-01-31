@@ -8,7 +8,7 @@ from typing import Iterable, List, Tuple, Optional
 from pycardano.backend.base import ChainContext
 from pycardano.exception import (InputUTxODepletedException, InsufficientUTxOBalanceException,
                                  MaxInputCountExceededException, UTxOSelectionException)
-from pycardano.transaction import UTxO, TransactionOutput, FullMultiAsset
+from pycardano.transaction import UTxO, TransactionOutput, Value
 from pycardano.utils import max_tx_fee, min_lovelace
 
 
@@ -24,7 +24,7 @@ class UTxOSelector:
                max_input_count: int = None,
                include_max_fee: bool = True,
                respect_min_utxo: bool = True
-               ) -> Tuple[List[UTxO], FullMultiAsset]:
+               ) -> Tuple[List[UTxO], Value]:
         """From an input list of UTxOs, select a subset of UTxOs whose sum (including ADA and multi-assets)
         is equal to or larger than the sum of a set of outputs.
 
@@ -40,11 +40,11 @@ class UTxOSelector:
                 when the amount is too small to hold a multi-asset bundle.
 
         Returns:
-            Tuple[List[UTxO], FullMultiAsset]: A tuple containing:
+            Tuple[List[UTxO], Value]: A tuple containing:
 
                 selected (List[UTxO]): A list of selected UTxOs.
 
-                changes (FullMultiAsset): Change amount to be returned.
+                changes (Value): Change amount to be returned.
 
         Raises:
             InsufficientUTxOBalanceException: When total value of input UTxO is less than requested outputs.
@@ -70,16 +70,16 @@ class LargestFirstSelector(UTxOSelector):
                max_input_count: int = None,
                include_max_fee: bool = True,
                respect_min_utxo: bool = True
-               ) -> Tuple[List[UTxO], FullMultiAsset]:
+               ) -> Tuple[List[UTxO], Value]:
 
         available: List[UTxO] = sorted(utxos, key=lambda utxo: utxo.output.lovelace)
         max_fee = max_tx_fee(context) if include_max_fee else 0
-        total_requested = FullMultiAsset(max_fee)
+        total_requested = Value(max_fee)
         for o in outputs:
             total_requested += o.amount
 
         selected = []
-        selected_amount = FullMultiAsset()
+        selected_amount = Value()
 
         while not total_requested <= selected_amount:
             if not available:
@@ -144,10 +144,10 @@ class RandomImproveMultiAsset(UTxOSelector):
         return utxos.pop(i)
 
     def _random_select_subset(self,
-                              amount: FullMultiAsset,
+                              amount: Value,
                               remaining: List[UTxO],
                               selected: List[UTxO],
-                              selected_amount: FullMultiAsset):
+                              selected_amount: Value):
         while not amount <= selected_amount:
             if not remaining:
                 raise InputUTxODepletedException("Input UTxOs depleted!")
@@ -156,31 +156,31 @@ class RandomImproveMultiAsset(UTxOSelector):
             selected_amount += to_add.output.amount
 
     @staticmethod
-    def _split_by_asset(full_multi_asset: FullMultiAsset) -> List[FullMultiAsset]:
+    def _split_by_asset(value: Value) -> List[Value]:
         # Extract ADA
-        assets = [FullMultiAsset(full_multi_asset.coin)]
+        assets = [Value(value.coin)]
 
         # Extract native assets
-        for policy_id in full_multi_asset.multi_asset:
-            for asset_name in full_multi_asset.multi_asset[policy_id]:
+        for policy_id in value.multi_asset:
+            for asset_name in value.multi_asset[policy_id]:
                 assets.append(
-                    FullMultiAsset.from_primitive([0, {
+                    Value.from_primitive([0, {
                         policy_id.payload: {
-                            asset_name.payload: full_multi_asset.multi_asset[policy_id][asset_name]
+                            asset_name.payload: value.multi_asset[policy_id][asset_name]
                         }
                     }]))
 
         return assets
 
     @staticmethod
-    def _get_single_asset_val(full_multi_asset: FullMultiAsset) -> int:
-        if full_multi_asset.coin:
-            return full_multi_asset.coin
+    def _get_single_asset_val(value: Value) -> int:
+        if value.coin:
+            return value.coin
         else:
-            return list(list(full_multi_asset.multi_asset.values())[0].values())[0]
+            return list(list(value.multi_asset.values())[0].values())[0]
 
     @staticmethod
-    def _find_diff_by_former(a: FullMultiAsset, b: FullMultiAsset) -> int:
+    def _find_diff_by_former(a: Value, b: Value) -> int:
         """The first argument contains only one asset. Find the absolute difference between this asset and
             the corresponding value of the same asset in the second argument"""
         if a.coin:
@@ -192,10 +192,10 @@ class RandomImproveMultiAsset(UTxOSelector):
 
     def _improve(self,
                  selected: List[UTxO],
-                 selected_amount: FullMultiAsset,
+                 selected_amount: Value,
                  remaining: List[UTxO],
-                 ideal: FullMultiAsset,
-                 upper_bound: FullMultiAsset,
+                 ideal: Value,
+                 upper_bound: Value,
                  max_input_count: int):
         if not remaining or self._find_diff_by_former(upper_bound, selected_amount) <= 0:
             return
@@ -217,11 +217,11 @@ class RandomImproveMultiAsset(UTxOSelector):
                max_input_count: int = None,
                include_max_fee: bool = True,
                respect_min_utxo: bool = True
-               ) -> Tuple[List[UTxO], FullMultiAsset]:
+               ) -> Tuple[List[UTxO], Value]:
         # Shallow copy the list
         remaining = list(utxos)
         max_fee = max_tx_fee(context) if include_max_fee else 0
-        request_sum = FullMultiAsset(max_fee)
+        request_sum = Value(max_fee)
         for o in outputs:
             request_sum += o.amount
 
@@ -230,7 +230,7 @@ class RandomImproveMultiAsset(UTxOSelector):
 
         # Phase 1 - random select
         selected = []
-        selected_amount = FullMultiAsset()
+        selected_amount = Value()
         for r in request_sorted:
             self._random_select_subset(r, remaining, selected, selected_amount)
             if max_input_count and len(selected) > max_input_count:

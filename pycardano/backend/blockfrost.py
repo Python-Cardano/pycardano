@@ -11,7 +11,7 @@ from pycardano.backend.base import ChainContext, GenesisParameters, ProtocolPara
 from pycardano.hash import DatumHash, ScriptHash, SCRIPT_HASH_SIZE
 from pycardano.network import Network
 from pycardano.transaction import (TransactionInput, TransactionOutput, UTxO,
-                                   FullMultiAsset, MultiAsset, Asset, AssetName)
+                                   Value, MultiAsset, Asset, AssetName)
 
 
 class BlockFrostChainContext(ChainContext):
@@ -111,8 +111,8 @@ class BlockFrostChainContext(ChainContext):
                                            datum_hash=datum_hash)
             else:
                 tx_out = TransactionOutput(Address.from_primitive(address),
-                                           amount=FullMultiAsset(lovelace_amount,
-                                                                 multi_assets),
+                                           amount=Value(lovelace_amount,
+                                                        multi_assets),
                                            datum_hash=datum_hash)
             utxos.append(UTxO(tx_in, tx_out))
 

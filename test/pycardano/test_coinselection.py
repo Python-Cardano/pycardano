@@ -6,7 +6,7 @@ from typing import List
 from pycardano.coinselection import LargestFirstSelector, RandomImproveMultiAsset
 from pycardano.exception import (InputUTxODepletedException, InsufficientUTxOBalanceException,
                                  MaxInputCountExceededException, UTxOSelectionException)
-from pycardano.transaction import FullMultiAsset, TransactionInput, TransactionOutput, UTxO
+from pycardano.transaction import Value, TransactionInput, TransactionOutput, UTxO
 from test.pycardano.util import chain_context
 
 address = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
@@ -28,8 +28,8 @@ UTXOS = [UTxO(TransactionInput.from_primitive([b"1" * 32, i]),
 
 
 def assert_request_fulfilled(request: List[TransactionOutput], selected: List[UTxO]):
-    assert reduce(lambda x, y: x + y, [r.amount for r in request], FullMultiAsset()) <= \
-           reduce(lambda x, y: x + y, [s.output.amount for s in selected], FullMultiAsset())
+    assert reduce(lambda x, y: x + y, [r.amount for r in request], Value()) <= \
+           reduce(lambda x, y: x + y, [s.output.amount for s in selected], Value())
 
 
 class TestLargestFirst:

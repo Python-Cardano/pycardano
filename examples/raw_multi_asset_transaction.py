@@ -1,6 +1,6 @@
 """An example that demonstrates low-level construction of a transaction that involves multi-asset."""
 
-from pycardano import (Address, FullMultiAsset, PaymentSigningKey, PaymentVerificationKey, Transaction,
+from pycardano import (Address, Value, PaymentSigningKey, PaymentVerificationKey, Transaction,
                        TransactionBody, TransactionInput, TransactionOutput, TransactionWitnessSet,
                        VerificationKeyWitness)
 
@@ -16,7 +16,7 @@ output1 = TransactionOutput(addr, 100000000000)
 
 # Output2 will send ADA along with multi-assets
 policy_id = b"1" * 28  # A dummy policy ID
-multi_asset = FullMultiAsset.from_primitive(
+multi_asset = Value.from_primitive(
     [2,  # Amount of ADA (in lovelace) to send
      {
          policy_id: {
