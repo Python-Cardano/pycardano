@@ -20,6 +20,12 @@ FAKE_TX_SIGNATURE = bytes(64)
 
 
 class TransactionBuilder:
+    """A class builder that makes it easy to build a transaction.
+
+    Args:
+        context (ChainContext): A chain context.
+        utxo_selectors (Optional[List[UTxOSelector]]): A list of UTxOSelectors that will select input UTxOs.
+    """
 
     def __init__(self, context: ChainContext, utxo_selectors: Optional[List[UTxOSelector]] = None):
         self.context = context
@@ -96,7 +102,7 @@ class TransactionBuilder:
     def validity_start(self, validity_start: int):
         self._validity_start = validity_start
 
-    def add_change_and_fee(self, change_address: Address) -> TransactionBuilder:
+    def _add_change_and_fee(self, change_address: Address) -> TransactionBuilder:
         self.fee = max_tx_fee(self.context)
         requested = Value(self.fee)
         for o in self.outputs:
@@ -119,7 +125,7 @@ class TransactionBuilder:
         self.outputs.append(TransactionOutput(change_address, change))
         return self
 
-    def input_vkey_hashes(self) -> List[VerificationKeyHash]:
+    def _input_vkey_hashes(self) -> List[VerificationKeyHash]:
         results = set()
         for i in self.inputs:
             if isinstance(i.output.address.payment_part, VerificationKeyHash):
@@ -136,7 +142,7 @@ class TransactionBuilder:
         return tx_body
 
     def _build_fake_vkey_witnesses(self) -> List[VerificationKeyWitness]:
-        vkey_hashes = self.input_vkey_hashes()
+        vkey_hashes = self._input_vkey_hashes()
         return [VerificationKeyWitness(FAKE_VKEY, FAKE_TX_SIGNATURE) for _ in vkey_hashes]
 
     def _build_fake_witness_set(self) -> TransactionWitnessSet:
@@ -147,7 +153,16 @@ class TransactionBuilder:
         witness = self._build_fake_witness_set()
         return Transaction(tx_body, witness, True)
 
-    def build(self, change_address: Address) -> TransactionBody:
+    def build(self, change_address: Optional[Address] = None) -> TransactionBody:
+        """Build a transaction body from all constraints set through the builder.
+
+        Args:
+            change_address (Optional[Address]): Address to which changes will be returned. If not provided, the
+                transaction body will likely be unbalanced (sum of inputs is greater than the sum of outputs).
+
+        Returns:
+            A transaction body.
+        """
         selected_utxos = []
         selected_amount = Value()
         for i in self.inputs:
@@ -196,7 +211,7 @@ class TransactionBuilder:
 
         self.inputs[:] = selected_utxos[:]
 
-        self.add_change_and_fee(change_address)
+        self._add_change_and_fee(change_address)
 
         tx_body = self._build_tx_body()
 

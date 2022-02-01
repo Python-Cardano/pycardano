@@ -131,6 +131,15 @@ class MultiAsset(DictCBORSerializable):
         return True
 
     def filter(self, criteria=Callable[[ScriptHash, AssetName, int], bool]) -> MultiAsset:
+        """Filter items by criteria.
+
+        Args:
+            criteria: A function that takes in three input arguments (policy_id, asset_name, amount) and returns a
+                bool. If returned value is True, then the asset will be kept, otherwise discarded.
+
+        Returns:
+            A new filtered MultiAsset object.
+        """
         new_multi_asset = MultiAsset()
 
         for p in self:

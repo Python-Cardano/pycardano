@@ -21,5 +21,6 @@ API Reference
    pycardano.network
    pycardano.serialization
    pycardano.transaction
+   pycardano.txbuilder
    pycardano.utils
    pycardano.witness
