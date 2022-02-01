@@ -181,7 +181,10 @@ class TransactionBuilder:
 
         unfulfilled_amount = requested_amount - trimmed_selected_amount
         unfulfilled_amount.coin = max(0, unfulfilled_amount.coin)
+        # Clean up all non-positive assets
+        unfulfilled_amount.multi_asset = unfulfilled_amount.multi_asset.filter(lambda p, n, v: v > 0)
 
+        # When there are positive coin or native asset quantity in unfulfilled Value
         if Value() < unfulfilled_amount:
             additional_utxo_pool = []
             for address in self.input_addresses:

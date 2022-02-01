@@ -18,8 +18,8 @@ def max_tx_fee(context: ChainContext) -> int:
     Returns:
         int: Maximum possible tx fee in lovelace.
     """
-    return context.protocol_param.max_tx_size * context.protocol_param.min_fee_coefficient + \
-        context.protocol_param.min_fee_constant + \
+    return int(context.protocol_param.max_tx_size * context.protocol_param.min_fee_coefficient) + \
+        int(context.protocol_param.min_fee_constant) + \
         int(context.protocol_param.max_tx_ex_mem * context.protocol_param.price_mem) + \
         int(context.protocol_param.max_tx_ex_steps * context.protocol_param.price_step)
 
