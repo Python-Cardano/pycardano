@@ -9,7 +9,6 @@ SCRIPT_HASH_SIZE = 28
 TRANSACTION_HASH_SIZE = 32
 DATUM_HASH_SIZE = 32
 AUXILIARY_DATA_HASH_SIZE = 32
-SIGNATURE_SIZE = 32
 
 
 T = TypeVar("T", bound="ConstrainedBytes")
@@ -59,6 +58,9 @@ class ConstrainedBytes(CBORSerializable):
 
     def __repr__(self):
         return f"{self.__class__.__name__}(hex='{self.payload.hex()}')"
+
+    def __str__(self):
+        return self.payload.hex()
 
 
 class VerificationKeyHash(ConstrainedBytes):

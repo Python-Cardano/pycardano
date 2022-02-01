@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pprint import pformat
-from typing import Any, List, Union
+from typing import Any, Callable, List, Union
 
 from nacl.encoding import RawEncoder
 from nacl.hash import blake2b
@@ -129,6 +129,18 @@ class MultiAsset(DictCBORSerializable):
             if p not in other or not self[p] <= other[p]:
                 return False
         return True
+
+    def filter(self, criteria=Callable[[ScriptHash, AssetName, int], bool]) -> MultiAsset:
+        new_multi_asset = MultiAsset()
+
+        for p in self:
+            for n in self[p]:
+                if criteria(p, n, self[p][n]):
+                    if p not in new_multi_asset:
+                        new_multi_asset[p] = Asset()
+                    new_multi_asset[p][n] = self[p][n]
+
+        return new_multi_asset
 
 
 @typechecked

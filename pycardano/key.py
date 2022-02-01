@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 
-from nacl.bindings import crypto_sign_PUBLICKEYBYTES
+from nacl.bindings import crypto_sign_PUBLICKEYBYTES, crypto_sign_SEEDBYTES
 from nacl.encoding import RawEncoder
 from nacl.hash import blake2b
 from nacl.public import PrivateKey
@@ -108,7 +108,7 @@ class Key(CBORSerializable):
 
 class VerificationKey(Key):
 
-    KEY_SIZE = crypto_sign_PUBLICKEYBYTES
+    SIZE = crypto_sign_PUBLICKEYBYTES
 
     def hash(self) -> VerificationKeyHash:
         """Compute a blake2b hash from the key
@@ -128,6 +128,8 @@ class VerificationKey(Key):
 
 
 class SigningKey(Key):
+
+    SIZE = crypto_sign_SEEDBYTES
 
     def sign(self, data: bytes) -> bytes:
         signed_message = NACLSigningKey(self.payload).sign(data)

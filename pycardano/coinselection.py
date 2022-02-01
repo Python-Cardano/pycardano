@@ -128,7 +128,7 @@ class RandomImproveMultiAsset(UTxOSelector):
     """
 
     def __init__(self, random_generator: Optional[Iterable[int]] = None):
-        self.random_generator = iter(random_generator)
+        self.random_generator = iter(random_generator) if random_generator else None
 
     def _get_next_random(self, utxos: List[UTxO]) -> UTxO:
         if not utxos:
