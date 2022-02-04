@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from typing import Any, List
 
 from pycardano.key import VerificationKey
+from pycardano.nativescript import NativeScript
 from pycardano.serialization import ArrayCBORSerializable, MapCBORSerializable, list_hook
 
 
@@ -21,10 +22,10 @@ class TransactionWitnessSet(MapCBORSerializable):
                         "key": 0,
                         "object_hook": list_hook(VerificationKeyWitness)})
 
-    # TODO: Add native script support
-    native_scripts: List[Any] = field(default=None,
-                                      metadata={"optional": True,
-                                                "key": 1})
+    native_scripts: List[NativeScript] = field(default=None,
+                                               metadata={"optional": True,
+                                                         "key": 1,
+                                                         "object_hook": list_hook(NativeScript)})
 
     # TODO: Add bootstrap witness (byron) support
     bootstrap_witness: List[Any] = field(default=None,

@@ -209,7 +209,7 @@ Go to the main page:
 - [X] Chain backend integration
 - [ ] Fee calculation
 - [X] UTxO selection
-- [ ] Native script
+- [X] Native script
 - [ ] Plutus script
 - [ ] Mnemonic 
 - [ ] Byron Address
