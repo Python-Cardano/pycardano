@@ -31,6 +31,18 @@ def test_tx_builder(chain_context):
     assert expected == tx_body.to_primitive()
 
 
+def test_tx_builder_no_change(chain_context):
+    tx_builder = TransactionBuilder(chain_context, [RandomImproveMultiAsset([0, 0])])
+    sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    sender_address = Address.from_primitive(sender)
+
+    # Add sender address as input
+    tx_builder.add_input_address(sender) \
+        .add_output(TransactionOutput.from_primitive([sender, 500000]))
+
+    tx_body = tx_builder.build()
+
+
 def test_tx_builder_with_certain_input(chain_context):
     tx_builder = TransactionBuilder(chain_context, [RandomImproveMultiAsset([0, 0])])
     sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"

@@ -102,7 +102,7 @@ class TransactionBuilder:
     def validity_start(self, validity_start: int):
         self._validity_start = validity_start
 
-    def _add_change_and_fee(self, change_address: Address) -> TransactionBuilder:
+    def _add_change_and_fee(self, change_address: Optional[Address] = None) -> TransactionBuilder:
         self.fee = max_tx_fee(self.context)
         requested = Value(self.fee)
         for o in self.outputs:
@@ -122,7 +122,8 @@ class TransactionBuilder:
         if not change.multi_asset:
             change = change.coin
 
-        self.outputs.append(TransactionOutput(change_address, change))
+        if change_address:
+            self.outputs.append(TransactionOutput(change_address, change))
         return self
 
     def _input_vkey_hashes(self) -> List[VerificationKeyHash]:
