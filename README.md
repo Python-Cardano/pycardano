@@ -4,18 +4,19 @@
 [![codecov](https://codecov.io/gh/cffls/pycardano/branch/main/graph/badge.svg?token=62N0IL9IMQ)](https://codecov.io/gh/cffls/pycardano)
 [![Documentation Status](https://readthedocs.org/projects/pycardano/badge/?version=latest)](https://pycardano.readthedocs.io/en/latest/?badge=latest)
 
-PyCardano is a standalone Cardano client written in Python. The library is able to create and sign transactions without 
+PyCardano is a Cardano library written in Python. It allows users to create and sign transactions without 
 depending on third-party Cardano serialization tools, such as
 [cardano-cli](https://github.com/input-output-hk/cardano-node#cardano-cli) and 
-[cardano-serialization-lib](https://github.com/Emurgo/cardano-serialization-lib), making it a light-weight library that 
-is easy and fast to set up in all kinds of environments.
+[cardano-serialization-lib](https://github.com/Emurgo/cardano-serialization-lib), making it a lightweight library, which 
+is simple and fast to set up in all types of environments.
 
-Current goal of this project is to enable developers to write off-chain and testing code only in Python for their DApps.
-Nevertheless, we see the potential in expanding this project to a full Cardano node implementation in Python, which 
-might be beneficial for faster R&D iterations.
+Current goal of this project is to enable developers to write off-chain code and tests in pure Python for Plutus DApps.
+Nevertheless, we see the potential in expanding this project to a full Cardano node client, which 
+could be beneficial for faster R&D iterations.
 
 ### Installation
 
+The library is still under development. The first release will be published to PyPI soon.
 
 ### Examples
 
