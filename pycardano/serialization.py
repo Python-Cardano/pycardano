@@ -9,7 +9,7 @@ from datetime import datetime
 from decimal import Decimal
 from inspect import isclass
 from pprint import pformat
-from typing import Any, Callable, List, TypeVar, Type, Union, get_type_hints
+from typing import Any, Callable, ClassVar, List, TypeVar, Type, Union, get_type_hints
 
 from cbor2 import dumps, loads
 from cbor2.types import undefined, CBORSimpleValue, CBORTag
@@ -330,6 +330,8 @@ class ArrayCBORSerializable(CBORSerializable):
         Test2(c='c', test1=Test1(a='a', b=None))
     """
 
+    field_sorter: ClassVar[Callable[[List], List]] = lambda x: x
+
     def to_shallow_primitive(self) -> Primitive:
         """
         Returns:
@@ -340,7 +342,7 @@ class ArrayCBORSerializable(CBORSerializable):
                 types.
         """
         primitives = []
-        for field in fields(self):
+        for field in self.__class__.field_sorter(fields(self)):
             val = getattr(self, field.name)
             if val is None and field.metadata.get("optional"):
                 continue
