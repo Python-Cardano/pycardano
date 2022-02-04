@@ -84,13 +84,13 @@ class Key(CBORSerializable):
                    description=obj["description"])
 
     def save(self, path: str):
-        with open(path) as f:
+        with open(path, "w") as f:
             f.write(self.to_json())
 
     @classmethod
     def load(cls, path: str):
         with open(path) as f:
-            cls.from_json(f.read())
+            return cls.from_json(f.read())
 
     def __bytes__(self):
         return self.payload

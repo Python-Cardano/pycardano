@@ -7,12 +7,9 @@ network = Network.TESTNET
 
 # Read keys to memory
 # Assume there is a payment.skey file sitting in current directory
-with open("payment.skey") as f:
-    psk = PaymentSigningKey.from_json(f.read())
-
+psk = PaymentSigningKey.load("payment.skey")
 # Assume there is a stake.skey file sitting in current directory
-with open("stake.skey") as f:
-    ssk = StakeSigningKey.from_json(f.read())
+ssk = StakeSigningKey.load("stake.skey")
 
 pvk = PaymentVerificationKey.from_signing_key(psk)
 svk = StakeVerificationKey.from_signing_key(ssk)

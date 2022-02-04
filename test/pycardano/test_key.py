@@ -1,3 +1,6 @@
+import pathlib
+import tempfile
+
 from pycardano.key import PaymentVerificationKey, PaymentSigningKey, PaymentKeyPair
 
 SK = PaymentSigningKey.from_json("""{
@@ -25,3 +28,14 @@ def test_key_pair():
     sk = PaymentSigningKey.generate()
     vk = PaymentVerificationKey.from_signing_key(sk)
     assert PaymentKeyPair(sk, vk) == PaymentKeyPair.from_signing_key(sk)
+
+
+def test_key_load():
+    sk = PaymentSigningKey.load(str(pathlib.Path(__file__).parent / "../resources/keys/payment.skey"))
+
+
+def test_key_save():
+    with tempfile.NamedTemporaryFile() as f:
+        SK.save(f.name)
+        sk = PaymentSigningKey.load(f.name)
+        assert SK == sk
