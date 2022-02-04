@@ -14,6 +14,40 @@ Current goal of this project is to enable developers to write off-chain code and
 Nevertheless, we see the potential in expanding this project to a full Cardano node client, which 
 could be beneficial for faster R&D iterations.
 
+### Table of contents
+
+- [PyCardano](#pycardano)
+  - [Features](#features)
+  - [Installation](#installation)
+  - [Examples](#examples)
+    - [Transaction creation and signing](#transaction-creation-and-signing)
+  - [Documentations](#documentations)
+  - [Development](#development)
+    - [Workspace setup](#workspace-setup)
+    - [Test](#test)
+    - [Test coverage](#test-coverage)
+  - [Style guidelines](#style-guidelines)
+  - [Docs generation](#docs-generation)
+
+### Features
+
+- [x] Shelly address
+- [x] Transaction builder
+- [x] Transaction signing
+- [x] Multi-asset
+- [X] Chain backend integration
+- [ ] Fee calculation
+- [X] UTxO selection
+- [X] Native script
+- [ ] Plutus script
+- [ ] Mnemonic 
+- [ ] Byron Address
+- [ ] Reward withdraw
+- [ ] HD Wallet
+- [ ] Staking certificates
+- [ ] Protocol proposal update
+
+
 ### Installation
 
 The library is still under development. The first release will be published to PyPI soon.
@@ -200,20 +234,4 @@ Go to the main page:
 `open build/html/index.html` 
 
 
-### Feature support
 
-- [x] Shelly address
-- [x] Transaction builder
-- [x] Transaction signing
-- [x] Multi-asset
-- [X] Chain backend integration
-- [ ] Fee calculation
-- [X] UTxO selection
-- [X] Native script
-- [ ] Plutus script
-- [ ] Mnemonic 
-- [ ] Byron Address
-- [ ] Reward withdraw
-- [ ] HD Wallet
-- [ ] Staking certificates
-- [ ] Protocol proposal update
