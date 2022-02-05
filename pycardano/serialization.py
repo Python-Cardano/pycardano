@@ -259,7 +259,10 @@ def _restore_dataclass_field(f: dataclass_field, v: Primitive) -> \
         t_args = f.type.__args__
         for t in t_args:
             if isclass(t) and issubclass(t, CBORSerializable):
-                return t.from_primitive(v)
+                try:
+                    return t.from_primitive(v)
+                except DeserializeException:
+                    pass
             elif t in Primitive.__constraints__ and isinstance(v, t):
                 return v
         raise DeserializeException(f"Cannot deserialize object: \n{v}\n in any valid type from {t_args}.")
@@ -546,10 +549,14 @@ class DictCBORSerializable(dict, CBORSerializable):
         Raises:
             :class:`pycardano.exception.DeserializeException`: When the object could not be restored from primitives.
         """
+        if not value:
+            raise DeserializeException(f"Cannot accept empty value {value}.")
         restored = cls()
         for k, v in value.items():
-            k = cls.KEY_TYPE.from_primitive(k) if issubclass(cls.KEY_TYPE, CBORSerializable) else k
-            v = cls.VALUE_TYPE.from_primitive(v) if issubclass(cls.VALUE_TYPE, CBORSerializable) else v
+            k = cls.KEY_TYPE.from_primitive(k) if isclass(cls.VALUE_TYPE) and \
+                issubclass(cls.KEY_TYPE, CBORSerializable) else k
+            v = cls.VALUE_TYPE.from_primitive(v) if isclass(cls.VALUE_TYPE) and \
+                issubclass(cls.VALUE_TYPE, CBORSerializable) else v
             restored[k] = v
         return restored
 

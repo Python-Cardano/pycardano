@@ -14,6 +14,7 @@ from pycardano.address import Address
 from pycardano.exception import InvalidOperationException
 from pycardano.hash import (TransactionId, DatumHash, AuxiliaryDataHash, ScriptHash, VerificationKeyHash,
                             TRANSACTION_HASH_SIZE, ConstrainedBytes)
+from pycardano.metadata import AuxiliaryData
 from pycardano.network import Network
 from pycardano.serialization import (ArrayCBORSerializable, DictCBORSerializable,
                                      MapCBORSerializable, list_hook)
@@ -282,5 +283,4 @@ class Transaction(ArrayCBORSerializable):
 
     valid: bool = True
 
-    # TODO: Add auxiliary data support
-    auxiliary_data: Union[Any, type(None)] = None
+    auxiliary_data: Union[AuxiliaryData, type(None)] = None

@@ -39,6 +39,7 @@ could be beneficial for faster R&D iterations.
 - [ ] Fee calculation
 - [X] UTxO selection
 - [X] Native script
+- [X] Metadata
 - [ ] Plutus script
 - [ ] Mnemonic 
 - [ ] Byron Address
