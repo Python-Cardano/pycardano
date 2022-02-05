@@ -1,7 +1,7 @@
 """
 This is a complete walk through of minting a NFT on Cardano blockchain in pure Python code.
 
-This example is inspired from https://developers.cardano.org/docs/native-tokens/minting-nfts#crafting-the-transaction
+This example is inspired by https://developers.cardano.org/docs/native-tokens/minting-nfts#crafting-the-transaction
 
 # Submitted transaction in this example could be found at
 # https://testnet.cardanoscan.io/transaction/217680cbd2e546d0c0c8d9f4cf52faa0e0a36f56b8ce5692ab64461dfc67209a?tab=utxo
@@ -57,14 +57,18 @@ policy_skey, policy_vkey = load_or_create_key_pair(key_dir, "policy")
 """Create policy"""
 # A policy that requires a signature from the policy key we generated above
 pub_key_policy = ScriptPubkey(policy_vkey.hash())
-print(f"Policy vkey hash: {policy_vkey.hash()}")
 
 # A time policy that disallows token minting after 10000 seconds from last block
 must_before_slot = InvalidHereAfter(chain_context.last_block_slot + 10000)
 
+# Combine two policies using ScriptAll policy
 policy = ScriptAll([pub_key_policy, must_before_slot])
+
+# Calculate policy ID, which is the hash of the policy
 policy_id = policy.hash()
 print(f"Policy ID: {policy_id}")
+with open(root / "policy.id") as f:
+    f.write(str(policy_id))
 
 """Define NFT"""
 # Create an asset container
@@ -120,20 +124,33 @@ metadata = {
     }
 }
 
+# Place metadata in AuxiliaryData, the format acceptable by a transaction.
 auxiliary_data = AuxiliaryData(AlonzoMetadata(metadata=Metadata(metadata)))
 
-"""Builder transaction"""
+"""Build transaction"""
+
+# Create a transaction builder
 builder = TransactionBuilder(chain_context)
+
+# Add our own address as the input address
 builder.add_input_address(address)
+
+# Since an InvalidHereAfter rule is included in the policy, we must specify time to live (ttl) for this transaction
 builder.ttl = must_before_slot.after
+
+# Set nft we want to mint
 builder.mint = my_nft
+
+# Set transaction metadata
 builder.auxiliary_data = auxiliary_data
 
-# Calculate the minimum amount of lovelace we need to hold the NFT we are going to mint
+# Calculate the minimum amount of lovelace that need to hold the NFT we are going to mint
 min_val = min_lovelace(Value(0, my_nft), chain_context)
+
+# Send the NFT to our own address
 builder.add_output(TransactionOutput(address, Value(min_val, my_nft)))
 
-# Build a finalized transaction body with the change returning to the address we own
+# Build a finalized transaction body with the change returning to our own address
 tx_body = builder.build(change_address=address)
 
 """Sign transaction and add witnesses"""
