@@ -100,19 +100,6 @@ class TransactionBuilder:
     def auxiliary_data(self, data: AuxiliaryData):
         self._auxiliary_data = data
 
-    def set_ttl_by_delta(self, delta: int) -> TransactionBuilder:
-        """Set time to live by number of seconds from now.
-
-        Args:
-            delta (int): Number of seconds (from now) after which the transaction will become invalid.
-
-        Returns:
-            TransactionBuild: Current transaction build.
-        """
-        delta_slots = delta // self.context.genesis_param.slot_length
-        self.ttl = self.context.slot + delta_slots
-        return self
-
     @property
     def validity_start(self):
         return self._validity_start
