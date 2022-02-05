@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import json
 
 from nacl.bindings import crypto_sign_PUBLICKEYBYTES, crypto_sign_SEEDBYTES
@@ -84,6 +85,9 @@ class Key(CBORSerializable):
                    description=obj["description"])
 
     def save(self, path: str):
+        if os.path.isfile(path):
+            if os.stat(path).st_size > 0:
+                raise IOError(f"File {path} already exists!")
         with open(path, "w") as f:
             f.write(self.to_json())
 

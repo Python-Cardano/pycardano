@@ -116,8 +116,8 @@ class ChainContext:
         raise NotImplementedError()
 
     @property
-    def slot(self) -> int:
-        """Current slot number"""
+    def last_block_slot(self) -> int:
+        """Slot number of last block"""
         raise NotImplementedError()
 
     def utxos(self, address: str) -> List[UTxO]:

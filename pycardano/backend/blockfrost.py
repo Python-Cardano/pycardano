@@ -1,6 +1,5 @@
 import os
 import tempfile
-import time
 
 from typing import List, Union
 
@@ -37,10 +36,9 @@ class BlockFrostChainContext(ChainContext):
         return self.api.epoch_latest().epoch
 
     @property
-    def slot(self) -> int:
-        slot_length = self.genesis_param.slot_length
-        cur_time = int(time.time())
-        return (cur_time - self.genesis_param.system_start) // slot_length
+    def last_block_slot(self) -> int:
+        block = self.api.block_latest()
+        return block.slot
 
     @property
     def genesis_param(self) -> GenesisParameters:

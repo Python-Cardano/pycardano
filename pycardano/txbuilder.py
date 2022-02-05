@@ -7,9 +7,10 @@ from pycardano.backend.base import ChainContext
 from pycardano.coinselection import LargestFirstSelector, RandomImproveMultiAsset, UTxOSelector
 from pycardano.exception import UTxOSelectionException
 from pycardano.hash import VerificationKeyHash, VERIFICATION_KEY_HASH_SIZE
+from pycardano.metadata import AuxiliaryData
 from pycardano.key import VerificationKey
 from pycardano.logging import logger
-from pycardano.transaction import Value, Transaction, TransactionBody, TransactionOutput, UTxO
+from pycardano.transaction import Value, Transaction, TransactionBody, TransactionOutput, UTxO, MultiAsset
 from pycardano.utils import max_tx_fee
 from pycardano.witness import TransactionWitnessSet, VerificationKeyWitness
 
@@ -35,6 +36,8 @@ class TransactionBuilder:
         self._fee = 0
         self._ttl = None
         self._validity_start = None
+        self._auxiliary_data = None
+        self._mint = None
 
         if utxo_selectors:
             self.utxo_selectors = utxo_selectors
@@ -81,6 +84,22 @@ class TransactionBuilder:
     def ttl(self, ttl: int):
         self._ttl = ttl
 
+    @property
+    def mint(self) -> MultiAsset:
+        return self._mint
+
+    @mint.setter
+    def mint(self, mint: MultiAsset):
+        self._mint = mint
+
+    @property
+    def auxiliary_data(self) -> AuxiliaryData:
+        return self._auxiliary_data
+
+    @auxiliary_data.setter
+    def auxiliary_data(self, data: AuxiliaryData):
+        self._auxiliary_data = data
+
     def set_ttl_by_delta(self, delta: int) -> TransactionBuilder:
         """Set time to live by number of seconds from now.
 
@@ -111,6 +130,8 @@ class TransactionBuilder:
         provided = Value()
         for i in self.inputs:
             provided += i.output.amount
+        if self.mint:
+            provided.multi_asset += self.mint
 
         change = provided - requested
 
@@ -138,6 +159,8 @@ class TransactionBuilder:
                                   self.outputs,
                                   fee=self.fee,
                                   ttl=self.ttl,
+                                  mint=self.mint,
+                                  auxiliary_data_hash=self.auxiliary_data.hash() if self.auxiliary_data else None,
                                   validity_start=self.validity_start
                                   )
         return tx_body
@@ -152,7 +175,7 @@ class TransactionBuilder:
     def _build_full_fake_tx(self) -> Transaction:
         tx_body = self._build_tx_body()
         witness = self._build_fake_witness_set()
-        return Transaction(tx_body, witness, True)
+        return Transaction(tx_body, witness, True, self.auxiliary_data)
 
     def build(self, change_address: Optional[Address] = None) -> TransactionBody:
         """Build a transaction body from all constraints set through the builder.
@@ -169,6 +192,8 @@ class TransactionBuilder:
         for i in self.inputs:
             selected_utxos.append(i)
             selected_amount += i.output.amount
+        if self.mint:
+            selected_amount.multi_asset += self.mint
 
         requested_amount = Value()
         for o in self.outputs:

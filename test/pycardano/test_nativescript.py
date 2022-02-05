@@ -34,6 +34,12 @@ def test_script_all():
     assert "ec8b7d1dd0b124e8333d3fa8d818f6eac068231a287554e9ceae490e" == str(script.hash())
     check_two_way_cbor(script)
 
+    vk1 = VerificationKey.from_cbor("5820f6b367e63d0478e2aa7f99c6b1998dcd746484c37e754a993c3720d8ecf39b03")
+    spk1 = ScriptPubkey(key_hash=vk1.hash())
+    before = InvalidHereAfter(80059041)
+    script = ScriptAll([spk1, before])
+    assert "b9ef27af6a13e3f779bf77c1f624966068b2464ea92b59e8d26fa19b" == str(script.hash())
+
 
 def test_script_any():
     vk1 = VerificationKey.from_cbor("58206443a101bdb948366fc87369336224595d36d8b0eee5602cba8b81a024e58473")
