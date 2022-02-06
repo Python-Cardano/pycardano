@@ -1,5 +1,6 @@
 import os
 import tempfile
+import time
 
 from typing import List, Union
 
@@ -26,6 +27,17 @@ class BlockFrostChainContext(ChainContext):
         self._project_id = project_id
         self._base_url = ApiUrls.testnet.value if self.network == Network.TESTNET else ApiUrls.mainnet.value
         self.api = BlockFrostApi(project_id=self._project_id, base_url=self._base_url)
+        self._epoch_info = self.api.epoch_latest()
+        self._epoch = None
+        self._genesis_param = None
+        self._protocol_param = None
+
+    def _check_epoch_and_update(self):
+        if int(time.time()) >= self._epoch_info.end_time:
+            self._epoch_info = self.api.epoch_latest()
+            return True
+        else:
+            return False
 
     @property
     def network(self) -> Network:
@@ -33,7 +45,9 @@ class BlockFrostChainContext(ChainContext):
 
     @property
     def epoch(self) -> int:
-        return self.api.epoch_latest().epoch
+        if not self._epoch or self._check_epoch_and_update():
+            self._epoch = self.api.epoch_latest().epoch
+        return self._epoch
 
     @property
     def last_block_slot(self) -> int:
@@ -42,41 +56,45 @@ class BlockFrostChainContext(ChainContext):
 
     @property
     def genesis_param(self) -> GenesisParameters:
-        params = vars(self.api.genesis())
-        return GenesisParameters(
-            **params
-        )
+        if not self._genesis_param or self._check_epoch_and_update():
+            params = vars(self.api.genesis())
+            self._genesis_param = GenesisParameters(
+                **params
+            )
+        return self._genesis_param
 
     @property
     def protocol_param(self) -> ProtocolParameters:
-        params = self.api.epoch_latest_parameters(self.epoch)
-        return ProtocolParameters(
-            min_fee_constant=int(params.min_fee_b),
-            min_fee_coefficient=int(params.min_fee_a),
-            max_block_size=int(params.max_block_size),
-            max_tx_size=int(params.max_tx_size),
-            max_block_header_size=int(params.max_block_header_size),
-            key_deposit=int(params.key_deposit),
-            pool_deposit=int(params.pool_deposit),
-            pool_influence=float(params.a0),
-            monetary_expansion=float(params.rho),
-            treasury_expansion=float(params.tau),
-            decentralization_param=float(params.decentralisation_param),
-            extra_entropy=params.extra_entropy,
-            protocol_major_version=int(params.protocol_major_ver),
-            protocol_minor_version=int(params.protocol_minor_ver),
-            min_utxo=int(params.min_utxo),
-            price_mem=float(params.price_mem),
-            price_step=float(params.price_step),
-            max_tx_ex_mem=int(params.max_tx_ex_mem),
-            max_tx_ex_steps=int(params.max_tx_ex_steps),
-            max_block_ex_mem=int(params.max_block_ex_mem),
-            max_block_ex_steps=int(params.max_block_ex_steps),
-            max_val_size=int(params.max_val_size),
-            collateral_percent=int(params.collateral_percent),
-            max_collateral_inputs=int(params.max_collateral_inputs),
-            coins_per_utxo_word=int(params.coins_per_utxo_word),
-        )
+        if not self._protocol_param or self._check_epoch_and_update():
+            params = self.api.epoch_latest_parameters(self.epoch)
+            self._protocol_param = ProtocolParameters(
+                min_fee_constant=int(params.min_fee_b),
+                min_fee_coefficient=int(params.min_fee_a),
+                max_block_size=int(params.max_block_size),
+                max_tx_size=int(params.max_tx_size),
+                max_block_header_size=int(params.max_block_header_size),
+                key_deposit=int(params.key_deposit),
+                pool_deposit=int(params.pool_deposit),
+                pool_influence=float(params.a0),
+                monetary_expansion=float(params.rho),
+                treasury_expansion=float(params.tau),
+                decentralization_param=float(params.decentralisation_param),
+                extra_entropy=params.extra_entropy,
+                protocol_major_version=int(params.protocol_major_ver),
+                protocol_minor_version=int(params.protocol_minor_ver),
+                min_utxo=int(params.min_utxo),
+                price_mem=float(params.price_mem),
+                price_step=float(params.price_step),
+                max_tx_ex_mem=int(params.max_tx_ex_mem),
+                max_tx_ex_steps=int(params.max_tx_ex_steps),
+                max_block_ex_mem=int(params.max_block_ex_mem),
+                max_block_ex_steps=int(params.max_block_ex_steps),
+                max_val_size=int(params.max_val_size),
+                collateral_percent=int(params.collateral_percent),
+                max_collateral_inputs=int(params.max_collateral_inputs),
+                coins_per_utxo_word=int(params.coins_per_utxo_word),
+            )
+        return self._protocol_param
 
     def utxos(self, address: str) -> List[UTxO]:
         results = self.api.address_utxos(address, gather_pages=True)

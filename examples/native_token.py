@@ -10,7 +10,7 @@ import pathlib
 
 from pycardano import *
 
-# Paste your BlockFrost project ID below. Go to https://blockfrost.io/ for more information.
+# Copy your BlockFrost project ID below. Go to https://blockfrost.io/ for more information.
 BLOCK_FROST_PROJECT_ID = "your_project_id"
 NETWORK = Network.TESTNET
 
@@ -67,7 +67,8 @@ policy = ScriptAll([pub_key_policy, must_before_slot])
 # Calculate policy ID, which is the hash of the policy
 policy_id = policy.hash()
 print(f"Policy ID: {policy_id}")
-with open(root / "policy.id") as f:
+with open(root / "policy.id", "a+") as f:
+    f.truncate(0)
     f.write(str(policy_id))
 
 """Define NFT"""
