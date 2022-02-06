@@ -1,4 +1,4 @@
-pycardano.network
+Network
 ========================
 
 .. automodule:: pycardano.network

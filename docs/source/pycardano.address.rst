@@ -1,4 +1,4 @@
-pycardano.address
+Address
 ========================
 
 .. automodule:: pycardano.address

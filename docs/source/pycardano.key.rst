@@ -1,4 +1,4 @@
-pycardano.key
+Key
 ====================
 
 .. automodule:: pycardano.key

@@ -13,7 +13,6 @@ API Reference
 
    pycardano.address
    pycardano.backend.base
-   pycardano.backend.blockfrost
    pycardano.coinselection
    pycardano.exception
    pycardano.hash
@@ -21,6 +20,5 @@ API Reference
    pycardano.network
    pycardano.serialization
    pycardano.transaction
-   pycardano.txbuilder
    pycardano.utils
    pycardano.witness

@@ -1,4 +1,4 @@
-pycardano.hash
+Hash
 =====================
 
 .. automodule:: pycardano.hash

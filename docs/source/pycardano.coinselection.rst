@@ -1,4 +1,4 @@
-pycardano.coinselection
+Coinselection
 ==============================
 
 .. automodule:: pycardano.coinselection

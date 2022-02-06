@@ -1,4 +1,4 @@
-pycardano.serialization
+Serialization
 ==============================
 
 .. automodule:: pycardano.serialization

@@ -1,4 +1,4 @@
-pycardano.utils
+Utils
 ======================
 
 .. automodule:: pycardano.utils
