@@ -36,7 +36,7 @@ could be beneficial for faster R&D iterations.
 - [x] Transaction signing
 - [x] Multi-asset
 - [X] Chain backend integration
-- [ ] Fee calculation
+- [X] Fee calculation
 - [X] UTxO selection
 - [X] Native script
 - [X] Native token
