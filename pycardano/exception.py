@@ -30,6 +30,10 @@ class DeserializeException(PyCardanoException):
     pass
 
 
+class InvalidTransactionException(PyCardanoException):
+    pass
+
+
 class TransactionFailedException(PyCardanoException):
     pass
 

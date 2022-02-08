@@ -4,7 +4,7 @@ This is a complete walk through of minting a NFT on Cardano blockchain in pure P
 This example is inspired by https://developers.cardano.org/docs/native-tokens/minting-nfts#crafting-the-transaction
 
 # Submitted transaction in this example could be found at
-# https://testnet.cardanoscan.io/transaction/217680cbd2e546d0c0c8d9f4cf52faa0e0a36f56b8ce5692ab64461dfc67209a?tab=utxo
+# https://testnet.cardanoscan.io/transaction/632898c831719e07ad74b952880c98e9b51a1f31b25ca99e5a6e753ecd5d5201
 """
 import pathlib
 
@@ -87,6 +87,9 @@ my_nft = MultiAsset()
 # However, MultiAsset container can hold multiple different policies.
 my_nft[policy_id] = my_asset
 
+# Create the final native script that will be attached to the transaction
+native_scripts = [policy]
+
 """Define NFT (Alternative)"""
 # The nft definition above is somewhat verbose.
 # We can also directly create native assets from python primitives.
@@ -142,6 +145,9 @@ builder.ttl = must_before_slot.after
 # Set nft we want to mint
 builder.mint = my_nft
 
+# Set native script
+builder.native_scripts = native_scripts
+
 # Set transaction metadata
 builder.auxiliary_data = auxiliary_data
 
@@ -173,7 +179,9 @@ native_script_witnesses = [policy]
 # Create final signed transaction
 signed_tx = Transaction(tx_body,
                         TransactionWitnessSet(vkey_witnesses=vk_witnesses,
-                                              native_scripts=native_script_witnesses),
+                                              native_scripts=native_scripts),   # We also need to add the policy script
+                                                                                # to witness set when we are minting
+                                                                                # new tokens.
                         auxiliary_data=auxiliary_data)
 
 print("############### Transaction created ###############")

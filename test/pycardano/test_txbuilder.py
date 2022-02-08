@@ -1,6 +1,11 @@
+import pytest
+
 from pycardano.address import Address
 from pycardano.coinselection import RandomImproveMultiAsset
-from pycardano.transaction import TransactionOutput
+from pycardano.exception import InvalidTransactionException
+from pycardano.key import VerificationKey
+from pycardano.nativescript import ScriptPubkey, InvalidHereAfter, InvalidBefore, ScriptAll
+from pycardano.transaction import MultiAsset, TransactionOutput
 from pycardano.txbuilder import TransactionBuilder
 
 from test.pycardano.util import chain_context
@@ -23,9 +28,9 @@ def test_tx_builder(chain_context):
             # First output
             [sender_address.to_primitive(), 500000],
             # Second output as change
-            [sender_address.to_primitive(), 2325723]
+            [sender_address.to_primitive(), 4334499]
         ],
-        2: 2174277
+        2: 165501
     }
 
     assert expected == tx_body.to_primitive()
@@ -64,9 +69,9 @@ def test_tx_builder_with_certain_input(chain_context):
             [sender_address.to_primitive(), 500000],
             # Second output as change
             [sender_address.to_primitive(),
-             [3325723, {b'1111111111111111111111111111': {b'Token1': 1,
+             [5332343, {b'1111111111111111111111111111': {b'Token1': 1,
                                                           b'Token2': 2}}]]],
-        2: 2174277
+        2: 167657
     }
 
     assert expected == tx_body.to_primitive()
@@ -100,8 +105,71 @@ def test_tx_builder_multi_asset(chain_context):
              [2000000, {b'1111111111111111111111111111': {b'Token1': 1}}]],
             # Third output as change
             [sender_address.to_primitive(),
-             [5825723, {b'1111111111111111111111111111': {b'Token2': 2}}]]],
-        2: 2174277
+             [7827679, {b'1111111111111111111111111111': {b'Token2': 2}}]]],
+        2: 172321
+    }
+
+    assert expected == tx_body.to_primitive()
+
+
+def test_tx_too_big_exception(chain_context):
+    tx_builder = TransactionBuilder(chain_context)
+    sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    sender_address = Address.from_primitive(sender)
+
+    # Add sender address as input
+    tx_builder.add_input_address(sender)
+    for _ in range(500):
+        tx_builder.add_output(TransactionOutput.from_primitive([sender, 10]))
+
+    with pytest.raises(InvalidTransactionException):
+        tx_body = tx_builder.build(change_address=sender_address)
+
+
+def test_tx_builder_mint_multi_asset(chain_context):
+    vk1 = VerificationKey.from_cbor("58206443a101bdb948366fc87369336224595d36d8b0eee5602cba8b81a024e58473")
+    vk2 = VerificationKey.from_cbor("58206443a101bdb948366fc87369336224595d36d8b0eee5602cba8b81a024e58475")
+    spk1 = ScriptPubkey(key_hash=vk1.hash())
+    spk2 = ScriptPubkey(key_hash=vk2.hash())
+    before = InvalidHereAfter(123456789)
+    after = InvalidBefore(123456780)
+    script = ScriptAll([before, after, spk1, ScriptAll([spk1, spk2])])
+    policy_id = script.hash()
+
+    tx_builder = TransactionBuilder(chain_context)
+    sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    sender_address = Address.from_primitive(sender)
+
+    # Add sender address as input
+    mint = {
+        policy_id.payload: {
+            b"Token1": 1
+        }
+    }
+    tx_builder.add_input_address(sender) \
+        .add_output(TransactionOutput.from_primitive([sender, 1000000])) \
+        .add_output(TransactionOutput.from_primitive([sender, [2000000,
+                                                               mint]]))
+    tx_builder.mint = MultiAsset.from_primitive(mint)
+    tx_builder.native_scripts = [script]
+    tx_builder.ttl = 123456789
+
+    tx_body = tx_builder.build(change_address=sender_address)
+
+    expected = {
+        0: [[b'11111111111111111111111111111111', 0],
+            [b'22222222222222222222222222222222', 1]],
+        1: [
+            # First output
+            [sender_address.to_primitive(), 1000000],
+            # Second output
+            [sender_address.to_primitive(), [2000000, mint]],
+            # Third output as change
+            [sender_address.to_primitive(),
+             [7811003, {b'1111111111111111111111111111': {b'Token1': 1, b'Token2': 2}}]]],
+        2: 188997,
+        3: 123456789,
+        9: mint
     }
 
     assert expected == tx_body.to_primitive()
