@@ -4,6 +4,10 @@
 [![codecov](https://codecov.io/gh/cffls/pycardano/branch/main/graph/badge.svg?token=62N0IL9IMQ)](https://codecov.io/gh/cffls/pycardano)
 [![Documentation Status](https://readthedocs.org/projects/pycardano/badge/?version=latest)](https://pycardano.readthedocs.io/en/latest/?badge=latest)
 
+[![Linux](https://svgshare.com/i/Zhy.svg)](https://svgshare.com/i/Zhy.svg)
+[![macOS](https://svgshare.com/i/ZjP.svg)](https://svgshare.com/i/ZjP.svg)
+
+
 PyCardano is a Cardano library written in Python. It allows users to create and sign transactions without 
 depending on third-party Cardano serialization tools, such as
 [cardano-cli](https://github.com/input-output-hk/cardano-node#cardano-cli) and 
