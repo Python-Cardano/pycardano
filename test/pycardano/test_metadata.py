@@ -1,5 +1,7 @@
+import pytest
 from cbor2 import CBORTag
 
+from pycardano.exception import InvalidArgumentException
 from pycardano.key import VerificationKey
 from pycardano.metadata import Metadata, ShellayMarryMetadata, AlonzoMetadata, AuxiliaryData
 from pycardano.nativescript import ScriptPubkey, ScriptAll, InvalidBefore, InvalidHereAfter
@@ -92,3 +94,49 @@ def test_axuiliary_data_hash():
 
     aux_data = AuxiliaryData(AlonzoMetadata(metadata=Metadata(data)))
     assert "592a2df0e091566969b3044626faa8023dabe6f39c78f33bed9e105e55159221" == str(aux_data.hash())
+
+
+def test_metadata_invalid_type():
+    data = {
+        "abc": "abc"
+    }
+    with pytest.raises(InvalidArgumentException):
+        Metadata(data)
+
+    data = {
+        123: {
+            "1": set()
+        }
+    }
+    with pytest.raises(InvalidArgumentException):
+        Metadata(data)
+
+
+def test_metadata_valid_size():
+    data = {
+        123: {
+            "1": bytes(Metadata.MAX_ITEM_SIZE),
+            "2": "1" * Metadata.MAX_ITEM_SIZE
+        }
+    }
+    Metadata(data)
+
+
+def test_metadata_invalid_size():
+    data = {
+        123: {
+            "1": bytes(Metadata.MAX_ITEM_SIZE + 1)
+        }
+    }
+
+    with pytest.raises(InvalidArgumentException):
+        Metadata(data)
+
+    data = {
+        123: {
+            "1": "1" * (Metadata.MAX_ITEM_SIZE + 1)
+        }
+    }
+
+    with pytest.raises(InvalidArgumentException):
+        Metadata(data)

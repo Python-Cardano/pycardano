@@ -7,7 +7,7 @@ from cbor2 import CBORTag
 from nacl.encoding import RawEncoder
 from nacl.hash import blake2b
 
-from pycardano.exception import DeserializeException
+from pycardano.exception import DeserializeException, InvalidArgumentException
 from pycardano.hash import AuxiliaryDataHash, AUXILIARY_DATA_HASH_SIZE
 from pycardano.nativescript import NativeScript
 from pycardano.serialization import (CBORSerializable, DictCBORSerializable, ArrayCBORSerializable,
@@ -17,6 +17,38 @@ from pycardano.serialization import (CBORSerializable, DictCBORSerializable, Arr
 class Metadata(DictCBORSerializable):
     KEY_TYPE = int  # transaction_metadatum_label, see https://github.com/cardano-foundation/CIPs/tree/master/CIP-0010
     VALUE_TYPE = Any
+
+    MAX_ITEM_SIZE = 64
+    INTERNAL_TYPES = (dict, list, int, bytes, str)
+
+    def _validate(self):
+
+        def _validate_type_and_size(data):
+            if not isinstance(data, self.INTERNAL_TYPES):
+                raise InvalidArgumentException(f"A value in Metadata has to be one of {self.INTERNAL_TYPES}, "
+                                               f"got {type(data)} instead.")
+            if isinstance(data, bytes):
+                if len(data) > self.MAX_ITEM_SIZE:
+                    raise InvalidArgumentException(f"The size of {data} exceeds {self.MAX_ITEM_SIZE} bytes.")
+            elif isinstance(data, str):
+                if len(data.encode("utf-8")) > self.MAX_ITEM_SIZE:
+                    raise InvalidArgumentException(f"The size of {data} exceeds {self.MAX_ITEM_SIZE} bytes.")
+            elif isinstance(data, list):
+                for item in data:
+                    _validate_type_and_size(item)
+            elif isinstance(data, dict):
+                for key in data:
+                    _validate_type_and_size(data[key])
+
+        for k in self:
+            if not isinstance(k, self.KEY_TYPE):
+                raise InvalidArgumentException(f"Keys in the first layer of Metadata has to be {self.KEY_TYPE}, "
+                                               f"got {type(k)} instead.")
+            _validate_type_and_size(self[k])
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._validate()
 
 
 @dataclass
