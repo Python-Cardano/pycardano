@@ -97,7 +97,7 @@ class LargestFirstSelector(UTxOSelector):
 
             if change.coin < min_change_amount:
                 additional, _ = self.select(available,
-                                            [TransactionOutput(None, min_change_amount)],
+                                            [TransactionOutput(None, min_change_amount - change.coin)],
                                             context,
                                             max_input_count - len(selected) if max_input_count else None,
                                             include_max_fee=False,
@@ -130,7 +130,7 @@ class RandomImproveMultiAsset(UTxOSelector):
     def __init__(self, random_generator: Optional[Iterable[int]] = None):
         self.random_generator = iter(random_generator) if random_generator else None
 
-    def _get_next_random(self, utxos: List[UTxO]) -> UTxO:
+    def _get_next_random(self, utxos: List[UTxO]) -> Tuple[int, UTxO]:
         if not utxos:
             raise InputUTxODepletedException("Input UTxOs depleted!")
         if self.random_generator:
@@ -141,7 +141,7 @@ class RandomImproveMultiAsset(UTxOSelector):
                 raise UTxOSelectionException(f"Random index: {i} out of range!")
         else:
             i = random.randint(0, len(utxos) - 1)
-        return utxos.pop(i)
+        return i, utxos[i]
 
     def _random_select_subset(self,
                               amount: Value,
@@ -151,9 +151,10 @@ class RandomImproveMultiAsset(UTxOSelector):
         while not amount <= selected_amount:
             if not remaining:
                 raise InputUTxODepletedException("Input UTxOs depleted!")
-            to_add = self._get_next_random(remaining)
+            i, to_add = self._get_next_random(remaining)
             selected.append(to_add)
             selected_amount += to_add.output.amount
+            remaining.pop(i)
 
     @staticmethod
     def _split_by_asset(value: Value) -> List[Value]:
@@ -197,18 +198,21 @@ class RandomImproveMultiAsset(UTxOSelector):
                  ideal: Value,
                  upper_bound: Value,
                  max_input_count: int):
-        if not remaining or self._find_diff_by_former(upper_bound, selected_amount) <= 0:
+        if not remaining or self._find_diff_by_former(ideal, selected_amount) <= 0:
+            # In case where there is no remaining UTxOs or we already selected more than ideal,
+            # we cannot improve by randomly adding more UTxOs, therefore return immediate.
             return
         if max_input_count and len(selected) > max_input_count:
             raise MaxInputCountExceededException(f"Max input count: {max_input_count} exceeded!")
 
-        to_add = self._get_next_random(remaining)
+        i, to_add = self._get_next_random(remaining)
         if abs(self._find_diff_by_former(ideal, selected_amount + to_add.output.amount)) < \
                 abs(self._find_diff_by_former(ideal, selected_amount)) and \
                 self._find_diff_by_former(upper_bound, selected_amount + to_add.output.amount) >= 0:
             selected.append(to_add)
             selected_amount += to_add.output.amount
-        self._improve(selected, selected_amount, remaining, ideal, upper_bound, max_input_count)
+
+        self._improve(selected, selected_amount, remaining[:i] + remaining[i + 1:], ideal, upper_bound, max_input_count)
 
     def select(self,
                utxos: List[UTxO],
@@ -254,7 +258,7 @@ class RandomImproveMultiAsset(UTxOSelector):
 
             if change.coin < min_change_amount:
                 additional, _ = self.select(remaining,
-                                            [TransactionOutput(None, min_change_amount)],
+                                            [TransactionOutput(None, min_change_amount - change.coin)],
                                             context,
                                             max_input_count - len(selected) if max_input_count else None,
                                             include_max_fee=False,

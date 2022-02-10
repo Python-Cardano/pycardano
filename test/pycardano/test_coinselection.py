@@ -163,11 +163,13 @@ class TestRandomImproveMultiAsset:
 
     def test_no_fee_but_respect_min_utxo(self, chain_context):
         request = [
-            TransactionOutput.from_primitive([address, [10000000]])
+            TransactionOutput.from_primitive([address, [500000]])
         ]
-        selected, change = self.selector.select(UTXOS, request, chain_context, include_max_fee=False,
-                                                respect_min_utxo=True)
-        assert selected == [UTXOS[9], UTXOS[8], UTXOS[0]]  # UTXOS[0] is selected to respect min utxo amount
+        # Only the first two UTxOs should be selected in this test case.
+        # The first one is for the request amount, the second one is to respect min UTxO size.
+        selected, change = RandomImproveMultiAsset(random_generator=[0, 0]).select(
+            UTXOS, request, chain_context, include_max_fee=False, respect_min_utxo=True)
+        assert selected == [UTXOS[0], UTXOS[1]]  # UTXOS[1] is selected to respect min utxo amount
         assert_request_fulfilled(request, selected)
 
     def test_utxo_depleted(self, chain_context):
