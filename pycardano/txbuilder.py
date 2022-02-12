@@ -15,6 +15,10 @@ from pycardano.transaction import Value, Transaction, TransactionBody, Transacti
 from pycardano.utils import fee, max_tx_fee
 from pycardano.witness import TransactionWitnessSet, VerificationKeyWitness
 
+
+__all__ = ["TransactionBuilder"]
+
+
 FAKE_VKEY = VerificationKey.from_primitive(bytes.fromhex("58205e750db9facf42b15594790e3ac882e"
                                                          "d5254eb214a744353a2e24e4e65b8ceb4"))
 
@@ -120,8 +124,8 @@ class TransactionBuilder:
     def validity_start(self, validity_start: int):
         self._validity_start = validity_start
 
-    def calc_change(self, fee, inputs, outputs, address) -> List[TransactionOutput]:
-        requested = Value(fee)
+    def _calc_change(self, fees, inputs, outputs, address) -> List[TransactionOutput]:
+        requested = Value(fees)
         for o in outputs:
             requested += o.amount
 
@@ -151,14 +155,14 @@ class TransactionBuilder:
         if change_address:
             # Set fee to max
             self.fee = max_tx_fee(self.context)
-            changes = self.calc_change(self.fee, self.inputs, self.outputs, change_address)
+            changes = self._calc_change(self.fee, self.inputs, self.outputs, change_address)
             self._outputs += changes
 
         self.fee = fee(self.context, len(self._build_full_fake_tx().to_cbor("bytes")))
 
         if change_address:
             self._outputs = original_outputs
-            changes = self.calc_change(self.fee, self.inputs, self.outputs, change_address)
+            changes = self._calc_change(self.fee, self.inputs, self.outputs, change_address)
             self._outputs += changes
 
         return self

@@ -7,6 +7,9 @@ from enum import Enum
 from pycardano.serialization import CBORSerializable
 
 
+__all__ = ["Network"]
+
+
 class Network(CBORSerializable, Enum):
     """
     Network ID

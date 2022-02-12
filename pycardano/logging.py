@@ -1,5 +1,7 @@
 import logging
 
+__all__ = ["logger"]
+
 # create logger
 logger = logging.getLogger('PyCardano')
 logger.setLevel(logging.WARNING)

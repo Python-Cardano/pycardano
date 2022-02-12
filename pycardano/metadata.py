@@ -14,6 +14,9 @@ from pycardano.serialization import (CBORSerializable, DictCBORSerializable, Arr
                                      MapCBORSerializable, Primitive, list_hook)
 
 
+__all__ = ["Metadata", "ShellayMarryMetadata", "AlonzoMetadata", "AuxiliaryData"]
+
+
 class Metadata(DictCBORSerializable):
     KEY_TYPE = int  # transaction_metadatum_label, see https://github.com/cardano-foundation/CIPs/tree/master/CIP-0010
     VALUE_TYPE = Any

@@ -8,6 +8,9 @@ from pycardano.nativescript import NativeScript
 from pycardano.serialization import ArrayCBORSerializable, MapCBORSerializable, list_hook
 
 
+__all__ = ["VerificationKeyWitness", "TransactionWitnessSet"]
+
+
 @dataclass(repr=False)
 class VerificationKeyWitness(ArrayCBORSerializable):
     vkey: VerificationKey
