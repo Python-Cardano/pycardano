@@ -1,13 +1,22 @@
 """All type of hashes in Cardano ledger spec."""
 
-from typing import Union, TypeVar, Type
+from typing import Type, TypeVar, Union
 
 from pycardano.serialization import CBORSerializable
 
-
-__all__ = ["VERIFICATION_KEY_HASH_SIZE", "SCRIPT_HASH_SIZE", "TRANSACTION_HASH_SIZE", "DATUM_HASH_SIZE",
-           "AUXILIARY_DATA_HASH_SIZE", "ConstrainedBytes", "VerificationKeyHash", "ScriptHash", "TransactionId",
-           "DatumHash", "AuxiliaryDataHash"]
+__all__ = [
+    "VERIFICATION_KEY_HASH_SIZE",
+    "SCRIPT_HASH_SIZE",
+    "TRANSACTION_HASH_SIZE",
+    "DATUM_HASH_SIZE",
+    "AUXILIARY_DATA_HASH_SIZE",
+    "ConstrainedBytes",
+    "VerificationKeyHash",
+    "ScriptHash",
+    "TransactionId",
+    "DatumHash",
+    "AuxiliaryDataHash",
+]
 
 VERIFICATION_KEY_HASH_SIZE = 28
 SCRIPT_HASH_SIZE = 28
@@ -32,8 +41,9 @@ class ConstrainedBytes(CBORSerializable):
     MIN_SIZE = 0
 
     def __init__(self, payload: bytes):
-        assert self.MIN_SIZE <= len(payload) <= self.MAX_SIZE, \
-            f"Invalid byte size: {len(payload)}, expected size range: [{self.MIN_SIZE}, {self.MAX_SIZE}]"
+        assert (
+            self.MIN_SIZE <= len(payload) <= self.MAX_SIZE
+        ), f"Invalid byte size: {len(payload)}, expected size range: [{self.MIN_SIZE}, {self.MAX_SIZE}]"
         self._payload = payload
 
     def __bytes__(self):
@@ -70,24 +80,29 @@ class ConstrainedBytes(CBORSerializable):
 
 class VerificationKeyHash(ConstrainedBytes):
     """Hash of a Cardano verification key."""
+
     MAX_SIZE = MIN_SIZE = VERIFICATION_KEY_HASH_SIZE
 
 
 class ScriptHash(ConstrainedBytes):
     """Hash of a policy/plutus script."""
+
     MAX_SIZE = MIN_SIZE = SCRIPT_HASH_SIZE
 
 
 class TransactionId(ConstrainedBytes):
     """Hash of a transaction."""
+
     MAX_SIZE = MIN_SIZE = TRANSACTION_HASH_SIZE
 
 
 class DatumHash(ConstrainedBytes):
     """Hash of a datum"""
+
     MAX_SIZE = MIN_SIZE = DATUM_HASH_SIZE
 
 
 class AuxiliaryDataHash(ConstrainedBytes):
     """Hash of auxiliary data"""
+
     MAX_SIZE = MIN_SIZE = AUXILIARY_DATA_HASH_SIZE

@@ -11,12 +11,15 @@ from __future__ import annotations
 from enum import Enum
 from typing import Union
 
-from pycardano.crypto.bech32 import encode, decode
-from pycardano.exception import InvalidAddressInputException, DecodingException, DeserializeException
-from pycardano.hash import VerificationKeyHash, ScriptHash, VERIFICATION_KEY_HASH_SIZE
+from pycardano.crypto.bech32 import decode, encode
+from pycardano.exception import (
+    DecodingException,
+    DeserializeException,
+    InvalidAddressInputException,
+)
+from pycardano.hash import VERIFICATION_KEY_HASH_SIZE, ScriptHash, VerificationKeyHash
 from pycardano.network import Network
 from pycardano.serialization import CBORSerializable
-
 
 __all__ = ["AddressType", "PointerAddress", "Address"]
 
@@ -114,7 +117,11 @@ class PointerAddress(CBORSerializable):
             output.reverse()
             return bytes(output)
 
-        return _encode_int(self.slot) + _encode_int(self.tx_index) + _encode_int(self.cert_index)
+        return (
+            _encode_int(self.slot)
+            + _encode_int(self.tx_index)
+            + _encode_int(self.cert_index)
+        )
 
     @classmethod
     def decode(cls, data: bytes) -> PointerAddress:
@@ -135,7 +142,7 @@ class PointerAddress(CBORSerializable):
         ints = []
         cur_int = 0
         for i in data:
-            cur_int |= (i & 0x7F)
+            cur_int |= i & 0x7F
             if not (i & 0x80):
                 ints.append(cur_int)
                 cur_int = 0
@@ -143,7 +150,9 @@ class PointerAddress(CBORSerializable):
                 cur_int <<= 7
 
         if len(ints) != 3:
-            raise DecodingException(f"Error in decoding data {data} into a PointerAddress")
+            raise DecodingException(
+                f"Error in decoding data {data} into a PointerAddress"
+            )
 
         return cls(*ints)
 
@@ -158,7 +167,11 @@ class PointerAddress(CBORSerializable):
         if not isinstance(other, PointerAddress):
             return False
         else:
-            return other.slot == self.slot and other.tx_index == self.tx_index and other.cert_index == self.cert_index
+            return (
+                other.slot == self.slot
+                and other.tx_index == self.tx_index
+                and other.cert_index == self.cert_index
+            )
 
     def __repr__(self):
         return f"PointerAddress({self.slot}, {self.tx_index}, {self.cert_index})"
@@ -174,10 +187,14 @@ class Address(CBORSerializable):
         network (Network): Type of network the address belongs to.
     """
 
-    def __init__(self,
-                 payment_part: Union[VerificationKeyHash, ScriptHash, None] = None,
-                 staking_part: Union[VerificationKeyHash, ScriptHash, PointerAddress, None] = None,
-                 network: Network = Network.MAINNET):
+    def __init__(
+        self,
+        payment_part: Union[VerificationKeyHash, ScriptHash, None] = None,
+        staking_part: Union[
+            VerificationKeyHash, ScriptHash, PointerAddress, None
+        ] = None,
+        network: Network = Network.MAINNET,
+    ):
         self._payment_part = payment_part
         self._staking_part = staking_part
         self._network = network
@@ -213,9 +230,11 @@ class Address(CBORSerializable):
             elif staking_type == ScriptHash:
                 return AddressType.NONE_SCRIPT
 
-        raise InvalidAddressInputException(f"Cannot construct a shelley address from a combination of "
-                                           f"payment part: {self.payment_part} and "
-                                           f"stake part: {self.staking_part}")
+        raise InvalidAddressInputException(
+            f"Cannot construct a shelley address from a combination of "
+            f"payment part: {self.payment_part} and "
+            f"stake part: {self.staking_part}"
+        )
 
     @property
     def payment_part(self) -> Union[VerificationKeyHash, ScriptHash, None]:
@@ -223,7 +242,9 @@ class Address(CBORSerializable):
         return self._payment_part
 
     @property
-    def staking_part(self) -> Union[VerificationKeyHash, ScriptHash, PointerAddress, None]:
+    def staking_part(
+        self,
+    ) -> Union[VerificationKeyHash, ScriptHash, PointerAddress, None]:
         """Staking part of the address."""
         return self._staking_part
 
@@ -249,7 +270,9 @@ class Address(CBORSerializable):
 
     def _compute_header_byte(self) -> bytes:
         """Compute the header byte."""
-        return (self.address_type.value << 4 | self.network.value).to_bytes(1, byteorder="big")
+        return (self.address_type.value << 4 | self.network.value).to_bytes(
+            1, byteorder="big"
+        )
 
     def _compute_hrp(self) -> str:
         """Compute human-readable prefix for bech32 encoder.
@@ -258,7 +281,11 @@ class Address(CBORSerializable):
         `miscellaneous section <https://github.com/cardano-foundation/CIPs/tree/master/CIP-0005#miscellaneous>`_
         in CIP-5.
         """
-        prefix = "stake" if self.address_type in (AddressType.NONE_KEY, AddressType.NONE_SCRIPT) else "addr"
+        prefix = (
+            "stake"
+            if self.address_type in (AddressType.NONE_KEY, AddressType.NONE_SCRIPT)
+            else "addr"
+        )
         suffix = "" if self.network == Network.MAINNET else "_test"
         return prefix + suffix
 
@@ -320,25 +347,43 @@ class Address(CBORSerializable):
         addr_type = AddressType((header & 0xF0) >> 4)
         network = Network(header & 0x0F)
         if addr_type == AddressType.KEY_KEY:
-            return cls(VerificationKeyHash(payload[:VERIFICATION_KEY_HASH_SIZE]),
-                       VerificationKeyHash(payload[VERIFICATION_KEY_HASH_SIZE:]), network)
+            return cls(
+                VerificationKeyHash(payload[:VERIFICATION_KEY_HASH_SIZE]),
+                VerificationKeyHash(payload[VERIFICATION_KEY_HASH_SIZE:]),
+                network,
+            )
         elif addr_type == AddressType.KEY_SCRIPT:
-            return cls(VerificationKeyHash(payload[:VERIFICATION_KEY_HASH_SIZE]),
-                       ScriptHash(payload[VERIFICATION_KEY_HASH_SIZE:]), network)
+            return cls(
+                VerificationKeyHash(payload[:VERIFICATION_KEY_HASH_SIZE]),
+                ScriptHash(payload[VERIFICATION_KEY_HASH_SIZE:]),
+                network,
+            )
         elif addr_type == AddressType.KEY_POINTER:
             pointer_addr = PointerAddress.decode(payload[VERIFICATION_KEY_HASH_SIZE:])
-            return cls(VerificationKeyHash(payload[:VERIFICATION_KEY_HASH_SIZE]), pointer_addr, network)
+            return cls(
+                VerificationKeyHash(payload[:VERIFICATION_KEY_HASH_SIZE]),
+                pointer_addr,
+                network,
+            )
         elif addr_type == AddressType.KEY_NONE:
             return cls(VerificationKeyHash(payload), None, network)
         elif addr_type == AddressType.SCRIPT_KEY:
-            return cls(ScriptHash(payload[:VERIFICATION_KEY_HASH_SIZE]),
-                       VerificationKeyHash(payload[VERIFICATION_KEY_HASH_SIZE:]), network)
+            return cls(
+                ScriptHash(payload[:VERIFICATION_KEY_HASH_SIZE]),
+                VerificationKeyHash(payload[VERIFICATION_KEY_HASH_SIZE:]),
+                network,
+            )
         elif addr_type == AddressType.SCRIPT_SCRIPT:
-            return cls(ScriptHash(payload[:VERIFICATION_KEY_HASH_SIZE]),
-                       ScriptHash(payload[VERIFICATION_KEY_HASH_SIZE:]), network)
+            return cls(
+                ScriptHash(payload[:VERIFICATION_KEY_HASH_SIZE]),
+                ScriptHash(payload[VERIFICATION_KEY_HASH_SIZE:]),
+                network,
+            )
         elif addr_type == AddressType.SCRIPT_POINTER:
             pointer_addr = PointerAddress.decode(payload[VERIFICATION_KEY_HASH_SIZE:])
-            return cls(ScriptHash(payload[:VERIFICATION_KEY_HASH_SIZE]), pointer_addr, network)
+            return cls(
+                ScriptHash(payload[:VERIFICATION_KEY_HASH_SIZE]), pointer_addr, network
+            )
         elif addr_type == AddressType.SCRIPT_NONE:
             return cls(ScriptHash(payload), None, network)
         elif addr_type == AddressType.NONE_KEY:
@@ -351,8 +396,11 @@ class Address(CBORSerializable):
         if not isinstance(other, Address):
             return False
         else:
-            return other.payment_part == self.payment_part and other.staking_part == self.staking_part and \
-                   other.network == self.network
+            return (
+                other.payment_part == self.payment_part
+                and other.staking_part == self.staking_part
+                and other.network == self.network
+            )
 
     def __repr__(self):
         return f"{self.encode()}"

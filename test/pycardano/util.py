@@ -5,7 +5,7 @@ import pytest
 from pycardano.backend.base import ChainContext, GenesisParameters, ProtocolParameters
 from pycardano.network import Network
 from pycardano.serialization import CBORSerializable
-from pycardano.transaction import Value, TransactionInput, TransactionOutput, UTxO
+from pycardano.transaction import TransactionInput, TransactionOutput, UTxO, Value
 
 TEST_ADDR = "addr_test1vr2p8st5t5cxqglyjky7vk98k7jtfhdpvhl4e97cezuhn0cqcexl7"
 
@@ -44,7 +44,7 @@ class FixedChainContext(ChainContext):
             max_val_size=5000,
             collateral_percent=150,
             max_collateral_inputs=3,
-            coins_per_utxo_word=34482
+            coins_per_utxo_word=34482,
         )
 
     @property
@@ -60,7 +60,7 @@ class FixedChainContext(ChainContext):
             slots_per_kes_period=129600,
             slot_length=1,
             max_kes_evolutions=62,
-            security_param=2160
+            security_param=2160,
         )
 
     @property
@@ -89,17 +89,10 @@ class FixedChainContext(ChainContext):
         """
         tx_in1 = TransactionInput.from_primitive([b"1" * 32, 0])
         tx_in2 = TransactionInput.from_primitive([b"2" * 32, 1])
-        tx_out1 = TransactionOutput.from_primitive([address,
-                                                    5000000])
-        tx_out2 = TransactionOutput.from_primitive([address,
-                                                    [6000000,
-                                                     {
-                                                         b"1" * 28: {
-                                                             b"Token1": 1,
-                                                             b"Token2": 2
-                                                         }
-                                                     }]
-                                                    ])
+        tx_out1 = TransactionOutput.from_primitive([address, 5000000])
+        tx_out2 = TransactionOutput.from_primitive(
+            [address, [6000000, {b"1" * 28: {b"Token1": 1, b"Token2": 2}}]]
+        )
         return [UTxO(tx_in1, tx_out1), UTxO(tx_in2, tx_out2)]
 
     def submit_tx(self, cbor: Union[bytes, str]):

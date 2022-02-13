@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
+from test.pycardano.util import check_two_way_cbor
 
 from pycardano.serialization import ArrayCBORSerializable, MapCBORSerializable
-from test.pycardano.util import check_two_way_cbor
 
 
 def test_array_cbor_serializable():
@@ -65,6 +65,6 @@ def test_map_cbor_serializable_custom_keys():
         test1: Test1 = field(default=Test1(), metadata={"key": "1"})
 
     t = Test2(test1=Test1(a="a"))
-    assert t.to_primitive() == {'1': {'0': 'a', '1': ''}}
+    assert t.to_primitive() == {"1": {"0": "a", "1": ""}}
     assert t.to_cbor() == "a16131a261306161613160"
     check_two_way_cbor(t)

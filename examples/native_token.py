@@ -14,7 +14,9 @@ from pycardano import *
 BLOCK_FROST_PROJECT_ID = "your_project_id"
 NETWORK = Network.TESTNET
 
-chain_context = BlockFrostChainContext(project_id=BLOCK_FROST_PROJECT_ID, network=NETWORK)
+chain_context = BlockFrostChainContext(
+    project_id=BLOCK_FROST_PROJECT_ID, network=NETWORK
+)
 
 """Preparation"""
 # Define the root directory where images and keys will be stored.
@@ -93,15 +95,14 @@ native_scripts = [policy]
 """Define NFT (Alternative)"""
 # The nft definition above is somewhat verbose.
 # We can also directly create native assets from python primitives.
-my_nft_alternative = MultiAsset.from_primitive({
-    policy_id.payload:    # Use policy ID created from above. We can't use policy_id here because policy_id's type
-        {                 # is ScriptHash, which is not a primitive type. Instead, we use policy_id.payload (bytes)
-            b"MY_NFT_1":  # Name of our NFT1
-                1,        # Quantity of this NFT
-            b"MY_NFT_2":  # Name of our NFT2
-                1         # Quantity of this NFT
+my_nft_alternative = MultiAsset.from_primitive(
+    {
+        policy_id.payload: {  # Use policy ID created from above. We can't use policy_id here because policy_id's type  # is ScriptHash, which is not a primitive type. Instead, we use policy_id.payload (bytes)
+            b"MY_NFT_1": 1,  # Name of our NFT1  # Quantity of this NFT
+            b"MY_NFT_2": 1,  # Name of our NFT2  # Quantity of this NFT
         }
-})
+    }
+)
 
 # my_nft and my_nft_alternative are equivalent
 assert my_nft == my_nft_alternative
@@ -116,14 +117,14 @@ metadata = {
                 "description": "This is my first NFT thanks to PyCardano",
                 "name": "PyCardano NFT example token 1",
                 "id": 1,
-                "image": "ipfs://QmRhTTbUrPYEw3mJGGhQqQST9k86v1DPBiTTWJGKDJsVFw"
+                "image": "ipfs://QmRhTTbUrPYEw3mJGGhQqQST9k86v1DPBiTTWJGKDJsVFw",
             },
             "MY_NFT_2": {
                 "description": "This is my second NFT thanks to PyCardano",
                 "name": "PyCardano NFT example token 2",
                 "id": 2,
-                "image": "ipfs://QmRhTTbUrPYEw3mJGGhQqQST9k86v1DPBiTTWJGKDJsVFw"
-            }
+                "image": "ipfs://QmRhTTbUrPYEw3mJGGhQqQST9k86v1DPBiTTWJGKDJsVFw",
+            },
         }
     }
 }
@@ -170,19 +171,22 @@ policy_signature = policy_skey.sign(tx_body.hash())
 # Add verification keys and their signatures to the witness set
 vk_witnesses = [
     VerificationKeyWitness(payment_vkey, payment_signature),
-    VerificationKeyWitness(policy_vkey, policy_signature)
+    VerificationKeyWitness(policy_vkey, policy_signature),
 ]
 
 # We also need to add the policy script to witness set when we are minting new tokens
 native_script_witnesses = [policy]
 
 # Create final signed transaction
-signed_tx = Transaction(tx_body,
-                        TransactionWitnessSet(vkey_witnesses=vk_witnesses,
-                                              native_scripts=native_scripts),   # We also need to add the policy script
-                                                                                # to witness set when we are minting
-                                                                                # new tokens.
-                        auxiliary_data=auxiliary_data)
+signed_tx = Transaction(
+    tx_body,
+    TransactionWitnessSet(
+        vkey_witnesses=vk_witnesses, native_scripts=native_scripts
+    ),  # We also need to add the policy script
+    # to witness set when we are minting
+    # new tokens.
+    auxiliary_data=auxiliary_data,
+)
 
 print("############### Transaction created ###############")
 print(signed_tx)

@@ -8,11 +8,16 @@ from nacl.encoding import RawEncoder
 from nacl.hash import blake2b
 
 from pycardano.exception import DeserializeException, InvalidArgumentException
-from pycardano.hash import AuxiliaryDataHash, AUXILIARY_DATA_HASH_SIZE
+from pycardano.hash import AUXILIARY_DATA_HASH_SIZE, AuxiliaryDataHash
 from pycardano.nativescript import NativeScript
-from pycardano.serialization import (CBORSerializable, DictCBORSerializable, ArrayCBORSerializable,
-                                     MapCBORSerializable, Primitive, list_hook)
-
+from pycardano.serialization import (
+    ArrayCBORSerializable,
+    CBORSerializable,
+    DictCBORSerializable,
+    MapCBORSerializable,
+    Primitive,
+    list_hook,
+)
 
 __all__ = ["Metadata", "ShellayMarryMetadata", "AlonzoMetadata", "AuxiliaryData"]
 
@@ -25,17 +30,22 @@ class Metadata(DictCBORSerializable):
     INTERNAL_TYPES = (dict, list, int, bytes, str)
 
     def _validate(self):
-
         def _validate_type_and_size(data):
             if not isinstance(data, self.INTERNAL_TYPES):
-                raise InvalidArgumentException(f"A value in Metadata has to be one of {self.INTERNAL_TYPES}, "
-                                               f"got {type(data)} instead.")
+                raise InvalidArgumentException(
+                    f"A value in Metadata has to be one of {self.INTERNAL_TYPES}, "
+                    f"got {type(data)} instead."
+                )
             if isinstance(data, bytes):
                 if len(data) > self.MAX_ITEM_SIZE:
-                    raise InvalidArgumentException(f"The size of {data} exceeds {self.MAX_ITEM_SIZE} bytes.")
+                    raise InvalidArgumentException(
+                        f"The size of {data} exceeds {self.MAX_ITEM_SIZE} bytes."
+                    )
             elif isinstance(data, str):
                 if len(data.encode("utf-8")) > self.MAX_ITEM_SIZE:
-                    raise InvalidArgumentException(f"The size of {data} exceeds {self.MAX_ITEM_SIZE} bytes.")
+                    raise InvalidArgumentException(
+                        f"The size of {data} exceeds {self.MAX_ITEM_SIZE} bytes."
+                    )
             elif isinstance(data, list):
                 for item in data:
                     _validate_type_and_size(item)
@@ -45,8 +55,10 @@ class Metadata(DictCBORSerializable):
 
         for k in self:
             if not isinstance(k, self.KEY_TYPE):
-                raise InvalidArgumentException(f"Keys in the first layer of Metadata has to be {self.KEY_TYPE}, "
-                                               f"got {type(k)} instead.")
+                raise InvalidArgumentException(
+                    f"Keys in the first layer of Metadata has to be {self.KEY_TYPE}, "
+                    f"got {type(k)} instead."
+                )
             _validate_type_and_size(self[k])
 
     def __init__(self, *args, **kwargs):
@@ -57,7 +69,9 @@ class Metadata(DictCBORSerializable):
 @dataclass
 class ShellayMarryMetadata(ArrayCBORSerializable):
     metadata: Metadata
-    native_scripts: List[NativeScript] = field(default=None, metadata={"object_hook": list_hook(NativeScript)})
+    native_scripts: List[NativeScript] = field(
+        default=None, metadata={"object_hook": list_hook(NativeScript)}
+    )
 
 
 @dataclass
@@ -65,11 +79,13 @@ class AlonzoMetadata(MapCBORSerializable):
     TAG: ClassVar[int] = 259
 
     metadata: Metadata = field(default=None, metadata={"optional": True, "key": 0})
-    native_scripts: List[NativeScript] = field(default=None,
-                                               metadata={"optional": True,
-                                                         "key": 1,
-                                                         "object_hook": list_hook(NativeScript)})
-    plutus_scripts: List[bytes] = field(default=None, metadata={"optional": True, "key": 2})
+    native_scripts: List[NativeScript] = field(
+        default=None,
+        metadata={"optional": True, "key": 1, "object_hook": list_hook(NativeScript)},
+    )
+    plutus_scripts: List[bytes] = field(
+        default=None, metadata={"optional": True, "key": 2}
+    )
 
     def to_primitive(self) -> Primitive:
         return CBORTag(AlonzoMetadata.TAG, super(AlonzoMetadata, self).to_primitive())
@@ -77,9 +93,13 @@ class AlonzoMetadata(MapCBORSerializable):
     @classmethod
     def from_primitive(cls: AlonzoMetadata, value: CBORTag) -> AlonzoMetadata:
         if not hasattr(value, "tag"):
-            raise DeserializeException(f"{value} does not match the data schema of AlonzoMetadata.")
+            raise DeserializeException(
+                f"{value} does not match the data schema of AlonzoMetadata."
+            )
         elif value.tag != cls.TAG:
-            raise DeserializeException(f"Expect CBOR tag: {cls.TAG}, got {value.tag} instead.")
+            raise DeserializeException(
+                f"Expect CBOR tag: {cls.TAG}, got {value.tag} instead."
+            )
         return super(AlonzoMetadata, cls).from_primitive(value.value)
 
 
@@ -102,4 +122,6 @@ class AuxiliaryData(CBORSerializable):
         raise DeserializeException(f"Couldn't parse auxiliary data: {value}")
 
     def hash(self) -> AuxiliaryDataHash:
-        return AuxiliaryDataHash(blake2b(self.to_cbor("bytes"), AUXILIARY_DATA_HASH_SIZE, encoder=RawEncoder))
+        return AuxiliaryDataHash(
+            blake2b(self.to_cbor("bytes"), AUXILIARY_DATA_HASH_SIZE, encoder=RawEncoder)
+        )

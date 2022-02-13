@@ -37,16 +37,21 @@ builder.add_input(utxos[0])
 # Send 1.5 ADA and a native asset (CHOC) in quantity of 2000 to an address.
 builder.add_output(
     TransactionOutput(
-        Address.from_primitive("addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"),
+        Address.from_primitive(
+            "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+        ),
         Value.from_primitive(
-            [1500000,
-             {
-                 bytes.fromhex("57fca08abbaddee36da742a839f7d83a7e1d2419f1507fcbf3916522"):  # Policy ID
-                 {
-                     b'CHOC': 2000
-                 }
-             }]
-        )
+            [
+                1500000,
+                {
+                    bytes.fromhex(
+                        "57fca08abbaddee36da742a839f7d83a7e1d2419f1507fcbf3916522"
+                    ): {  # Policy ID
+                        b"CHOC": 2000
+                    }
+                },
+            ]
+        ),
     )
 )
 
@@ -56,14 +61,17 @@ builder.add_output(
     TransactionOutput(
         address,
         Value.from_primitive(
-            [2000000,
-             {
-                 bytes.fromhex("57fca08abbaddee36da742a839f7d83a7e1d2419f1507fcbf3916522"):  # Policy ID
-                 {
-                     b'CHOC': 200
-                 }
-             }]
-        )
+            [
+                2000000,
+                {
+                    bytes.fromhex(
+                        "57fca08abbaddee36da742a839f7d83a7e1d2419f1507fcbf3916522"
+                    ): {  # Policy ID
+                        b"CHOC": 200
+                    }
+                },
+            ]
+        ),
     )
 )
 

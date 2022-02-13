@@ -12,17 +12,36 @@ from typeguard import typechecked
 
 from pycardano.address import Address
 from pycardano.exception import InvalidOperationException
-from pycardano.hash import (TransactionId, DatumHash, AuxiliaryDataHash, ScriptHash, VerificationKeyHash,
-                            TRANSACTION_HASH_SIZE, ConstrainedBytes)
+from pycardano.hash import (
+    TRANSACTION_HASH_SIZE,
+    AuxiliaryDataHash,
+    ConstrainedBytes,
+    DatumHash,
+    ScriptHash,
+    TransactionId,
+    VerificationKeyHash,
+)
 from pycardano.metadata import AuxiliaryData
 from pycardano.network import Network
-from pycardano.serialization import (ArrayCBORSerializable, DictCBORSerializable,
-                                     MapCBORSerializable, list_hook)
+from pycardano.serialization import (
+    ArrayCBORSerializable,
+    DictCBORSerializable,
+    MapCBORSerializable,
+    list_hook,
+)
 from pycardano.witness import TransactionWitnessSet
 
-
-__all__ = ["TransactionInput", "AssetName", "Asset", "MultiAsset", "Value", "TransactionOutput", "UTxO",
-           "TransactionBody", "Transaction"]
+__all__ = [
+    "TransactionInput",
+    "AssetName",
+    "Asset",
+    "MultiAsset",
+    "Value",
+    "TransactionOutput",
+    "UTxO",
+    "TransactionBody",
+    "Transaction",
+]
 
 
 @dataclass(repr=False)
@@ -63,7 +82,9 @@ class Asset(DictCBORSerializable):
         new_asset = self.copy()
         for n in other:
             if n not in new_asset:
-                raise InvalidOperationException(f"Asset: {new_asset} does not have asset with name: {n}")
+                raise InvalidOperationException(
+                    f"Asset: {new_asset} does not have asset with name: {n}"
+                )
             # According to ledger rule, the value of an asset could be negative, so we don't check the value here and
             # will leave the check to users when necessary.
             # https://github.com/input-output-hk/cardano-ledger/blob/master/eras/alonzo/test-suite/cddl-files/alonzo.cddl#L378
@@ -114,7 +135,9 @@ class MultiAsset(DictCBORSerializable):
         new_multi_asset = self.copy()
         for p in other:
             if p not in new_multi_asset:
-                raise InvalidOperationException(f"MultiAsset: {new_multi_asset} doesn't have policy: {p}")
+                raise InvalidOperationException(
+                    f"MultiAsset: {new_multi_asset} doesn't have policy: {p}"
+                )
             new_multi_asset[p] -= other[p]
         return new_multi_asset
 
@@ -135,7 +158,9 @@ class MultiAsset(DictCBORSerializable):
                 return False
         return True
 
-    def filter(self, criteria=Callable[[ScriptHash, AssetName, int], bool]) -> MultiAsset:
+    def filter(
+        self, criteria=Callable[[ScriptHash, AssetName, int], bool]
+    ) -> MultiAsset:
         """Filter items by criteria.
 
         Args:
@@ -232,13 +257,13 @@ class UTxO:
 class TransactionBody(MapCBORSerializable):
     inputs: List[TransactionInput] = field(
         default_factory=list,
-        metadata={"key": 0,
-                  "object_hook": list_hook(TransactionInput)})
+        metadata={"key": 0, "object_hook": list_hook(TransactionInput)},
+    )
 
     outputs: List[TransactionOutput] = field(
         default_factory=list,
-        metadata={"key": 1,
-                  "object_hook": list_hook(TransactionOutput)})
+        metadata={"key": 1, "object_hook": list_hook(TransactionOutput)},
+    )
 
     fee: int = field(default=0, metadata={"key": 2})
 
@@ -253,30 +278,42 @@ class TransactionBody(MapCBORSerializable):
     # TODO: Add proposal update support
     update: Any = field(default=None, metadata={"key": 6, "optional": True})
 
-    auxiliary_data_hash: AuxiliaryDataHash = field(default=None, metadata={"key": 7, "optional": True})
+    auxiliary_data_hash: AuxiliaryDataHash = field(
+        default=None, metadata={"key": 7, "optional": True}
+    )
 
     validity_start: int = field(default=None, metadata={"key": 8, "optional": True})
 
     mint: MultiAsset = field(default=None, metadata={"key": 9, "optional": True})
 
-    script_data_hash: ScriptHash = field(default=None, metadata={"key": 11, "optional": True})
+    script_data_hash: ScriptHash = field(
+        default=None, metadata={"key": 11, "optional": True}
+    )
 
     collateral: List[TransactionInput] = field(
         default=None,
-        metadata={"key": 13,
-                  "optional": True,
-                  "object_hook": list_hook(TransactionInput)})
+        metadata={
+            "key": 13,
+            "optional": True,
+            "object_hook": list_hook(TransactionInput),
+        },
+    )
 
     required_signers: List[VerificationKeyHash] = field(
         default=None,
-        metadata={"key": 14,
-                  "optional": True,
-                  "object_hook": list_hook(VerificationKeyHash)})
+        metadata={
+            "key": 14,
+            "optional": True,
+            "object_hook": list_hook(VerificationKeyHash),
+        },
+    )
 
     network_id: Network = field(default=None, metadata={"key": 15, "optional": True})
 
     def hash(self) -> bytes:
-        return blake2b(self.to_cbor(encoding="bytes"), TRANSACTION_HASH_SIZE, encoder=RawEncoder)
+        return blake2b(
+            self.to_cbor(encoding="bytes"), TRANSACTION_HASH_SIZE, encoder=RawEncoder
+        )
 
 
 @dataclass(repr=False)

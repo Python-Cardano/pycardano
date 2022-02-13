@@ -8,14 +8,15 @@ from pycardano.backend.base import ChainContext
 from pycardano.hash import SCRIPT_HASH_SIZE
 from pycardano.transaction import MultiAsset, Value
 
-
 __all__ = ["fee", "max_tx_fee", "bundle_size", "min_lovelace"]
 
 
-def fee(context: ChainContext,
-        length: int,
-        exec_steps: Optional[int] = 0,
-        max_mem_unit: Optional[int] = 0) -> int:
+def fee(
+    context: ChainContext,
+    length: int,
+    exec_steps: Optional[int] = 0,
+    max_mem_unit: Optional[int] = 0,
+) -> int:
     """Calculate fee based on the length of a transaction's CBOR bytes and script execution.
 
     Args:
@@ -28,10 +29,12 @@ def fee(context: ChainContext,
     Return:
         int: Minimum acceptable transaction fee.
     """
-    return int(length * context.protocol_param.min_fee_coefficient) + \
-        int(context.protocol_param.min_fee_constant) + \
-        int(exec_steps * context.protocol_param.price_step) + \
-        int(max_mem_unit * context.protocol_param.price_mem)
+    return (
+        int(length * context.protocol_param.min_fee_coefficient)
+        + int(context.protocol_param.min_fee_constant)
+        + int(exec_steps * context.protocol_param.price_step)
+        + int(max_mem_unit * context.protocol_param.price_mem)
+    )
 
 
 def max_tx_fee(context: ChainContext) -> int:
@@ -43,10 +46,12 @@ def max_tx_fee(context: ChainContext) -> int:
     Returns:
         int: Maximum possible tx fee in lovelace.
     """
-    return fee(context,
-               context.protocol_param.max_tx_size,
-               context.protocol_param.max_tx_ex_steps,
-               context.protocol_param.max_tx_ex_mem)
+    return fee(
+        context,
+        context.protocol_param.max_tx_size,
+        context.protocol_param.max_tx_ex_steps,
+        context.protocol_param.max_tx_ex_mem,
+    )
 
 
 def bundle_size(multi_asset: MultiAsset) -> int:
@@ -76,7 +81,9 @@ def bundle_size(multi_asset: MultiAsset) -> int:
     return 6 + (byte_len + 7) // 8
 
 
-def min_lovelace(amount: Union[int, Value], context: ChainContext, has_datum: bool = False) -> int:
+def min_lovelace(
+    amount: Union[int, Value], context: ChainContext, has_datum: bool = False
+) -> int:
     """Calculate minimum lovelace a transaction output needs to hold.
 
     More info could be found in

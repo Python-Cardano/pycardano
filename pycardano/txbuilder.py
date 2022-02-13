@@ -4,27 +4,42 @@ from typing import List, Optional, Set, Union
 
 from pycardano.address import Address
 from pycardano.backend.base import ChainContext
-from pycardano.coinselection import LargestFirstSelector, RandomImproveMultiAsset, UTxOSelector
+from pycardano.coinselection import (
+    LargestFirstSelector,
+    RandomImproveMultiAsset,
+    UTxOSelector,
+)
 from pycardano.exception import InvalidTransactionException, UTxOSelectionException
 from pycardano.hash import VerificationKeyHash
-from pycardano.metadata import AuxiliaryData
-from pycardano.nativescript import NativeScript, ScriptAll, ScriptAny, ScriptPubkey
 from pycardano.key import VerificationKey
 from pycardano.logging import logger
-from pycardano.transaction import Value, Transaction, TransactionBody, TransactionOutput, UTxO, MultiAsset
+from pycardano.metadata import AuxiliaryData
+from pycardano.nativescript import NativeScript, ScriptAll, ScriptAny, ScriptPubkey
+from pycardano.transaction import (
+    MultiAsset,
+    Transaction,
+    TransactionBody,
+    TransactionOutput,
+    UTxO,
+    Value,
+)
 from pycardano.utils import fee, max_tx_fee
 from pycardano.witness import TransactionWitnessSet, VerificationKeyWitness
-
 
 __all__ = ["TransactionBuilder"]
 
 
-FAKE_VKEY = VerificationKey.from_primitive(bytes.fromhex("58205e750db9facf42b15594790e3ac882e"
-                                                         "d5254eb214a744353a2e24e4e65b8ceb4"))
+FAKE_VKEY = VerificationKey.from_primitive(
+    bytes.fromhex(
+        "58205e750db9facf42b15594790e3ac882e" "d5254eb214a744353a2e24e4e65b8ceb4"
+    )
+)
 
 # Ed25519 signature of a 32-bytes message (TX hash) will have length of 64
-FAKE_TX_SIGNATURE = bytes.fromhex("7a40e127815e62595e8de6fdeac6dd0346b8dbb0275dca5f244b8107cff"
-                                  "e9f9fd8de14b60c3fdc3409e70618d8681afb63b69a107eb1af15f8ef49edb4494001")
+FAKE_TX_SIGNATURE = bytes.fromhex(
+    "7a40e127815e62595e8de6fdeac6dd0346b8dbb0275dca5f244b8107cff"
+    "e9f9fd8de14b60c3fdc3409e70618d8681afb63b69a107eb1af15f8ef49edb4494001"
+)
 
 
 class TransactionBuilder:
@@ -35,7 +50,9 @@ class TransactionBuilder:
         utxo_selectors (Optional[List[UTxOSelector]]): A list of UTxOSelectors that will select input UTxOs.
     """
 
-    def __init__(self, context: ChainContext, utxo_selectors: Optional[List[UTxOSelector]] = None):
+    def __init__(
+        self, context: ChainContext, utxo_selectors: Optional[List[UTxOSelector]] = None
+    ):
         self.context = context
         self._inputs = []
         self._input_addresses = []
@@ -150,19 +167,25 @@ class TransactionBuilder:
         # when there are too many native tokens attached to the change.
         return [TransactionOutput(address, change)]
 
-    def _add_change_and_fee(self, change_address: Optional[Address]) -> TransactionBuilder:
+    def _add_change_and_fee(
+        self, change_address: Optional[Address]
+    ) -> TransactionBuilder:
         original_outputs = self.outputs[:]
         if change_address:
             # Set fee to max
             self.fee = max_tx_fee(self.context)
-            changes = self._calc_change(self.fee, self.inputs, self.outputs, change_address)
+            changes = self._calc_change(
+                self.fee, self.inputs, self.outputs, change_address
+            )
             self._outputs += changes
 
         self.fee = fee(self.context, len(self._build_full_fake_tx().to_cbor("bytes")))
 
         if change_address:
             self._outputs = original_outputs
-            changes = self._calc_change(self.fee, self.inputs, self.outputs, change_address)
+            changes = self._calc_change(
+                self.fee, self.inputs, self.outputs, change_address
+            )
             self._outputs += changes
 
         return self
@@ -193,24 +216,31 @@ class TransactionBuilder:
         return results
 
     def _build_tx_body(self) -> TransactionBody:
-        tx_body = TransactionBody([i.input for i in self.inputs],
-                                  self.outputs,
-                                  fee=self.fee,
-                                  ttl=self.ttl,
-                                  mint=self.mint,
-                                  auxiliary_data_hash=self.auxiliary_data.hash() if self.auxiliary_data else None,
-                                  validity_start=self.validity_start
-                                  )
+        tx_body = TransactionBody(
+            [i.input for i in self.inputs],
+            self.outputs,
+            fee=self.fee,
+            ttl=self.ttl,
+            mint=self.mint,
+            auxiliary_data_hash=self.auxiliary_data.hash()
+            if self.auxiliary_data
+            else None,
+            validity_start=self.validity_start,
+        )
         return tx_body
 
     def _build_fake_vkey_witnesses(self) -> List[VerificationKeyWitness]:
         vkey_hashes = self._input_vkey_hashes()
         vkey_hashes.update(self._native_scripts_vkey_hashes())
-        return [VerificationKeyWitness(FAKE_VKEY, FAKE_TX_SIGNATURE) for _ in vkey_hashes]
+        return [
+            VerificationKeyWitness(FAKE_VKEY, FAKE_TX_SIGNATURE) for _ in vkey_hashes
+        ]
 
     def _build_fake_witness_set(self) -> TransactionWitnessSet:
-        return TransactionWitnessSet(vkey_witnesses=self._build_fake_vkey_witnesses(),
-                                     native_scripts=self.native_scripts)
+        return TransactionWitnessSet(
+            vkey_witnesses=self._build_fake_vkey_witnesses(),
+            native_scripts=self.native_scripts,
+        )
 
     def _build_full_fake_tx(self) -> Transaction:
         tx_body = self._build_tx_body()
@@ -218,9 +248,11 @@ class TransactionBuilder:
         tx = Transaction(tx_body, witness, True, self.auxiliary_data)
         size = len(tx.to_cbor("bytes"))
         if size > self.context.protocol_param.max_tx_size:
-            raise InvalidTransactionException(f"Transaction size ({size}) exceeds the max limit "
-                                              f"({self.context.protocol_param.max_tx_size}). Please try reducing the "
-                                              f"number of inputs or outputs.")
+            raise InvalidTransactionException(
+                f"Transaction size ({size}) exceeds the max limit "
+                f"({self.context.protocol_param.max_tx_size}). Please try reducing the "
+                f"number of inputs or outputs."
+            )
         return tx
 
     def build(self, change_address: Optional[Address] = None) -> TransactionBody:
@@ -246,15 +278,20 @@ class TransactionBuilder:
             requested_amount += o.amount
 
         # Trim off assets that are not requested because they will be returned as changes eventually.
-        trimmed_selected_amount = Value(selected_amount.coin,
-                                        selected_amount.multi_asset.filter(
-                                            lambda p, n, v: p in requested_amount.multi_asset and n in
-                                            requested_amount.multi_asset[p]))
+        trimmed_selected_amount = Value(
+            selected_amount.coin,
+            selected_amount.multi_asset.filter(
+                lambda p, n, v: p in requested_amount.multi_asset
+                and n in requested_amount.multi_asset[p]
+            ),
+        )
 
         unfulfilled_amount = requested_amount - trimmed_selected_amount
         unfulfilled_amount.coin = max(0, unfulfilled_amount.coin)
         # Clean up all non-positive assets
-        unfulfilled_amount.multi_asset = unfulfilled_amount.multi_asset.filter(lambda p, n, v: v > 0)
+        unfulfilled_amount.multi_asset = unfulfilled_amount.multi_asset.filter(
+            lambda p, n, v: v > 0
+        )
 
         # When there are positive coin or native asset quantity in unfulfilled Value
         if Value() < unfulfilled_amount:
@@ -266,9 +303,11 @@ class TransactionBuilder:
 
             for i, selector in enumerate(self.utxo_selectors):
                 try:
-                    selected, _ = selector.select(additional_utxo_pool,
-                                                  [TransactionOutput(None, unfulfilled_amount)],
-                                                  self.context)
+                    selected, _ = selector.select(
+                        additional_utxo_pool,
+                        [TransactionOutput(None, unfulfilled_amount)],
+                        self.context,
+                    )
                     for s in selected:
                         selected_amount += s.output.amount
                         selected_utxos.append(s)
@@ -282,7 +321,9 @@ class TransactionBuilder:
                     else:
                         raise UTxOSelectionException("All UTxO selectors failed.")
 
-        selected_utxos.sort(key=lambda utxo: (str(utxo.input.transaction_id), utxo.input.index))
+        selected_utxos.sort(
+            key=lambda utxo: (str(utxo.input.transaction_id), utxo.input.index)
+        )
 
         self.inputs[:] = selected_utxos[:]
 

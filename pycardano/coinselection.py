@@ -3,31 +3,35 @@ This module contains algorithms that select UTxOs from a parent list to satisfy 
 """
 
 import random
-from typing import Iterable, List, Tuple, Optional
+from typing import Iterable, List, Optional, Tuple
 
 from pycardano.backend.base import ChainContext
-from pycardano.exception import (InputUTxODepletedException, InsufficientUTxOBalanceException,
-                                 MaxInputCountExceededException, UTxOSelectionException)
-from pycardano.transaction import UTxO, TransactionOutput, Value
+from pycardano.exception import (
+    InputUTxODepletedException,
+    InsufficientUTxOBalanceException,
+    MaxInputCountExceededException,
+    UTxOSelectionException,
+)
+from pycardano.transaction import TransactionOutput, UTxO, Value
 from pycardano.utils import max_tx_fee, min_lovelace
-
 
 __all__ = ["UTxOSelector", "LargestFirstSelector", "RandomImproveMultiAsset"]
 
 
 class UTxOSelector:
     """UTxOSelector defines an interface through which a subset of UTxOs should be selected from a parent set
-        with a selection strategy and given constraints.
+    with a selection strategy and given constraints.
     """
 
-    def select(self,
-               utxos: List[UTxO],
-               outputs: List[TransactionOutput],
-               context: ChainContext,
-               max_input_count: int = None,
-               include_max_fee: bool = True,
-               respect_min_utxo: bool = True
-               ) -> Tuple[List[UTxO], Value]:
+    def select(
+        self,
+        utxos: List[UTxO],
+        outputs: List[TransactionOutput],
+        context: ChainContext,
+        max_input_count: int = None,
+        include_max_fee: bool = True,
+        respect_min_utxo: bool = True,
+    ) -> Tuple[List[UTxO], Value]:
         """From an input list of UTxOs, select a subset of UTxOs whose sum (including ADA and multi-assets)
         is equal to or larger than the sum of a set of outputs.
 
@@ -66,14 +70,15 @@ class LargestFirstSelector(UTxOSelector):
     This implementation adds transaction fee into consideration.
     """
 
-    def select(self,
-               utxos: List[UTxO],
-               outputs: List[TransactionOutput],
-               context: ChainContext,
-               max_input_count: int = None,
-               include_max_fee: bool = True,
-               respect_min_utxo: bool = True
-               ) -> Tuple[List[UTxO], Value]:
+    def select(
+        self,
+        utxos: List[UTxO],
+        outputs: List[TransactionOutput],
+        context: ChainContext,
+        max_input_count: int = None,
+        include_max_fee: bool = True,
+        respect_min_utxo: bool = True,
+    ) -> Tuple[List[UTxO], Value]:
 
         available: List[UTxO] = sorted(utxos, key=lambda utxo: utxo.output.lovelace)
         max_fee = max_tx_fee(context) if include_max_fee else 0
@@ -92,19 +97,23 @@ class LargestFirstSelector(UTxOSelector):
             selected_amount += to_add.output.amount
 
             if max_input_count and len(selected) > max_input_count:
-                raise MaxInputCountExceededException(f"Max input count: {max_input_count} exceeded!")
+                raise MaxInputCountExceededException(
+                    f"Max input count: {max_input_count} exceeded!"
+                )
 
         if respect_min_utxo:
             change = selected_amount - total_requested
             min_change_amount = min_lovelace(change, context, False)
 
             if change.coin < min_change_amount:
-                additional, _ = self.select(available,
-                                            [TransactionOutput(None, min_change_amount - change.coin)],
-                                            context,
-                                            max_input_count - len(selected) if max_input_count else None,
-                                            include_max_fee=False,
-                                            respect_min_utxo=False)
+                additional, _ = self.select(
+                    available,
+                    [TransactionOutput(None, min_change_amount - change.coin)],
+                    context,
+                    max_input_count - len(selected) if max_input_count else None,
+                    include_max_fee=False,
+                    respect_min_utxo=False,
+                )
                 for u in additional:
                     selected.append(u)
                     selected_amount += u.output.amount
@@ -146,11 +155,13 @@ class RandomImproveMultiAsset(UTxOSelector):
             i = random.randint(0, len(utxos) - 1)
         return i, utxos[i]
 
-    def _random_select_subset(self,
-                              amount: Value,
-                              remaining: List[UTxO],
-                              selected: List[UTxO],
-                              selected_amount: Value):
+    def _random_select_subset(
+        self,
+        amount: Value,
+        remaining: List[UTxO],
+        selected: List[UTxO],
+        selected_amount: Value,
+    ):
         while not amount <= selected_amount:
             if not remaining:
                 raise InputUTxODepletedException("Input UTxOs depleted!")
@@ -168,11 +179,19 @@ class RandomImproveMultiAsset(UTxOSelector):
         for policy_id in value.multi_asset:
             for asset_name in value.multi_asset[policy_id]:
                 assets.append(
-                    Value.from_primitive([0, {
-                        policy_id.payload: {
-                            asset_name.payload: value.multi_asset[policy_id][asset_name]
-                        }
-                    }]))
+                    Value.from_primitive(
+                        [
+                            0,
+                            {
+                                policy_id.payload: {
+                                    asset_name.payload: value.multi_asset[policy_id][
+                                        asset_name
+                                    ]
+                                }
+                            },
+                        ]
+                    )
+                )
 
         return assets
 
@@ -186,45 +205,67 @@ class RandomImproveMultiAsset(UTxOSelector):
     @staticmethod
     def _find_diff_by_former(a: Value, b: Value) -> int:
         """The first argument contains only one asset. Find the absolute difference between this asset and
-            the corresponding value of the same asset in the second argument"""
+        the corresponding value of the same asset in the second argument"""
         if a.coin:
             return a.coin - b.coin
         else:
             policy_id = list(a.multi_asset.keys())[0]
             asset_name = list(a.multi_asset[policy_id].keys())[0]
-            return a.multi_asset[policy_id][asset_name] - b.multi_asset[policy_id][asset_name]
+            return (
+                a.multi_asset[policy_id][asset_name]
+                - b.multi_asset[policy_id][asset_name]
+            )
 
-    def _improve(self,
-                 selected: List[UTxO],
-                 selected_amount: Value,
-                 remaining: List[UTxO],
-                 ideal: Value,
-                 upper_bound: Value,
-                 max_input_count: int):
+    def _improve(
+        self,
+        selected: List[UTxO],
+        selected_amount: Value,
+        remaining: List[UTxO],
+        ideal: Value,
+        upper_bound: Value,
+        max_input_count: int,
+    ):
         if not remaining or self._find_diff_by_former(ideal, selected_amount) <= 0:
             # In case where there is no remaining UTxOs or we already selected more than ideal,
             # we cannot improve by randomly adding more UTxOs, therefore return immediate.
             return
         if max_input_count and len(selected) > max_input_count:
-            raise MaxInputCountExceededException(f"Max input count: {max_input_count} exceeded!")
+            raise MaxInputCountExceededException(
+                f"Max input count: {max_input_count} exceeded!"
+            )
 
         i, to_add = self._get_next_random(remaining)
-        if abs(self._find_diff_by_former(ideal, selected_amount + to_add.output.amount)) < \
-                abs(self._find_diff_by_former(ideal, selected_amount)) and \
-                self._find_diff_by_former(upper_bound, selected_amount + to_add.output.amount) >= 0:
+        if (
+            abs(
+                self._find_diff_by_former(ideal, selected_amount + to_add.output.amount)
+            )
+            < abs(self._find_diff_by_former(ideal, selected_amount))
+            and self._find_diff_by_former(
+                upper_bound, selected_amount + to_add.output.amount
+            )
+            >= 0
+        ):
             selected.append(to_add)
             selected_amount += to_add.output.amount
 
-        self._improve(selected, selected_amount, remaining[:i] + remaining[i + 1:], ideal, upper_bound, max_input_count)
+        self._improve(
+            selected,
+            selected_amount,
+            remaining[:i] + remaining[i + 1 :],
+            ideal,
+            upper_bound,
+            max_input_count,
+        )
 
-    def select(self,
-               utxos: List[UTxO],
-               outputs: List[TransactionOutput],
-               context: ChainContext,
-               max_input_count: int = None,
-               include_max_fee: bool = True,
-               respect_min_utxo: bool = True
-               ) -> Tuple[List[UTxO], Value]:
+    def select(
+        self,
+        utxos: List[UTxO],
+        outputs: List[TransactionOutput],
+        context: ChainContext,
+        max_input_count: int = None,
+        include_max_fee: bool = True,
+        respect_min_utxo: bool = True,
+    ) -> Tuple[List[UTxO], Value]:
         # Shallow copy the list
         remaining = list(utxos)
         max_fee = max_tx_fee(context) if include_max_fee else 0
@@ -241,7 +282,9 @@ class RandomImproveMultiAsset(UTxOSelector):
         for r in request_sorted:
             self._random_select_subset(r, remaining, selected, selected_amount)
             if max_input_count and len(selected) > max_input_count:
-                raise MaxInputCountExceededException(f"Max input count: {max_input_count} exceeded!")
+                raise MaxInputCountExceededException(
+                    f"Max input count: {max_input_count} exceeded!"
+                )
 
         # Phase 2 - improve current selection
         for request in reversed(request_sorted):
@@ -249,7 +292,14 @@ class RandomImproveMultiAsset(UTxOSelector):
             upper_bound = ideal + request
             num_selected_before = len(selected)
             try:
-                self._improve(selected, selected_amount, list(remaining), ideal, upper_bound, max_input_count)
+                self._improve(
+                    selected,
+                    selected_amount,
+                    list(remaining),
+                    ideal,
+                    upper_bound,
+                    max_input_count,
+                )
             except UTxOSelectionException:
                 pass
             new_selected = selected[num_selected_before:]
@@ -260,12 +310,14 @@ class RandomImproveMultiAsset(UTxOSelector):
             min_change_amount = min_lovelace(change, context, False)
 
             if change.coin < min_change_amount:
-                additional, _ = self.select(remaining,
-                                            [TransactionOutput(None, min_change_amount - change.coin)],
-                                            context,
-                                            max_input_count - len(selected) if max_input_count else None,
-                                            include_max_fee=False,
-                                            respect_min_utxo=False)
+                additional, _ = self.select(
+                    remaining,
+                    [TransactionOutput(None, min_change_amount - change.coin)],
+                    context,
+                    max_input_count - len(selected) if max_input_count else None,
+                    include_max_fee=False,
+                    respect_min_utxo=False,
+                )
                 for u in additional:
                     selected.append(u)
                     selected_amount += u.output.amount

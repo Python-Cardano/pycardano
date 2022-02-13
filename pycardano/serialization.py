@@ -3,30 +3,58 @@
 from __future__ import annotations
 
 import re
-from collections import defaultdict, OrderedDict
-from dataclasses import dataclass, fields, field as dataclass_field
+from collections import OrderedDict, defaultdict
+from dataclasses import Field, dataclass, fields
 from datetime import datetime
 from decimal import Decimal
 from inspect import isclass
 from pprint import pformat
-from typing import Any, Callable, ClassVar, List, TypeVar, Type, Union, get_type_hints
+from typing import Any, Callable, ClassVar, List, Type, TypeVar, Union, get_type_hints
 
 from cbor2 import dumps, loads
-from cbor2.types import undefined, CBORSimpleValue, CBORTag
+from cbor2.types import CBORSimpleValue, CBORTag, undefined
 from typeguard import check_type, typechecked
 
-from pycardano.exception import DeserializeException, InvalidArgumentException, SerializeException
+from pycardano.exception import (
+    DeserializeException,
+    InvalidArgumentException,
+    SerializeException,
+)
+
+__all__ = [
+    "Primitive",
+    "CBORBase",
+    "CBORSerializable",
+    "ArrayCBORSerializable",
+    "MapCBORSerializable",
+    "DictCBORSerializable",
+    "list_hook",
+]
 
 
-__all__ = ["Primitive", "CBORBase", "CBORSerializable", "ArrayCBORSerializable", "MapCBORSerializable",
-           "DictCBORSerializable", "list_hook"]
-
-
-Primitive = TypeVar("Primitive", bytes, bytearray, str, int, float, Decimal,
-                    bool, type(None), tuple, list, dict, defaultdict,
-                    OrderedDict, type(undefined), datetime,
-                    re.Pattern, CBORSimpleValue, CBORTag,
-                    set, frozenset)
+Primitive = TypeVar(
+    "Primitive",
+    bytes,
+    bytearray,
+    str,
+    int,
+    float,
+    Decimal,
+    bool,
+    type(None),
+    tuple,
+    list,
+    dict,
+    defaultdict,
+    OrderedDict,
+    type(undefined),
+    datetime,
+    re.Pattern,
+    CBORSimpleValue,
+    CBORTag,
+    set,
+    frozenset,
+)
 """
 A list of types that could be encoded by
 `Cbor2 encoder <https://cbor2.readthedocs.io/en/latest/modules/encoder.html>`_ directly.
@@ -68,7 +96,9 @@ class CBORSerializable:
             :class:`pycardano.exception.SerializeException`: When the object could not be converted to CBOR primitive
                 types.
         """
-        raise NotImplementedError(f"'to_shallow_primitive()' is not implemented by {self.__class__}.")
+        raise NotImplementedError(
+            f"'to_shallow_primitive()' is not implemented by {self.__class__}."
+        )
 
     def to_primitive(self) -> Primitive:
         """Convert the instance and its elements to CBOR primitives recursively.
@@ -126,7 +156,9 @@ class CBORSerializable:
         Raises:
             :class:`pycardano.exception.DeserializeException`: When the object could not be restored from primitives.
         """
-        raise NotImplementedError(f"'from_primitive()' is not implemented by {cls.__name__}.")
+        raise NotImplementedError(
+            f"'from_primitive()' is not implemented by {cls.__name__}."
+        )
 
     def to_cbor(self, encoding: str = "hex") -> Union[str, bytes]:
         """Encode a Python object into CBOR format.
@@ -160,11 +192,15 @@ class CBORSerializable:
 
         # Make sure encoding is selected correctly before proceeding further.
         if encoding not in ("hex", "bytes"):
-            raise InvalidArgumentException(f"Invalid encoding: {encoding}. Please choose from {valid_encodings}")
+            raise InvalidArgumentException(
+                f"Invalid encoding: {encoding}. Please choose from {valid_encodings}"
+            )
 
         def _default_encoder(encoder, value):
-            assert isinstance(value, CBORSerializable), f"Type of input value is not CBORSerializable, " \
-                                                        f"got {type(value)} instead."
+            assert isinstance(value, CBORSerializable), (
+                f"Type of input value is not CBORSerializable, "
+                f"got {type(value)} instead."
+            )
             encoder.encode(value.to_primitive())
 
         cbor = dumps(self, default=_default_encoder)
@@ -245,8 +281,9 @@ class CBORSerializable:
         return pformat(vars(self))
 
 
-def _restore_dataclass_field(f: dataclass_field, v: Primitive) -> \
-        Union[Primitive, CBORSerializable]:
+def _restore_dataclass_field(
+    f: Field, v: Primitive
+) -> Union[Primitive, CBORSerializable]:
     """Try to restore a value back to its original type based on information given in field.
 
     Args:
@@ -270,7 +307,9 @@ def _restore_dataclass_field(f: dataclass_field, v: Primitive) -> \
                     pass
             elif t in Primitive.__constraints__ and isinstance(v, t):
                 return v
-        raise DeserializeException(f"Cannot deserialize object: \n{v}\n in any valid type from {t_args}.")
+        raise DeserializeException(
+            f"Cannot deserialize object: \n{v}\n in any valid type from {t_args}."
+        )
     return v
 
 
@@ -340,7 +379,7 @@ class ArrayCBORSerializable(CBORSerializable):
 
     field_sorter: ClassVar[Callable[[List], List]] = lambda x: x
 
-    def to_shallow_primitive(self) -> Primitive:
+    def to_shallow_primitive(self) -> List[Primitive]:
         """
         Returns:
             :const:`Primitive`: A CBOR primitive.
@@ -350,9 +389,9 @@ class ArrayCBORSerializable(CBORSerializable):
                 types.
         """
         primitives = []
-        for field in self.__class__.field_sorter(fields(self)):
-            val = getattr(self, field.name)
-            if val is None and field.metadata.get("optional"):
+        for f in self.__class__.field_sorter(fields(self)):
+            val = getattr(self, f.name)
+            if val is None and f.metadata.get("optional"):
                 continue
             primitives.append(val)
         return primitives
@@ -373,14 +412,16 @@ class ArrayCBORSerializable(CBORSerializable):
         """
         all_fields = fields(cls)
         if type(values) != list:
-            raise DeserializeException(f"Expect input value to be a list, got a {type(values)} instead.")
+            raise DeserializeException(
+                f"Expect input value to be a list, got a {type(values)} instead."
+            )
 
         restored_vals = []
         type_hints = get_type_hints(cls)
-        for field, v in zip(all_fields, values):
-            if not isclass(field.type):
-                field.type = type_hints[field.name]
-            v = _restore_dataclass_field(field, v)
+        for f, v in zip(all_fields, values):
+            if not isclass(f.type):
+                f.type = type_hints[f.name]
+            v = _restore_dataclass_field(f, v)
             restored_vals.append(v)
         return cls(*restored_vals)
 
@@ -451,15 +492,15 @@ class MapCBORSerializable(CBORSerializable):
 
     def to_shallow_primitive(self) -> Primitive:
         primitives = {}
-        for field in fields(self):
-            if "key" in field.metadata:
-                key = field.metadata["key"]
+        for f in fields(self):
+            if "key" in f.metadata:
+                key = f.metadata["key"]
             else:
-                key = field.name
+                key = f.name
             if key in primitives:
                 raise SerializeException(f"Key: '{key}' already exists in the map.")
-            val = getattr(self, field.name)
-            if val is None and field.metadata.get("optional"):
+            val = getattr(self, f.name)
+            if val is None and f.metadata.get("optional"):
                 continue
             primitives[key] = val
         return primitives
@@ -480,19 +521,21 @@ class MapCBORSerializable(CBORSerializable):
         """
         all_fields = {f.metadata.get("key", f.name): f for f in fields(cls)}
         if type(values) != dict:
-            raise DeserializeException(f"Expect input value to be a dict, got a {type(values)} instead.")
+            raise DeserializeException(
+                f"Expect input value to be a dict, got a {type(values)} instead."
+            )
 
         kwargs = {}
         type_hints = get_type_hints(cls)
         for key in values:
             if key not in all_fields:
                 raise DeserializeException(f"Unexpected map key {key} in CBOR.")
-            field = all_fields[key]
+            f = all_fields[key]
             v = values[key]
-            if not isclass(field.type):
-                field.type = type_hints[field.name]
-            v = _restore_dataclass_field(field, v)
-            kwargs[field.name] = v
+            if not isclass(f.type):
+                f.type = type_hints[f.name]
+            v = _restore_dataclass_field(f, v)
+            kwargs[f.name] = v
         return cls(**kwargs)
 
     def __repr__(self):
@@ -558,10 +601,18 @@ class DictCBORSerializable(dict, CBORSerializable):
             raise DeserializeException(f"Cannot accept empty value {value}.")
         restored = cls()
         for k, v in value.items():
-            k = cls.KEY_TYPE.from_primitive(k) if isclass(cls.VALUE_TYPE) and \
-                issubclass(cls.KEY_TYPE, CBORSerializable) else k
-            v = cls.VALUE_TYPE.from_primitive(v) if isclass(cls.VALUE_TYPE) and \
-                issubclass(cls.VALUE_TYPE, CBORSerializable) else v
+            k = (
+                cls.KEY_TYPE.from_primitive(k)
+                if isclass(cls.VALUE_TYPE)
+                and issubclass(cls.KEY_TYPE, CBORSerializable)
+                else k
+            )
+            v = (
+                cls.VALUE_TYPE.from_primitive(v)
+                if isclass(cls.VALUE_TYPE)
+                and issubclass(cls.VALUE_TYPE, CBORSerializable)
+                else v
+            )
             restored[k] = v
         return restored
 

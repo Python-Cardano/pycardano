@@ -9,11 +9,18 @@ from nacl.encoding import RawEncoder
 from nacl.hash import blake2b
 
 from pycardano.exception import DeserializeException, InvalidArgumentException
-from pycardano.hash import SCRIPT_HASH_SIZE, VerificationKeyHash, ScriptHash
+from pycardano.hash import SCRIPT_HASH_SIZE, ScriptHash, VerificationKeyHash
 from pycardano.serialization import ArrayCBORSerializable, Primitive, list_hook
 
-
-__all__ = ["NativeScript", "ScriptPubkey", "ScriptAll", "ScriptAny", "ScriptNofK", "InvalidBefore", "InvalidHereAfter"]
+__all__ = [
+    "NativeScript",
+    "ScriptPubkey",
+    "ScriptAll",
+    "ScriptAny",
+    "ScriptNofK",
+    "InvalidBefore",
+    "InvalidHereAfter",
+]
 
 
 @dataclass
@@ -23,20 +30,36 @@ class NativeScript(ArrayCBORSerializable):
 
     def __post_init__(self):
         if self.TYPE != self.__class__.TYPE:
-            raise InvalidArgumentException(f"TYPE of {self.__class__} could not be changed!")
+            raise InvalidArgumentException(
+                f"TYPE of {self.__class__} could not be changed!"
+            )
 
     @classmethod
-    def from_primitive(cls: NativeScript, value: Primitive) -> Union[ScriptPubkey, ScriptAll, ScriptAny,
-                                                                     ScriptNofK, InvalidBefore, InvalidHereAfter]:
+    def from_primitive(
+        cls: NativeScript, value: Primitive
+    ) -> Union[
+        ScriptPubkey, ScriptAll, ScriptAny, ScriptNofK, InvalidBefore, InvalidHereAfter
+    ]:
         script_type = value[0]
-        for t in [ScriptPubkey, ScriptAll, ScriptAny, ScriptNofK, InvalidBefore, InvalidHereAfter]:
+        for t in [
+            ScriptPubkey,
+            ScriptAll,
+            ScriptAny,
+            ScriptNofK,
+            InvalidBefore,
+            InvalidHereAfter,
+        ]:
             if t.TYPE == script_type:
                 return super(NativeScript, t).from_primitive(value[1:])
         else:
             raise DeserializeException(f"Unknown script type indicator: {script_type}")
 
     def hash(self) -> ScriptHash:
-        return ScriptHash(blake2b(bytes(1) + self.to_cbor("bytes"), SCRIPT_HASH_SIZE, encoder=RawEncoder))
+        return ScriptHash(
+            blake2b(
+                bytes(1) + self.to_cbor("bytes"), SCRIPT_HASH_SIZE, encoder=RawEncoder
+            )
+        )
 
 
 @dataclass
@@ -49,16 +72,32 @@ class ScriptPubkey(NativeScript):
 
 @dataclass
 class ScriptAll(NativeScript):
-    native_scripts: List[Union[ScriptPubkey, ScriptAll, ScriptAny, ScriptNofK, InvalidBefore, InvalidHereAfter]] = \
-        field(metadata={"object_hook": list_hook(NativeScript)})
+    native_scripts: List[
+        Union[
+            ScriptPubkey,
+            ScriptAll,
+            ScriptAny,
+            ScriptNofK,
+            InvalidBefore,
+            InvalidHereAfter,
+        ]
+    ] = field(metadata={"object_hook": list_hook(NativeScript)})
 
     TYPE: int = 1
 
 
 @dataclass
 class ScriptAny(NativeScript):
-    native_scripts: List[Union[ScriptPubkey, ScriptAll, ScriptAny, ScriptNofK, InvalidBefore, InvalidHereAfter]] = \
-        field(metadata={"object_hook": list_hook(NativeScript)})
+    native_scripts: List[
+        Union[
+            ScriptPubkey,
+            ScriptAll,
+            ScriptAny,
+            ScriptNofK,
+            InvalidBefore,
+            InvalidHereAfter,
+        ]
+    ] = field(metadata={"object_hook": list_hook(NativeScript)})
 
     TYPE: int = 2
 
@@ -66,8 +105,16 @@ class ScriptAny(NativeScript):
 @dataclass
 class ScriptNofK(NativeScript):
     n: int
-    native_scripts: List[Union[ScriptPubkey, ScriptAll, ScriptAny, ScriptNofK, InvalidBefore, InvalidHereAfter]] = \
-        field(metadata={"object_hook": list_hook(NativeScript)})
+    native_scripts: List[
+        Union[
+            ScriptPubkey,
+            ScriptAll,
+            ScriptAny,
+            ScriptNofK,
+            InvalidBefore,
+            InvalidHereAfter,
+        ]
+    ] = field(metadata={"object_hook": list_hook(NativeScript)})
 
     TYPE: int = 3
 

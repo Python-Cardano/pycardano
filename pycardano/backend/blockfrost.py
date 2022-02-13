@@ -1,17 +1,23 @@
 import os
 import tempfile
 import time
-
 from typing import List, Union
 
-from blockfrost import BlockFrostApi, ApiUrls
+from blockfrost import ApiUrls, BlockFrostApi
 
 from pycardano.address import Address
 from pycardano.backend.base import ChainContext, GenesisParameters, ProtocolParameters
-from pycardano.hash import DatumHash, ScriptHash, SCRIPT_HASH_SIZE
+from pycardano.hash import SCRIPT_HASH_SIZE, DatumHash, ScriptHash
 from pycardano.network import Network
-from pycardano.transaction import (TransactionInput, TransactionOutput, UTxO,
-                                   Value, MultiAsset, Asset, AssetName)
+from pycardano.transaction import (
+    Asset,
+    AssetName,
+    MultiAsset,
+    TransactionInput,
+    TransactionOutput,
+    UTxO,
+    Value,
+)
 
 
 class BlockFrostChainContext(ChainContext):
@@ -25,7 +31,11 @@ class BlockFrostChainContext(ChainContext):
     def __init__(self, project_id: str, network: Network = Network.TESTNET):
         self._network = network
         self._project_id = project_id
-        self._base_url = ApiUrls.testnet.value if self.network == Network.TESTNET else ApiUrls.mainnet.value
+        self._base_url = (
+            ApiUrls.testnet.value
+            if self.network == Network.TESTNET
+            else ApiUrls.mainnet.value
+        )
         self.api = BlockFrostApi(project_id=self._project_id, base_url=self._base_url)
         self._epoch_info = self.api.epoch_latest()
         self._epoch = None
@@ -58,9 +68,7 @@ class BlockFrostChainContext(ChainContext):
     def genesis_param(self) -> GenesisParameters:
         if not self._genesis_param or self._check_epoch_and_update():
             params = vars(self.api.genesis())
-            self._genesis_param = GenesisParameters(
-                **params
-            )
+            self._genesis_param = GenesisParameters(**params)
         return self._genesis_param
 
     @property
@@ -102,7 +110,9 @@ class BlockFrostChainContext(ChainContext):
         utxos = []
 
         for result in results:
-            tx_in = TransactionInput.from_primitive([result.tx_hash, result.output_index])
+            tx_in = TransactionInput.from_primitive(
+                [result.tx_hash, result.output_index]
+            )
             amount = result.amount
             lovelace_amount = None
             multi_assets = MultiAsset()
@@ -119,17 +129,22 @@ class BlockFrostChainContext(ChainContext):
                         multi_assets[policy_id] = Asset()
                     multi_assets[policy_id][asset_name] = int(item.quantity)
 
-            datum_hash = DatumHash.from_primitive(result.data_hash) if result.data_hash else None
+            datum_hash = (
+                DatumHash.from_primitive(result.data_hash) if result.data_hash else None
+            )
 
             if not multi_assets:
-                tx_out = TransactionOutput(Address.from_primitive(address),
-                                           amount=lovelace_amount,
-                                           datum_hash=datum_hash)
+                tx_out = TransactionOutput(
+                    Address.from_primitive(address),
+                    amount=lovelace_amount,
+                    datum_hash=datum_hash,
+                )
             else:
-                tx_out = TransactionOutput(Address.from_primitive(address),
-                                           amount=Value(lovelace_amount,
-                                                        multi_assets),
-                                           datum_hash=datum_hash)
+                tx_out = TransactionOutput(
+                    Address.from_primitive(address),
+                    amount=Value(lovelace_amount, multi_assets),
+                    datum_hash=datum_hash,
+                )
             utxos.append(UTxO(tx_in, tx_out))
 
         return utxos

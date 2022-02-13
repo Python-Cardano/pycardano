@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import os
 import json
+import os
 
 from nacl.bindings import crypto_sign_PUBLICKEYBYTES, crypto_sign_SEEDBYTES
 from nacl.encoding import RawEncoder
@@ -12,16 +12,25 @@ from nacl.public import PrivateKey
 from nacl.signing import SigningKey as NACLSigningKey
 
 from pycardano.exception import InvalidKeyTypeException
-from pycardano.hash import VerificationKeyHash, VERIFICATION_KEY_HASH_SIZE
+from pycardano.hash import VERIFICATION_KEY_HASH_SIZE, VerificationKeyHash
 from pycardano.serialization import CBORSerializable
 
-
-__all__ = ["Key", "VerificationKey", "SigningKey", "PaymentSigningKey", "PaymentVerificationKey", "PaymentKeyPair",
-           "StakeSigningKey", "StakeVerificationKey", "StakeKeyPair"]
+__all__ = [
+    "Key",
+    "VerificationKey",
+    "SigningKey",
+    "PaymentSigningKey",
+    "PaymentVerificationKey",
+    "PaymentKeyPair",
+    "StakeSigningKey",
+    "StakeVerificationKey",
+    "StakeKeyPair",
+]
 
 
 class Key(CBORSerializable):
     """A class that holds a cryptographic key and some metadata. e.g. signing key, verification key."""
+
     KEY_TYPE = ""
     DESCRIPTION = ""
 
@@ -57,11 +66,13 @@ class Key(CBORSerializable):
         Returns:
             str: JSON representation of the key.
         """
-        return json.dumps({
-            "type": self.key_type,
-            "description": self.description,
-            "cborHex": self.to_cbor()
-        })
+        return json.dumps(
+            {
+                "type": self.key_type,
+                "description": self.description,
+                "cborHex": self.to_cbor(),
+            }
+        )
 
     @classmethod
     def from_json(cls, data: str, validate_type=False) -> Key:
@@ -82,11 +93,15 @@ class Key(CBORSerializable):
         obj = json.loads(data)
 
         if validate_type and obj["type"] != cls.KEY_TYPE:
-            raise InvalidKeyTypeException(f"Expect key type: {cls.KEY_TYPE}, got {obj['type']} instead.")
+            raise InvalidKeyTypeException(
+                f"Expect key type: {cls.KEY_TYPE}, got {obj['type']} instead."
+            )
 
-        return cls(cls.from_cbor(obj["cborHex"]).payload,
-                   key_type=obj["type"],
-                   description=obj["description"])
+        return cls(
+            cls.from_cbor(obj["cborHex"]).payload,
+            key_type=obj["type"],
+            description=obj["description"],
+        )
 
     def save(self, path: str):
         if os.path.isfile(path):
@@ -107,8 +122,11 @@ class Key(CBORSerializable):
         if not isinstance(other, Key):
             return False
         else:
-            return self.payload == other.payload and self.description == other.description and \
-                   self.key_type == other.key_type
+            return (
+                self.payload == other.payload
+                and self.description == other.description
+                and self.key_type == other.key_type
+            )
 
     def __repr__(self) -> str:
         return self.to_json()
@@ -127,7 +145,9 @@ class VerificationKey(Key):
         Returns:
             VerificationKeyHash: Hash output in bytes.
         """
-        return VerificationKeyHash(blake2b(self.payload, VERIFICATION_KEY_HASH_SIZE, encoder=RawEncoder))
+        return VerificationKeyHash(
+            blake2b(self.payload, VERIFICATION_KEY_HASH_SIZE, encoder=RawEncoder)
+        )
 
     @classmethod
     def from_signing_key(cls, key: SigningKey) -> VerificationKey:
@@ -160,7 +180,9 @@ class PaymentVerificationKey(VerificationKey):
 
 
 class PaymentKeyPair:
-    def __init__(self, signing_key: PaymentSigningKey, verification_key: PaymentVerificationKey):
+    def __init__(
+        self, signing_key: PaymentSigningKey, verification_key: PaymentVerificationKey
+    ):
         self.signing_key = signing_key
         self.verification_key = verification_key
 
@@ -175,7 +197,10 @@ class PaymentKeyPair:
 
     def __eq__(self, other):
         if isinstance(other, PaymentKeyPair):
-            return other.signing_key == self.signing_key and other.verification_key == self.verification_key
+            return (
+                other.signing_key == self.signing_key
+                and other.verification_key == self.verification_key
+            )
 
 
 class StakeSigningKey(SigningKey):
@@ -189,7 +214,9 @@ class StakeVerificationKey(VerificationKey):
 
 
 class StakeKeyPair:
-    def __init__(self, signing_key: StakeSigningKey, verification_key: StakeVerificationKey):
+    def __init__(
+        self, signing_key: StakeSigningKey, verification_key: StakeVerificationKey
+    ):
         self.signing_key = signing_key
         self.verification_key = verification_key
 
