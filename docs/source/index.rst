@@ -10,12 +10,35 @@ PyCardano is a standalone Cardano client written in Python. The library is able 
 without depending on third-party Cardano serialization tools, such as cardano-cli and cardano-serialization-lib,
 making it a light-weight library that is easy and fast to set up in all kinds of environments.
 
+.. toctree::
+    :maxdepth: 1
+    :caption: Usage Guides
+
+    guides/address
+
+
+.. toctree::
+   :maxdepth: 1
+   :caption: API Reference
+
+   api/pycardano.address
+   api/pycardano.backend.base
+   api/pycardano.coinselection
+   api/pycardano.exception
+   api/pycardano.hash
+   api/pycardano.key
+   api/pycardano.network
+   api/pycardano.serialization
+   api/pycardano.transaction
+   api/pycardano.utils
+   api/pycardano.witness
 
 
 Links
 ==================
-.. toctree::
-   :maxdepth: 1
 
-   pycardano
-   genindex
+* :ref:`genindex`
+* :ref:`modindex`
+* :ref:`search`
+* `Github Home Page <https://github.com/cffls/pycardano>`_
+
