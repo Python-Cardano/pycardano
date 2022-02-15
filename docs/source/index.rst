@@ -12,6 +12,12 @@ making it a light-weight library that is easy and fast to set up in all kinds of
 
 .. toctree::
     :maxdepth: 1
+    :caption: Get Started
+
+    tutorial
+
+.. toctree::
+    :maxdepth: 1
     :caption: Usage Guides
 
     guides/address

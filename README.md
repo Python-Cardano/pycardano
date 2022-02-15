@@ -1,11 +1,12 @@
 ## PyCardano
 
+[![PyPi version](https://badgen.net/pypi/v/pycardano)](https://pypi.python.org/pypi/pycardano/)
+[![PyPI pyversions](https://img.shields.io/pypi/pyversions/pycardano)](https://pypi.python.org/pypi/pycardano/)
+[![PyPi license](https://badgen.net/pypi/license/pycardano)](https://pypi.python.org/pypi/pycardano/)
+
 [![PyCardano](https://github.com/cffls/pycardano/actions/workflows/main.yml/badge.svg)](https://github.com/cffls/pycardano/actions/workflows/main.yml)
 [![codecov](https://codecov.io/gh/cffls/pycardano/branch/main/graph/badge.svg?token=62N0IL9IMQ)](https://codecov.io/gh/cffls/pycardano)
 [![Documentation Status](https://readthedocs.org/projects/pycardano/badge/?version=latest)](https://pycardano.readthedocs.io/en/latest/?badge=latest)
-
-[![Linux](https://svgshare.com/i/Zhy.svg)](https://svgshare.com/i/Zhy.svg)
-[![macOS](https://svgshare.com/i/ZjP.svg)](https://svgshare.com/i/ZjP.svg)
 
 
 PyCardano is a Cardano library written in Python. It allows users to create and sign transactions without 
@@ -23,9 +24,9 @@ could be beneficial for faster R&D iterations.
 - [PyCardano](#pycardano)
   - [Features](#features)
   - [Installation](#installation)
+  - [Documentation](#documentation)
   - [Examples](#examples)
     - [Transaction creation and signing](#transaction-creation-and-signing)
-  - [Documentations](#documentations)
   - [Development](#development)
     - [Workspace setup](#workspace-setup)
     - [Test](#test)
@@ -56,7 +57,13 @@ could be beneficial for faster R&D iterations.
 
 ### Installation
 
-The library is still under development. The first release will be published to PyPI soon.
+Install the library using [pip](https://pip.pypa.io/en/stable/):
+
+`pip install pycardano`
+
+### Documentation
+
+https://pycardano.readthedocs.io/en/latest/
 
 ### Examples
 
@@ -150,10 +157,6 @@ context.submit_tx(signed_tx.to_cbor())
 ```
 
 See more usages under [examples](https://github.com/cffls/pycardano/tree/main/examples).
-
-### Documentations
-
-https://pycardano.readthedocs.io/en/latest/
 
 
 -----------------
