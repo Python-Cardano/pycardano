@@ -66,6 +66,7 @@ format: ## runs code style and formatter
 	poetry run black .
 
 docs: ## build the documentation
+	rm -r docs/build
 	poetry run sphinx-build docs/source docs/build/html
 	$(BROWSER) docs/build/html/index.html
 

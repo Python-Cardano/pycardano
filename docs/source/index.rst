@@ -15,6 +15,9 @@ making it a light-weight library that is easy and fast to set up in all kinds of
     :caption: Usage Guides
 
     guides/address
+    guides/serialization
+    guides/instance_creation
+    guides/transaction
 
 
 .. toctree::
@@ -41,4 +44,5 @@ Links
 * :ref:`modindex`
 * :ref:`search`
 * `Github Home Page <https://github.com/cffls/pycardano>`_
+* `More usage examples on Github <https://github.com/cffls/pycardano/tree/main/examples>`_
 
