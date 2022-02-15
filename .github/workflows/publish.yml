@@ -3,8 +3,6 @@ on:
   push:
     tags:
       - "v[0-9]+.[0-9]+.[0-9]+" # Push events to matching *, i.e. 1.0, 20.15.10
-      - "v[0-9]+.[0-9]+.[0-9]+-rc*" # Push events to matching *rc*, i.e. v1.0-rc1, v20.15.10-rc5
-      - "v[0-9]+.[0-9]+.[0-9]+-beta*" # Push events to matching *b*, i.e. v1.0-beta1, v20.15.10-beta5
 
 jobs:
   publish:
