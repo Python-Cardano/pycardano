@@ -174,17 +174,11 @@ vk_witnesses = [
     VerificationKeyWitness(policy_vkey, policy_signature),
 ]
 
-# We also need to add the policy script to witness set when we are minting new tokens
-native_script_witnesses = [policy]
-
 # Create final signed transaction
 signed_tx = Transaction(
     tx_body,
-    TransactionWitnessSet(
-        vkey_witnesses=vk_witnesses, native_scripts=native_scripts
-    ),  # We also need to add the policy script
-    # to witness set when we are minting
-    # new tokens.
+    # Beside vk witnesses, We also need to add the policy script to witness set when we are minting new tokens.
+    TransactionWitnessSet(vkey_witnesses=vk_witnesses, native_scripts=native_scripts),
     auxiliary_data=auxiliary_data,
 )
 
