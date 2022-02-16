@@ -2,6 +2,7 @@
 
 [![PyPi version](https://badgen.net/pypi/v/pycardano)](https://pypi.python.org/pypi/pycardano/)
 [![PyPI pyversions](https://img.shields.io/pypi/pyversions/pycardano)](https://pypi.python.org/pypi/pycardano/)
+[![PyPI download month](https://img.shields.io/pypi/dm/pycardano)](https://pypi.python.org/pypi/pycardano/)
 [![PyPi license](https://badgen.net/pypi/license/pycardano)](https://pypi.python.org/pypi/pycardano/)
 
 [![PyCardano](https://github.com/cffls/pycardano/actions/workflows/main.yml/badge.svg)](https://github.com/cffls/pycardano/actions/workflows/main.yml)
@@ -177,7 +178,7 @@ Install poetry for osx / linux / bashonwindows:
 Go to [poetry installation](https://python-poetry.org/docs/#installation) for more details. 
 
 
-Change directory into the repo, install all dependencies using poetry, and you are done!
+Change directory into the repo, install all dependencies using poetry, and you are all set!
 
 `cd pycardano && poetry install`
 
