@@ -1,4 +1,4 @@
-
+### Full stack demo
 
 This is a full stack demo on transaction creation with PyCardano and transaction signing with
 [Nami](https://namiwallet.io/) wallet. 
@@ -8,7 +8,7 @@ The frontend is rendered using [React](https://reactjs.org/).
 
 This webapp allows users to send ADA to multiple addresses, which is currently not possible with only Nami wallet.  
 
-####Note
+#### Note
 This is a simple demo built in a few hours. It is not fully tested and some designs could be inefficient.
 
 ### Steps
@@ -44,6 +44,9 @@ $ flask run
 ### Demo
 
 ![Alt Text](demo.gif)
+
+The transaction submitted in the demo could be found
+[here](https://explorer.cardano-testnet.iohkdev.io/en/transaction?id=79476c8b257f36cf6f560d4e43b40bf853ee5c2a87e8fd6f09ab722675efcb6e).
 
 ### Sequence Diagram
 
