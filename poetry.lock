@@ -64,7 +64,7 @@ uvloop = ["uvloop (>=0.15.2)"]
 
 [[package]]
 name = "blockfrost-python"
-version = "0.4.2"
+version = "0.4.3"
 description = "The official Python SDK for Blockfrost API v0.1.36"
 category = "main"
 optional = false
@@ -642,7 +642,7 @@ testing = ["pytest (>=6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytest-
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7"
-content-hash = "9d3f8b10870c625209954af77819c044bddf0128d3ef4b172135540b1dd150b2"
+content-hash = "5aa6e1abbc79373e694da74f98258ad8835ece9ee729211f526973a49d8c4f60"
 
 [metadata.files]
 alabaster = [
@@ -687,8 +687,8 @@ black = [
     {file = "black-22.1.0.tar.gz", hash = "sha256:a7c0192d35635f6fc1174be575cb7915e92e5dd629ee79fdaf0dcfa41a80afb5"},
 ]
 blockfrost-python = [
-    {file = "blockfrost-python-0.4.2.tar.gz", hash = "sha256:c5639c8fa4666469463826c462ea7b4103fe3765e6244bda3f556818b1335380"},
-    {file = "blockfrost_python-0.4.2-py3-none-any.whl", hash = "sha256:482dba76624c8a2a25200f0211a10e06b81e0e5dbd1d1a21e7d634ca149fa3cd"},
+    {file = "blockfrost-python-0.4.3.tar.gz", hash = "sha256:532840a23b157fa7f2533420a8240d2f1e4d01d103344e5517898ce2a793f03b"},
+    {file = "blockfrost_python-0.4.3-py3-none-any.whl", hash = "sha256:0ef5e53ce8b08ad91fd58a0db3aa8b9545c8bb86832e99db6dbfa6862a9d60b7"},
 ]
 cbor2 = [
     {file = "cbor2-5.4.2.post1-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:21a8778a92fae2fa713dfee2dc781fce64bc8fcb2e085368eff3a0b3434f83c7"},
