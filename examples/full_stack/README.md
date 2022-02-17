@@ -19,26 +19,27 @@ This is a simple demo built in a few hours. It is not fully tested and some desi
 $ poetry install
 ```
 
+2. Modify BlockFrost project ID in `server.py`
 
-2. Start flask app
+3. Start flask app
 
 ```shell
 $ export FLASK_APP=server
-$ flask run
+$ poetry run flask run
 ```
 
-3. Open a browser that has Nami wallet extension installed, go to 
+4. Open a browser that has Nami wallet extension installed, go to 
 
 ```http://127.0.0.1:5000/```
 
 
-4. Connect the wallet by clicking "Connect wallet" button. 
+5. Connect the wallet by clicking "Connect wallet" button. 
 
-5. Paste multiple Cardano addresses and specify the amount of ADA to send for each one.  
+6. Paste multiple Cardano addresses and specify the amount of ADA to send for each one.  
 
-6. When you are done with adding addresses, click "Submit Tx" button, and Nami will prompt a signing window.
+7. When you are done with adding addresses, click "Submit Tx" button, and Nami will prompt a signing window.
 
-7. Sign the transaction and you are all set. You should be able to see the transaction soon in the blockchain explorer.
+8. Sign the transaction and you are all set. You should be able to see the transaction soon in the blockchain explorer.
 
 
 ### Demo
