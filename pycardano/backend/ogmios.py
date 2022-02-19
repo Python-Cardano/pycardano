@@ -1,3 +1,4 @@
+import calendar
 import json
 import time
 from typing import List, Union
@@ -109,10 +110,10 @@ class OgmiosChainContext(ChainContext):
         if not self._genesis_param or self._check_chain_tip_and_update():
             result = self._request(method, args)
             system_start_unix = int(
-                time.mktime(
+                calendar.timegm(
                     time.strptime(
                         result["systemStart"].split(".")[0], "%Y-%m-%dT%H:%M:%S"
-                    )
+                    ),
                 )
             )
             self._genesis_param = GenesisParameters(

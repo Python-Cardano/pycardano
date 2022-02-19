@@ -132,7 +132,7 @@ class TestOgmiosChainContext:
                 max_lovelace_supply=1000000000000,
                 network_magic=42,
                 epoch_length=500,
-                system_start=1640085434,
+                system_start=1640056634,
                 slots_per_kes_period=129600,
                 slot_length=1,
                 max_kes_evolutions=60000000,
