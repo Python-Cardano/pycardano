@@ -2,6 +2,8 @@
 
 if [ "$NETWORK" = "local-alonzo" ]
 then
+  chmod 400 /code/tmp_configs/"$NETWORK"/shelley/*.skey
+  chmod 400 /code/tmp_configs/"$NETWORK"/shelley/*.vkey
   cardano-node run \
     --config /code/tmp_configs/"$NETWORK"/config.json \
     --topology /code/tmp_configs/"$NETWORK"/topology.json \
