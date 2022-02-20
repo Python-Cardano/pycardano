@@ -61,7 +61,7 @@ class RecipientForm extends React.Component {
   render () {
     return (
       <form ref="form" onSubmit={this.onSubmit} className="form-inline">
-        <input type="text" ref="address" className="form-control" placeholder="add a new address..."/>
+        <input type="text" ref="address" className="form-control" placeholder="add a testnet address..."/>
         <input type="text" ref="amount" className="form-control" placeholder="amount in ada"/>
         <button type="submit" className="btn btn-default">Add</button>
       </form>
@@ -186,7 +186,7 @@ class RecipientApp extends React.Component {
         <RecipientForm addItem={this.addItem} />
         <br/>
         <button disabled={!this.state.connected} onChange={this.onChange} onClick={this.prepare_sender}>Submit Tx</button>
-        <button disabled={this.state.connected} onChange={this.onChange} onClick={this.connectWallet}>Connect wallet</button>
+        <button disabled={this.state.connected} onChange={this.onChange} onClick={this.connectWallet}>Connect Nami wallet</button>
       </div>
     );
   }
