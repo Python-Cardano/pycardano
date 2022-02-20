@@ -31,7 +31,6 @@ from pycardano.witness import TransactionWitnessSet, VerificationKeyWitness
 
 __all__ = ["TransactionBuilder"]
 
-
 FAKE_VKEY = VerificationKey.from_primitive(
     bytes.fromhex(
         "58205e750db9facf42b15594790e3ac882e" "d5254eb214a744353a2e24e4e65b8ceb4"
@@ -54,7 +53,7 @@ class TransactionBuilder:
     """
 
     def __init__(
-        self, context: ChainContext, utxo_selectors: Optional[List[UTxOSelector]] = None
+            self, context: ChainContext, utxo_selectors: Optional[List[UTxOSelector]] = None
     ):
         self.context = context
         self._inputs = []
@@ -242,7 +241,7 @@ class TransactionBuilder:
         return len(attempt_amount.to_cbor("bytes")) > max_val_size
 
     def _pack_tokens_for_change(self, change_address: Optional[Address], change_estimator: Value, max_val_size: int) -> \
-    List[MultiAsset]:
+            List[MultiAsset]:
         multi_asset_arr = []
         base_coin = Value(coin=change_estimator.coin)
         output = TransactionOutput(change_address, base_coin)
@@ -387,7 +386,7 @@ class TransactionBuilder:
             selected_amount.coin,
             selected_amount.multi_asset.filter(
                 lambda p, n, v: p in requested_amount.multi_asset
-                and n in requested_amount.multi_asset[p]
+                                and n in requested_amount.multi_asset[p]
             ),
         )
 
