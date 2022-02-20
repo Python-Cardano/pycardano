@@ -22,12 +22,12 @@ echo "Bootstrapping network: $NETWORK"
 
 if [ "$NETWORK" = "local-alonzo" ]; then
   echo "Updating byron startTime to present in local mode, alonzo era"
-  jq -M ".startTime = ""$(date +%s)" configs/"$NETWORK"/"$NETWORK"-byron-genesis.json > \
-    tmp_configs/"$NETWORK"/"$NETWORK"-byron-genesis.json
+  jq -M ".startTime = ""$(date +%s)" configs/"$NETWORK"/byron-genesis.json > \
+    tmp_configs/"$NETWORK"/byron-genesis.json
 fi
 
 echo "NETWORK=$NETWORK" >.env
-NETWORK_MAGIC=$(jq .networkMagic tmp_configs/"$NETWORK"/"$NETWORK"-shelley-genesis.json)
+NETWORK_MAGIC=$(jq .networkMagic tmp_configs/"$NETWORK"/shelley-genesis.json)
 echo "Found network magic: $NETWORK_MAGIC"
 echo "NETWORK_MAGIC=$NETWORK_MAGIC" >>.env
 echo "Done"

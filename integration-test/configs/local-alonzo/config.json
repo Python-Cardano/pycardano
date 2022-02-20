@@ -1,7 +1,7 @@
 {
-  "ByronGenesisFile": "local-byron-genesis.json",
-  "ShelleyGenesisFile": "local-shelley-genesis.json",
-  "AlonzoGenesisFile": "local-alonzo-genesis.json",
+  "ByronGenesisFile": "byron-genesis.json",
+  "ShelleyGenesisFile": "shelley-genesis.json",
+  "AlonzoGenesisFile": "alonzo-genesis.json",
   "SocketPath": "db/node.socket",
   "MaxConcurrencyBulkSync": 1,
   "MaxConcurrencyDeadline": 2,

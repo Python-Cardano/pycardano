@@ -3,7 +3,7 @@
     "securityParam": 1000000000,
     "slotsPerKESPeriod": 129600,
     "updateQuorum": 2,
-    "activeSlotsCoeff": 0.1,
+    "activeSlotsCoeff": 0.5,
     "protocolParams": {
         "minUTxOValue": 1000000,
         "eMax": 18,

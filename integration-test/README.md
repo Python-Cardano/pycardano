@@ -21,7 +21,7 @@ BFT node in the network. The node will produce all blocks and the environment/le
 
 * Install [Docker](https://www.docker.com/)
 
-### Steps
+### Launch containers
 
 Bootstrap config files for a single BFT node:
 
@@ -37,3 +37,9 @@ Clean up docker containers and volumes when done with testing:
 
 `docker-compose down`
 
+
+### Test
+
+Current, all integration tests could be kicked off by running:
+
+`./run_tests.sh`

@@ -147,8 +147,7 @@ class OgmiosChainContext(ChainContext):
         """Slot number of last block"""
         method = "Query"
         args = {"query": "chainTip"}
-        slot = self._request(method, args)["result"]["slot"]
-        return slot
+        return self._request(method, args)["slot"]
 
     def utxos(self, address: str) -> List[UTxO]:
         """Get all UTxOs associated with an address.
