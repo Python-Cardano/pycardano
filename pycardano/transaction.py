@@ -315,6 +315,10 @@ class TransactionBody(MapCBORSerializable):
             self.to_cbor(encoding="bytes"), TRANSACTION_HASH_SIZE, encoder=RawEncoder
         )
 
+    @property
+    def id(self) -> TransactionId:
+        return TransactionId(self.hash())
+
 
 @dataclass(repr=False)
 class Transaction(ArrayCBORSerializable):
@@ -325,3 +329,7 @@ class Transaction(ArrayCBORSerializable):
     valid: bool = True
 
     auxiliary_data: Union[AuxiliaryData, type(None)] = None
+
+    @property
+    def id(self) -> TransactionId:
+        return self.transaction_body.id
