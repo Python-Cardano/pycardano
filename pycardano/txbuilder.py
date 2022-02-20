@@ -181,6 +181,7 @@ class TransactionBuilder:
                 change_value.coin = min_lovelace(change_value, self.context)
                 change_output_arr.append(TransactionOutput(address, change_value))
                 change -= change_value
+                # Remove assets with 0 quantity
                 change.multi_asset = change.multi_asset.filter(lambda p, n, v: v > 0)
 
             # Combine remainder of provided ADA with last MultiAsset for output
@@ -191,18 +192,6 @@ class TransactionBuilder:
             change_output_arr.append(TransactionOutput(address, change_value))
 
         return change_output_arr
-        # Remove any asset that has 0 quantity
-        # if change.multi_asset:
-        #     change.multi_asset = change.multi_asset.filter(lambda p, n, v: v > 0)
-        #
-        # # If we end up with no multi asset, simply use coin value as change
-        # if not change.multi_asset:
-        #     change = change.coin
-        #
-        # # TODO: Split change if the bundle size exceeds the max utxo size.
-        # # Currently, there is only one change (UTxO) being returned. This is a native solution, it will fail
-        # # when there are too many native tokens attached to the change.
-        # return [TransactionOutput(address, change)]
 
     def _add_change_and_fee(
         self, change_address: Optional[Address]
