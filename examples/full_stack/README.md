@@ -11,6 +11,8 @@ This webapp allows users to send ADA to multiple addresses, which is currently n
 #### Note
 This is a simple demo built in a few hours. It is not fully tested and some designs could be inefficient.
 
+The DApp is now hosted on replit: https://pycardano.cffls.repl.co/ 
+
 ### Steps
 
 1. Install dependencies
