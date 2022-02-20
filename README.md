@@ -22,18 +22,18 @@ could be beneficial for faster R&D iterations.
 
 ### Table of contents
 
-- [PyCardano](#pycardano)
-  - [Features](#features)
-  - [Installation](#installation)
-  - [Documentation](#documentation)
-  - [Examples](#examples)
-    - [Transaction creation and signing](#transaction-creation-and-signing)
-  - [Development](#development)
-    - [Workspace setup](#workspace-setup)
-    - [Test](#test)
-    - [Test coverage](#test-coverage)
-  - [Style guidelines](#style-guidelines)
-  - [Docs generation](#docs-generation)
+- [Features](#features)
+- [Installation](#installation)
+- [Documentation](#documentation)
+- [Examples](#examples)
+  - [Full stack DApp](#full-stack-dapp)
+  - [Transaction creation and signing](#transaction-creation-and-signing)
+- [Development](#development)
+  - [Workspace setup](#workspace-setup)
+  - [Test](#test)
+  - [Test coverage](#test-coverage)
+- [Style guidelines](#style-guidelines)
+- [Docs generation](#docs-generation)
 
 ### Features
 
@@ -67,6 +67,12 @@ Install the library using [pip](https://pip.pypa.io/en/stable/):
 https://pycardano.readthedocs.io/en/latest/
 
 ### Examples
+
+#### Full stack DApp
+
+A full stack testnet DApp is hosted on replit: https://pycardano.cffls.repl.co/
+
+To learn more details, go to the [DApp page](https://github.com/cffls/pycardano/tree/main/examples/full_stack).
 
 #### Transaction creation and signing
 
