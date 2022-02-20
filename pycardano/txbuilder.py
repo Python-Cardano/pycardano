@@ -176,25 +176,24 @@ class TransactionBuilder:
             multi_asset_arr = self._pack_tokens_for_change(address, change, self.context.protocol_param.max_val_size)
 
             # Include minimum lovelace into each token output except for the last one
-            for multi_asset in multi_asset_arr[:-1]:
-                change_value = Value(0, multi_asset)
-                change_value.coin = min_lovelace(change_value, self.context)
+            for i, multi_asset in enumerate(multi_asset_arr):
+                # Combine remainder of provided ADA with last MultiAsset for output
+                # There may be rare cases where adding ADA causes size exceeds limit
+                # We will revisit if it becomes an issue
+                if i == len(multi_asset_arr) - 1:
+                    change_value = Value(change.coin, multi_asset)
+                else:
+                    change_value = Value(0, multi_asset)
+                    change_value.coin = min_lovelace(change_value, self.context)
                 change_output_arr.append(TransactionOutput(address, change_value))
                 change -= change_value
                 # Remove assets with 0 quantity
                 change.multi_asset = change.multi_asset.filter(lambda p, n, v: v > 0)
 
-            # Combine remainder of provided ADA with last MultiAsset for output
-            # There may be rare cases where adding ADA causes size exceeds limit
-            # We will revisit if it becomes an issue
-            last_multi_asset = multi_asset_arr[-1]
-            change_value = Value(change.coin, last_multi_asset)
-            change_output_arr.append(TransactionOutput(address, change_value))
-
         return change_output_arr
 
     def _add_change_and_fee(
-        self, change_address: Optional[Address]
+            self, change_address: Optional[Address]
     ) -> TransactionBuilder:
         original_outputs = self.outputs[:]
         if change_address:
@@ -216,7 +215,9 @@ class TransactionBuilder:
 
         return self
 
-    def _adding_asset_make_output_overflow(self, output: TransactionOutput, current_assets: Asset, policy_id: ScriptHash, add_asset_name: AssetName, add_asset_val: int, max_val_size: int) -> bool:
+    def _adding_asset_make_output_overflow(self, output: TransactionOutput, current_assets: Asset,
+                                           policy_id: ScriptHash, add_asset_name: AssetName, add_asset_val: int,
+                                           max_val_size: int) -> bool:
         """ Check if adding the asset will make output exceed maximum size limit
 
         Args:
@@ -240,7 +241,8 @@ class TransactionBuilder:
 
         return len(attempt_amount.to_cbor("bytes")) > max_val_size
 
-    def _pack_tokens_for_change(self, change_address: Optional[Address], change_estimator: Value, max_val_size: int) -> List[MultiAsset]:
+    def _pack_tokens_for_change(self, change_address: Optional[Address], change_estimator: Value, max_val_size: int) -> \
+    List[MultiAsset]:
         multi_asset_arr = []
         base_coin = Value(coin=change_estimator.coin)
         output = TransactionOutput(change_address, base_coin)
@@ -252,7 +254,8 @@ class TransactionBuilder:
             temp_assets = Asset()
             old_amount = deepcopy(output.amount)
             for asset_name, asset_value in assets.items():
-                if self._adding_asset_make_output_overflow(output, temp_assets, policy_id, asset_name, asset_value, max_val_size):
+                if self._adding_asset_make_output_overflow(output, temp_assets, policy_id, asset_name, asset_value,
+                                                           max_val_size):
                     # Insert current assets as one group
                     temp_multi_asset += MultiAsset({policy_id: temp_multi_asset})
                     temp_value.multi_asset = temp_multi_asset
