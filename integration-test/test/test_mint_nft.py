@@ -19,7 +19,7 @@ class TestMintNFT:
 
     chain_context = OgmiosChainContext(OGMIOS_WS, Network.TESTNET)
 
-    @retry(tries=5, delay=2)
+    @retry(tries=10, delay=6)
     def check_ogmios(self):
         print(f"Current chain tip: {self.chain_context.last_block_slot}")
 
