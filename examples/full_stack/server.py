@@ -1,3 +1,5 @@
+import os
+
 from flask import Flask, render_template, request
 
 from pycardano import (
@@ -12,8 +14,10 @@ from pycardano import (
 
 app = Flask(__name__)
 
+block_forst_project_id = os.environ.get("BLOCKFROST_ID")
+
 # Use BlockFrostChainContext for simplicity. You can also implement your own chain context.
-chain_context = BlockFrostChainContext("your_project_id", network=Network.TESTNET)
+chain_context = BlockFrostChainContext(block_forst_project_id, network=Network.TESTNET)
 
 
 def build_transaction(data):
