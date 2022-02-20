@@ -164,8 +164,8 @@ class TransactionBuilder:
 
         # when there is only ADA left, simply use remaining coin value as change
         if not change.multi_asset:
-            change = change.coin
-            change_output_arr.append(TransactionOutput(address, change))
+            lovelace_change = change.coin
+            change_output_arr.append(TransactionOutput(address, lovelace_change))
 
         # If there are multi asset in the change
         if change.multi_asset:
