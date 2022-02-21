@@ -63,6 +63,7 @@ class TransactionBuilder:
         self._auxiliary_data = None
         self._native_scripts = None
         self._mint = None
+        self._required_signers = None
 
         if utxo_selectors:
             self.utxo_selectors = utxo_selectors
@@ -140,6 +141,14 @@ class TransactionBuilder:
     @validity_start.setter
     def validity_start(self, validity_start: int):
         self._validity_start = validity_start
+
+    @property
+    def required_signers(self) -> List[VerificationKeyHash]:
+        return self._required_signers
+
+    @required_signers.setter
+    def required_signers(self, signers: List[VerificationKeyHash]):
+        self._required_signers = signers
 
     def _calc_change(self, fees, inputs, outputs, address) -> List[TransactionOutput]:
         requested = Value(fees)
@@ -225,6 +234,7 @@ class TransactionBuilder:
             auxiliary_data_hash=self.auxiliary_data.hash()
             if self.auxiliary_data
             else None,
+            required_signers=self.required_signers,
             validity_start=self.validity_start,
         )
         return tx_body
