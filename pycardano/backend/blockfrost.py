@@ -154,5 +154,7 @@ class BlockFrostChainContext(ChainContext):
             cbor = bytes.fromhex(cbor)
         with tempfile.NamedTemporaryFile(delete=False) as f:
             f.write(cbor)
-        self.api.transaction_submit(f.name)
+        tx = self.api.transaction_submit(f.name)
         os.remove(f.name)
+        
+        return tx
