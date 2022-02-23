@@ -187,3 +187,54 @@ class TestMintNFT:
                 found_nft = True
 
         assert found_nft, f"Cannot find target NFT in address: {address}"
+
+        nft_to_send = TransactionOutput(
+            address,
+            Value(
+                20000000,
+                MultiAsset.from_primitive({policy_id.payload: {b"MY_NFT_1": 1}}),
+            ),
+        )
+
+        builder = TransactionBuilder(chain_context)
+        builder.add_input_address(address)
+
+        builder.add_output(nft_to_send)
+
+        tx_body = builder.build(change_address=address)
+
+        """Sign transaction and add witnesses"""
+        # Sign the transaction body hash using the payment signing key
+        payment_signature = payment_skey.sign(tx_body.hash())
+
+        # Add verification keys and their signatures to the witness set
+        vk_witnesses = [
+            VerificationKeyWitness(payment_vkey, payment_signature),
+        ]
+
+        # Create final signed transaction
+        signed_tx = Transaction(
+            tx_body,
+            # Beside vk witnesses, We also need to add the policy script to witness set when we are minting new tokens.
+            TransactionWitnessSet(vkey_witnesses=vk_witnesses),
+        )
+
+        print("############### Transaction created ###############")
+        print(signed_tx)
+        print(signed_tx.to_cbor())
+
+        # Submit signed transaction to the network
+        print("############### Submitting transaction ###############")
+        chain_context.submit_tx(signed_tx.to_cbor())
+
+        time.sleep(3)
+
+        utxos = chain_context.utxos(str(address))
+        found_nft = False
+
+        for utxo in utxos:
+            output = utxo.output
+            if output == nft_to_send:
+                found_nft = True
+
+        assert found_nft, f"Cannot find target NFT in address: {address}"
