@@ -32,6 +32,7 @@ author = "JerryC"
 # ones.
 extensions = [
     "sphinx.ext.autodoc",
+    "sphinx.ext.autosectionlabel",
     "sphinx.ext.napoleon",
     "sphinx_rtd_theme",
     "sphinx_copybutton",

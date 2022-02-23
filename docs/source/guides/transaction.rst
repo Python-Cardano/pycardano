@@ -15,6 +15,12 @@ Below are two examples that generates the same transaction using different appro
 Raw transaction
 ---------------
 
+Raw transactions can be precisely constructed by specifying inputs, outputs, fees, etc. This approach is usually for
+power users or for debugging purposes. For most users, a transaction builder will be the way to go. If you are
+interested in learning more about building raw transactions, keep reading. Otherwise, please skip this section and
+directly jump to :ref:`Transaction builder` section.
+
+
 Step 1
 
 Define Tx input::
@@ -51,6 +57,12 @@ Create a transaction body from the input and outputs defined above and add trans
 
     >>> tx_body = TransactionBody(inputs=[tx_in], outputs=[output1, output2], fee=165897)
 
+Transaction ID could be obtained when we are done configuring the transaction body, because is essentially the hash
+of `TransactionBody`::
+
+    >>> tx_body.id
+    TransactionId(hex='1d40b950ded3a144fb4c100d1cf8b85719da91b06845530e34a0304427692ce4')
+
 
 Step 4
 
@@ -63,6 +75,9 @@ Sign the transaction body hash and create a complete transaction::
 
     >>> # Sign the transaction body hash
     >>> signature = sk.sign(tx_body.hash())
+    >>> # Alternatively, we can sign the transaction ID as well
+    >>> signature_alternative = sk.sign(tx_body.id.payload)
+    >>> assert signature == signature_alternative
 
     >>> # Add verification key and the signature to the witness set
     >>> vk_witnesses = [VerificationKeyWitness(vk, signature)]
@@ -131,12 +146,21 @@ Create the transaction body using transaction builder::
 
     >>> tx_body = builder.build(change_address=address)
 
+Transaction ID could be obtained when we are done configuring the transaction body, because is essentially the hash
+of `TransactionBody`::
+
+    >>> tx_body.id
+    TransactionId(hex='1d40b950ded3a144fb4c100d1cf8b85719da91b06845530e34a0304427692ce4')
+
 Step 7
 
 Sign the transaction body hash and create a complete transaction (same as the step 4 in raw transaction example)::
 
     >>> # Sign the transaction body hash
     >>> signature = sk.sign(tx_body.hash())
+    >>> # Alternatively, we can sign the transaction ID as well
+    >>> signature_alternative = sk.sign(tx_body.id.payload)
+    >>> assert signature == signature_alternative
 
     >>> # Add verification key and the signature to the witness set
     >>> vk_witnesses = [VerificationKeyWitness(vk, signature)]
