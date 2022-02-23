@@ -26,6 +26,7 @@ $ poetry install
 3. Start flask app
 
 ```shell
+$ export BLOCKFROST_ID="your_blockfrost_project_id"
 $ export FLASK_APP=server
 $ poetry run flask run
 ```
