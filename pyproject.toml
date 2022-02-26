@@ -46,7 +46,7 @@ build-backend = "poetry.core.masonry.api"
 
 
 [tool.pytest.ini_options]
-addopts = "--doctest-modules --ignore=examples --ignore=integration-test"
+addopts = "--doctest-modules --ignore=examples --ignore=integration-test --ignore=test/resources/haskell"
 minversion = "6.0"
 
 [tool.isort]
