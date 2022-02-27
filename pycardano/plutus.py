@@ -1,3 +1,5 @@
+"""Plutus related classes and functions."""
+
 from __future__ import annotations
 
 import inspect
@@ -29,11 +31,23 @@ class PlutusData(ArrayCBORSerializable):
     PlutusData is the base class of all Datum and Redeemer type. It is not required to use this class in order to
     interact with Plutus script. However, inheriting datum(s) and redeemers in a PlutusData class will reduce the
     complexity of serialization and deserialization tremendously.
+
+    Examples:
+
+        >>> @dataclass
+        ... class Test(PlutusData):
+        ...     CONSTR_ID = 1
+        ...     a: int
+        ...     b: bytes
+        >>> test = Test(123, b"321")
+        >>> test.to_cbor()
+        'd87a9f187b43333231ff'
+        >>> assert test == Test.from_cbor("d87a9f187b43333231ff")
     """
 
     CONSTR_ID: ClassVar[int] = 0
     """Constructor ID of this plutus data.
-       It is primarily used in Plutus core in order to reconstruct a data structure from serialized CBOR bytes."""
+       It is primarily used by Plutus core to reconstruct a data structure from serialized CBOR bytes."""
 
     def __post_init__(self):
         valid_types = (PlutusData, dict, list, int, bytes)

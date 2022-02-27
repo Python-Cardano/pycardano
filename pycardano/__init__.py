@@ -9,6 +9,7 @@ from .key import *
 from .metadata import *
 from .nativescript import *
 from .network import *
+from .plutus import *
 from .serialization import *
 from .transaction import *
 from .txbuilder import *
