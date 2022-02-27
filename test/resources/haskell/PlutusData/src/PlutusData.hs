@@ -7,16 +7,12 @@
 
 module Main where
 
-import Data.Map (Map)
-import qualified Data.Map as Map
 import           Data.Aeson           (encode)
 import qualified Data.ByteString.Lazy  as LBS
 import qualified PlutusTx
 import PlutusTx.Prelude ( Integer, (.), BuiltinByteString, )
-import           PlutusTx              (Data (..))
 import Ledger ( PaymentPubKeyHash(PaymentPubKeyHash), POSIXTime )
 import           Prelude              (IO, Show (..), FilePath)
-import qualified Data.Map as Data
 
 writeCBORToPath :: PlutusTx.ToData a => FilePath -> a -> IO ()
 writeCBORToPath file = LBS.writeFile file . encode . PlutusTx.toData
