@@ -1,0 +1,104 @@
+{
+  "ByronGenesisFile": "byron-genesis.json",
+  "ShelleyGenesisFile": "shelley-genesis.json",
+  "AlonzoGenesisFile": "alonzo-genesis.json",
+  "SocketPath": "db/node.socket",
+  "MaxConcurrencyBulkSync": 1,
+  "MaxConcurrencyDeadline": 2,
+  "Protocol": "Cardano",
+  "PBftSignatureThreshold": 0.6,
+  "RequiresNetworkMagic": "RequiresMagic",
+  "LastKnownBlockVersion-Major": 5,
+  "LastKnownBlockVersion-Minor": 0,
+  "LastKnownBlockVersion-Alt": 0,
+  "ApplicationName": "cardano-sl",
+  "ApplicationVersion": 1,
+  "TurnOnLogging": true,
+  "TurnOnLogMetrics": true,
+  "minSeverity": "Debug",
+  "TracingVerbosity": "NormalVerbosity",
+  "setupBackends": [
+    "KatipBK"
+  ],
+  "defaultBackends": [
+    "KatipBK"
+  ],
+  "setupScribes": [
+    {
+      "scKind": "FileSK",
+      "scName": "logs/mainnet.log",
+      "scFormat": "ScText"
+    },
+    {
+      "scKind": "StdoutSK",
+      "scName": "stdout",
+      "scFormat": "ScText"
+    }
+  ],
+  "defaultScribes": [
+    [
+      "FileSK",
+      "logs/mainnet.log"
+    ],
+    [
+      "StdoutSK",
+      "stdout"
+    ]
+  ],
+  "rotation": {
+    "rpLogLimitBytes": 5000000,
+    "rpKeepFilesNum": 3,
+    "rpMaxAgeHours": 24
+  },
+  "TraceBlockFetchClient": false,
+  "TraceBlockFetchDecisions": false,
+  "TraceBlockFetchProtocol": false,
+  "TraceBlockFetchProtocolSerialised": false,
+  "TraceBlockFetchServer": false,
+  "TraceBlockchainTime": false,
+  "TraceChainDb": true,
+  "TraceChainSyncClient": false,
+  "TraceChainSyncBlockServer": false,
+  "TraceChainSyncHeaderServer": false,
+  "TraceChainSyncProtocol": false,
+  "TraceDNSResolver": true,
+  "TraceDNSSubscription": true,
+  "TraceErrorPolicy": true,
+  "TraceLocalErrorPolicy": true,
+  "TraceForge": true,
+  "TraceHandshake": false,
+  "TraceIpSubscription": true,
+  "TraceLocalChainSyncProtocol": false,
+  "TraceLocalHandshake": false,
+  "TraceLocalTxSubmissionProtocol": false,
+  "TraceLocalTxSubmissionServer": false,
+  "TraceMempool": true,
+  "TraceMux": false,
+  "TraceTxInbound": false,
+  "TraceTxOutbound": false,
+  "TraceTxSubmissionProtocol": false,
+  "options": {
+    "mapBackends": {
+      "cardano.node.metrics": [
+        "EKGViewBK"
+      ]
+    },
+    "mapScribes": {
+      "cardano.node.metrics": [
+        "FileSK::logs/mainnet.log"
+      ]
+    },
+    "mapSeverity": {
+      "cardano.node.ChainDB": "Notice",
+      "cardano.node.DnsSubscription": "Debug"
+    }
+  },
+  "EnableLogMetrics": false,
+  "EnableLogging": true,
+  "TestShelleyHardForkAtEpoch": 0,
+  "TestAllegraHardForkAtEpoch": 0,
+  "TestMaryHardForkAtEpoch": 0,
+  "TestAlonzoHardForkAtEpoch": 0,
+  "TestEnableDevelopmentHardForkEras": true,
+  "TestEnableDevelopmentNetworkProtocols": true
+}

@@ -117,6 +117,11 @@ def test_transaction():
     vk_witness = [VerificationKeyWitness(vk, signature)]
     signed_tx = Transaction(tx_body, TransactionWitnessSet(vkey_witnesses=vk_witness))
     check_two_way_cbor(signed_tx)
+    expected_tx_id = TransactionId.from_primitive(
+        "4b5b9ed087b596150f8c95f14de821ab066ddb74f00919228acf33b85d9ca6ca"
+    )
+    assert expected_tx_id == tx_body.id
+    assert expected_tx_id == signed_tx.id
 
 
 def test_multi_asset():

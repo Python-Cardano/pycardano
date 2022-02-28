@@ -1,11 +1,13 @@
 ## PyCardano
 
+[![PyPi version](https://badgen.net/pypi/v/pycardano)](https://pypi.python.org/pypi/pycardano/)
+[![PyPI pyversions](https://img.shields.io/pypi/pyversions/pycardano)](https://pypi.python.org/pypi/pycardano/)
+[![PyPI download month](https://img.shields.io/pypi/dm/pycardano)](https://pypi.python.org/pypi/pycardano/)
+[![PyPi license](https://badgen.net/pypi/license/pycardano)](https://pypi.python.org/pypi/pycardano/)
+
 [![PyCardano](https://github.com/cffls/pycardano/actions/workflows/main.yml/badge.svg)](https://github.com/cffls/pycardano/actions/workflows/main.yml)
 [![codecov](https://codecov.io/gh/cffls/pycardano/branch/main/graph/badge.svg?token=62N0IL9IMQ)](https://codecov.io/gh/cffls/pycardano)
 [![Documentation Status](https://readthedocs.org/projects/pycardano/badge/?version=latest)](https://pycardano.readthedocs.io/en/latest/?badge=latest)
-
-[![Linux](https://svgshare.com/i/Zhy.svg)](https://svgshare.com/i/Zhy.svg)
-[![macOS](https://svgshare.com/i/ZjP.svg)](https://svgshare.com/i/ZjP.svg)
 
 
 PyCardano is a Cardano library written in Python. It allows users to create and sign transactions without 
@@ -20,18 +22,18 @@ could be beneficial for faster R&D iterations.
 
 ### Table of contents
 
-- [PyCardano](#pycardano)
-  - [Features](#features)
-  - [Installation](#installation)
-  - [Examples](#examples)
-    - [Transaction creation and signing](#transaction-creation-and-signing)
-  - [Documentations](#documentations)
-  - [Development](#development)
-    - [Workspace setup](#workspace-setup)
-    - [Test](#test)
-    - [Test coverage](#test-coverage)
-  - [Style guidelines](#style-guidelines)
-  - [Docs generation](#docs-generation)
+- [Features](#features)
+- [Installation](#installation)
+- [Documentation](#documentation)
+- [Examples](#examples)
+  - [Full stack DApp](#full-stack-dapp)
+  - [Transaction creation and signing](#transaction-creation-and-signing)
+- [Development](#development)
+  - [Workspace setup](#workspace-setup)
+  - [Test](#test)
+  - [Test coverage](#test-coverage)
+- [Style guidelines](#style-guidelines)
+- [Docs generation](#docs-generation)
 
 ### Features
 
@@ -56,9 +58,21 @@ could be beneficial for faster R&D iterations.
 
 ### Installation
 
-The library is still under development. The first release will be published to PyPI soon.
+Install the library using [pip](https://pip.pypa.io/en/stable/):
+
+`pip install pycardano`
+
+### Documentation
+
+https://pycardano.readthedocs.io/en/latest/
 
 ### Examples
+
+#### Full stack DApp
+
+A full stack testnet DApp is hosted on replit: https://pycardano.cffls.repl.co/
+
+To learn more details, go to the [DApp page](https://github.com/cffls/pycardano/tree/main/examples/full_stack).
 
 #### Transaction creation and signing
 
@@ -151,10 +165,6 @@ context.submit_tx(signed_tx.to_cbor())
 
 See more usages under [examples](https://github.com/cffls/pycardano/tree/main/examples).
 
-### Documentations
-
-https://pycardano.readthedocs.io/en/latest/
-
 
 -----------------
 
@@ -174,7 +184,7 @@ Install poetry for osx / linux / bashonwindows:
 Go to [poetry installation](https://python-poetry.org/docs/#installation) for more details. 
 
 
-Change directory into the repo, install all dependencies using poetry, and you are done!
+Change directory into the repo, install all dependencies using poetry, and you are all set!
 
 `cd pycardano && poetry install`
 

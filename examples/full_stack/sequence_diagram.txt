@@ -1,0 +1,27 @@
+title Sequence Diagram
+
+participant User
+
+participant WebApp
+
+participant Nami
+
+participant PyCardano
+
+participant BlockFrost
+
+
+User->WebApp: Type in output addresses and amount to send
+note over User, WebApp: User click "**Submit Tx**" button
+WebApp->Nami: getUsedAddresses() getChangeAddress() 
+Nami-->>WebApp: Return sender addresses and change address
+WebApp->PyCardano: build_tx(senderAddress, changeAddress)
+PyCardano-->>WebApp: unsignedTx
+WebApp->Nami: signTx(unsignedTx)
+Nami-->>WebApp: witness
+WebApp->PyCardano: submit_tx(unsignedTx, witnesses)
+note over PyCardano: Compose a signed Tx using unsignedTx and witnesses
+PyCardano->BlockFrost: submitTx(signedTx)
+BlockFrost-->>PyCardano: OK 200
+PyCardano-->>WebApp: Tx ID
+WebApp-->>User: Notify user with Tx ID

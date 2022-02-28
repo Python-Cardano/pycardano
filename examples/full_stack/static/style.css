@@ -1,0 +1,45 @@
+html, body {
+  height: 100%;
+  color: #61DAFB;
+  background: #2D2D2D;
+}
+
+h1 {
+  margin: 100px 0 15px 0;
+}
+
+#main {
+  width: 1000px;
+  margin: 0 auto;
+  text-align: left;
+}
+
+button {
+  color: #2D2D2D;
+}
+
+ul {
+  list-style: none;
+}
+
+ul>li:hover {
+  background-color: #F5F5F5;
+}
+
+.form-inline .form-control {
+  #width: 100%;
+  #margin-left: 80px;
+}
+
+.done {
+  color: red;
+  text-decoration: line-through;
+}
+
+.undone {
+  color: #2D2D2D;
+}
+
+.icon {
+  margin: 6px 10px 6px 0;
+}

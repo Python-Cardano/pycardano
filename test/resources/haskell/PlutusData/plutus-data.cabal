@@ -1,0 +1,29 @@
+Cabal-Version:      2.4
+Name:               PlutusData-cbor-generator
+Version:            0.1.0.0
+Build-Type:          Simple
+License:             Apache-2.0
+License-files:       LICENSE
+
+executable PlutusData
+  hs-source-dirs:      src
+  main-is: PlutusData.hs
+
+  build-depends:       aeson
+                     , base ^>=4.14.1.0
+                     , bytestring
+                     , cardano-api
+                     , containers
+                     , data-default
+                     , playground-common
+                     , plutus-contract
+                     , plutus-ledger
+                     , plutus-ledger-api
+                     , plutus-ledger-constraints
+                     , plutus-tx-plugin
+                     , plutus-tx
+                     , serialise
+                     , text
+  default-language:    Haskell2010
+  ghc-options:         -Wall -fobject-code -fno-ignore-interface-pragmas -fno-omit-interface-pragmas -fno-strictness -fno-spec-constr -fno-specialise
+
