@@ -17,6 +17,7 @@ from pycardano.hash import (
     AuxiliaryDataHash,
     ConstrainedBytes,
     DatumHash,
+    ScriptDataHash,
     ScriptHash,
     TransactionId,
     VerificationKeyHash,
@@ -286,7 +287,7 @@ class TransactionBody(MapCBORSerializable):
 
     mint: MultiAsset = field(default=None, metadata={"key": 9, "optional": True})
 
-    script_data_hash: ScriptHash = field(
+    script_data_hash: ScriptDataHash = field(
         default=None, metadata={"key": 11, "optional": True}
     )
 
