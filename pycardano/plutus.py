@@ -4,14 +4,19 @@ from __future__ import annotations
 
 import inspect
 from dataclasses import dataclass, fields
+from enum import Enum
 from typing import ClassVar, Optional, Type, TypeVar
 
 from cbor2 import CBORTag
 
 from pycardano.exception import DeserializeException
-from pycardano.serialization import ArrayCBORSerializable, IndefiniteList
+from pycardano.serialization import (
+    ArrayCBORSerializable,
+    CBORSerializable,
+    IndefiniteList,
+)
 
-__all__ = ["PlutusData"]
+__all__ = ["PlutusData", "RedeemerTag", "ExecutionUnits", "Redeemer"]
 
 PData = TypeVar("PData", bound="PlutusData")
 
@@ -89,3 +94,41 @@ class PlutusData(ArrayCBORSerializable):
                     f"{value.tag} instead."
                 )
             return super(PlutusData, cls).from_primitive(value.value)
+
+
+class RedeemerTag(CBORSerializable, Enum):
+    """
+    Redeemer tag, which indicates the type of redeemer.
+    """
+
+    SPEND = 0
+    MINT = 1
+    CERT = 2
+    REWARD = 3
+
+    def to_primitive(self) -> int:
+        return self.value
+
+    @classmethod
+    def from_primitive(cls, value: int) -> RedeemerTag:
+        return cls(value)
+
+
+@dataclass(repr=False)
+class ExecutionUnits(ArrayCBORSerializable):
+
+    mem: int
+
+    steps: int
+
+
+@dataclass(repr=False)
+class Redeemer(ArrayCBORSerializable):
+
+    tag: RedeemerTag
+
+    index: int
+
+    data: PlutusData
+
+    ex_units: ExecutionUnits
