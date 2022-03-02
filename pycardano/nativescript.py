@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Callable, ClassVar, List, Union
+from typing import List, Union
 
 from nacl.encoding import RawEncoder
 from nacl.hash import blake2b
 
-from pycardano.exception import DeserializeException, InvalidArgumentException
+from pycardano.exception import DeserializeException
 from pycardano.hash import SCRIPT_HASH_SIZE, ScriptHash, VerificationKeyHash
 from pycardano.serialization import ArrayCBORSerializable, Primitive, list_hook
 
@@ -25,14 +25,6 @@ __all__ = [
 
 @dataclass
 class NativeScript(ArrayCBORSerializable):
-    # We need to move TYPE field from last place to the first, in order to follow the protocol.
-    field_sorter: ClassVar[Callable[[List], List]] = lambda x: x[-1:] + x[:-1]
-
-    def __post_init__(self):
-        if self.TYPE != self.__class__.TYPE:
-            raise InvalidArgumentException(
-                f"TYPE of {self.__class__} could not be changed!"
-            )
 
     @classmethod
     def from_primitive(
@@ -49,7 +41,7 @@ class NativeScript(ArrayCBORSerializable):
             InvalidBefore,
             InvalidHereAfter,
         ]:
-            if t.TYPE == script_type:
+            if t._TYPE == script_type:
                 return super(NativeScript, t).from_primitive(value[1:])
         else:
             raise DeserializeException(f"Unknown script type indicator: {script_type}")
@@ -64,14 +56,15 @@ class NativeScript(ArrayCBORSerializable):
 
 @dataclass
 class ScriptPubkey(NativeScript):
-    key_hash: VerificationKeyHash
+    _TYPE: int = field(default=0, init=False)
 
-    # Make TYPE optional by placing it after key_hash because we don't want users to pass any value to TYPE.
-    TYPE: int = 0
+    key_hash: VerificationKeyHash
 
 
 @dataclass
 class ScriptAll(NativeScript):
+    _TYPE: int = field(default=1, init=False)
+
     native_scripts: List[
         Union[
             ScriptPubkey,
@@ -82,12 +75,12 @@ class ScriptAll(NativeScript):
             InvalidHereAfter,
         ]
     ] = field(metadata={"object_hook": list_hook(NativeScript)})
-
-    TYPE: int = 1
 
 
 @dataclass
 class ScriptAny(NativeScript):
+    _TYPE: int = field(default=2, init=False)
+
     native_scripts: List[
         Union[
             ScriptPubkey,
@@ -98,13 +91,14 @@ class ScriptAny(NativeScript):
             InvalidHereAfter,
         ]
     ] = field(metadata={"object_hook": list_hook(NativeScript)})
-
-    TYPE: int = 2
 
 
 @dataclass
 class ScriptNofK(NativeScript):
+    _TYPE: int = field(default=3, init=False)
+
     n: int
+
     native_scripts: List[
         Union[
             ScriptPubkey,
@@ -116,18 +110,16 @@ class ScriptNofK(NativeScript):
         ]
     ] = field(metadata={"object_hook": list_hook(NativeScript)})
 
-    TYPE: int = 3
-
 
 @dataclass
 class InvalidBefore(NativeScript):
-    before: int = None
+    _TYPE: int = field(default=4, init=False)
 
-    TYPE: int = 4
+    before: int = None
 
 
 @dataclass
 class InvalidHereAfter(NativeScript):
-    after: int = None
+    _TYPE: int = field(default=5, init=False)
 
-    TYPE: int = 5
+    after: int = None

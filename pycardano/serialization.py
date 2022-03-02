@@ -427,7 +427,7 @@ class ArrayCBORSerializable(CBORSerializable):
         Raises:
             :class:`pycardano.exception.DeserializeException`: When the object could not be restored from primitives.
         """
-        all_fields = fields(cls)
+        all_fields = [f for f in fields(cls) if f.init]
         if type(values) != list:
             raise DeserializeException(
                 f"Expect input value to be a list, got a {type(values)} instead."
@@ -536,7 +536,7 @@ class MapCBORSerializable(CBORSerializable):
         Raises:
             :class:`pycardano.exception.DeserializeException`: When the object could not be restored from primitives.
         """
-        all_fields = {f.metadata.get("key", f.name): f for f in fields(cls)}
+        all_fields = {f.metadata.get("key", f.name): f for f in fields(cls) if f.init}
         if type(values) != dict:
             raise DeserializeException(
                 f"Expect input value to be a dict, got a {type(values)} instead."
