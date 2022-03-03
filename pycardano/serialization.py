@@ -563,7 +563,7 @@ DictBase = TypeVar("DictBase", bound="DictCBORSerializable")
 """A generic type that is bounded by DictCBORSerializable."""
 
 
-class DictCBORSerializable(dict, CBORSerializable):
+class DictCBORSerializable(CBORSerializable):
     """A dictionary class where all keys share the same type and all values share the same type.
 
     Examples:
@@ -592,13 +592,48 @@ class DictCBORSerializable(dict, CBORSerializable):
     KEY_TYPE = Any
     VALUE_TYPE = Any
 
+    def __init__(self, *args, **kwargs):
+        self.data = dict(*args, **kwargs)
+
+    def __getattr__(self, item):
+        return getattr(self.data, item)
+
     def __setitem__(self, key: KEY_TYPE, value: VALUE_TYPE):
         check_type("key", key, self.KEY_TYPE)
         check_type("value", value, self.VALUE_TYPE)
-        super().__setitem__(key, value)
+        self.data[key] = value
+
+    def __getitem__(self, key):
+        return self.data[key]
+
+    def __eq__(self, other):
+        if isinstance(other, DictCBORSerializable):
+            return self.data == other.data
+        else:
+            return False
+
+    def __len__(self):
+        return len(self.data)
+
+    def __iter__(self):
+        return iter(self.data)
+
+    def __delitem__(self, key):
+        del self.data[key]
+
+    def __repr__(self):
+        return self.data.__repr__()
 
     def to_shallow_primitive(self) -> dict:
-        return dict(self)
+        # Sort keys in a map according to https://datatracker.ietf.org/doc/html/rfc7049#section-3.9
+        def _get_sortable_val(key):
+            if isinstance(key, CBORSerializable):
+                cbor_bytes = key.to_cbor("bytes")
+            else:
+                cbor_bytes = dumps(key)
+            return len(cbor_bytes), cbor_bytes
+
+        return dict(sorted(self.data.items(), key=lambda x: _get_sortable_val(x[0])))
 
     @classmethod
     def from_primitive(cls: Type[DictBase], value: dict) -> DictBase:

@@ -25,7 +25,6 @@ __all__ = [
 
 @dataclass
 class NativeScript(ArrayCBORSerializable):
-
     @classmethod
     def from_primitive(
         cls: NativeScript, value: Primitive
