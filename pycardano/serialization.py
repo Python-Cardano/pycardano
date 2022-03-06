@@ -11,7 +11,7 @@ from inspect import isclass
 from pprint import pformat
 from typing import Any, Callable, ClassVar, List, Type, TypeVar, Union, get_type_hints
 
-from cbor2 import CBORSimpleValue, CBORTag, dumps, loads, undefined
+from cbor2 import CBOREncoder, CBORSimpleValue, CBORTag, dumps, loads, undefined
 from typeguard import check_type, typechecked
 
 from pycardano.exception import (
@@ -21,6 +21,7 @@ from pycardano.exception import (
 )
 
 __all__ = [
+    "default_encoder",
     "IndefiniteList",
     "Primitive",
     "CBORBase",
@@ -67,6 +68,25 @@ A list of types that could be encoded by
 """
 
 CBORBase = TypeVar("CBORBase", bound="CBORSerializable")
+
+
+def default_encoder(
+    encoder: CBOREncoder, value: Union[CBORSerializable, IndefiniteList]
+):
+    """A fallback function that encodes CBORSerializable to CBOR"""
+    assert isinstance(value, (CBORSerializable, IndefiniteList)), (
+        f"Type of input value is not CBORSerializable, " f"got {type(value)} instead."
+    )
+    if isinstance(value, IndefiniteList):
+        # Currently, cbor2 doesn't support indefinite list, therefore we need special
+        # handling here to explicitly write header (b'\x9f'), each body item, and footer (b'\xff') to
+        # the output bytestring.
+        encoder.write(b"\x9f")
+        for item in value.items:
+            encoder.encode(item)
+        encoder.write(b"\xff")
+    else:
+        encoder.encode(value.to_primitive())
 
 
 @typechecked
@@ -204,23 +224,7 @@ class CBORSerializable:
                 f"Invalid encoding: {encoding}. Please choose from {valid_encodings}"
             )
 
-        def _default_encoder(encoder, value):
-            assert isinstance(value, (CBORSerializable, IndefiniteList)), (
-                f"Type of input value is not CBORSerializable, "
-                f"got {type(value)} instead."
-            )
-            if isinstance(value, IndefiniteList):
-                # Currently, cbor2 doesn't support indefinite list, therefore we need special
-                # handling here to explicitly write header (b'\x9f'), each body item, and footer (b'\xff') to
-                # the output bytestring.
-                encoder.write(b"\x9f")
-                for item in value.items:
-                    encoder.encode(item)
-                encoder.write(b"\xff")
-            else:
-                encoder.encode(value.to_primitive())
-
-        cbor = dumps(self, default=_default_encoder)
+        cbor = dumps(self, default=default_encoder)
         if encoding == "hex":
             return cbor.hex()
         else:
