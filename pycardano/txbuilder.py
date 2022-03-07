@@ -324,9 +324,6 @@ class TransactionBuilder:
 
         return multi_asset_arr
 
-    def _fees_for_output(self):
-        return
-
     def _input_vkey_hashes(self) -> Set[VerificationKeyHash]:
         results = set()
         for i in self.inputs:
