@@ -2,13 +2,19 @@
 
 from __future__ import annotations
 
-from typing import Optional, Union
+from typing import List, Optional, Union
+
+import cbor2
+from nacl.encoding import RawEncoder
+from nacl.hash import blake2b
 
 from pycardano.backend.base import ChainContext
-from pycardano.hash import SCRIPT_HASH_SIZE
+from pycardano.hash import SCRIPT_DATA_HASH_SIZE, SCRIPT_HASH_SIZE, ScriptDataHash
+from pycardano.plutus import COST_MODELS, CostModels, PlutusData, Redeemer
+from pycardano.serialization import default_encoder
 from pycardano.transaction import MultiAsset, Value
 
-__all__ = ["fee", "max_tx_fee", "bundle_size", "min_lovelace"]
+__all__ = ["fee", "max_tx_fee", "bundle_size", "min_lovelace", "script_data_hash"]
 
 
 def fee(
@@ -106,3 +112,36 @@ def min_lovelace(
     finalized_size = utxo_entry_size + b_size + data_hash_size
 
     return finalized_size * context.protocol_param.coins_per_utxo_word
+
+
+def script_data_hash(
+    redeemers: List[Redeemer],
+    datums: List[PlutusData],
+    cost_models: Optional[CostModels] = None,
+) -> ScriptDataHash:
+    """Calculate plutus script data hash
+
+    Args:
+        redeemers (List[Redeemer]): Redeemers to include.
+        datums (List[PlutusData]): Datums to include.
+        cost_models (Optional[CostModels]): Cost models.
+
+    Returns:
+        ScriptDataHash: Plutus script data hash
+    """
+    if not redeemers:
+        cost_models = {}
+    elif not cost_models:
+        cost_models = COST_MODELS
+
+    redeemer_bytes = cbor2.dumps(redeemers, default=default_encoder)
+    datum_bytes = cbor2.dumps(datums, default=default_encoder)
+    cost_models_bytes = cbor2.dumps(cost_models, default=default_encoder)
+
+    return ScriptDataHash(
+        blake2b(
+            redeemer_bytes + datum_bytes + cost_models_bytes,
+            SCRIPT_DATA_HASH_SIZE,
+            encoder=RawEncoder,
+        )
+    )
