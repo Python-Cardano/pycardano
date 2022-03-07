@@ -5,7 +5,7 @@ from typing import Any, List
 
 from pycardano.key import VerificationKey
 from pycardano.nativescript import NativeScript
-from pycardano.plutus import PlutusData
+from pycardano.plutus import PlutusData, Redeemer
 from pycardano.serialization import (
     ArrayCBORSerializable,
     MapCBORSerializable,
@@ -47,7 +47,11 @@ class TransactionWitnessSet(MapCBORSerializable):
     )
 
     plutus_data: List[PlutusData] = field(
-        default=None, metadata={"optional": True, "key": 4}
+        default=None,
+        metadata={"optional": True, "key": 4, "object_hook": list_hook(PlutusData)},
     )
 
-    redeemer: List[Any] = field(default=None, metadata={"optional": True, "key": 5})
+    redeemer: List[Redeemer] = field(
+        default=None,
+        metadata={"optional": True, "key": 5, "object_hook": list_hook(Redeemer)},
+    )
