@@ -1,8 +1,9 @@
 from test.pycardano.util import chain_context
 
-from pycardano.hash import SCRIPT_HASH_SIZE
+from pycardano.hash import SCRIPT_HASH_SIZE, ScriptDataHash
+from pycardano.plutus import ExecutionUnits, PlutusData, Redeemer, RedeemerTag
 from pycardano.transaction import Value
-from pycardano.utils import min_lovelace
+from pycardano.utils import min_lovelace, script_data_hash
 
 
 def test_min_lovelace_ada_only(chain_context):
@@ -132,3 +133,19 @@ class TestMinLoveLaceMultiAsset:
         )
 
         assert min_lovelace(amount, chain_context, True) == 1827546
+
+
+def test_script_data_hash():
+    unit = PlutusData()
+    redeemers = [Redeemer(RedeemerTag.SPEND, 0, unit, ExecutionUnits(1000000, 1000000))]
+    assert ScriptDataHash.from_primitive(
+        "032d812ee0731af78fe4ec67e4d30d16313c09e6fb675af28f825797e8b5621d"
+    ) == script_data_hash(redeemers=redeemers, datums=[unit])
+
+
+def test_script_data_hash_datum_only():
+    unit = PlutusData()
+    redeemers = []
+    assert ScriptDataHash.from_primitive(
+        "2f50ea2546f8ce020ca45bfcf2abeb02ff18af2283466f888ae489184b3d2d39"
+    ) == script_data_hash(redeemers=redeemers, datums=[unit])

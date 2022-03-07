@@ -28,14 +28,6 @@ def test_pubkey():
     check_two_way_cbor(script)
 
 
-def test_alter_script_type_number_with_exception():
-    with pytest.raises(InvalidArgumentException):
-        vk = VerificationKey.from_cbor(
-            "58206443a101bdb948366fc87369336224595d36d8b0eee5602cba8b81a024e58473"
-        )
-        script = ScriptPubkey(key_hash=vk.hash(), TYPE=3)
-
-
 def test_script_all():
     vk1 = VerificationKey.from_cbor(
         "58206443a101bdb948366fc87369336224595d36d8b0eee5602cba8b81a024e58473"

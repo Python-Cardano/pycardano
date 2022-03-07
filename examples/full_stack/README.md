@@ -1,4 +1,4 @@
-### Full stack demo
+## Full stack demo
 
 This is a full stack demo on transaction creation with PyCardano and transaction signing with
 [Nami](https://namiwallet.io/) wallet. 

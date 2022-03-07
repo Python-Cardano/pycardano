@@ -3,7 +3,7 @@
 [![PyPi version](https://badgen.net/pypi/v/pycardano)](https://pypi.python.org/pypi/pycardano/)
 [![PyPI pyversions](https://img.shields.io/pypi/pyversions/pycardano)](https://pypi.python.org/pypi/pycardano/)
 [![PyPI download month](https://img.shields.io/pypi/dm/pycardano)](https://pypi.python.org/pypi/pycardano/)
-[![PyPi license](https://badgen.net/pypi/license/pycardano)](https://pypi.python.org/pypi/pycardano/)
+[![Discord](https://img.shields.io/discord/949404918903631923.svg?label=&logo=discord&logoColor=ffffff&color=7389D8&labelColor=6A7EC2)](https://discord.gg/qT9Mn9xjgz)
 
 [![PyCardano](https://github.com/cffls/pycardano/actions/workflows/main.yml/badge.svg)](https://github.com/cffls/pycardano/actions/workflows/main.yml)
 [![codecov](https://codecov.io/gh/cffls/pycardano/branch/main/graph/badge.svg?token=62N0IL9IMQ)](https://codecov.io/gh/cffls/pycardano)

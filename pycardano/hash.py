@@ -13,6 +13,7 @@ __all__ = [
     "ConstrainedBytes",
     "VerificationKeyHash",
     "ScriptHash",
+    "ScriptDataHash",
     "TransactionId",
     "DatumHash",
     "AuxiliaryDataHash",
@@ -20,6 +21,7 @@ __all__ = [
 
 VERIFICATION_KEY_HASH_SIZE = 28
 SCRIPT_HASH_SIZE = 28
+SCRIPT_DATA_HASH_SIZE = 32
 TRANSACTION_HASH_SIZE = 32
 DATUM_HASH_SIZE = 32
 AUXILIARY_DATA_HASH_SIZE = 32
@@ -41,9 +43,10 @@ class ConstrainedBytes(CBORSerializable):
     MIN_SIZE = 0
 
     def __init__(self, payload: bytes):
-        assert (
-            self.MIN_SIZE <= len(payload) <= self.MAX_SIZE
-        ), f"Invalid byte size: {len(payload)}, expected size range: [{self.MIN_SIZE}, {self.MAX_SIZE}]"
+        assert self.MIN_SIZE <= len(payload) <= self.MAX_SIZE, (
+            f"Invalid byte size: {len(payload)} for class {self.__class__}, "
+            f"expected size range: [{self.MIN_SIZE}, {self.MAX_SIZE}]"
+        )
         self._payload = payload
 
     def __bytes__(self):
@@ -88,6 +91,14 @@ class ScriptHash(ConstrainedBytes):
     """Hash of a policy/plutus script."""
 
     MAX_SIZE = MIN_SIZE = SCRIPT_HASH_SIZE
+
+
+class ScriptDataHash(ConstrainedBytes):
+    """Hash of script data. See
+    https://github.com/input-output-hk/cardano-ledger/blob/525844be05adae151e82069dcd0000f3301ca0d0/eras/alonzo/
+    test-suite/cddl-files/alonzo.cddl#L79-L86"""
+
+    MAX_SIZE = MIN_SIZE = SCRIPT_DATA_HASH_SIZE
 
 
 class TransactionId(ConstrainedBytes):

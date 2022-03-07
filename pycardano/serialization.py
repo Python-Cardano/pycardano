@@ -11,7 +11,7 @@ from inspect import isclass
 from pprint import pformat
 from typing import Any, Callable, ClassVar, List, Type, TypeVar, Union, get_type_hints
 
-from cbor2 import CBORSimpleValue, CBORTag, dumps, loads, undefined
+from cbor2 import CBOREncoder, CBORSimpleValue, CBORTag, dumps, loads, undefined
 from typeguard import check_type, typechecked
 
 from pycardano.exception import (
@@ -21,6 +21,7 @@ from pycardano.exception import (
 )
 
 __all__ = [
+    "default_encoder",
     "IndefiniteList",
     "Primitive",
     "CBORBase",
@@ -67,6 +68,25 @@ A list of types that could be encoded by
 """
 
 CBORBase = TypeVar("CBORBase", bound="CBORSerializable")
+
+
+def default_encoder(
+    encoder: CBOREncoder, value: Union[CBORSerializable, IndefiniteList]
+):
+    """A fallback function that encodes CBORSerializable to CBOR"""
+    assert isinstance(value, (CBORSerializable, IndefiniteList)), (
+        f"Type of input value is not CBORSerializable, " f"got {type(value)} instead."
+    )
+    if isinstance(value, IndefiniteList):
+        # Currently, cbor2 doesn't support indefinite list, therefore we need special
+        # handling here to explicitly write header (b'\x9f'), each body item, and footer (b'\xff') to
+        # the output bytestring.
+        encoder.write(b"\x9f")
+        for item in value.items:
+            encoder.encode(item)
+        encoder.write(b"\xff")
+    else:
+        encoder.encode(value.to_primitive())
 
 
 @typechecked
@@ -204,23 +224,7 @@ class CBORSerializable:
                 f"Invalid encoding: {encoding}. Please choose from {valid_encodings}"
             )
 
-        def _default_encoder(encoder, value):
-            assert isinstance(value, (CBORSerializable, IndefiniteList)), (
-                f"Type of input value is not CBORSerializable, "
-                f"got {type(value)} instead."
-            )
-            if isinstance(value, IndefiniteList):
-                # Currently, cbor2 doesn't support indefinite list, therefore we need special
-                # handling here to explicitly write header (b'\x9f'), each body item, and footer (b'\xff') to
-                # the output bytestring.
-                encoder.write(b"\x9f")
-                for item in value.items:
-                    encoder.encode(item)
-                encoder.write(b"\xff")
-            else:
-                encoder.encode(value.to_primitive())
-
-        cbor = dumps(self, default=_default_encoder)
+        cbor = dumps(self, default=default_encoder)
         if encoding == "hex":
             return cbor.hex()
         else:
@@ -427,7 +431,7 @@ class ArrayCBORSerializable(CBORSerializable):
         Raises:
             :class:`pycardano.exception.DeserializeException`: When the object could not be restored from primitives.
         """
-        all_fields = fields(cls)
+        all_fields = [f for f in fields(cls) if f.init]
         if type(values) != list:
             raise DeserializeException(
                 f"Expect input value to be a list, got a {type(values)} instead."
@@ -536,7 +540,7 @@ class MapCBORSerializable(CBORSerializable):
         Raises:
             :class:`pycardano.exception.DeserializeException`: When the object could not be restored from primitives.
         """
-        all_fields = {f.metadata.get("key", f.name): f for f in fields(cls)}
+        all_fields = {f.metadata.get("key", f.name): f for f in fields(cls) if f.init}
         if type(values) != dict:
             raise DeserializeException(
                 f"Expect input value to be a dict, got a {type(values)} instead."
@@ -563,7 +567,7 @@ DictBase = TypeVar("DictBase", bound="DictCBORSerializable")
 """A generic type that is bounded by DictCBORSerializable."""
 
 
-class DictCBORSerializable(dict, CBORSerializable):
+class DictCBORSerializable(CBORSerializable):
     """A dictionary class where all keys share the same type and all values share the same type.
 
     Examples:
@@ -592,13 +596,48 @@ class DictCBORSerializable(dict, CBORSerializable):
     KEY_TYPE = Any
     VALUE_TYPE = Any
 
+    def __init__(self, *args, **kwargs):
+        self.data = dict(*args, **kwargs)
+
+    def __getattr__(self, item):
+        return getattr(self.data, item)
+
     def __setitem__(self, key: KEY_TYPE, value: VALUE_TYPE):
         check_type("key", key, self.KEY_TYPE)
         check_type("value", value, self.VALUE_TYPE)
-        super().__setitem__(key, value)
+        self.data[key] = value
+
+    def __getitem__(self, key):
+        return self.data[key]
+
+    def __eq__(self, other):
+        if isinstance(other, DictCBORSerializable):
+            return self.data == other.data
+        else:
+            return False
+
+    def __len__(self):
+        return len(self.data)
+
+    def __iter__(self):
+        return iter(self.data)
+
+    def __delitem__(self, key):
+        del self.data[key]
+
+    def __repr__(self):
+        return self.data.__repr__()
 
     def to_shallow_primitive(self) -> dict:
-        return dict(self)
+        # Sort keys in a map according to https://datatracker.ietf.org/doc/html/rfc7049#section-3.9
+        def _get_sortable_val(key):
+            if isinstance(key, CBORSerializable):
+                cbor_bytes = key.to_cbor("bytes")
+            else:
+                cbor_bytes = dumps(key)
+            return len(cbor_bytes), cbor_bytes
+
+        return dict(sorted(self.data.items(), key=lambda x: _get_sortable_val(x[0])))
 
     @classmethod
     def from_primitive(cls: Type[DictBase], value: dict) -> DictBase:

@@ -18,6 +18,7 @@ Nami-->>WebApp: Return sender addresses and change address
 WebApp->PyCardano: build_tx(senderAddress, changeAddress)
 PyCardano-->>WebApp: unsignedTx
 WebApp->Nami: signTx(unsignedTx)
+note over User, Nami: Nami pops tx signing window; user signs tx
 Nami-->>WebApp: witness
 WebApp->PyCardano: submit_tx(unsignedTx, witnesses)
 note over PyCardano: Compose a signed Tx using unsignedTx and witnesses

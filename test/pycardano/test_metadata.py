@@ -50,7 +50,7 @@ def test_shelley_marry_metadata():
 
     check_two_way_cbor(shelley_marry_m)
 
-    assert [m, [script.to_primitive()]] == shelley_marry_m.to_primitive()
+    assert [m.to_primitive(), [script.to_primitive()]] == shelley_marry_m.to_primitive()
 
 
 def test_alonzo_metadata():
@@ -64,7 +64,8 @@ def test_alonzo_metadata():
 
     assert (
         CBORTag(
-            AlonzoMetadata.TAG, {0: m, 1: [script.to_primitive()], 2: plutus_scripts}
+            AlonzoMetadata.TAG,
+            {0: m.to_primitive(), 1: [script.to_primitive()], 2: plutus_scripts},
         )
         == alonzo_m.to_primitive()
     )

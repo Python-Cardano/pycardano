@@ -1,7 +1,11 @@
 from dataclasses import dataclass, field
 from test.pycardano.util import check_two_way_cbor
 
-from pycardano.serialization import ArrayCBORSerializable, MapCBORSerializable
+from pycardano.serialization import (
+    ArrayCBORSerializable,
+    DictCBORSerializable,
+    MapCBORSerializable,
+)
 
 
 def test_array_cbor_serializable():
@@ -68,3 +72,27 @@ def test_map_cbor_serializable_custom_keys():
     assert t.to_primitive() == {"1": {"0": "a", "1": ""}}
     assert t.to_cbor() == "a16131a261306161613160"
     check_two_way_cbor(t)
+
+
+class MyTestDict(DictCBORSerializable):
+    KEY_TYPE = bytes
+    VALUE_TYPE = int
+
+
+def test_dict_cbor_serializable():
+
+    a = MyTestDict()
+    a[b"110"] = 1
+    a[b"100"] = 2
+    a[b"1"] = 3
+
+    b = MyTestDict()
+    b[b"100"] = 2
+    b[b"1"] = 3
+    b[b"110"] = 1
+
+    assert a.to_cbor() == "a341310343313030024331313001"
+    check_two_way_cbor(a)
+
+    # Make sure the cbor of a and b are exactly the same even when their items are inserted in different orders.
+    assert a.to_cbor() == b.to_cbor()
