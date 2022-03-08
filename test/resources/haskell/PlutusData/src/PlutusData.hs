@@ -7,15 +7,36 @@
 
 module Main where
 
+import           Cardano.Api
 import           Data.Aeson           (encode)
 import qualified Data.ByteString.Lazy  as LBS
+import qualified Data.ByteString.Lazy.Char8 as C
+import           PlutusTx              (Data (..))
 import qualified PlutusTx
-import PlutusTx.Prelude ( Integer, (.), BuiltinByteString, )
+import PlutusTx.Prelude ( BuiltinByteString, )
 import Ledger ( PaymentPubKeyHash(PaymentPubKeyHash), POSIXTime )
-import           Prelude              (IO, Show (..), FilePath)
 
 writeCBORToPath :: PlutusTx.ToData a => FilePath -> a -> IO ()
 writeCBORToPath file = LBS.writeFile file . encode . PlutusTx.toData
+
+printCBOR :: PlutusTx.ToData a => a -> IO ()
+printCBOR = putStrLn . C.unpack . encode . PlutusTx.toData
+
+dataToScriptData :: Data -> ScriptData
+dataToScriptData (Constr n xs) = ScriptDataConstructor n $ dataToScriptData <$> xs
+dataToScriptData (Map xs)      = ScriptDataMap [(dataToScriptData x, dataToScriptData y) | (x, y) <- xs]
+dataToScriptData (List xs)     = ScriptDataList $ dataToScriptData <$> xs
+dataToScriptData (I n)         = ScriptDataNumber n
+dataToScriptData (B bs)        = ScriptDataBytes bs
+
+toJSONByteString :: PlutusTx.ToData a => a -> LBS.ByteString
+toJSONByteString = encode . scriptDataToJson ScriptDataJsonDetailedSchema . dataToScriptData . PlutusTx.toData
+
+printJSON :: PlutusTx.ToData a => a -> IO ()
+printJSON = putStrLn . C.unpack . toJSONByteString
+
+writeJSON :: PlutusTx.ToData a => FilePath -> a -> IO ()
+writeJSON file = LBS.writeFile file . toJSONByteString
 
 
 data Test = Test
@@ -59,4 +80,11 @@ param = VestingParam
     }
 
 main :: IO ()
-main = writeCBORToPath "plutus-data.cbor" param
+main = do
+    putStrLn "Plutus data cbor:"
+    printCBOR param
+    writeCBORToPath "plutus-data.cbor" param
+
+    putStrLn "Plutus data json:"
+    printJSON param
+    writeJSON "plutus-data.json" param
