@@ -64,6 +64,15 @@ def test_plutus_data():
     check_two_way_cbor(my_vesting)
 
 
+def test_plutus_data_hash():
+    assert (
+        bytes.fromhex(
+            "923918e403bf43c34b4ef6b48eb2ee04babed17320d8d1b9ff9ad086e86f44ec"
+        )
+        == PlutusData().hash().payload
+    )
+
+
 def test_redeemer():
     data = MyTest(123, b"234")
     redeemer = MyRedeemer(RedeemerTag.SPEND, 0, data, ExecutionUnits(1000000, 1000000))

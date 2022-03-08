@@ -9,8 +9,11 @@ from typing import ClassVar, Optional, Type, TypeVar
 
 import cbor2
 from cbor2 import CBORTag
+from nacl.encoding import RawEncoder
+from nacl.hash import blake2b
 
 from pycardano.exception import DeserializeException
+from pycardano.hash import DATUM_HASH_SIZE, DatumHash
 from pycardano.serialization import (
     ArrayCBORSerializable,
     CBORSerializable,
@@ -306,6 +309,11 @@ class PlutusData(ArrayCBORSerializable):
                     f"{value.tag} instead."
                 )
             return super(PlutusData, cls).from_primitive(value.value)
+
+    def hash(self) -> DatumHash:
+        return DatumHash(
+            blake2b(self.to_cbor("bytes"), DATUM_HASH_SIZE, encoder=RawEncoder)
+        )
 
 
 class RedeemerTag(CBORSerializable, Enum):
