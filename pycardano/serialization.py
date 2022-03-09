@@ -37,6 +37,12 @@ class IndefiniteList:
     def __init__(self, items):
         self.items = items
 
+    def __eq__(self, other):
+        if isinstance(other, IndefiniteList):
+            return self.items == other.items
+        else:
+            return False
+
 
 Primitive = TypeVar(
     "Primitive",
@@ -318,6 +324,8 @@ def _restore_dataclass_field(
         return f.metadata["object_hook"](v)
     elif isclass(f.type) and issubclass(f.type, CBORSerializable):
         return f.type.from_primitive(v)
+    elif isclass(f.type) and issubclass(f.type, IndefiniteList):
+        return IndefiniteList(v)
     elif hasattr(f.type, "__origin__") and f.type.__origin__ is Union:
         t_args = f.type.__args__
         for t in t_args:

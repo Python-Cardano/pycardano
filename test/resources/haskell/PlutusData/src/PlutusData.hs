@@ -13,6 +13,7 @@ import qualified Data.ByteString.Lazy  as LBS
 import qualified Data.ByteString.Lazy.Char8 as C
 import           PlutusTx              (Data (..))
 import qualified PlutusTx
+import qualified PlutusTx.AssocMap as AssocMap
 import PlutusTx.Prelude ( BuiltinByteString, )
 import Ledger ( PaymentPubKeyHash(PaymentPubKeyHash), POSIXTime )
 
@@ -42,8 +43,11 @@ writeJSON file = LBS.writeFile file . toJSONByteString
 data Test = Test
     {
         a :: !Integer,
-        b :: !BuiltinByteString
-    } deriving (Show)
+        b :: !BuiltinByteString,
+        c :: !([Integer]),
+        d :: !(AssocMap.Map Integer BuiltinByteString)
+    }
+    deriving (Show)
 
 PlutusTx.makeLift ''Test
 PlutusTx.makeIsDataIndexed ''Test [('Test, 130)]
@@ -65,10 +69,13 @@ PlutusTx.makeLift ''VestingParam
 
 PlutusTx.makeIsDataIndexed ''VestingParam [('VestingParam, 1)]
 
+
 test :: Test
 test = Test
     { a = 123
     , b = "1234"
+    , c = [4, 5, 6]
+    , d = AssocMap.fromList [(1, "1"), (2, "2")]
     }
 
 param :: VestingParam

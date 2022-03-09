@@ -270,7 +270,7 @@ class PlutusData(ArrayCBORSerializable):
        It is primarily used by Plutus core to reconstruct a data structure from serialized CBOR bytes."""
 
     def __post_init__(self):
-        valid_types = (PlutusData, dict, list, int, bytes)
+        valid_types = (PlutusData, dict, IndefiniteList, int, bytes)
         for f in fields(self):
             if inspect.isclass(f.type) and not issubclass(f.type, valid_types):
                 raise TypeError(
