@@ -143,7 +143,17 @@ class CBORSerializable:
                 CBOR primitive types.
         """
         result = self.to_shallow_primitive()
-        container_types = (dict, OrderedDict, defaultdict, set, frozenset, tuple, list)
+        container_types = (
+            dict,
+            OrderedDict,
+            defaultdict,
+            set,
+            frozenset,
+            tuple,
+            list,
+            CBORTag,
+            IndefiniteList,
+        )
 
         def _helper(value):
             if isinstance(value, CBORSerializable):
@@ -169,6 +179,8 @@ class CBORSerializable:
                 return tuple([_helper(k) for k in value])
             elif isinstance(value, list):
                 return [_helper(k) for k in value]
+            elif isinstance(value, IndefiniteList):
+                return IndefiniteList([_helper(k) for k in value.items])
             elif isinstance(value, CBORTag):
                 return CBORTag(value.tag, _helper(value.value))
             else:

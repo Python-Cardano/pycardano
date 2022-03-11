@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import inspect
+import json
 from dataclasses import dataclass, fields
 from enum import Enum
-from typing import ClassVar, Optional, Type, TypeVar
+from typing import ClassVar, Optional, Type, TypeVar, Union
 
 import cbor2
 from cbor2 import CBORTag
@@ -314,6 +315,117 @@ class PlutusData(ArrayCBORSerializable):
         return DatumHash(
             blake2b(self.to_cbor("bytes"), DATUM_HASH_SIZE, encoder=RawEncoder)
         )
+
+    def to_json(self, **kwargs) -> str:
+        """Convert to a json string
+
+        Args:
+            **kwargs: Extra key word arguments to be passed to `json.dumps()`
+
+        Returns:
+            str: a JSON encoded PlutusData.
+        """
+
+        def _dfs(obj):
+            """
+            Reference of Haskell's implementation:
+            https://github.com/input-output-hk/cardano-node/blob/baa9b5e59c5d448d475f94cc88a31a5857c2bda5/cardano-api/
+            src/Cardano/Api/ScriptData.hs#L449-L474
+            """
+            if isinstance(obj, int):
+                return {"int": obj}
+            elif isinstance(obj, bytes):
+                return {"bytes": obj.hex()}
+            elif isinstance(obj, list):
+                return [_dfs(item) for item in obj]
+            elif isinstance(obj, IndefiniteList):
+                return {"list": [_dfs(item) for item in obj.items]}
+            elif isinstance(obj, dict):
+                return {"map": [{"v": _dfs(v), "k": _dfs(k)} for k, v in obj.items()]}
+            elif isinstance(obj, PlutusData):
+                return {
+                    "constructor": obj.CONSTR_ID,
+                    "fields": _dfs([getattr(obj, f.name) for f in fields(obj)]),
+                }
+            else:
+                raise TypeError(f"Unexpected type {type(obj)}")
+
+        return json.dumps(_dfs(self), **kwargs)
+
+    @classmethod
+    def from_dict(cls: Type[PData], data: dict) -> PData:
+        """Convert a dictionary to PlutusData
+
+        Args:
+            data (dict): A dictionary.
+
+        Returns:
+            PlutusData: Restored PlutusData.
+        """
+
+        def _dfs(obj):
+            if isinstance(obj, dict):
+                if "constructor" in obj:
+                    if obj["constructor"] != cls.CONSTR_ID:
+                        raise DeserializeException(
+                            f"Mismatch between constructors, expect: {cls.CONSTR_ID}, "
+                            f"got: {obj['constructor']} instead."
+                        )
+                    converted_fields = []
+                    for f, f_info in zip(obj["fields"], fields(cls)):
+                        if inspect.isclass(f_info.type) and issubclass(
+                            f_info.type, PlutusData
+                        ):
+                            converted_fields.append(f_info.type.from_dict(f))
+                        elif (
+                            hasattr(f_info.type, "__origin__")
+                            and f_info.type.__origin__ is Union
+                        ):
+                            t_args = f_info.type.__args__
+                            found_match = False
+                            for t in t_args:
+                                if (
+                                    inspect.isclass(t)
+                                    and issubclass(t, PlutusData)
+                                    and t.CONSTR_ID == f["constructor"]
+                                ):
+                                    converted_fields.append(t.from_dict(f))
+                                    found_match = True
+                                    break
+                            if not found_match:
+                                raise DeserializeException(
+                                    f"Unexpected data structure: {f}."
+                                )
+                        else:
+                            converted_fields.append(_dfs(f))
+                    return cls(*converted_fields)
+                elif "map" in obj:
+                    return {_dfs(pair["k"]): _dfs(pair["v"]) for pair in obj["map"]}
+                elif "int" in obj:
+                    return obj["int"]
+                elif "bytes" in obj:
+                    return bytes.fromhex(obj["bytes"])
+                elif "list" in obj:
+                    return IndefiniteList([_dfs(item) for item in obj["list"]])
+                else:
+                    raise DeserializeException(f"Unexpected data structure: {obj}")
+            else:
+                raise TypeError(f"Unexpected data type: {type(obj)}")
+
+        return _dfs(data)
+
+    @classmethod
+    def from_json(cls: Type[PData], data: str) -> PData:
+        """Restore a json encoded string to a PlutusData.
+
+        Args:
+            data (str): An encoded json string.
+
+        Returns:
+            PlutusData: The restored PlutusData.
+        """
+        obj = json.loads(data)
+        return cls.from_dict(obj)
 
 
 class RedeemerTag(CBORSerializable, Enum):

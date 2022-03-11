@@ -1,7 +1,10 @@
 from dataclasses import dataclass
 from test.pycardano.util import check_two_way_cbor
-from typing import List, Union
+from typing import Union
 
+import pytest
+
+from pycardano.exception import DeserializeException, SerializeException
 from pycardano.plutus import (
     COST_MODELS,
     ExecutionUnits,
@@ -65,6 +68,75 @@ def test_plutus_data():
         == my_vesting.to_cbor()
     )
     check_two_way_cbor(my_vesting)
+
+
+def test_plutus_data_json():
+    key_hash = bytes.fromhex("c2ff616e11299d9094ce0a7eb5b7284b705147a822f4ffbd471f971a")
+    deadline = 1643235300000
+    testa = BigTest(MyTest(123, b"1234", IndefiniteList([4, 5, 6]), {1: b"1", 2: b"2"}))
+    testb = LargestTest()
+
+    my_vesting = VestingParam(
+        beneficiary=key_hash, deadline=deadline, testa=testa, testb=testb
+    )
+
+    encoded_json = my_vesting.to_json(separators=(",", ":"))
+
+    assert (
+        '{"constructor":1,"fields":[{"bytes":"c2ff616e11299d9094ce0a7eb5b7284b705147a822f4ffbd471f971a"},'
+        '{"int":1643235300000},{"constructor":8,"fields":[{"constructor":130,"fields":[{"int":123},'
+        '{"bytes":"31323334"},{"list":[{"int":4},{"int":5},{"int":6}]},{"map":[{"v":{"bytes":"31"},'
+        '"k":{"int":1}},{"v":{"bytes":"32"},"k":{"int":2}}]}]}]},{"constructor":9,"fields":[]}]}'
+        == encoded_json
+    )
+
+    assert my_vesting == VestingParam.from_json(encoded_json)
+
+
+def test_plutus_data_to_json_wrong_type():
+    test = MyTest(123, b"1234", IndefiniteList([4, 5, 6]), {1: b"1", 2: b"2"})
+    test.a = "123"
+    with pytest.raises(TypeError):
+        test.to_json()
+
+
+def test_plutus_data_from_json_wrong_constructor():
+    test = (
+        '{"constructor": 129, "fields": [{"int": 123}, {"bytes": "31323334"}, '
+        '{"list": [{"int": 4}, {"int": 5}, {"int": 6}]}, {"map": [{"v": {"bytes": "31"}, '
+        '"k": {"int": 1}}, {"v": {"bytes": "32"}, "k": {"int": 2}}]}]}'
+    )
+    with pytest.raises(DeserializeException):
+        MyTest.from_json(test)
+
+    test2 = (
+        '{"constructor":1,"fields":[{"bytes":"c2ff616e11299d9094ce0a7eb5b7284b705147a822f4ffbd471f971a"},'
+        '{"int":1643235300000},{"constructor":22,"fields":[{"constructor":130,"fields":[{"int":123},'
+        '{"bytes":"31323334"},{"list":[{"int":4},{"int":5},{"int":6}]},{"map":[{"v":{"bytes":"31"},'
+        '"k":{"int":1}},{"v":{"bytes":"32"},"k":{"int":2}}]}]}]},{"constructor":23,"fields":[]}]}'
+    )
+    with pytest.raises(DeserializeException):
+        VestingParam.from_json(test2)
+
+
+def test_plutus_data_from_json_wrong_data_structure():
+    test = (
+        '{"constructor": 130, "fields": [{"int": 123}, {"bytes": "31323334"}, '
+        '{"wrong_list": [{"int": 4}, {"int": 5}, {"int": 6}]}, {"map": [{"v": {"bytes": "31"}, '
+        '"k": {"int": 1}}, {"v": {"bytes": "32"}, "k": {"int": 2}}]}]}'
+    )
+    with pytest.raises(DeserializeException):
+        MyTest.from_json(test)
+
+
+def test_plutus_data_from_json_wrong_data_structure_type():
+    test = (
+        '[{"constructor": 130, "fields": [{"int": 123}, {"bytes": "31323334"}, '
+        '{"list": [{"int": 4}, {"int": 5}, {"int": 6}]}, {"map": [{"v": {"bytes": "31"}, '
+        '"k": {"int": 1}}, {"v": {"bytes": "32"}, "k": {"int": 2}}]}]}]'
+    )
+    with pytest.raises(TypeError):
+        MyTest.from_json(test)
 
 
 def test_plutus_data_hash():
