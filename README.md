@@ -34,6 +34,7 @@ could be beneficial for faster R&D iterations.
   - [Test coverage](#test-coverage)
 - [Style guidelines](#style-guidelines)
 - [Docs generation](#docs-generation)
+- [Sponsors](#sponsors-heart)
 
 ### Features
 
@@ -237,5 +238,10 @@ Build docs and open the docs in browser:
 
 `make docs`
 
+-----------------
 
+## Sponsors :heart:
 
+<p align="left">
+  <a href="https://www.blockery.io/"><img src="https://avatars.githubusercontent.com/u/97766045?s=60&v=4"/></a>
+</p>
