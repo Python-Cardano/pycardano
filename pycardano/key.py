@@ -5,23 +5,29 @@ from __future__ import annotations
 import json
 import os
 
-from nacl.bindings import crypto_sign_PUBLICKEYBYTES, crypto_sign_SEEDBYTES
 from nacl.encoding import RawEncoder
 from nacl.hash import blake2b
 from nacl.public import PrivateKey
 from nacl.signing import SigningKey as NACLSigningKey
 
+from pycardano.crypto.bip32 import BIP32ED25519PrivateKey
 from pycardano.exception import InvalidKeyTypeException
 from pycardano.hash import VERIFICATION_KEY_HASH_SIZE, VerificationKeyHash
 from pycardano.serialization import CBORSerializable
 
 __all__ = [
     "Key",
+    "ExtendedSigningKey",
+    "ExtendedVerificationKey",
     "VerificationKey",
     "SigningKey",
+    "PaymentExtendedSigningKey",
+    "PaymentExtendedVerificationKey",
     "PaymentSigningKey",
     "PaymentVerificationKey",
     "PaymentKeyPair",
+    "StakeExtendedSigningKey",
+    "StakeExtendedVerificationKey",
     "StakeSigningKey",
     "StakeVerificationKey",
     "StakeKeyPair",
@@ -132,15 +138,20 @@ class Key(CBORSerializable):
         return self.to_json()
 
 
+class SigningKey(Key):
+    def sign(self, data: bytes) -> bytes:
+        signed_message = NACLSigningKey(self.payload).sign(data)
+        return signed_message.signature
+
+    @classmethod
+    def generate(cls) -> SigningKey:
+        signing_key = PrivateKey.generate()
+        return cls(bytes(signing_key))
+
+
 class VerificationKey(Key):
-
-    SIZE = crypto_sign_PUBLICKEYBYTES
-
     def hash(self) -> VerificationKeyHash:
         """Compute a blake2b hash from the key
-
-        Args:
-            hash_size: Size of the hash output in bytes.
 
         Returns:
             VerificationKeyHash: Hash output in bytes.
@@ -152,30 +163,62 @@ class VerificationKey(Key):
     @classmethod
     def from_signing_key(cls, key: SigningKey) -> VerificationKey:
         verification_key = NACLSigningKey(bytes(key)).verify_key
-        return cls(bytes(verification_key))
+        return cls(
+            bytes(verification_key),
+            key.key_type.replace("Signing", "Verification"),
+            key.description.replace("Signing", "Verification"),
+        )
 
 
-class SigningKey(Key):
-
-    SIZE = crypto_sign_SEEDBYTES
-
+class ExtendedSigningKey(Key):
     def sign(self, data: bytes) -> bytes:
-        signed_message = NACLSigningKey(self.payload).sign(data)
-        return signed_message.signature
+        private_key = BIP32ED25519PrivateKey(self.payload[:64], self.payload[96:])
+        return private_key.sign(data)
+
+
+class ExtendedVerificationKey(Key):
+    def hash(self) -> VerificationKeyHash:
+        """Compute a blake2b hash from the key, excluding chain code
+
+        Returns:
+            VerificationKeyHash: Hash output in bytes.
+        """
+        return self.to_non_extended().hash()
 
     @classmethod
-    def generate(cls) -> SigningKey:
-        signing_key = PrivateKey.generate()
-        return cls(bytes(signing_key))
+    def from_signing_key(cls, key: ExtendedSigningKey) -> ExtendedVerificationKey:
+        return cls(
+            key.payload[64:],
+            key.key_type.replace("Signing", "Verification"),
+            key.description.replace("Signing", "Verification"),
+        )
+
+    def to_non_extended(self) -> VerificationKey:
+        """Get the 32-byte verification with chain code trimmed off
+
+        Returns:
+            VerificationKey: 32-byte verification with chain code trimmed off
+        """
+        return VerificationKey(self.payload[:32])
 
 
 class PaymentSigningKey(SigningKey):
     KEY_TYPE = "PaymentSigningKeyShelley_ed25519"
-    DESCRIPTION = "Payment Verification Key"
+    DESCRIPTION = "Payment Signing Key"
 
 
 class PaymentVerificationKey(VerificationKey):
     KEY_TYPE = "PaymentVerificationKeyShelley_ed25519"
+    DESCRIPTION = "Payment Verification Key"
+
+
+class PaymentExtendedSigningKey(ExtendedSigningKey):
+    KEY_TYPE = "PaymentExtendedSigningKeyShelley_ed25519_bip32"
+    DESCRIPTION = "Payment Signing Key"
+
+
+class PaymentExtendedVerificationKey(ExtendedVerificationKey):
+    KEY_TYPE = "PaymentExtendedVerificationKeyShelley_ed25519_bip32"
     DESCRIPTION = "Payment Verification Key"
 
 
@@ -205,11 +248,21 @@ class PaymentKeyPair:
 
 class StakeSigningKey(SigningKey):
     KEY_TYPE = "StakeSigningKeyShelley_ed25519"
-    DESCRIPTION = "Stake Verification Key"
+    DESCRIPTION = "Stake Signing Key"
 
 
 class StakeVerificationKey(VerificationKey):
     KEY_TYPE = "StakeVerificationKeyShelley_ed25519"
+    DESCRIPTION = "Stake Verification Key"
+
+
+class StakeExtendedSigningKey(ExtendedSigningKey):
+    KEY_TYPE = "StakeExtendedSigningKeyShelley_ed25519_bip32"
+    DESCRIPTION = "Stake Signing Key"
+
+
+class StakeExtendedVerificationKey(ExtendedVerificationKey):
+    KEY_TYPE = "StakeExtendedVerificationKeyShelley_ed25519_bip32"
     DESCRIPTION = "Stake Verification Key"
 
 

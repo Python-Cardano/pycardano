@@ -1,9 +1,9 @@
 """Transaction witness."""
 
 from dataclasses import dataclass, field
-from typing import Any, List
+from typing import Any, List, Union
 
-from pycardano.key import VerificationKey
+from pycardano.key import ExtendedVerificationKey, VerificationKey
 from pycardano.nativescript import NativeScript
 from pycardano.plutus import PlutusData, Redeemer
 from pycardano.serialization import (
@@ -17,8 +17,14 @@ __all__ = ["VerificationKeyWitness", "TransactionWitnessSet"]
 
 @dataclass(repr=False)
 class VerificationKeyWitness(ArrayCBORSerializable):
-    vkey: VerificationKey
+    vkey: Union[VerificationKey, ExtendedVerificationKey]
     signature: bytes
+
+    def __post_init__(self):
+        # When vkey is in extended format, we need to convert it to non-extended, so it can match the
+        # key hash of the input address we are trying to spend.
+        if isinstance(self.vkey, ExtendedVerificationKey):
+            self.vkey = self.vkey.to_non_extended()
 
 
 @dataclass(repr=False)
