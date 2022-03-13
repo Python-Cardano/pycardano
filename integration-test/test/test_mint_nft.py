@@ -5,7 +5,6 @@ import pathlib
 import tempfile
 import time
 
-import websocket
 from retry import retry
 
 from pycardano import *
@@ -28,12 +27,17 @@ class TestMintNFT:
         chain_context = OgmiosChainContext(self.OGMIOS_WS, Network.TESTNET)
 
         payment_key_path = os.environ.get("PAYMENT_KEY")
-        if not payment_key_path:
+        extended_key_path = os.environ.get("EXTENDED_PAYMENT_KEY")
+        if not payment_key_path or not extended_key_path:
             raise Exception(
-                "Cannot find payment key. Please specify environment variable PAYMENT_KEY"
+                "Cannot find payment key. Please specify environment variable PAYMENT_KEY and extended_key_path"
             )
         payment_skey = PaymentSigningKey.load(payment_key_path)
         payment_vkey = PaymentVerificationKey.from_signing_key(payment_skey)
+        extended_payment_skey = PaymentExtendedSigningKey.load(extended_key_path)
+        extended_payment_vkey = PaymentExtendedVerificationKey.from_signing_key(
+            extended_payment_skey
+        )
         address = Address(payment_vkey.hash(), network=self.NETWORK)
 
         # Load payment keys or create them if they don't exist
@@ -67,13 +71,16 @@ class TestMintNFT:
 
         """Create policy"""
         # A policy that requires a signature from the policy key we generated above
-        pub_key_policy = ScriptPubkey(policy_vkey.hash())
+        pub_key_policy_1 = ScriptPubkey(policy_vkey.hash())
+
+        # A policy that requires a signature from the extended payment key
+        pub_key_policy_2 = ScriptPubkey(extended_payment_vkey.hash())
 
         # A time policy that disallows token minting after 10000 seconds from last block
         must_before_slot = InvalidHereAfter(chain_context.last_block_slot + 10000)
 
         # Combine two policies using ScriptAll policy
-        policy = ScriptAll([pub_key_policy, must_before_slot])
+        policy = ScriptAll([pub_key_policy_1, pub_key_policy_2, must_before_slot])
 
         # Calculate policy ID, which is the hash of the policy
         policy_id = policy.hash()
@@ -149,6 +156,9 @@ class TestMintNFT:
         # Sign the transaction body hash using the payment signing key
         payment_signature = payment_skey.sign(tx_body.hash())
 
+        # Sign the transaction body hash using the extended payment signing key
+        extended_payment_signature = extended_payment_skey.sign(tx_body.hash())
+
         # Sign the transaction body hash using the policy signing key because we are minting new tokens
         policy_signature = policy_skey.sign(tx_body.hash())
 
@@ -156,6 +166,7 @@ class TestMintNFT:
         vk_witnesses = [
             VerificationKeyWitness(payment_vkey, payment_signature),
             VerificationKeyWitness(policy_vkey, policy_signature),
+            VerificationKeyWitness(extended_payment_vkey, extended_payment_signature),
         ]
 
         # Create final signed transaction

@@ -278,3 +278,19 @@ def test_tx_add_change_split_nfts_not_enough_add(chain_context):
 
     with pytest.raises(InsufficientUTxOBalanceException):
         tx_body = tx_builder.build(change_address=sender_address)
+
+
+def test_not_enough_input_amount(chain_context):
+    tx_builder = TransactionBuilder(chain_context)
+    sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    sender_address = Address.from_primitive(sender)
+    input_utxo = chain_context.utxos(sender)[0]
+
+    # Make output amount equal to the input amount
+    tx_builder.add_input(input_utxo).add_output(
+        TransactionOutput.from_primitive([sender, input_utxo.output.amount])
+    )
+
+    with pytest.raises(InvalidTransactionException):
+        # Tx builder must fail here because there is not enough amount of input ADA to pay tx fee
+        tx_body = tx_builder.build(change_address=sender_address)

@@ -17,6 +17,7 @@ docker-compose down --volume
 docker-compose up -d
 
 export PAYMENT_KEY="$ROOT"/configs/local-alonzo/shelley/utxo-keys/utxo1.skey
+export EXTENDED_PAYMENT_KEY="$ROOT"/keys/extended.skey
 poetry run pytest -s "$ROOT"/test
 
 # Cleanup

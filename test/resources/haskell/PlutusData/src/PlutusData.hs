@@ -7,22 +7,47 @@
 
 module Main where
 
+import           Cardano.Api
 import           Data.Aeson           (encode)
 import qualified Data.ByteString.Lazy  as LBS
+import qualified Data.ByteString.Lazy.Char8 as C
+import           PlutusTx              (Data (..))
 import qualified PlutusTx
-import PlutusTx.Prelude ( Integer, (.), BuiltinByteString, )
+import qualified PlutusTx.AssocMap as AssocMap
+import PlutusTx.Prelude ( BuiltinByteString, )
 import Ledger ( PaymentPubKeyHash(PaymentPubKeyHash), POSIXTime )
-import           Prelude              (IO, Show (..), FilePath)
 
 writeCBORToPath :: PlutusTx.ToData a => FilePath -> a -> IO ()
 writeCBORToPath file = LBS.writeFile file . encode . PlutusTx.toData
+
+printCBOR :: PlutusTx.ToData a => a -> IO ()
+printCBOR = putStrLn . C.unpack . encode . PlutusTx.toData
+
+dataToScriptData :: Data -> ScriptData
+dataToScriptData (Constr n xs) = ScriptDataConstructor n $ dataToScriptData <$> xs
+dataToScriptData (Map xs)      = ScriptDataMap [(dataToScriptData x, dataToScriptData y) | (x, y) <- xs]
+dataToScriptData (List xs)     = ScriptDataList $ dataToScriptData <$> xs
+dataToScriptData (I n)         = ScriptDataNumber n
+dataToScriptData (B bs)        = ScriptDataBytes bs
+
+toJSONByteString :: PlutusTx.ToData a => a -> LBS.ByteString
+toJSONByteString = encode . scriptDataToJson ScriptDataJsonDetailedSchema . dataToScriptData . PlutusTx.toData
+
+printJSON :: PlutusTx.ToData a => a -> IO ()
+printJSON = putStrLn . C.unpack . toJSONByteString
+
+writeJSON :: PlutusTx.ToData a => FilePath -> a -> IO ()
+writeJSON file = LBS.writeFile file . toJSONByteString
 
 
 data Test = Test
     {
         a :: !Integer,
-        b :: !BuiltinByteString
-    } deriving (Show)
+        b :: !BuiltinByteString,
+        c :: !([Integer]),
+        d :: !(AssocMap.Map Integer BuiltinByteString)
+    }
+    deriving (Show)
 
 PlutusTx.makeLift ''Test
 PlutusTx.makeIsDataIndexed ''Test [('Test, 130)]
@@ -44,10 +69,13 @@ PlutusTx.makeLift ''VestingParam
 
 PlutusTx.makeIsDataIndexed ''VestingParam [('VestingParam, 1)]
 
+
 test :: Test
 test = Test
     { a = 123
     , b = "1234"
+    , c = [4, 5, 6]
+    , d = AssocMap.fromList [(1, "1"), (2, "2")]
     }
 
 param :: VestingParam
@@ -59,4 +87,11 @@ param = VestingParam
     }
 
 main :: IO ()
-main = writeCBORToPath "plutus-data.cbor" param
+main = do
+    putStrLn "Plutus data cbor:"
+    printCBOR param
+    writeCBORToPath "plutus-data.cbor" param
+
+    putStrLn "Plutus data json:"
+    printJSON param
+    writeJSON "plutus-data.json" param

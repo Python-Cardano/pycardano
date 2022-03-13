@@ -45,9 +45,9 @@ builder.add_output(
                 1500000,
                 {
                     bytes.fromhex(
-                        "57fca08abbaddee36da742a839f7d83a7e1d2419f1507fcbf3916522"
-                    ): {  # Policy ID
-                        b"CHOC": 2000
+                        "57fca08abbaddee36da742a839f7d83a7e1d2419f1507fcbf3916522"  # Policy ID
+                    ): {
+                        b"CHOC": 2000  # Asset name and amount
                     }
                 },
             ]
@@ -65,9 +65,9 @@ builder.add_output(
                 2000000,
                 {
                     bytes.fromhex(
-                        "57fca08abbaddee36da742a839f7d83a7e1d2419f1507fcbf3916522"
-                    ): {  # Policy ID
-                        b"CHOC": 200
+                        "57fca08abbaddee36da742a839f7d83a7e1d2419f1507fcbf3916522"  # Policy ID
+                    ): {
+                        b"CHOC": 200  # Asset name and amount
                     }
                 },
             ]
