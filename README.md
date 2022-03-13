@@ -3,7 +3,7 @@
 [![PyPi version](https://badgen.net/pypi/v/pycardano)](https://pypi.python.org/pypi/pycardano/)
 [![PyPI pyversions](https://img.shields.io/pypi/pyversions/pycardano)](https://pypi.python.org/pypi/pycardano/)
 [![PyPI download month](https://img.shields.io/pypi/dm/pycardano)](https://pypi.python.org/pypi/pycardano/)
-[![Discord](https://img.shields.io/discord/949404918903631923.svg?label=&logo=discord&logoColor=ffffff&color=7389D8&labelColor=6A7EC2)](https://discord.gg/qT9Mn9xjgz)
+[![Discord](https://img.shields.io/discord/949404918903631923.svg?label=chat&logo=discord&logoColor=ffffff&color=7389D8&labelColor=6A7EC2)](https://discord.gg/qT9Mn9xjgz)
 
 [![PyCardano](https://github.com/cffls/pycardano/actions/workflows/main.yml/badge.svg)](https://github.com/cffls/pycardano/actions/workflows/main.yml)
 [![codecov](https://codecov.io/gh/cffls/pycardano/branch/main/graph/badge.svg?token=62N0IL9IMQ)](https://codecov.io/gh/cffls/pycardano)
@@ -34,6 +34,7 @@ could be beneficial for faster R&D iterations.
   - [Test coverage](#test-coverage)
 - [Style guidelines](#style-guidelines)
 - [Docs generation](#docs-generation)
+- [Sponsors](#sponsors-heart)
 
 ### Features
 
@@ -116,16 +117,21 @@ builder.add_input(utxos[0])
 # Send 1.5 ADA and a native asset (CHOC) in quantity of 2000 to an address.
 builder.add_output(
     TransactionOutput(
-        Address.from_primitive("addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"),
+        Address.from_primitive(
+            "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+        ),
         Value.from_primitive(
-            [1500000,
-             {
-                 bytes.fromhex("57fca08abbaddee36da742a839f7d83a7e1d2419f1507fcbf3916522"):  # Policy ID
-                 {
-                     b'CHOC': 2000
-                 }
-             }]
-        )
+            [
+                1500000,
+                {
+                    bytes.fromhex(
+                        "57fca08abbaddee36da742a839f7d83a7e1d2419f1507fcbf3916522"  # Policy ID
+                    ): {
+                        b"CHOC": 2000  # Asset name and amount
+                    }
+                },
+            ]
+        ),
     )
 )
 
@@ -135,14 +141,17 @@ builder.add_output(
     TransactionOutput(
         address,
         Value.from_primitive(
-            [2000000,
-             {
-                 bytes.fromhex("57fca08abbaddee36da742a839f7d83a7e1d2419f1507fcbf3916522"):  # Policy ID
-                 {
-                     b'CHOC': 200
-                 }
-             }]
-        )
+            [
+                2000000,
+                {
+                    bytes.fromhex(
+                        "57fca08abbaddee36da742a839f7d83a7e1d2419f1507fcbf3916522"  # Policy ID
+                    ): {
+                        b"CHOC": 200  # Asset name and amount
+                    }
+                },
+            ]
+        ),
     )
 )
 
@@ -237,5 +246,10 @@ Build docs and open the docs in browser:
 
 `make docs`
 
+-----------------
 
+## Sponsors :heart:
 
+<p align="left">
+  <a href="https://www.blockery.io/"><img src="https://avatars.githubusercontent.com/u/97766045?s=60&v=4"/></a>
+</p>

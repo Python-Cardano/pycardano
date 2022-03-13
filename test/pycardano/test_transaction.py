@@ -104,9 +104,7 @@ def test_transaction():
         "cborHex": "5820093be5cd3987d0c9fd8854ef908f7746b69e2d73320db6dc0f780d81585b84c2"
     }"""
     )
-    vk = VerificationKey(
-        PaymentKeyPair.from_signing_key(sk.payload).verification_key.payload
-    )
+    vk = VerificationKey(PaymentKeyPair.from_signing_key(sk).verification_key.payload)
     signature = sk.sign(tx_body.hash())
     assert (
         signature

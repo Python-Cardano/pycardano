@@ -167,6 +167,14 @@ class TransactionBuilder:
         if self.mint:
             provided.multi_asset += self.mint
 
+        if not requested < provided:
+            raise InvalidTransactionException(
+                f"The input UTxOs cannot cover the transaction outputs and tx fee. \n"
+                f"Inputs: {inputs} \n"
+                f"Outputs: {outputs} \n"
+                f"fee: {fees}"
+            )
+
         change = provided - requested
         if change.coin < 0:
             # We assign max fee for now to ensure enough balance regardless of splits condition
