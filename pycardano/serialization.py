@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from collections import OrderedDict, defaultdict
+from copy import deepcopy
 from dataclasses import Field, dataclass, fields
 from datetime import datetime
 from decimal import Decimal
@@ -647,6 +648,12 @@ class DictCBORSerializable(CBORSerializable):
 
     def __repr__(self):
         return self.data.__repr__()
+
+    def __copy__(self):
+        return self.__class__(self)
+
+    def __deepcopy__(self, memodict={}):
+        return self.__class__(deepcopy(self.data))
 
     def to_shallow_primitive(self) -> dict:
         # Sort keys in a map according to https://datatracker.ietf.org/doc/html/rfc7049#section-3.9

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from copy import deepcopy
 from typing import List, Optional, Set, Union
 
 from pycardano.address import Address
@@ -9,13 +10,19 @@ from pycardano.coinselection import (
     RandomImproveMultiAsset,
     UTxOSelector,
 )
-from pycardano.exception import InvalidTransactionException, UTxOSelectionException
-from pycardano.hash import VerificationKeyHash
+from pycardano.exception import (
+    InsufficientUTxOBalanceException,
+    InvalidTransactionException,
+    UTxOSelectionException,
+)
+from pycardano.hash import ScriptHash, VerificationKeyHash
 from pycardano.key import VerificationKey
 from pycardano.logging import logger
 from pycardano.metadata import AuxiliaryData
 from pycardano.nativescript import NativeScript, ScriptAll, ScriptAny, ScriptPubkey
 from pycardano.transaction import (
+    Asset,
+    AssetName,
     MultiAsset,
     Transaction,
     TransactionBody,
@@ -23,11 +30,10 @@ from pycardano.transaction import (
     UTxO,
     Value,
 )
-from pycardano.utils import fee, max_tx_fee
+from pycardano.utils import fee, max_tx_fee, min_lovelace
 from pycardano.witness import TransactionWitnessSet, VerificationKeyWitness
 
 __all__ = ["TransactionBuilder"]
-
 
 FAKE_VKEY = VerificationKey.from_primitive(
     bytes.fromhex(
@@ -150,7 +156,9 @@ class TransactionBuilder:
     def required_signers(self, signers: List[VerificationKeyHash]):
         self._required_signers = signers
 
-    def _calc_change(self, fees, inputs, outputs, address) -> List[TransactionOutput]:
+    def _calc_change(
+        self, fees, inputs, outputs, address, precise_fee=False
+    ) -> List[TransactionOutput]:
         requested = Value(fees)
         for o in outputs:
             requested += o.amount
@@ -170,19 +178,55 @@ class TransactionBuilder:
             )
 
         change = provided - requested
+        if change.coin < 0:
+            # We assign max fee for now to ensure enough balance regardless of splits condition
+            # We can implement a more precise fee logic and requirements later
+            raise InsufficientUTxOBalanceException("Not enough ADA to cover fees")
 
         # Remove any asset that has 0 quantity
         if change.multi_asset:
             change.multi_asset = change.multi_asset.filter(lambda p, n, v: v > 0)
 
-        # If we end up with no multi asset, simply use coin value as change
-        if not change.multi_asset:
-            change = change.coin
+        change_output_arr = []
 
-        # TODO: Split change if the bundle size exceeds the max utxo size.
-        # Currently, there is only one change (UTxO) being returned. This is a native solution, it will fail
-        # when there are too many native tokens attached to the change.
-        return [TransactionOutput(address, change)]
+        # when there is only ADA left, simply use remaining coin value as change
+        if not change.multi_asset:
+            lovelace_change = change.coin
+            change_output_arr.append(TransactionOutput(address, lovelace_change))
+
+        # If there are multi asset in the change
+        if change.multi_asset:
+            # Split assets if size exceeds limits
+            multi_asset_arr = self._pack_tokens_for_change(
+                address, change, self.context.protocol_param.max_val_size
+            )
+
+            # Include minimum lovelace into each token output except for the last one
+            for i, multi_asset in enumerate(multi_asset_arr):
+                # Combine remainder of provided ADA with last MultiAsset for output
+                # There may be rare cases where adding ADA causes size exceeds limit
+                # We will revisit if it becomes an issue
+                if (
+                    precise_fee
+                    and change.coin - min_lovelace(Value(0, multi_asset), self.context)
+                    < 0
+                ):
+                    raise InsufficientUTxOBalanceException(
+                        "Not enough ADA left to cover non-ADA assets in a change address"
+                    )
+
+                if i == len(multi_asset_arr) - 1:
+                    # Include all ada in last output
+                    change_value = Value(change.coin, multi_asset)
+                else:
+                    change_value = Value(0, multi_asset)
+                    change_value.coin = min_lovelace(change_value, self.context)
+
+                change_output_arr.append(TransactionOutput(address, change_value))
+                change -= change_value
+                change.multi_asset = change.multi_asset.filter(lambda p, n, v: v > 0)
+
+        return change_output_arr
 
     def _add_change_and_fee(
         self, change_address: Optional[Address]
@@ -192,7 +236,7 @@ class TransactionBuilder:
             # Set fee to max
             self.fee = max_tx_fee(self.context)
             changes = self._calc_change(
-                self.fee, self.inputs, self.outputs, change_address
+                self.fee, self.inputs, self.outputs, change_address, precise_fee=False
             )
             self._outputs += changes
 
@@ -201,11 +245,107 @@ class TransactionBuilder:
         if change_address:
             self._outputs = original_outputs
             changes = self._calc_change(
-                self.fee, self.inputs, self.outputs, change_address
+                self.fee, self.inputs, self.outputs, change_address, precise_fee=True
             )
             self._outputs += changes
 
         return self
+
+    def _adding_asset_make_output_overflow(
+        self,
+        output: TransactionOutput,
+        current_assets: Asset,
+        policy_id: ScriptHash,
+        add_asset_name: AssetName,
+        add_asset_val: int,
+        max_val_size: int,
+    ) -> bool:
+        """Check if adding the asset will make output exceed maximum size limit
+
+        Args:
+            output (TransactionOutput): current output
+            current_assets (Asset): current Assets to be included in output
+            policy_id (ScriptHash): policy id containing the MultiAsset
+            asset_to_add (Asset): Asset to add to current MultiAsset to check size limit
+
+        """
+        attempt_assets = deepcopy(current_assets)
+        attempt_assets += Asset({add_asset_name: add_asset_val})
+        attempt_multi_asset = MultiAsset({policy_id: attempt_assets})
+
+        new_amount = Value(0, attempt_multi_asset)
+        current_amount = deepcopy(output.amount)
+        attempt_amount = new_amount + current_amount
+
+        # Calculate minimum ada requirements for more precise value size
+        required_lovelace = min_lovelace(attempt_amount, self.context)
+        attempt_amount.coin = required_lovelace
+
+        return len(attempt_amount.to_cbor("bytes")) > max_val_size
+
+    def _pack_tokens_for_change(
+        self,
+        change_address: Optional[Address],
+        change_estimator: Value,
+        max_val_size: int,
+    ) -> List[MultiAsset]:
+        multi_asset_arr = []
+        base_coin = Value(coin=change_estimator.coin)
+        output = TransactionOutput(change_address, base_coin)
+
+        # iteratively add tokens to output
+        for (policy_id, assets) in change_estimator.multi_asset.items():
+            temp_multi_asset = MultiAsset()
+            temp_value = Value(coin=0)
+            temp_assets = Asset()
+            old_amount = deepcopy(output.amount)
+            for asset_name, asset_value in assets.items():
+                if self._adding_asset_make_output_overflow(
+                    output,
+                    temp_assets,
+                    policy_id,
+                    asset_name,
+                    asset_value,
+                    max_val_size,
+                ):
+                    # Insert current assets as one group if current assets isn't null
+                    # This handles edge case when first Asset from next policy will cause overflow
+                    if temp_assets:
+                        temp_multi_asset += MultiAsset({policy_id: temp_assets})
+                        temp_value.multi_asset = temp_multi_asset
+                        output.amount += temp_value
+                    multi_asset_arr.append(output.amount.multi_asset)
+
+                    # Create a new output
+                    base_coin = Value(coin=0)
+                    output = TransactionOutput(change_address, base_coin)
+
+                    # Continue building output from where we stopped
+                    old_amount = deepcopy(output.amount)
+                    temp_multi_asset = MultiAsset()
+                    temp_value = Value()
+                    temp_assets = Asset()
+
+                temp_assets += Asset({asset_name: asset_value})
+
+            # Assess assets in buffer
+            temp_multi_asset += MultiAsset({policy_id: temp_assets})
+            temp_value.multi_asset = temp_multi_asset
+            output.amount += temp_value
+
+            # Calculate min lovelace required for more precise size
+            updated_amount = deepcopy(output.amount)
+            required_lovelace = min_lovelace(updated_amount, self.context)
+            updated_amount.coin = required_lovelace
+
+            if len(updated_amount.to_cbor("bytes")) > max_val_size:
+                output.amount = old_amount
+                break
+
+        multi_asset_arr.append(output.amount.multi_asset)
+        # Remove records where MultiAsset is null due to overflow of adding
+        # items at the beginning of next policy to previous policy MultiAssets
+        return multi_asset_arr
 
     def _input_vkey_hashes(self) -> Set[VerificationKeyHash]:
         results = set()
