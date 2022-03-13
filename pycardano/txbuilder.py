@@ -156,7 +156,9 @@ class TransactionBuilder:
     def required_signers(self, signers: List[VerificationKeyHash]):
         self._required_signers = signers
 
-    def _calc_change(self, fees, inputs, outputs, address) -> List[TransactionOutput]:
+    def _calc_change(
+        self, fees, inputs, outputs, address, precise_fee=False
+    ) -> List[TransactionOutput]:
         requested = Value(fees)
         for o in outputs:
             requested += o.amount
@@ -196,14 +198,24 @@ class TransactionBuilder:
                 # Combine remainder of provided ADA with last MultiAsset for output
                 # There may be rare cases where adding ADA causes size exceeds limit
                 # We will revisit if it becomes an issue
+                if (
+                    precise_fee
+                    and change.coin - min_lovelace(Value(0, multi_asset), self.context)
+                    < 0
+                ):
+                    raise InsufficientUTxOBalanceException(
+                        "Not enough ADA left to cover non-ADA assets in a change address"
+                    )
+
                 if i == len(multi_asset_arr) - 1:
+                    # Include all ada in last output
                     change_value = Value(change.coin, multi_asset)
                 else:
                     change_value = Value(0, multi_asset)
                     change_value.coin = min_lovelace(change_value, self.context)
+
                 change_output_arr.append(TransactionOutput(address, change_value))
                 change -= change_value
-                # Remove assets with 0 quantity
                 change.multi_asset = change.multi_asset.filter(lambda p, n, v: v > 0)
 
         return change_output_arr
@@ -216,7 +228,7 @@ class TransactionBuilder:
             # Set fee to max
             self.fee = max_tx_fee(self.context)
             changes = self._calc_change(
-                self.fee, self.inputs, self.outputs, change_address
+                self.fee, self.inputs, self.outputs, change_address, precise_fee=False
             )
             self._outputs += changes
 
@@ -225,7 +237,7 @@ class TransactionBuilder:
         if change_address:
             self._outputs = original_outputs
             changes = self._calc_change(
-                self.fee, self.inputs, self.outputs, change_address
+                self.fee, self.inputs, self.outputs, change_address, precise_fee=True
             )
             self._outputs += changes
 
@@ -268,7 +280,7 @@ class TransactionBuilder:
         change_address: Optional[Address],
         change_estimator: Value,
         max_val_size: int,
-        ) -> List[MultiAsset]:
+    ) -> List[MultiAsset]:
         multi_asset_arr = []
         base_coin = Value(coin=change_estimator.coin)
         output = TransactionOutput(change_address, base_coin)
@@ -288,10 +300,12 @@ class TransactionBuilder:
                     asset_value,
                     max_val_size,
                 ):
-                    # Insert current assets as one group
-                    temp_multi_asset += MultiAsset({policy_id: temp_multi_asset})
-                    temp_value.multi_asset = temp_multi_asset
-                    output.amount += temp_value
+                    # Insert current assets as one group if current assets isn't null
+                    # This handles edge case when first Asset from next policy will cause overflow
+                    if temp_assets:
+                        temp_multi_asset += MultiAsset({policy_id: temp_assets})
+                        temp_value.multi_asset = temp_multi_asset
+                        output.amount += temp_value
                     multi_asset_arr.append(output.amount.multi_asset)
 
                     # Create a new output
@@ -299,7 +313,7 @@ class TransactionBuilder:
                     output = TransactionOutput(change_address, base_coin)
 
                     # Continue building output from where we stopped
-                    old_amount = output.amount.copy()
+                    old_amount = deepcopy(output.amount)
                     temp_multi_asset = MultiAsset()
                     temp_value = Value()
                     temp_assets = Asset()
@@ -320,8 +334,9 @@ class TransactionBuilder:
                 output.amount = old_amount
                 break
 
-            multi_asset_arr.append(output.amount.multi_asset)
-
+        multi_asset_arr.append(output.amount.multi_asset)
+        # Remove records where MultiAsset is null due to overflow of adding
+        # items at the beginning of next policy to previous policy MultiAssets
         return multi_asset_arr
 
     def _input_vkey_hashes(self) -> Set[VerificationKeyHash]:
