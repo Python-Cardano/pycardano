@@ -37,7 +37,7 @@ __all__ = ["TransactionBuilder"]
 
 FAKE_VKEY = VerificationKey.from_primitive(
     bytes.fromhex(
-        "58205e750db9facf42b15594790e3ac882e" "d5254eb214a744353a2e24e4e65b8ceb4"
+        "58205e750db9facf42b15594790e3ac882ed5254eb214a744353a2e24e4e65b8ceb4"
     )
 )
 
@@ -77,14 +77,41 @@ class TransactionBuilder:
             self.utxo_selectors = [RandomImproveMultiAsset(), LargestFirstSelector()]
 
     def add_input(self, utxo: UTxO) -> TransactionBuilder:
+        """Add a specific UTxO to transaction's inputs.
+
+        Args:
+            utxo (UTxO): UTxO to be added.
+
+        Returns:
+            TransactionBuilder: The current transaction builder.
+        """
         self.inputs.append(utxo)
         return self
 
     def add_input_address(self, address: Union[Address, str]) -> TransactionBuilder:
+        """Add an address to transaction's input address.
+        Unlike :meth:`add_input`, which deterministically adds a UTxO to the transaction's inputs, `add_input_address`
+        will not immediately select any UTxO when called. Instead, it will delegate UTxO selection to
+        :class:`UTxOSelector`s of the builder when :meth:`build` is called.
+
+        Args:
+            address (Union[Address, str]): Address to be added.
+
+        Returns:
+            TransactionBuilder: The current transaction builder.
+        """
         self.input_addresses.append(address)
         return self
 
-    def add_output(self, tx_out: TransactionOutput):
+    def add_output(self, tx_out: TransactionOutput) -> TransactionBuilder:
+        """Add a transaction output.
+
+        Args:
+            tx_out (TransactionOutput): The transaction output to be added.
+
+        Returns:
+            TransactionBuilder: The current transaction builder.
+        """
         self.outputs.append(tx_out)
         return self
 
