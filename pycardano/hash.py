@@ -1,6 +1,6 @@
 """All type of hashes in Cardano ledger spec."""
 
-from typing import Type, TypeVar, Union
+from typing import TypeVar, Union
 
 from pycardano.serialization import CBORSerializable
 
@@ -63,7 +63,7 @@ class ConstrainedBytes(CBORSerializable):
         return self.payload
 
     @classmethod
-    def from_primitive(cls: Type[T], value: Union[bytes, str]) -> T:
+    def from_primitive(cls: T, value: Union[bytes, str]) -> T:
         if isinstance(value, str):
             value = bytes.fromhex(value)
         return cls(value)

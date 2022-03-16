@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import inspect
 import json
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, field, fields
 from enum import Enum
-from typing import ClassVar, Optional, Type, TypeVar, Union
+from typing import ClassVar, List, Optional, TypeVar, Union
 
 import cbor2
 from cbor2 import CBORTag
@@ -20,6 +20,7 @@ from pycardano.serialization import (
     CBORSerializable,
     DictCBORSerializable,
     IndefiniteList,
+    Primitive,
     default_encoder,
 )
 
@@ -289,7 +290,7 @@ class PlutusData(ArrayCBORSerializable):
             return CBORTag(102, [self.CONSTR_ID, primitives])
 
     @classmethod
-    def from_primitive(cls: Type[PData], value: CBORTag) -> PData:
+    def from_primitive(cls: PData, value: CBORTag) -> PData:
         if value.tag == 102:
             tag = value.value[0]
             if tag != cls.CONSTR_ID:
@@ -353,7 +354,7 @@ class PlutusData(ArrayCBORSerializable):
         return json.dumps(_dfs(self), **kwargs)
 
     @classmethod
-    def from_dict(cls: Type[PData], data: dict) -> PData:
+    def from_dict(cls: PData, data: dict) -> PData:
         """Convert a dictionary to PlutusData
 
         Args:
@@ -415,7 +416,7 @@ class PlutusData(ArrayCBORSerializable):
         return _dfs(data)
 
     @classmethod
-    def from_json(cls: Type[PData], data: str) -> PData:
+    def from_json(cls: PData, data: str) -> PData:
         """Restore a json encoded string to a PlutusData.
 
         Args:
@@ -457,8 +458,14 @@ class ExecutionUnits(ArrayCBORSerializable):
 class Redeemer(ArrayCBORSerializable):
     tag: RedeemerTag
 
-    index: int
+    index: int = field(default=0, init=False)
 
     data: PlutusData
 
     ex_units: ExecutionUnits
+
+    @classmethod
+    def from_primitive(cls: Redeemer, values: List[Primitive]) -> Redeemer:
+        redeemer = super(Redeemer, cls).from_primitive([values[0], values[2], values[3]])
+        redeemer.index = values[1]
+        return redeemer
