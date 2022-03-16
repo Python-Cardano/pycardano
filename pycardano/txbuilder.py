@@ -15,11 +15,12 @@ from pycardano.exception import (
     InvalidTransactionException,
     UTxOSelectionException,
 )
-from pycardano.hash import ScriptHash, VerificationKeyHash
+from pycardano.hash import ScriptDataHash, ScriptHash, VerificationKeyHash
 from pycardano.key import VerificationKey
 from pycardano.logging import logger
 from pycardano.metadata import AuxiliaryData
 from pycardano.nativescript import NativeScript, ScriptAll, ScriptAny, ScriptPubkey
+from pycardano.plutus import PlutusData, Redeemer
 from pycardano.transaction import (
     Asset,
     AssetName,
@@ -30,7 +31,7 @@ from pycardano.transaction import (
     UTxO,
     Value,
 )
-from pycardano.utils import fee, max_tx_fee, min_lovelace
+from pycardano.utils import fee, max_tx_fee, min_lovelace, script_data_hash
 from pycardano.witness import TransactionWitnessSet, VerificationKeyWitness
 
 __all__ = ["TransactionBuilder"]
@@ -70,6 +71,8 @@ class TransactionBuilder:
         self._native_scripts = None
         self._mint = None
         self._required_signers = None
+        self._datums = []
+        self._redeemers = []
 
         if utxo_selectors:
             self.utxo_selectors = utxo_selectors
@@ -103,16 +106,25 @@ class TransactionBuilder:
         self.input_addresses.append(address)
         return self
 
-    def add_output(self, tx_out: TransactionOutput) -> TransactionBuilder:
+    def add_output(self,
+                   tx_out: TransactionOutput,
+                   datum: Optional[PlutusData] = None,
+                   add_datum_to_witness: bool = False) -> TransactionBuilder:
         """Add a transaction output.
 
         Args:
             tx_out (TransactionOutput): The transaction output to be added.
+            datum (PlutusData): Attach a datum hash to this transaction output.
+            add_datum_to_witness (bool): Optionally add the actual datum to transaction witness set. Defaults to False.
 
         Returns:
             TransactionBuilder: The current transaction builder.
         """
+        if datum:
+            tx_out.datum_hash = datum.hash()
         self.outputs.append(tx_out)
+        if add_datum_to_witness:
+            self.datums.append(datum)
         return self
 
     @property
@@ -168,7 +180,7 @@ class TransactionBuilder:
         self._native_scripts = scripts
 
     @property
-    def validity_start(self):
+    def validity_start(self) -> int:
         return self._validity_start
 
     @validity_start.setter
@@ -182,6 +194,21 @@ class TransactionBuilder:
     @required_signers.setter
     def required_signers(self, signers: List[VerificationKeyHash]):
         self._required_signers = signers
+
+    @property
+    def datums(self) -> List[PlutusData]:
+        return self._datums
+
+    @property
+    def redeemers(self) -> List[Redeemer]:
+        return self._redeemers
+
+    @property
+    def script_data_hash(self) -> Optional[ScriptDataHash]:
+        if self.datums or self.redeemers:
+            return script_data_hash(self.redeemers, self.datums)
+        else:
+            return None
 
     def _calc_change(
         self, fees, inputs, outputs, address, precise_fee=False
@@ -409,6 +436,7 @@ class TransactionBuilder:
             auxiliary_data_hash=self.auxiliary_data.hash()
             if self.auxiliary_data
             else None,
+            script_data_hash=self.script_data_hash,
             required_signers=self.required_signers,
             validity_start=self.validity_start,
         )
@@ -422,10 +450,9 @@ class TransactionBuilder:
         ]
 
     def _build_fake_witness_set(self) -> TransactionWitnessSet:
-        return TransactionWitnessSet(
-            vkey_witnesses=self._build_fake_vkey_witnesses(),
-            native_scripts=self.native_scripts,
-        )
+        witness_set = self.build_witness_set()
+        witness_set.vkey_witnesses = self._build_fake_vkey_witnesses()
+        return witness_set
 
     def _build_full_fake_tx(self) -> Transaction:
         tx_body = self._build_tx_body()
@@ -439,6 +466,19 @@ class TransactionBuilder:
                 f"number of inputs or outputs."
             )
         return tx
+
+    def build_witness_set(self) -> TransactionWitnessSet:
+        """Build a transaction witness set, excluding verification key witnesses.
+        This function is especially useful when the transaction involves Plutus scripts.
+
+        Returns:
+            TransactionWitnessSet: A transaction witness set without verification key witnesses.
+        """
+        return TransactionWitnessSet(
+            native_scripts=self.native_scripts,
+            redeemer=self.redeemers if self.redeemers else None,
+            plutus_data=self.datums if self.datums else None
+        )
 
     def build(self, change_address: Optional[Address] = None) -> TransactionBody:
         """Build a transaction body from all constraints set through the builder.
