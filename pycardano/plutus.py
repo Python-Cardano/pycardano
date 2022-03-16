@@ -466,6 +466,8 @@ class Redeemer(ArrayCBORSerializable):
 
     @classmethod
     def from_primitive(cls: Redeemer, values: List[Primitive]) -> Redeemer:
-        redeemer = super(Redeemer, cls).from_primitive([values[0], values[2], values[3]])
+        redeemer = super(Redeemer, cls).from_primitive(
+            [values[0], values[2], values[3]]
+        )
         redeemer.index = values[1]
         return redeemer

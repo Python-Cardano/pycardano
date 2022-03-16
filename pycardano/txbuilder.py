@@ -12,7 +12,9 @@ from pycardano.coinselection import (
 )
 from pycardano.exception import (
     InsufficientUTxOBalanceException,
+    InvalidArgumentException,
     InvalidTransactionException,
+    TransactionBuilderException,
     UTxOSelectionException,
 )
 from pycardano.hash import ScriptDataHash, ScriptHash, VerificationKeyHash
@@ -62,6 +64,7 @@ class TransactionBuilder:
     ):
         self.context = context
         self._inputs = []
+        self._excluded_inputs = []
         self._input_addresses = []
         self._outputs = []
         self._fee = 0
@@ -71,8 +74,10 @@ class TransactionBuilder:
         self._native_scripts = None
         self._mint = None
         self._required_signers = None
+        self._scripts = []
         self._datums = []
         self._redeemers = []
+        self._inputs_to_redeemers = {}
 
         if utxo_selectors:
             self.utxo_selectors = utxo_selectors
@@ -86,8 +91,39 @@ class TransactionBuilder:
             utxo (UTxO): UTxO to be added.
 
         Returns:
-            TransactionBuilder: The current transaction builder.
+            TransactionBuilder: Current transaction builder.
         """
+        self.inputs.append(utxo)
+        return self
+
+    def add_script_input(
+        self, utxo: UTxO, script: bytes, datum: PlutusData, redeemer: Redeemer
+    ) -> TransactionBuilder:
+        """Add a script UTxO to transaction's inputs.
+
+        Args:
+            utxo (UTxO): Script UTxO to be added.
+            script (Optional[bytes]): A plutus script.
+            datum (Optional[PlutusData]): A plutus datum to unlock the UTxO.
+            redeemer (Optional[Redeemer]): A plutus redeemer to unlock the UTxO.
+
+        Returns:
+            TransactionBuilder: Current transaction builder.
+        """
+        if not utxo.output.address.address_type.name.startswith("SCRIPT"):
+            raise InvalidArgumentException(
+                f"Expect the output address of utxo to be script type, "
+                f"but got {utxo.output.address.address_type} instead."
+            )
+        if utxo.output.datum_hash != datum.hash():
+            raise InvalidArgumentException(
+                f"Datum hash in transaction output is {utxo.output.datum_hash}, "
+                f"but actual datum hash from input datum is {datum.hash()}."
+            )
+        self.scripts.append(script)
+        self.datums.append(datum)
+        self.redeemers.append(redeemer)
+        self._inputs_to_redeemers[utxo] = redeemer
         self.inputs.append(utxo)
         return self
 
@@ -106,10 +142,12 @@ class TransactionBuilder:
         self.input_addresses.append(address)
         return self
 
-    def add_output(self,
-                   tx_out: TransactionOutput,
-                   datum: Optional[PlutusData] = None,
-                   add_datum_to_witness: bool = False) -> TransactionBuilder:
+    def add_output(
+        self,
+        tx_out: TransactionOutput,
+        datum: Optional[PlutusData] = None,
+        add_datum_to_witness: bool = False,
+    ) -> TransactionBuilder:
         """Add a transaction output.
 
         Args:
@@ -118,7 +156,7 @@ class TransactionBuilder:
             add_datum_to_witness (bool): Optionally add the actual datum to transaction witness set. Defaults to False.
 
         Returns:
-            TransactionBuilder: The current transaction builder.
+            TransactionBuilder: Current transaction builder.
         """
         if datum:
             tx_out.datum_hash = datum.hash()
@@ -130,6 +168,14 @@ class TransactionBuilder:
     @property
     def inputs(self) -> List[UTxO]:
         return self._inputs
+
+    @property
+    def excluded_inputs(self) -> List[UTxO]:
+        return self._excluded_inputs
+
+    @excluded_inputs.setter
+    def excluded_inputs(self, excluded_inputs: List[UTxO]):
+        self._excluded_inputs = excluded_inputs
 
     @property
     def input_addresses(self) -> List[Union[Address, str]]:
@@ -180,7 +226,7 @@ class TransactionBuilder:
         self._native_scripts = scripts
 
     @property
-    def validity_start(self) -> int:
+    def validity_start(self):
         return self._validity_start
 
     @validity_start.setter
@@ -194,6 +240,10 @@ class TransactionBuilder:
     @required_signers.setter
     def required_signers(self, signers: List[VerificationKeyHash]):
         self._required_signers = signers
+
+    @property
+    def scripts(self) -> List[bytes]:
+        return self._scripts
 
     @property
     def datums(self) -> List[PlutusData]:
@@ -426,6 +476,12 @@ class TransactionBuilder:
 
         return results
 
+    def _set_redeemer_index(self):
+        for i, utxo in enumerate(self.inputs):
+            if utxo in self._inputs_to_redeemers:
+                self._inputs_to_redeemers[utxo].index = i
+        self.redeemers.sort(key=lambda r: r.index)
+
     def _build_tx_body(self) -> TransactionBody:
         tx_body = TransactionBody(
             [i.input for i in self.inputs],
@@ -450,9 +506,10 @@ class TransactionBuilder:
         ]
 
     def _build_fake_witness_set(self) -> TransactionWitnessSet:
-        witness_set = self.build_witness_set()
-        witness_set.vkey_witnesses = self._build_fake_vkey_witnesses()
-        return witness_set
+        return TransactionWitnessSet(
+            vkey_witnesses=self._build_fake_vkey_witnesses(),
+            native_scripts=self.native_scripts,
+        )
 
     def _build_full_fake_tx(self) -> Transaction:
         tx_body = self._build_tx_body()
@@ -476,9 +533,18 @@ class TransactionBuilder:
         """
         return TransactionWitnessSet(
             native_scripts=self.native_scripts,
+            plutus_script=self.scripts if self.scripts else None,
             redeemer=self.redeemers if self.redeemers else None,
-            plutus_data=self.datums if self.datums else None
+            plutus_data=self.datums if self.datums else None,
         )
+
+    def _ensure_no_input_exclusion_conflict(self):
+        intersection = set(self.inputs).intersection(set(self.excluded_inputs))
+        if intersection:
+            raise TransactionBuilderException(
+                f"Found common UTxOs between UTxO inputs and UTxO excluded_inputs: "
+                f"{intersection}."
+            )
 
     def build(self, change_address: Optional[Address] = None) -> TransactionBody:
         """Build a transaction body from all constraints set through the builder.
@@ -490,6 +556,7 @@ class TransactionBuilder:
         Returns:
             A transaction body.
         """
+        self._ensure_no_input_exclusion_conflict()
         selected_utxos = []
         selected_amount = Value()
         for i in self.inputs:
@@ -523,7 +590,7 @@ class TransactionBuilder:
             additional_utxo_pool = []
             for address in self.input_addresses:
                 for utxo in self.context.utxos(str(address)):
-                    if utxo not in selected_utxos:
+                    if utxo not in selected_utxos and utxo not in self.excluded_inputs:
                         additional_utxo_pool.append(utxo)
 
             for i, selector in enumerate(self.utxo_selectors):
@@ -551,6 +618,8 @@ class TransactionBuilder:
         )
 
         self.inputs[:] = selected_utxos[:]
+
+        self._set_redeemer_index()
 
         self._add_change_and_fee(change_address)
 

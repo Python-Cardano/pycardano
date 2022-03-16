@@ -1,7 +1,10 @@
 from dataclasses import replace
 from test.pycardano.util import chain_context
 
+import cbor2
 import pytest
+from nacl.encoding import RawEncoder
+from nacl.hash import blake2b
 
 from pycardano.address import Address
 from pycardano.coinselection import RandomImproveMultiAsset
@@ -9,6 +12,7 @@ from pycardano.exception import (
     InsufficientUTxOBalanceException,
     InvalidTransactionException,
 )
+from pycardano.hash import SCRIPT_HASH_SIZE, ScriptHash
 from pycardano.key import VerificationKey
 from pycardano.nativescript import (
     InvalidBefore,
@@ -16,7 +20,9 @@ from pycardano.nativescript import (
     ScriptAll,
     ScriptPubkey,
 )
-from pycardano.transaction import MultiAsset, TransactionOutput
+from pycardano.network import Network
+from pycardano.plutus import ExecutionUnits, PlutusData, Redeemer, RedeemerTag
+from pycardano.transaction import MultiAsset, TransactionInput, TransactionOutput, UTxO
 from pycardano.txbuilder import TransactionBuilder
 
 
@@ -294,3 +300,74 @@ def test_not_enough_input_amount(chain_context):
     with pytest.raises(InvalidTransactionException):
         # Tx builder must fail here because there is not enough amount of input ADA to pay tx fee
         tx_body = tx_builder.build(change_address=sender_address)
+
+
+def test_add_script_input(chain_context):
+    tx_builder = TransactionBuilder(chain_context)
+    tx_in = TransactionInput.from_primitive(
+        ["18cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad21431590f7e6643438ef", 0]
+    )
+    plutus_script = b"dummy test script"
+    script_hash = ScriptHash(
+        blake2b(
+            bytes(1) + cbor2.dumps(plutus_script), SCRIPT_HASH_SIZE, encoder=RawEncoder
+        )
+    )
+    script_address = Address(script_hash)
+    datum = PlutusData()
+    tx_out = TransactionOutput(script_address, 10000000, datum_hash=datum.hash())
+    utxo = UTxO(tx_in, tx_out)
+    redeemer = Redeemer(
+        RedeemerTag.SPEND, PlutusData(), ExecutionUnits(1000000, 1000000)
+    )
+    tx_builder.add_script_input(utxo, plutus_script, datum, redeemer)
+    receiver = Address.from_primitive(
+        "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    )
+    tx_builder.add_output(TransactionOutput(receiver, 5000000))
+    tx_body = tx_builder.build(change_address=receiver)
+    witness = tx_builder.build_witness_set()
+    assert [datum] == witness.plutus_data
+    assert [redeemer] == witness.redeemer
+    assert [plutus_script] == witness.plutus_script
+    assert (
+        "a4008182582018cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad2143159"
+        "0f7e6643438ef00018282581d60f6532850e1bccee9c72a9113ad98bcc5dbb3"
+        "0d2ac960262444f6e5f41a004c4b4082581d60f6532850e1bccee9c72a9113a"
+        "d98bcc5dbb30d2ac960262444f6e5f41a0049d073021a00027acd0b5820032d"
+        "812ee0731af78fe4ec67e4d30d16313c09e6fb675af28f825797e8b5621d" == tx_body.to_cbor()
+    )
+
+
+def test_excluded_input(chain_context):
+    tx_builder = TransactionBuilder(chain_context, [RandomImproveMultiAsset([0, 0])])
+    sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    sender_address = Address.from_primitive(sender)
+
+    # Add sender address as input
+    tx_builder.add_input_address(sender).add_output(
+        TransactionOutput.from_primitive([sender, 500000])
+    )
+
+    tx_builder.excluded_inputs.append(chain_context.utxos(sender)[0])
+
+    tx_body = tx_builder.build(change_address=sender_address)
+
+    expected = {
+        0: [[b"22222222222222222222222222222222", 1]],
+        1: [
+            # First output
+            [sender_address.to_primitive(), 500000],
+            # Second output as change
+            [
+                sender_address.to_primitive(),
+                [
+                    5332343,
+                    {b"1111111111111111111111111111": {b"Token1": 1, b"Token2": 2}},
+                ],
+            ],
+        ],
+        2: 167657,
+    }
+
+    assert expected == tx_body.to_primitive()

@@ -253,6 +253,9 @@ class UTxO:
     def __repr__(self):
         return pformat(vars(self))
 
+    def __hash__(self):
+        return hash(blake2b(self.input.to_cbor("bytes") + self.output.to_cbor("bytes"), 32))
+
 
 @dataclass(repr=False)
 class TransactionBody(MapCBORSerializable):
