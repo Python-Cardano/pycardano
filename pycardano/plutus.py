@@ -453,6 +453,13 @@ class ExecutionUnits(ArrayCBORSerializable):
 
     steps: int
 
+    def __add__(self, other: ExecutionUnits) -> ExecutionUnits:
+        if not isinstance(other, ExecutionUnits):
+            raise TypeError(
+                f"Expect type: {ExecutionUnits}, got {type(other)} instead."
+            )
+        return ExecutionUnits(self.mem + other.mem, self.steps + other.steps)
+
 
 @dataclass(repr=False)
 class Redeemer(ArrayCBORSerializable):

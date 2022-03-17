@@ -22,7 +22,7 @@ from pycardano.key import VerificationKey
 from pycardano.logging import logger
 from pycardano.metadata import AuxiliaryData
 from pycardano.nativescript import NativeScript, ScriptAll, ScriptAny, ScriptPubkey
-from pycardano.plutus import PlutusData, Redeemer
+from pycardano.plutus import ExecutionUnits, PlutusData, Redeemer
 from pycardano.transaction import (
     Asset,
     AssetName,
@@ -344,7 +344,16 @@ class TransactionBuilder:
             )
             self._outputs += changes
 
-        self.fee = fee(self.context, len(self._build_full_fake_tx().to_cbor("bytes")))
+        plutus_execution_units = ExecutionUnits(0, 0)
+        for redeemer in self.redeemers:
+            plutus_execution_units += redeemer.ex_units
+
+        self.fee = fee(
+            self.context,
+            len(self._build_full_fake_tx().to_cbor("bytes")),
+            plutus_execution_units.steps,
+            plutus_execution_units.mem,
+        )
 
         if change_address:
             self._outputs = original_outputs
