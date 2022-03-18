@@ -251,9 +251,10 @@ def get_tag(constr_id: int) -> Optional[int]:
 @dataclass(repr=False)
 class PlutusData(ArrayCBORSerializable):
     """
-    PlutusData is the base class of all Datum and Redeemer type. It is not required to use this class in order to
-    interact with Plutus script. However, inheriting datum(s) and redeemers in a PlutusData class will reduce the
-    complexity of serialization and deserialization tremendously.
+    PlutusData is a helper class that can serialize itself into a CBOR format, which could be intepreted as
+    a data structure in Plutus scripts.
+    It is not required to use this class to interact with Plutus scripts. However, wrapping datum in PlutusData
+    class will reduce the complexity of serialization and deserialization tremendously.
 
     Examples:
 
@@ -429,6 +430,7 @@ class PlutusData(ArrayCBORSerializable):
 
 
 Datum = Union[PlutusData, dict, IndefiniteList, int, bytes]
+"""Plutus Datum type. A Union type that contains all valid datum types."""
 
 
 def datum_hash(datum: Datum) -> DatumHash:
