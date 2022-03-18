@@ -11,6 +11,7 @@ from pycardano.plutus import (
     PlutusData,
     Redeemer,
     RedeemerTag,
+    plutus_script_hash,
 )
 from pycardano.serialization import IndefiniteList
 
@@ -150,7 +151,7 @@ def test_plutus_data_hash():
 
 def test_redeemer():
     data = MyTest(123, b"234", IndefiniteList([4, 5, 6]), {1: b"1", 2: b"2"})
-    redeemer = MyRedeemer(RedeemerTag.SPEND, 0, data, ExecutionUnits(1000000, 1000000))
+    redeemer = MyRedeemer(RedeemerTag.SPEND, data, ExecutionUnits(1000000, 1000000))
     assert (
         "840000d8668218829f187b433233349f040506ffa2014131024132ff821a000f42401a000f4240"
         == redeemer.to_cbor()
@@ -174,4 +175,12 @@ def test_cost_model():
         "1bb041a000249f019138800011a000249f018201a000302590001011a000249f018201a"
         "000249f018201a000249f018201a000249f018201a000249f018201a000249f018201a0"
         "00249f018201a00330da70101ff" == COST_MODELS.to_cbor()
+    )
+
+
+def test_plutus_script_hash():
+    plutus_script = b"test_script"
+    assert (
+        "36c198e1a9d05461945c1f1db2ffb927c2dfc26dd01b59ea93b678b2"
+        == plutus_script_hash(plutus_script).payload.hex()
     )
