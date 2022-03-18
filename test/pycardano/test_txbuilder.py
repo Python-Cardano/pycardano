@@ -20,7 +20,6 @@ from pycardano.nativescript import (
     ScriptAll,
     ScriptPubkey,
 )
-from pycardano.network import Network
 from pycardano.plutus import ExecutionUnits, PlutusData, Redeemer, RedeemerTag
 from pycardano.transaction import MultiAsset, TransactionInput, TransactionOutput, UTxO
 from pycardano.txbuilder import TransactionBuilder

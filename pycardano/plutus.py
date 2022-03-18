@@ -6,7 +6,7 @@ import inspect
 import json
 from dataclasses import dataclass, field, fields
 from enum import Enum
-from typing import ClassVar, List, Optional, TypeVar, Union
+from typing import ClassVar, List, Optional, Union
 
 import cbor2
 from cbor2 import CBORTag
@@ -14,7 +14,7 @@ from nacl.encoding import RawEncoder
 from nacl.hash import blake2b
 
 from pycardano.exception import DeserializeException
-from pycardano.hash import DATUM_HASH_SIZE, DatumHash
+from pycardano.hash import DATUM_HASH_SIZE, SCRIPT_HASH_SIZE, DatumHash, ScriptHash
 from pycardano.serialization import (
     ArrayCBORSerializable,
     CBORSerializable,
@@ -29,12 +29,13 @@ __all__ = [
     "PLUTUS_V1_COST_MODEL",
     "COST_MODELS",
     "PlutusData",
+    "Datum",
     "RedeemerTag",
     "ExecutionUnits",
     "Redeemer",
+    "datum_hash",
+    "plutus_script_hash",
 ]
-
-PData = TypeVar("PData", bound="PlutusData")
 
 
 class CostModels(DictCBORSerializable):
@@ -290,7 +291,7 @@ class PlutusData(ArrayCBORSerializable):
             return CBORTag(102, [self.CONSTR_ID, primitives])
 
     @classmethod
-    def from_primitive(cls: PData, value: CBORTag) -> PData:
+    def from_primitive(cls: PlutusData, value: CBORTag) -> PlutusData:
         if value.tag == 102:
             tag = value.value[0]
             if tag != cls.CONSTR_ID:
@@ -313,9 +314,7 @@ class PlutusData(ArrayCBORSerializable):
             return super(PlutusData, cls).from_primitive(value.value)
 
     def hash(self) -> DatumHash:
-        return DatumHash(
-            blake2b(self.to_cbor("bytes"), DATUM_HASH_SIZE, encoder=RawEncoder)
-        )
+        return datum_hash(self)
 
     def to_json(self, **kwargs) -> str:
         """Convert to a json string
@@ -354,7 +353,7 @@ class PlutusData(ArrayCBORSerializable):
         return json.dumps(_dfs(self), **kwargs)
 
     @classmethod
-    def from_dict(cls: PData, data: dict) -> PData:
+    def from_dict(cls: PlutusData, data: dict) -> PlutusData:
         """Convert a dictionary to PlutusData
 
         Args:
@@ -416,7 +415,7 @@ class PlutusData(ArrayCBORSerializable):
         return _dfs(data)
 
     @classmethod
-    def from_json(cls: PData, data: str) -> PData:
+    def from_json(cls: PlutusData, data: str) -> PlutusData:
         """Restore a json encoded string to a PlutusData.
 
         Args:
@@ -427,6 +426,19 @@ class PlutusData(ArrayCBORSerializable):
         """
         obj = json.loads(data)
         return cls.from_dict(obj)
+
+
+Datum = Union[PlutusData, dict, IndefiniteList, int, bytes]
+
+
+def datum_hash(datum: Datum) -> DatumHash:
+    return DatumHash(
+        blake2b(
+            cbor2.dumps(datum, default=default_encoder),
+            DATUM_HASH_SIZE,
+            encoder=RawEncoder,
+        )
+    )
 
 
 class RedeemerTag(CBORSerializable, Enum):
@@ -467,7 +479,7 @@ class Redeemer(ArrayCBORSerializable):
 
     index: int = field(default=0, init=False)
 
-    data: PlutusData
+    data: Datum
 
     ex_units: ExecutionUnits
 
@@ -478,3 +490,17 @@ class Redeemer(ArrayCBORSerializable):
         )
         redeemer.index = values[1]
         return redeemer
+
+
+def plutus_script_hash(script: bytes) -> ScriptHash:
+    """Calculates the hash of a Plutus script.
+
+    Args:
+        script (bytes): A plutus script in bytes.
+
+    Returns:
+        ScriptHash: blake2b hash of the script.
+    """
+    return ScriptHash(
+        blake2b(bytes.fromhex("01") + script, SCRIPT_HASH_SIZE, encoder=RawEncoder)
+    )

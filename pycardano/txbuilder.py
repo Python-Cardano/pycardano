@@ -22,7 +22,7 @@ from pycardano.key import VerificationKey
 from pycardano.logging import logger
 from pycardano.metadata import AuxiliaryData
 from pycardano.nativescript import NativeScript, ScriptAll, ScriptAny, ScriptPubkey
-from pycardano.plutus import ExecutionUnits, PlutusData, Redeemer
+from pycardano.plutus import Datum, ExecutionUnits, Redeemer, datum_hash
 from pycardano.transaction import (
     Asset,
     AssetName,
@@ -78,6 +78,7 @@ class TransactionBuilder:
         self._datums = []
         self._redeemers = []
         self._inputs_to_redeemers = {}
+        self._collaterals = []
 
         if utxo_selectors:
             self.utxo_selectors = utxo_selectors
@@ -97,14 +98,14 @@ class TransactionBuilder:
         return self
 
     def add_script_input(
-        self, utxo: UTxO, script: bytes, datum: PlutusData, redeemer: Redeemer
+        self, utxo: UTxO, script: bytes, datum: Datum, redeemer: Redeemer
     ) -> TransactionBuilder:
         """Add a script UTxO to transaction's inputs.
 
         Args:
             utxo (UTxO): Script UTxO to be added.
             script (Optional[bytes]): A plutus script.
-            datum (Optional[PlutusData]): A plutus datum to unlock the UTxO.
+            datum (Optional[Datum]): A plutus datum to unlock the UTxO.
             redeemer (Optional[Redeemer]): A plutus redeemer to unlock the UTxO.
 
         Returns:
@@ -145,21 +146,21 @@ class TransactionBuilder:
     def add_output(
         self,
         tx_out: TransactionOutput,
-        datum: Optional[PlutusData] = None,
+        datum: Optional[Datum] = None,
         add_datum_to_witness: bool = False,
     ) -> TransactionBuilder:
         """Add a transaction output.
 
         Args:
             tx_out (TransactionOutput): The transaction output to be added.
-            datum (PlutusData): Attach a datum hash to this transaction output.
+            datum (Datum): Attach a datum hash to this transaction output.
             add_datum_to_witness (bool): Optionally add the actual datum to transaction witness set. Defaults to False.
 
         Returns:
             TransactionBuilder: Current transaction builder.
         """
         if datum:
-            tx_out.datum_hash = datum.hash()
+            tx_out.datum_hash = datum_hash(datum)
         self.outputs.append(tx_out)
         if add_datum_to_witness:
             self.datums.append(datum)
@@ -246,12 +247,20 @@ class TransactionBuilder:
         return self._scripts
 
     @property
-    def datums(self) -> List[PlutusData]:
+    def datums(self) -> List[Datum]:
         return self._datums
 
     @property
     def redeemers(self) -> List[Redeemer]:
         return self._redeemers
+
+    @property
+    def collaterals(self) -> List[UTxO]:
+        return self._collaterals
+
+    @collaterals.setter
+    def collaterals(self, collaterals: List[UTxO]):
+        self._collaterals = collaterals
 
     @property
     def script_data_hash(self) -> Optional[ScriptDataHash]:
@@ -462,7 +471,7 @@ class TransactionBuilder:
 
     def _input_vkey_hashes(self) -> Set[VerificationKeyHash]:
         results = set()
-        for i in self.inputs:
+        for i in self.inputs + self.collaterals:
             if isinstance(i.output.address.payment_part, VerificationKeyHash):
                 results.add(i.output.address.payment_part)
         return results
@@ -504,6 +513,9 @@ class TransactionBuilder:
             script_data_hash=self.script_data_hash,
             required_signers=self.required_signers,
             validity_start=self.validity_start,
+            collateral=[c.input for c in self.collaterals]
+            if self.collaterals
+            else None,
         )
         return tx_body
 
@@ -515,10 +527,9 @@ class TransactionBuilder:
         ]
 
     def _build_fake_witness_set(self) -> TransactionWitnessSet:
-        return TransactionWitnessSet(
-            vkey_witnesses=self._build_fake_vkey_witnesses(),
-            native_scripts=self.native_scripts,
-        )
+        witness_set = self.build_witness_set()
+        witness_set.vkey_witnesses = self._build_fake_vkey_witnesses()
+        return witness_set
 
     def _build_full_fake_tx(self) -> Transaction:
         tx_body = self._build_tx_body()

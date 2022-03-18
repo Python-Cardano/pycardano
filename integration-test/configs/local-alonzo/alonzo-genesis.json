@@ -1,9 +1,5 @@
 {
     "collateralPercentage": 1,
-    "maxBlockExUnits": {
-        "exUnitsMem": 500000000000,
-        "exUnitsSteps": 500000000000
-    },
     "maxCollateralInputs": 5,
     "maxValueSize": 4000,
     "costModels": {
@@ -177,12 +173,24 @@
         }
     },
     "executionPrices": {
-        "prMem": 0.1,
-        "prSteps": 0.1
+        "prSteps":
+        {
+            "numerator" :   721,
+            "denominator" : 10000000
+            },
+            "prMem":
+        {
+            "numerator" :   577,
+            "denominator" : 10000
+        }
     },
     "lovelacePerUTxOWord": 1,
     "maxTxExUnits": {
-        "exUnitsMem": 500000000000,
-        "exUnitsSteps": 500000000000
+        "exUnitsMem":   10000000,
+        "exUnitsSteps": 10000000000
+    },
+    "maxBlockExUnits": {
+        "exUnitsMem":   50000000,
+        "exUnitsSteps": 40000000000
     }
 }
