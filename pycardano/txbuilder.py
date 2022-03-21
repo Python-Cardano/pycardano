@@ -18,7 +18,7 @@ from pycardano.exception import (
     UTxOSelectionException,
 )
 from pycardano.hash import ScriptDataHash, ScriptHash, VerificationKeyHash
-from pycardano.key import VerificationKey
+from pycardano.key import ExtendedSigningKey, SigningKey, VerificationKey
 from pycardano.logging import logger
 from pycardano.metadata import AuxiliaryData
 from pycardano.nativescript import NativeScript, ScriptAll, ScriptAny, ScriptPubkey
@@ -646,3 +646,33 @@ class TransactionBuilder:
         tx_body = self._build_tx_body()
 
         return tx_body
+
+    def build_and_sign(
+        self,
+        signing_keys: List[Union[SigningKey, ExtendedSigningKey]],
+        change_address: Optional[Address] = None,
+    ) -> Transaction:
+        """Build a transaction body from all constraints set through the builder and sign the transaction with
+            provided signing keys.
+
+        Args:
+            signing_keys (List[Union[SigningKey, ExtendedSigningKey]]): A list of signing keys that will be used to
+                sign the transaction.
+            change_address (Optional[Address]): Address to which changes will be returned. If not provided, the
+                transaction body will likely be unbalanced (sum of inputs is greater than the sum of outputs).
+
+        Returns:
+            Transaction: A signed transaction.
+        """
+
+        tx_body = self.build(change_address=change_address)
+        witness_set = self.build_witness_set()
+        witness_set.vkey_witnesses = []
+
+        for signing_key in signing_keys:
+            signature = signing_key.sign(tx_body.hash())
+            witness_set.vkey_witnesses.append(
+                VerificationKeyWitness(signing_key.to_verification_key(), signature)
+            )
+
+        return Transaction(tx_body, witness_set, auxiliary_data=self.auxiliary_data)

@@ -1,4 +1,5 @@
 from dataclasses import replace
+from test.pycardano.test_key import SK
 from test.pycardano.util import chain_context
 
 import cbor2
@@ -23,6 +24,7 @@ from pycardano.nativescript import (
 from pycardano.plutus import ExecutionUnits, PlutusData, Redeemer, RedeemerTag
 from pycardano.transaction import MultiAsset, TransactionInput, TransactionOutput, UTxO
 from pycardano.txbuilder import TransactionBuilder
+from pycardano.witness import VerificationKeyWitness
 
 
 def test_tx_builder(chain_context):
@@ -371,3 +373,35 @@ def test_excluded_input(chain_context):
     }
 
     assert expected == tx_body.to_primitive()
+
+
+def test_build_and_sign(chain_context):
+    sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    sender_address = Address.from_primitive(sender)
+
+    tx_builder1 = TransactionBuilder(
+        chain_context, [RandomImproveMultiAsset([0, 0, 0, 0, 0])]
+    )
+    tx_builder1.add_input_address(sender).add_output(
+        TransactionOutput.from_primitive([sender, 500000])
+    )
+
+    tx_body = tx_builder1.build(change_address=sender_address)
+
+    tx_builder2 = TransactionBuilder(
+        chain_context, [RandomImproveMultiAsset([0, 0, 0, 0, 0])]
+    )
+    tx_builder2.add_input_address(sender).add_output(
+        TransactionOutput.from_primitive([sender, 500000])
+    )
+    tx = tx_builder2.build_and_sign([SK], change_address=sender_address)
+
+    assert tx.transaction_witness_set.vkey_witnesses == [
+        VerificationKeyWitness(SK.to_verification_key(), SK.sign(tx_body.hash()))
+    ]
+    assert (
+        "a300818258203131313131313131313131313131313131313131313131313131313131313131"
+        "00018282581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f41a0007"
+        "a12082581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f41a004223"
+        "a3021a0002867d" == tx_body.to_cbor()
+    )

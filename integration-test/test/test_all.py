@@ -152,36 +152,9 @@ class TestAll:
         nft_output = TransactionOutput(address, Value(min_val, my_nft))
         builder.add_output(nft_output)
 
-        # Build a finalized transaction body with the change returning to our own address
-        tx_body = builder.build(change_address=address)
-
-        """Sign transaction and add witnesses"""
-        # Sign the transaction body hash using the payment signing key
-        payment_signature = self.payment_skey.sign(tx_body.hash())
-
-        # Sign the transaction body hash using the extended payment signing key
-        extended_payment_signature = self.extended_payment_skey.sign(tx_body.hash())
-
-        # Sign the transaction body hash using the policy signing key because we are minting new tokens
-        policy_signature = policy_skey.sign(tx_body.hash())
-
-        # Add verification keys and their signatures to the witness set
-        vk_witnesses = [
-            VerificationKeyWitness(self.payment_vkey, payment_signature),
-            VerificationKeyWitness(policy_vkey, policy_signature),
-            VerificationKeyWitness(
-                self.extended_payment_vkey, extended_payment_signature
-            ),
-        ]
-
-        # Create final signed transaction
-        signed_tx = Transaction(
-            tx_body,
-            # Beside vk witnesses, We also need to add the policy script to witness set when we are minting new tokens.
-            TransactionWitnessSet(
-                vkey_witnesses=vk_witnesses, native_scripts=native_scripts
-            ),
-            auxiliary_data=auxiliary_data,
+        # Build and sign transaction
+        signed_tx = builder.build_and_sign(
+            [self.payment_skey, self.extended_payment_skey, policy_skey], address
         )
 
         print("############### Transaction created ###############")
@@ -217,23 +190,8 @@ class TestAll:
 
         builder.add_output(nft_to_send)
 
-        tx_body = builder.build(change_address=address)
-
-        """Sign transaction and add witnesses"""
-        # Sign the transaction body hash using the payment signing key
-        payment_signature = self.payment_skey.sign(tx_body.hash())
-
-        # Add verification keys and their signatures to the witness set
-        vk_witnesses = [
-            VerificationKeyWitness(self.payment_vkey, payment_signature),
-        ]
-
         # Create final signed transaction
-        signed_tx = Transaction(
-            tx_body,
-            # Beside vk witnesses, We also need to add the policy script to witness set when we are minting new tokens.
-            TransactionWitnessSet(vkey_witnesses=vk_witnesses),
-        )
+        signed_tx = builder.build_and_sign([self.payment_skey], address)
 
         print("############### Transaction created ###############")
         print(signed_tx)
@@ -277,19 +235,7 @@ class TestAll:
             TransactionOutput(script_address, 50000000, datum_hash=datum_hash(datum))
         )
 
-        tx_body = builder.build(change_address=giver_address)
-        witness_set = builder.build_witness_set()
-
-        payment_signature = self.payment_skey.sign(tx_body.hash())
-
-        witness_set.vkey_witnesses = [
-            VerificationKeyWitness(self.payment_vkey, payment_signature),
-        ]
-
-        signed_tx = Transaction(
-            tx_body,
-            witness_set,
-        )
+        signed_tx = builder.build_and_sign([self.payment_skey], giver_address)
 
         print("############### Transaction created ###############")
         print(signed_tx)
@@ -307,19 +253,7 @@ class TestAll:
         builder.add_input_address(giver_address)
         builder.add_output(TransactionOutput(taker_address, 5000000))
 
-        tx_body = builder.build(change_address=giver_address)
-        witness_set = builder.build_witness_set()
-
-        payment_signature = self.payment_skey.sign(tx_body.hash())
-
-        witness_set.vkey_witnesses = [
-            VerificationKeyWitness(self.payment_vkey, payment_signature),
-        ]
-
-        signed_tx = Transaction(
-            tx_body,
-            witness_set,
-        )
+        signed_tx = builder.build_and_sign([self.payment_skey], giver_address)
 
         print("############### Transaction created ###############")
         print(signed_tx)
@@ -352,19 +286,7 @@ class TestAll:
 
         builder.collaterals.append(non_nft_utxo)
 
-        tx_body = builder.build(change_address=taker_address)
-        witness_set = builder.build_witness_set()
-
-        collateral_signature = self.extended_payment_skey.sign(tx_body.hash())
-
-        witness_set.vkey_witnesses = [
-            VerificationKeyWitness(self.extended_payment_vkey, collateral_signature),
-        ]
-
-        signed_tx = Transaction(
-            tx_body,
-            witness_set,
-        )
+        signed_tx = builder.build_and_sign([self.extended_payment_skey], taker_address)
 
         print("############### Transaction created ###############")
         print(signed_tx)
