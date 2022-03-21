@@ -574,7 +574,7 @@ class TransactionBuilder:
                 transaction body will likely be unbalanced (sum of inputs is greater than the sum of outputs).
 
         Returns:
-            A transaction body.
+            TransactionBody: A transaction body.
         """
         self._ensure_no_input_exclusion_conflict()
         selected_utxos = []
@@ -653,7 +653,7 @@ class TransactionBuilder:
         change_address: Optional[Address] = None,
     ) -> Transaction:
         """Build a transaction body from all constraints set through the builder and sign the transaction with
-            provided signing keys.
+        provided signing keys.
 
         Args:
             signing_keys (List[Union[SigningKey, ExtendedSigningKey]]): A list of signing keys that will be used to
