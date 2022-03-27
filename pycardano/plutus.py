@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import inspect
 import json
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, field, fields
 from enum import Enum
-from typing import ClassVar, Optional, Type, TypeVar, Union
+from typing import ClassVar, List, Optional, Union
 
 import cbor2
 from cbor2 import CBORTag
@@ -14,12 +14,13 @@ from nacl.encoding import RawEncoder
 from nacl.hash import blake2b
 
 from pycardano.exception import DeserializeException
-from pycardano.hash import DATUM_HASH_SIZE, DatumHash
+from pycardano.hash import DATUM_HASH_SIZE, SCRIPT_HASH_SIZE, DatumHash, ScriptHash
 from pycardano.serialization import (
     ArrayCBORSerializable,
     CBORSerializable,
     DictCBORSerializable,
     IndefiniteList,
+    Primitive,
     default_encoder,
 )
 
@@ -28,12 +29,13 @@ __all__ = [
     "PLUTUS_V1_COST_MODEL",
     "COST_MODELS",
     "PlutusData",
+    "Datum",
     "RedeemerTag",
     "ExecutionUnits",
     "Redeemer",
+    "datum_hash",
+    "plutus_script_hash",
 ]
-
-PData = TypeVar("PData", bound="PlutusData")
 
 
 class CostModels(DictCBORSerializable):
@@ -249,9 +251,10 @@ def get_tag(constr_id: int) -> Optional[int]:
 @dataclass(repr=False)
 class PlutusData(ArrayCBORSerializable):
     """
-    PlutusData is the base class of all Datum and Redeemer type. It is not required to use this class in order to
-    interact with Plutus script. However, inheriting datum(s) and redeemers in a PlutusData class will reduce the
-    complexity of serialization and deserialization tremendously.
+    PlutusData is a helper class that can serialize itself into a CBOR format, which could be intepreted as
+    a data structure in Plutus scripts.
+    It is not required to use this class to interact with Plutus scripts. However, wrapping datum in PlutusData
+    class will reduce the complexity of serialization and deserialization tremendously.
 
     Examples:
 
@@ -289,7 +292,7 @@ class PlutusData(ArrayCBORSerializable):
             return CBORTag(102, [self.CONSTR_ID, primitives])
 
     @classmethod
-    def from_primitive(cls: Type[PData], value: CBORTag) -> PData:
+    def from_primitive(cls: PlutusData, value: CBORTag) -> PlutusData:
         if value.tag == 102:
             tag = value.value[0]
             if tag != cls.CONSTR_ID:
@@ -312,9 +315,7 @@ class PlutusData(ArrayCBORSerializable):
             return super(PlutusData, cls).from_primitive(value.value)
 
     def hash(self) -> DatumHash:
-        return DatumHash(
-            blake2b(self.to_cbor("bytes"), DATUM_HASH_SIZE, encoder=RawEncoder)
-        )
+        return datum_hash(self)
 
     def to_json(self, **kwargs) -> str:
         """Convert to a json string
@@ -353,7 +354,7 @@ class PlutusData(ArrayCBORSerializable):
         return json.dumps(_dfs(self), **kwargs)
 
     @classmethod
-    def from_dict(cls: Type[PData], data: dict) -> PData:
+    def from_dict(cls: PlutusData, data: dict) -> PlutusData:
         """Convert a dictionary to PlutusData
 
         Args:
@@ -415,7 +416,7 @@ class PlutusData(ArrayCBORSerializable):
         return _dfs(data)
 
     @classmethod
-    def from_json(cls: Type[PData], data: str) -> PData:
+    def from_json(cls: PlutusData, data: str) -> PlutusData:
         """Restore a json encoded string to a PlutusData.
 
         Args:
@@ -426,6 +427,20 @@ class PlutusData(ArrayCBORSerializable):
         """
         obj = json.loads(data)
         return cls.from_dict(obj)
+
+
+Datum = Union[PlutusData, dict, IndefiniteList, int, bytes]
+"""Plutus Datum type. A Union type that contains all valid datum types."""
+
+
+def datum_hash(datum: Datum) -> DatumHash:
+    return DatumHash(
+        blake2b(
+            cbor2.dumps(datum, default=default_encoder),
+            DATUM_HASH_SIZE,
+            encoder=RawEncoder,
+        )
+    )
 
 
 class RedeemerTag(CBORSerializable, Enum):
@@ -452,13 +467,42 @@ class ExecutionUnits(ArrayCBORSerializable):
 
     steps: int
 
+    def __add__(self, other: ExecutionUnits) -> ExecutionUnits:
+        if not isinstance(other, ExecutionUnits):
+            raise TypeError(
+                f"Expect type: {ExecutionUnits}, got {type(other)} instead."
+            )
+        return ExecutionUnits(self.mem + other.mem, self.steps + other.steps)
+
 
 @dataclass(repr=False)
 class Redeemer(ArrayCBORSerializable):
     tag: RedeemerTag
 
-    index: int
+    index: int = field(default=0, init=False)
 
-    data: PlutusData
+    data: Datum
 
     ex_units: ExecutionUnits
+
+    @classmethod
+    def from_primitive(cls: Redeemer, values: List[Primitive]) -> Redeemer:
+        redeemer = super(Redeemer, cls).from_primitive(
+            [values[0], values[2], values[3]]
+        )
+        redeemer.index = values[1]
+        return redeemer
+
+
+def plutus_script_hash(script: bytes) -> ScriptHash:
+    """Calculates the hash of a Plutus script.
+
+    Args:
+        script (bytes): A plutus script in bytes.
+
+    Returns:
+        ScriptHash: blake2b hash of the script.
+    """
+    return ScriptHash(
+        blake2b(bytes.fromhex("01") + script, SCRIPT_HASH_SIZE, encoder=RawEncoder)
+    )

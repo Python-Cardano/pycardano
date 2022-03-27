@@ -142,35 +142,22 @@ Specify output amount::
 
 Step 6
 
-Create the transaction body using transaction builder::
+Create a signed transaction using transaction builder. Unlike building a raw transaction, where we need to manually
+sign a transaction and build a transaction witness set, transaction builder can build and sign a transaction directly
+with its `build_and_sign` method. The code below tells the builder to build a transaction and sign the transaction
+with a list of signing keys (in this case, we only need the signature from one signing key, `sk`) and send the change
+back to sender's address::
 
-    >>> tx_body = builder.build(change_address=address)
+    >>> tx = builder.build_and_sign([sk], change_address=address)
 
-Transaction ID could be obtained when we are done configuring the transaction body, because is essentially the hash
-of `TransactionBody`::
+Transaction ID could be obtained from the transaction obejct::
 
-    >>> tx_body.id
+    >>> tx.id
     TransactionId(hex='1d40b950ded3a144fb4c100d1cf8b85719da91b06845530e34a0304427692ce4')
-
-Step 7
-
-Sign the transaction body hash and create a complete transaction (same as the step 4 in raw transaction example)::
-
-    >>> # Sign the transaction body hash
-    >>> signature = sk.sign(tx_body.hash())
-    >>> # Alternatively, we can sign the transaction ID as well
-    >>> signature_alternative = sk.sign(tx_body.id.payload)
-    >>> assert signature == signature_alternative
-
-    >>> # Add verification key and the signature to the witness set
-    >>> vk_witnesses = [VerificationKeyWitness(vk, signature)]
-
-    >>> # Create final signed transaction
-    >>> signed_tx = Transaction(tx_body, TransactionWitnessSet(vkey_witnesses=vk_witnesses))
 
 
 By using transaction builder, we no longer need to specify which UTxO to use as transaction input or calculate
-transaction fee, because they are taken care by the transaction builder.
+transaction fee, because they are taken care by the transaction builder. Also, the code becomes much more concise.
 
 A more complex example of using transaction builder could be found
 in this `Github example <https://github.com/cffls/pycardano/blob/main/examples/tx_builder.py>`_.

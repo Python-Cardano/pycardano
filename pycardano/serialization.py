@@ -190,11 +190,11 @@ class CBORSerializable:
         return _dfs(result)
 
     @classmethod
-    def from_primitive(cls: Type[CBORBase], value: Primitive) -> CBORBase:
+    def from_primitive(cls: CBORBase, value: Primitive) -> CBORBase:
         """Turn a CBOR primitive to its original class type.
 
         Args:
-            cls (Type[CBORBase]): The original class type.
+            cls (CBORBase): The original class type.
             value (:const:`Primitive`): A CBOR primitive.
 
         Returns:
@@ -439,11 +439,11 @@ class ArrayCBORSerializable(CBORSerializable):
         return primitives
 
     @classmethod
-    def from_primitive(cls: Type[ArrayBase], values: List[Primitive]) -> ArrayBase:
+    def from_primitive(cls: ArrayBase, values: List[Primitive]) -> ArrayBase:
         """Restore a primitive value to its original class type.
 
         Args:
-            cls (Type[ArrayBase]): The original class type.
+            cls (ArrayBase): The original class type.
             values (List[Primitive]): A list whose elements are CBOR primitives.
 
         Returns:
@@ -548,11 +548,11 @@ class MapCBORSerializable(CBORSerializable):
         return primitives
 
     @classmethod
-    def from_primitive(cls: Type[MapBase], values: Primitive) -> MapBase:
+    def from_primitive(cls: MapBase, values: Primitive) -> MapBase:
         """Restore a primitive value to its original class type.
 
         Args:
-            cls (Type[MapBase]): The original class type.
+            cls (MapBase): The original class type.
             values (:const:`Primitive`): A CBOR primitive.
 
         Returns:
@@ -667,11 +667,11 @@ class DictCBORSerializable(CBORSerializable):
         return dict(sorted(self.data.items(), key=lambda x: _get_sortable_val(x[0])))
 
     @classmethod
-    def from_primitive(cls: Type[DictBase], value: dict) -> DictBase:
+    def from_primitive(cls: DictBase, value: dict) -> DictBase:
         """Restore a primitive value to its original class type.
 
         Args:
-            cls (Type[DictBase]): The original class type.
+            cls (DictBase): The original class type.
             value (:const:`Primitive`): A CBOR primitive.
 
         Returns:

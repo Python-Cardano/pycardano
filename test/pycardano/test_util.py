@@ -137,7 +137,7 @@ class TestMinLoveLaceMultiAsset:
 
 def test_script_data_hash():
     unit = PlutusData()
-    redeemers = [Redeemer(RedeemerTag.SPEND, 0, unit, ExecutionUnits(1000000, 1000000))]
+    redeemers = [Redeemer(RedeemerTag.SPEND, unit, ExecutionUnits(1000000, 1000000))]
     assert ScriptDataHash.from_primitive(
         "032d812ee0731af78fe4ec67e4d30d16313c09e6fb675af28f825797e8b5621d"
     ) == script_data_hash(redeemers=redeemers, datums=[unit])

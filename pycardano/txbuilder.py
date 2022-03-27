@@ -12,14 +12,17 @@ from pycardano.coinselection import (
 )
 from pycardano.exception import (
     InsufficientUTxOBalanceException,
+    InvalidArgumentException,
     InvalidTransactionException,
+    TransactionBuilderException,
     UTxOSelectionException,
 )
-from pycardano.hash import ScriptHash, VerificationKeyHash
-from pycardano.key import VerificationKey
+from pycardano.hash import ScriptDataHash, ScriptHash, VerificationKeyHash
+from pycardano.key import ExtendedSigningKey, SigningKey, VerificationKey
 from pycardano.logging import logger
 from pycardano.metadata import AuxiliaryData
 from pycardano.nativescript import NativeScript, ScriptAll, ScriptAny, ScriptPubkey
+from pycardano.plutus import Datum, ExecutionUnits, Redeemer, datum_hash
 from pycardano.transaction import (
     Asset,
     AssetName,
@@ -30,14 +33,14 @@ from pycardano.transaction import (
     UTxO,
     Value,
 )
-from pycardano.utils import fee, max_tx_fee, min_lovelace
+from pycardano.utils import fee, max_tx_fee, min_lovelace, script_data_hash
 from pycardano.witness import TransactionWitnessSet, VerificationKeyWitness
 
 __all__ = ["TransactionBuilder"]
 
 FAKE_VKEY = VerificationKey.from_primitive(
     bytes.fromhex(
-        "58205e750db9facf42b15594790e3ac882e" "d5254eb214a744353a2e24e4e65b8ceb4"
+        "58205e750db9facf42b15594790e3ac882ed5254eb214a744353a2e24e4e65b8ceb4"
     )
 )
 
@@ -50,7 +53,6 @@ FAKE_TX_SIGNATURE = bytes.fromhex(
 
 class TransactionBuilder:
     """A class builder that makes it easy to build a transaction.
-
     Args:
         context (ChainContext): A chain context.
         utxo_selectors (Optional[List[UTxOSelector]]): A list of UTxOSelectors that will select input UTxOs.
@@ -61,6 +63,7 @@ class TransactionBuilder:
     ):
         self.context = context
         self._inputs = []
+        self._excluded_inputs = []
         self._input_addresses = []
         self._outputs = []
         self._fee = 0
@@ -70,6 +73,11 @@ class TransactionBuilder:
         self._native_scripts = None
         self._mint = None
         self._required_signers = None
+        self._scripts = []
+        self._datums = []
+        self._redeemers = []
+        self._inputs_to_redeemers = {}
+        self._collaterals = []
 
         if utxo_selectors:
             self.utxo_selectors = utxo_selectors
@@ -77,20 +85,89 @@ class TransactionBuilder:
             self.utxo_selectors = [RandomImproveMultiAsset(), LargestFirstSelector()]
 
     def add_input(self, utxo: UTxO) -> TransactionBuilder:
+        """Add a specific UTxO to transaction's inputs.
+        Args:
+            utxo (UTxO): UTxO to be added.
+        Returns:
+            TransactionBuilder: Current transaction builder.
+        """
+        self.inputs.append(utxo)
+        return self
+
+    def add_script_input(
+        self, utxo: UTxO, script: bytes, datum: Datum, redeemer: Redeemer
+    ) -> TransactionBuilder:
+        """Add a script UTxO to transaction's inputs.
+        Args:
+            utxo (UTxO): Script UTxO to be added.
+            script (Optional[bytes]): A plutus script.
+            datum (Optional[Datum]): A plutus datum to unlock the UTxO.
+            redeemer (Optional[Redeemer]): A plutus redeemer to unlock the UTxO.
+        Returns:
+            TransactionBuilder: Current transaction builder.
+        """
+        if not utxo.output.address.address_type.name.startswith("SCRIPT"):
+            raise InvalidArgumentException(
+                f"Expect the output address of utxo to be script type, "
+                f"but got {utxo.output.address.address_type} instead."
+            )
+        if utxo.output.datum_hash != datum.hash():
+            raise InvalidArgumentException(
+                f"Datum hash in transaction output is {utxo.output.datum_hash}, "
+                f"but actual datum hash from input datum is {datum.hash()}."
+            )
+        self.scripts.append(script)
+        self.datums.append(datum)
+        self.redeemers.append(redeemer)
+        self._inputs_to_redeemers[utxo] = redeemer
         self.inputs.append(utxo)
         return self
 
     def add_input_address(self, address: Union[Address, str]) -> TransactionBuilder:
+        """Add an address to transaction's input address.
+        Unlike :meth:`add_input`, which deterministically adds a UTxO to the transaction's inputs, `add_input_address`
+        will not immediately select any UTxO when called. Instead, it will delegate UTxO selection to
+        :class:`UTxOSelector`s of the builder when :meth:`build` is called.
+        Args:
+            address (Union[Address, str]): Address to be added.
+        Returns:
+            TransactionBuilder: The current transaction builder.
+        """
         self.input_addresses.append(address)
         return self
 
-    def add_output(self, tx_out: TransactionOutput):
+    def add_output(
+        self,
+        tx_out: TransactionOutput,
+        datum: Optional[Datum] = None,
+        add_datum_to_witness: bool = False,
+    ) -> TransactionBuilder:
+        """Add a transaction output.
+        Args:
+            tx_out (TransactionOutput): The transaction output to be added.
+            datum (Datum): Attach a datum hash to this transaction output.
+            add_datum_to_witness (bool): Optionally add the actual datum to transaction witness set. Defaults to False.
+        Returns:
+            TransactionBuilder: Current transaction builder.
+        """
+        if datum:
+            tx_out.datum_hash = datum_hash(datum)
         self.outputs.append(tx_out)
+        if add_datum_to_witness:
+            self.datums.append(datum)
         return self
 
     @property
     def inputs(self) -> List[UTxO]:
         return self._inputs
+
+    @property
+    def excluded_inputs(self) -> List[UTxO]:
+        return self._excluded_inputs
+
+    @excluded_inputs.setter
+    def excluded_inputs(self, excluded_inputs: List[UTxO]):
+        self._excluded_inputs = excluded_inputs
 
     @property
     def input_addresses(self) -> List[Union[Address, str]]:
@@ -155,6 +232,33 @@ class TransactionBuilder:
     @required_signers.setter
     def required_signers(self, signers: List[VerificationKeyHash]):
         self._required_signers = signers
+
+    @property
+    def scripts(self) -> List[bytes]:
+        return self._scripts
+
+    @property
+    def datums(self) -> List[Datum]:
+        return self._datums
+
+    @property
+    def redeemers(self) -> List[Redeemer]:
+        return self._redeemers
+
+    @property
+    def collaterals(self) -> List[UTxO]:
+        return self._collaterals
+
+    @collaterals.setter
+    def collaterals(self, collaterals: List[UTxO]):
+        self._collaterals = collaterals
+
+    @property
+    def script_data_hash(self) -> Optional[ScriptDataHash]:
+        if self.datums or self.redeemers:
+            return script_data_hash(self.redeemers, self.datums)
+        else:
+            return None
 
     def _calc_change(
         self, fees, inputs, outputs, address, precise_fee=False
@@ -240,7 +344,16 @@ class TransactionBuilder:
             )
             self._outputs += changes
 
-        self.fee = fee(self.context, len(self._build_full_fake_tx().to_cbor("bytes")))
+        plutus_execution_units = ExecutionUnits(0, 0)
+        for redeemer in self.redeemers:
+            plutus_execution_units += redeemer.ex_units
+
+        self.fee = fee(
+            self.context,
+            len(self._build_full_fake_tx().to_cbor("bytes")),
+            plutus_execution_units.steps,
+            plutus_execution_units.mem,
+        )
 
         if change_address:
             self._outputs = original_outputs
@@ -261,13 +374,11 @@ class TransactionBuilder:
         max_val_size: int,
     ) -> bool:
         """Check if adding the asset will make output exceed maximum size limit
-
         Args:
             output (TransactionOutput): current output
             current_assets (Asset): current Assets to be included in output
             policy_id (ScriptHash): policy id containing the MultiAsset
             asset_to_add (Asset): Asset to add to current MultiAsset to check size limit
-
         """
         attempt_assets = deepcopy(current_assets)
         attempt_assets += Asset({add_asset_name: add_asset_val})
@@ -349,7 +460,7 @@ class TransactionBuilder:
 
     def _input_vkey_hashes(self) -> Set[VerificationKeyHash]:
         results = set()
-        for i in self.inputs:
+        for i in self.inputs + self.collaterals:
             if isinstance(i.output.address.payment_part, VerificationKeyHash):
                 results.add(i.output.address.payment_part)
         return results
@@ -372,6 +483,12 @@ class TransactionBuilder:
 
         return results
 
+    def _set_redeemer_index(self):
+        for i, utxo in enumerate(self.inputs):
+            if utxo in self._inputs_to_redeemers:
+                self._inputs_to_redeemers[utxo].index = i
+        self.redeemers.sort(key=lambda r: r.index)
+
     def _build_tx_body(self) -> TransactionBody:
         tx_body = TransactionBody(
             [i.input for i in self.inputs],
@@ -382,8 +499,12 @@ class TransactionBuilder:
             auxiliary_data_hash=self.auxiliary_data.hash()
             if self.auxiliary_data
             else None,
+            script_data_hash=self.script_data_hash,
             required_signers=self.required_signers,
             validity_start=self.validity_start,
+            collateral=[c.input for c in self.collaterals]
+            if self.collaterals
+            else None,
         )
         return tx_body
 
@@ -395,10 +516,9 @@ class TransactionBuilder:
         ]
 
     def _build_fake_witness_set(self) -> TransactionWitnessSet:
-        return TransactionWitnessSet(
-            vkey_witnesses=self._build_fake_vkey_witnesses(),
-            native_scripts=self.native_scripts,
-        )
+        witness_set = self.build_witness_set()
+        witness_set.vkey_witnesses = self._build_fake_vkey_witnesses()
+        return witness_set
 
     def _build_full_fake_tx(self) -> Transaction:
         tx_body = self._build_tx_body()
@@ -413,16 +533,36 @@ class TransactionBuilder:
             )
         return tx
 
+    def build_witness_set(self) -> TransactionWitnessSet:
+        """Build a transaction witness set, excluding verification key witnesses.
+        This function is especially useful when the transaction involves Plutus scripts.
+        Returns:
+            TransactionWitnessSet: A transaction witness set without verification key witnesses.
+        """
+        return TransactionWitnessSet(
+            native_scripts=self.native_scripts,
+            plutus_script=self.scripts if self.scripts else None,
+            redeemer=self.redeemers if self.redeemers else None,
+            plutus_data=self.datums if self.datums else None,
+        )
+
+    def _ensure_no_input_exclusion_conflict(self):
+        intersection = set(self.inputs).intersection(set(self.excluded_inputs))
+        if intersection:
+            raise TransactionBuilderException(
+                f"Found common UTxOs between UTxO inputs and UTxO excluded_inputs: "
+                f"{intersection}."
+            )
+
     def build(self, change_address: Optional[Address] = None) -> TransactionBody:
         """Build a transaction body from all constraints set through the builder.
-
         Args:
             change_address (Optional[Address]): Address to which changes will be returned. If not provided, the
                 transaction body will likely be unbalanced (sum of inputs is greater than the sum of outputs).
-
         Returns:
-            A transaction body.
+            TransactionBody: A transaction body.
         """
+        self._ensure_no_input_exclusion_conflict()
         selected_utxos = []
         selected_amount = Value()
         for i in self.inputs:
@@ -456,7 +596,7 @@ class TransactionBuilder:
             additional_utxo_pool = []
             for address in self.input_addresses:
                 for utxo in self.context.utxos(str(address)):
-                    if utxo not in selected_utxos:
+                    if utxo not in selected_utxos and utxo not in self.excluded_inputs:
                         additional_utxo_pool.append(utxo)
 
             for i, selector in enumerate(self.utxo_selectors):
@@ -485,8 +625,38 @@ class TransactionBuilder:
 
         self.inputs[:] = selected_utxos[:]
 
+        self._set_redeemer_index()
+
         self._add_change_and_fee(change_address)
 
         tx_body = self._build_tx_body()
 
         return tx_body
+
+    def build_and_sign(
+        self,
+        signing_keys: List[Union[SigningKey, ExtendedSigningKey]],
+        change_address: Optional[Address] = None,
+    ) -> Transaction:
+        """Build a transaction body from all constraints set through the builder and sign the transaction with
+        provided signing keys.
+        Args:
+            signing_keys (List[Union[SigningKey, ExtendedSigningKey]]): A list of signing keys that will be used to
+                sign the transaction.
+            change_address (Optional[Address]): Address to which changes will be returned. If not provided, the
+                transaction body will likely be unbalanced (sum of inputs is greater than the sum of outputs).
+        Returns:
+            Transaction: A signed transaction.
+        """
+
+        tx_body = self.build(change_address=change_address)
+        witness_set = self.build_witness_set()
+        witness_set.vkey_witnesses = []
+
+        for signing_key in signing_keys:
+            signature = signing_key.sign(tx_body.hash())
+            witness_set.vkey_witnesses.append(
+                VerificationKeyWitness(signing_key.to_verification_key(), signature)
+            )
+
+        return Transaction(tx_body, witness_set, auxiliary_data=self.auxiliary_data)

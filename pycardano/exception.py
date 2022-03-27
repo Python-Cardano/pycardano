@@ -34,6 +34,10 @@ class InvalidTransactionException(PyCardanoException):
     pass
 
 
+class TransactionBuilderException(PyCardanoException):
+    pass
+
+
 class TransactionFailedException(PyCardanoException):
     pass
 

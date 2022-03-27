@@ -91,25 +91,15 @@ auxiliary_data = AuxiliaryData(
 
 builder.auxiliary_data = auxiliary_data
 
-tx_body = builder.build(change_address=Address.from_primitive(CHANGE_ADDRESS))
-
-# Sign the transaction body hash using the payment signing key
-signature = psk.sign(tx_body.hash())
-
-# Add verification key and the signature to the witness set
-vk_witnesses = [VerificationKeyWitness(pvk, signature)]
-
 # Create final signed transaction
-signed_tx = Transaction(
-    tx_body,
-    TransactionWitnessSet(vkey_witnesses=vk_witnesses),
-    auxiliary_data=auxiliary_data,
+signed_tx = builder.build_and_sign(
+    [psk], change_address=Address.from_primitive(CHANGE_ADDRESS)
 )
 
 # Submit signed transaction to the network
 print(signed_tx)
 
 print("#### Transaction id ####")
-print(tx_body.hash().hex())
+print(signed_tx.id)
 context.submit_tx(signed_tx.to_cbor())
 print("Transaction successfully submitted!")
