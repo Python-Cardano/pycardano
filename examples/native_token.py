@@ -161,26 +161,8 @@ builder.add_output(TransactionOutput(address, Value(min_val, my_nft)))
 # Build a finalized transaction body with the change returning to our own address
 tx_body = builder.build(change_address=address)
 
-"""Sign transaction and add witnesses"""
-# Sign the transaction body hash using the payment signing key
-payment_signature = payment_skey.sign(tx_body.hash())
-
-# Sign the transaction body hash using the policy signing key because we are minting new tokens
-policy_signature = policy_skey.sign(tx_body.hash())
-
-# Add verification keys and their signatures to the witness set
-vk_witnesses = [
-    VerificationKeyWitness(payment_vkey, payment_signature),
-    VerificationKeyWitness(policy_vkey, policy_signature),
-]
-
 # Create final signed transaction
-signed_tx = Transaction(
-    tx_body,
-    # Beside vk witnesses, We also need to add the policy script to witness set when we are minting new tokens.
-    TransactionWitnessSet(vkey_witnesses=vk_witnesses, native_scripts=native_scripts),
-    auxiliary_data=auxiliary_data,
-)
+signed_tx = builder.build_and_sign([payment_skey, policy_skey], change_address=address)
 
 print("############### Transaction created ###############")
 print(signed_tx)

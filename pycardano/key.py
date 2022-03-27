@@ -143,6 +143,14 @@ class SigningKey(Key):
         signed_message = NACLSigningKey(self.payload).sign(data)
         return signed_message.signature
 
+    def to_verification_key(self) -> VerificationKey:
+        verification_key = NACLSigningKey(self.payload).verify_key
+        return VerificationKey(
+            bytes(verification_key),
+            self.key_type.replace("Signing", "Verification"),
+            self.description.replace("Signing", "Verification"),
+        )
+
     @classmethod
     def generate(cls) -> SigningKey:
         signing_key = PrivateKey.generate()
@@ -162,18 +170,20 @@ class VerificationKey(Key):
 
     @classmethod
     def from_signing_key(cls, key: SigningKey) -> VerificationKey:
-        verification_key = NACLSigningKey(bytes(key)).verify_key
-        return cls(
-            bytes(verification_key),
-            key.key_type.replace("Signing", "Verification"),
-            key.description.replace("Signing", "Verification"),
-        )
+        return key.to_verification_key()
 
 
 class ExtendedSigningKey(Key):
     def sign(self, data: bytes) -> bytes:
         private_key = BIP32ED25519PrivateKey(self.payload[:64], self.payload[96:])
         return private_key.sign(data)
+
+    def to_verification_key(self) -> ExtendedVerificationKey:
+        return ExtendedVerificationKey(
+            self.payload[64:],
+            self.key_type.replace("Signing", "Verification"),
+            self.description.replace("Signing", "Verification"),
+        )
 
 
 class ExtendedVerificationKey(Key):
@@ -187,11 +197,7 @@ class ExtendedVerificationKey(Key):
 
     @classmethod
     def from_signing_key(cls, key: ExtendedSigningKey) -> ExtendedVerificationKey:
-        return cls(
-            key.payload[64:],
-            key.key_type.replace("Signing", "Verification"),
-            key.description.replace("Signing", "Verification"),
-        )
+        return key.to_verification_key()
 
     def to_non_extended(self) -> VerificationKey:
         """Get the 32-byte verification with chain code trimmed off

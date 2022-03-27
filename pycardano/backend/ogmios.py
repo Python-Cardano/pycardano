@@ -32,7 +32,7 @@ class OgmiosChainContext(ChainContext):
         self._genesis_param = None
         self._protocol_param = None
 
-    def _request(self, method: str, args: dict) -> dict:
+    def _request(self, method: str, args: dict) -> Union[dict, int]:
         ws = websocket.WebSocket()
         ws.connect(self._ws_url)
         request = json.dumps(
@@ -134,13 +134,15 @@ class OgmiosChainContext(ChainContext):
 
     @property
     def network(self) -> Network:
-        """Cet current network"""
-        raise NotImplementedError()
+        """Get current network"""
+        return self.network
 
     @property
     def epoch(self) -> int:
         """Current epoch number"""
-        raise NotImplementedError()
+        method = "Query"
+        args = {"query": "currentEpoch"}
+        return self._request(method, args)
 
     @property
     def last_block_slot(self) -> int:

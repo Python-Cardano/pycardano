@@ -75,17 +75,8 @@ builder.add_output(
     )
 )
 
-# Build a finalized transaction body with the change returning to the address we own
-tx_body = builder.build(change_address=address)
-
-# Sign the transaction body hash using the payment signing key
-signature = psk.sign(tx_body.hash())
-
-# Add verification key and the signature to the witness set
-vk_witnesses = [VerificationKeyWitness(pvk, signature)]
-
 # Create final signed transaction
-signed_tx = Transaction(tx_body, TransactionWitnessSet(vkey_witnesses=vk_witnesses))
+signed_tx = builder.build_and_sign([psk], change_address=address)
 
 # Submit signed transaction to the network
 context.submit_tx(signed_tx.to_cbor())

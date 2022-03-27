@@ -45,31 +45,6 @@ def build_transaction(data):
 
     tx_body = builder.build(change_address=change_address)
 
-    # It seems like cardano-serialization-lib will sort policy and asset names by their lengths first, and then
-    # by their value in lexicographical order. Therefore, without sorting, Nami wallet can potentially
-    # reconstruct a different transaction where the order of asset is altered, and therefore resulting a mismatch
-    # between the signature it creates and the transaction we sent to it.
-    # Notice that it uses a BTreeMap to store values: https://github.com/Emurgo/cardano-serialization-lib/blob/10.0.4/rust/src/serialization.rs#L3354
-    # The short-term solution is to sort policies and asset names in the same way as cardano-serialization-lib, so the
-    # restored transaction in Nami wallet will be identical to the one we sent.
-    # Long-term solution is to create an issue in cardano-serialization-lib and ask it to respect the order from CBOR.
-    for output in tx_body.outputs:
-        if isinstance(output.amount, Value):
-            for policy in list(output.amount.multi_asset.keys()):
-                # Sort each asset in current policy
-                asset = output.amount.multi_asset[policy]
-                sorted_asset = Asset(
-                    sorted(
-                        asset.items(), key=lambda x: (len(x[0].payload), x[0].payload)
-                    )
-                )
-                output.amount.multi_asset[policy] = sorted_asset
-
-            # Sort policies
-            output.amount.multi_asset = MultiAsset(
-                sorted(output.amount.multi_asset.items(), key=lambda x: x[0].payload)
-            )
-
     return Transaction(tx_body, TransactionWitnessSet())
 
 
