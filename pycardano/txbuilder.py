@@ -608,10 +608,12 @@ class TransactionBuilder:
         # When there are positive coin or native asset quantity in unfulfilled Value
         if Value() < unfulfilled_amount:
             additional_utxo_pool = []
+            additional_amount = Value()
             for address in self.input_addresses:
                 for utxo in self.context.utxos(str(address)):
                     if utxo not in selected_utxos and utxo not in self.excluded_inputs:
                         additional_utxo_pool.append(utxo)
+                        additional_amount += utxo.output.amount
 
             for i, selector in enumerate(self.utxo_selectors):
                 try:
@@ -631,7 +633,28 @@ class TransactionBuilder:
                         logger.info(e)
                         logger.info(f"{selector} failed. Trying next selector.")
                     else:
-                        raise UTxOSelectionException("All UTxO selectors failed.")
+                        trimmed_additional_amount = Value(
+                            additional_amount.coin,
+                            additional_amount.multi_asset.filter(
+                                lambda p, n, v: p in requested_amount.multi_asset
+                                and n in requested_amount.multi_asset[p]
+                            ),
+                        )
+                        diff = (
+                            requested_amount
+                            - trimmed_selected_amount
+                            - trimmed_additional_amount
+                        )
+                        diff.multi_asset = diff.multi_asset.filter(
+                            lambda p, n, v: v > 0
+                        )
+                        raise UTxOSelectionException(
+                            f"All UTxO selectors failed.\n"
+                            f"Requested output:\n {requested_amount} \n"
+                            f"Pre-selected inputs:\n {selected_amount} \n"
+                            f"Additional UTxO pool:\n {additional_utxo_pool} \n"
+                            f"Unfulfilled amount:\n {diff}"
+                        )
 
         selected_utxos.sort(
             key=lambda utxo: (str(utxo.input.transaction_id), utxo.input.index)

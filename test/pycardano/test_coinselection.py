@@ -9,7 +9,6 @@ from pycardano.exception import (
     InputUTxODepletedException,
     InsufficientUTxOBalanceException,
     MaxInputCountExceededException,
-    UTxOSelectionException,
 )
 from pycardano.transaction import TransactionInput, TransactionOutput, UTxO, Value
 

@@ -12,6 +12,7 @@ from pycardano.coinselection import RandomImproveMultiAsset
 from pycardano.exception import (
     InsufficientUTxOBalanceException,
     InvalidTransactionException,
+    UTxOSelectionException,
 )
 from pycardano.hash import SCRIPT_HASH_SIZE, ScriptHash
 from pycardano.key import VerificationKey
@@ -139,6 +140,27 @@ def test_tx_builder_multi_asset(chain_context):
     }
 
     assert expected == tx_body.to_primitive()
+
+
+def test_tx_builder_raises_utxo_selection(chain_context):
+    tx_builder = TransactionBuilder(chain_context)
+    sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    sender_address = Address.from_primitive(sender)
+
+    # Add sender address as input
+    tx_builder.add_input_address(sender).add_output(
+        TransactionOutput.from_primitive([sender, 1000000000])
+    ).add_output(
+        TransactionOutput.from_primitive(
+            [sender, [2000000, {b"1" * 28: {b"NewToken": 1}}]]
+        )
+    )
+
+    with pytest.raises(UTxOSelectionException) as e:
+        tx_body = tx_builder.build(change_address=sender_address)
+    assert "Unfulfilled amount:" in e.value.args[0]
+    assert "'coin': 991000000" in e.value.args[0]
+    assert "{AssetName(b'NewToken'): 1}" in e.value.args[0]
 
 
 def test_tx_too_big_exception(chain_context):
