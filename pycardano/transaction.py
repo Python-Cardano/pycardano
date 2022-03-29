@@ -11,7 +11,7 @@ from nacl.hash import blake2b
 from typeguard import typechecked
 
 from pycardano.address import Address
-from pycardano.exception import InvalidOperationException
+from pycardano.exception import InvalidDataException, InvalidOperationException
 from pycardano.hash import (
     TRANSACTION_HASH_SIZE,
     AuxiliaryDataHash,
@@ -182,6 +182,24 @@ class MultiAsset(DictCBORSerializable):
 
         return new_multi_asset
 
+    def count(self, criteria=Callable[[ScriptHash, AssetName, int], bool]) -> int:
+        """Count number of distinct assets that satisfy a certain criteria.
+
+        Args:
+            criteria: A function that takes in three input arguments (policy_id, asset_name, amount) and returns a
+                bool.
+
+        Returns:
+            int: Total number of distinct assets that satisfy the criteria.
+        """
+        count = 0
+        for p in self:
+            for n in self[p]:
+                if criteria(p, n, self[p][n]):
+                    count += 1
+
+        return count
+
 
 @typechecked
 @dataclass(repr=False)
@@ -235,6 +253,21 @@ class TransactionOutput(ArrayCBORSerializable):
     amount: Union[int, Value]
 
     datum_hash: DatumHash = field(default=None, metadata={"optional": True})
+
+    def validate(self):
+        if isinstance(self.amount, int) and self.amount < 0:
+            raise InvalidDataException(
+                f"Transaction output cannot have negative amount of ADA or "
+                f"native asset: \n {self.amount}"
+            )
+        if isinstance(self.amount, Value) and (
+            self.amount.coin < 0
+            or self.amount.multi_asset.count(lambda p, n, v: v < 0) > 0
+        ):
+            raise InvalidDataException(
+                f"Transaction output cannot have negative amount of ADA or "
+                f"native asset: \n {self.amount}"
+            )
 
     @property
     def lovelace(self) -> int:

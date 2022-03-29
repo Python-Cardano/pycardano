@@ -3,7 +3,7 @@ from test.pycardano.util import check_two_way_cbor
 import pytest
 
 from pycardano.address import Address
-from pycardano.exception import InvalidOperationException
+from pycardano.exception import InvalidDataException, InvalidOperationException
 from pycardano.hash import SCRIPT_HASH_SIZE, ScriptHash, TransactionId
 from pycardano.key import PaymentKeyPair, PaymentSigningKey, VerificationKey
 from pycardano.transaction import (
@@ -40,6 +40,28 @@ def test_transaction_output():
         == "82581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f41b000000174876e800"
     )
     check_two_way_cbor(output)
+
+
+def test_invalid_transaction_output():
+    addr = Address.decode(
+        "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    )
+    output = TransactionOutput(addr, -100000000000)
+    with pytest.raises(InvalidDataException):
+        output.to_cbor()
+
+    value = Value.from_primitive(
+        [
+            100,
+            {
+                b"1"
+                * SCRIPT_HASH_SIZE: {b"TestToken1": -10000000, b"TestToken2": 20000000}
+            },
+        ]
+    )
+    output = TransactionOutput(addr, value)
+    with pytest.raises(InvalidDataException):
+        output.to_cbor()
 
 
 def make_transaction_body():
