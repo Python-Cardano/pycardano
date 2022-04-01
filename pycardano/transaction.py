@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from copy import deepcopy
 from dataclasses import dataclass, field
 from pprint import pformat
 from typing import Any, Callable, List, Union
@@ -69,7 +70,7 @@ class Asset(DictCBORSerializable):
         return self + other
 
     def __add__(self, other: Asset) -> Asset:
-        new_asset = self.copy()
+        new_asset = deepcopy(self)
         for n in other:
             new_asset[n] = new_asset.get(n, 0) + other[n]
         return new_asset
@@ -80,7 +81,7 @@ class Asset(DictCBORSerializable):
         return self
 
     def __sub__(self, other: Asset) -> Asset:
-        new_asset = self.copy()
+        new_asset = deepcopy(self)
         for n in other:
             if n not in new_asset:
                 raise InvalidOperationException(
@@ -120,7 +121,7 @@ class MultiAsset(DictCBORSerializable):
         return self + other
 
     def __add__(self, other):
-        new_multi_asset = self.copy()
+        new_multi_asset = deepcopy(self)
         for p in other:
             if p not in new_multi_asset:
                 new_multi_asset[p] = Asset()
@@ -133,7 +134,7 @@ class MultiAsset(DictCBORSerializable):
         return self
 
     def __sub__(self, other: MultiAsset) -> MultiAsset:
-        new_multi_asset = self.copy()
+        new_multi_asset = deepcopy(self)
         for p in other:
             if p not in new_multi_asset:
                 raise InvalidOperationException(

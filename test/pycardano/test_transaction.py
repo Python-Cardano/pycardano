@@ -185,6 +185,15 @@ def test_multi_asset_addition():
             b"2" * SCRIPT_HASH_SIZE: {b"Token1": 1, b"Token2": 2},
         }
     )
+    assert a == MultiAsset.from_primitive(
+        {b"1" * SCRIPT_HASH_SIZE: {b"Token1": 1, b"Token2": 2}}
+    )
+    assert b == MultiAsset.from_primitive(
+        {
+            b"1" * SCRIPT_HASH_SIZE: {b"Token1": 10, b"Token2": 20},
+            b"2" * SCRIPT_HASH_SIZE: {b"Token1": 1, b"Token2": 2},
+        }
+    )
 
 
 def test_multi_asset_subtraction():
@@ -202,6 +211,16 @@ def test_multi_asset_subtraction():
     assert b - a == MultiAsset.from_primitive(
         {
             b"1" * SCRIPT_HASH_SIZE: {b"Token1": 9, b"Token2": 18},
+            b"2" * SCRIPT_HASH_SIZE: {b"Token1": 1, b"Token2": 2},
+        }
+    )
+
+    assert a == MultiAsset.from_primitive(
+        {b"1" * SCRIPT_HASH_SIZE: {b"Token1": 1, b"Token2": 2}}
+    )
+    assert b == MultiAsset.from_primitive(
+        {
+            b"1" * SCRIPT_HASH_SIZE: {b"Token1": 10, b"Token2": 20},
             b"2" * SCRIPT_HASH_SIZE: {b"Token1": 1, b"Token2": 2},
         }
     )
