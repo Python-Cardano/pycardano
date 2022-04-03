@@ -364,7 +364,9 @@ def _restore_dataclass_field(
     elif hasattr(f.type, "__origin__") and f.type.__origin__ is Union:
         t_args = f.type.__args__
         for t in t_args:
-            if isclass(t) and issubclass(t, CBORSerializable):
+            if isclass(t) and issubclass(t, IndefiniteList):
+                return IndefiniteList(v)
+            elif isclass(t) and issubclass(t, CBORSerializable):
                 try:
                     return t.from_primitive(v)
                 except DeserializeException:

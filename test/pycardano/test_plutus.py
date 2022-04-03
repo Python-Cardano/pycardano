@@ -159,6 +159,16 @@ def test_redeemer():
     check_two_way_cbor(redeemer)
 
 
+def test_redeemer_empty_datum():
+    data = MyTest(123, b"234", IndefiniteList([]), {1: b"1", 2: b"2"})
+    redeemer = MyRedeemer(RedeemerTag.SPEND, data, ExecutionUnits(1000000, 1000000))
+    assert (
+        "840000d8668218829f187b433233349fffa2014131024132ff821a000f42401a000f4240"
+        == redeemer.to_cbor()
+    )
+    check_two_way_cbor(redeemer)
+
+
 def test_cost_model():
     assert (
         "a141005901d59f1a000302590001011a00060bc719026d00011a000249f01903e800011"
