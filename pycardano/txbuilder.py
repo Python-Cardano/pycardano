@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from typing import List, Optional, Set, Union
+from typing import Dict, List, Optional, Set, Union
 
 from pycardano.address import Address
 from pycardano.backend.base import ChainContext
@@ -17,12 +17,19 @@ from pycardano.exception import (
     TransactionBuilderException,
     UTxOSelectionException,
 )
-from pycardano.hash import ScriptDataHash, ScriptHash, VerificationKeyHash
+from pycardano.hash import DatumHash, ScriptDataHash, ScriptHash, VerificationKeyHash
 from pycardano.key import ExtendedSigningKey, SigningKey, VerificationKey
 from pycardano.logging import logger
 from pycardano.metadata import AuxiliaryData
 from pycardano.nativescript import NativeScript, ScriptAll, ScriptAny, ScriptPubkey
-from pycardano.plutus import Datum, ExecutionUnits, Redeemer, datum_hash
+from pycardano.plutus import (
+    Datum,
+    ExecutionUnits,
+    Redeemer,
+    RedeemerTag,
+    datum_hash,
+    plutus_script_hash,
+)
 from pycardano.transaction import (
     Asset,
     AssetName,
@@ -74,10 +81,11 @@ class TransactionBuilder:
         self._native_scripts = None
         self._mint = None
         self._required_signers = None
-        self._scripts = []
-        self._datums = []
+        self._scripts = {}
+        self._datums = {}
         self._redeemers = []
         self._inputs_to_redeemers = {}
+        self._inputs_to_scripts = {}
         self._collaterals = []
 
         if utxo_selectors:
@@ -121,10 +129,11 @@ class TransactionBuilder:
                 f"Datum hash in transaction output is {utxo.output.datum_hash}, "
                 f"but actual datum hash from input datum is {datum.hash()}."
             )
-        self.scripts.append(script)
-        self.datums.append(datum)
+        self.scripts[plutus_script_hash(script)] = script
+        self.datums[datum.hash()] = datum
         self.redeemers.append(redeemer)
         self._inputs_to_redeemers[utxo] = redeemer
+        self._inputs_to_scripts[utxo] = script
         self.inputs.append(utxo)
         return self
 
@@ -163,7 +172,7 @@ class TransactionBuilder:
             tx_out.datum_hash = datum_hash(datum)
         self.outputs.append(tx_out)
         if add_datum_to_witness:
-            self.datums.append(datum)
+            self.datums[datum.hash()] = datum
         return self
 
     @property
@@ -243,11 +252,11 @@ class TransactionBuilder:
         self._required_signers = signers
 
     @property
-    def scripts(self) -> List[bytes]:
+    def scripts(self) -> Dict[ScriptHash, bytes]:
         return self._scripts
 
     @property
-    def datums(self) -> List[Datum]:
+    def datums(self) -> Dict[DatumHash, Datum]:
         return self._datums
 
     @property
@@ -265,7 +274,7 @@ class TransactionBuilder:
     @property
     def script_data_hash(self) -> Optional[ScriptDataHash]:
         if self.datums or self.redeemers:
-            return script_data_hash(self.redeemers, self.datums)
+            return script_data_hash(self.redeemers, list(self.datums.values()))
         else:
             return None
 
@@ -291,10 +300,6 @@ class TransactionBuilder:
             )
 
         change = provided - requested
-        if change.coin < 0:
-            # We assign max fee for now to ensure enough balance regardless of splits condition
-            # We can implement a more precise fee logic and requirements later
-            raise InsufficientUTxOBalanceException("Not enough ADA to cover fees")
 
         # Remove any asset that has 0 quantity
         if change.multi_asset:
@@ -495,9 +500,30 @@ class TransactionBuilder:
         return results
 
     def _set_redeemer_index(self):
+        # Set redeemers' index according to section 4.1 in
+        # https://hydra.iohk.io/build/13099856/download/1/alonzo-changes.pdf
+
+        if self.mint:
+            sorted_mint_policies = sorted(
+                self.mint.keys(), key=lambda x: x.to_cbor("bytes")
+            )
+        else:
+            sorted_mint_policies = []
+
         for i, utxo in enumerate(self.inputs):
-            if utxo in self._inputs_to_redeemers:
+            if (
+                utxo in self._inputs_to_redeemers
+                and self._inputs_to_redeemers[utxo].tag == RedeemerTag.SPEND
+            ):
                 self._inputs_to_redeemers[utxo].index = i
+            elif (
+                utxo in self._inputs_to_redeemers
+                and self._inputs_to_redeemers[utxo].tag == RedeemerTag.MINT
+            ):
+                redeemer = self._inputs_to_redeemers[utxo]
+                redeemer.index = sorted_mint_policies.index(
+                    plutus_script_hash(self._inputs_to_scripts[utxo])
+                )
         self.redeemers.sort(key=lambda r: r.index)
 
     def _build_tx_body(self) -> TransactionBody:
@@ -553,9 +579,9 @@ class TransactionBuilder:
         """
         return TransactionWitnessSet(
             native_scripts=self.native_scripts,
-            plutus_script=self.scripts if self.scripts else None,
+            plutus_script=list(self.scripts.values()) if self.scripts else None,
             redeemer=self.redeemers if self.redeemers else None,
-            plutus_data=self.datums if self.datums else None,
+            plutus_data=list(self.datums.values()) if self.datums else None,
         )
 
     def _ensure_no_input_exclusion_conflict(self):
@@ -611,7 +637,11 @@ class TransactionBuilder:
             additional_amount = Value()
             for address in self.input_addresses:
                 for utxo in self.context.utxos(str(address)):
-                    if utxo not in selected_utxos and utxo not in self.excluded_inputs:
+                    if (
+                        utxo not in selected_utxos
+                        and utxo not in self.excluded_inputs
+                        and not utxo.output.datum_hash  # UTxO with datum should be added by using `add_script_input`
+                    ):
                         additional_utxo_pool.append(utxo)
                         additional_amount += utxo.output.amount
 
