@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Set, Union
 
 from pycardano.address import Address
@@ -58,6 +59,7 @@ FAKE_TX_SIGNATURE = bytes.fromhex(
 )
 
 
+@dataclass
 class TransactionBuilder:
     """A class builder that makes it easy to build a transaction.
 
@@ -66,32 +68,45 @@ class TransactionBuilder:
         utxo_selectors (Optional[List[UTxOSelector]]): A list of UTxOSelectors that will select input UTxOs.
     """
 
-    def __init__(
-        self, context: ChainContext, utxo_selectors: Optional[List[UTxOSelector]] = None
-    ):
-        self.context = context
-        self._inputs = []
-        self._excluded_inputs = []
-        self._input_addresses = []
-        self._outputs = []
-        self._fee = 0
-        self._ttl = None
-        self._validity_start = None
-        self._auxiliary_data = None
-        self._native_scripts = None
-        self._mint = None
-        self._required_signers = None
-        self._scripts = {}
-        self._datums = {}
-        self._redeemers = []
-        self._inputs_to_redeemers = {}
-        self._inputs_to_scripts = {}
-        self._collaterals = []
+    context: ChainContext
 
-        if utxo_selectors:
-            self.utxo_selectors = utxo_selectors
-        else:
-            self.utxo_selectors = [RandomImproveMultiAsset(), LargestFirstSelector()]
+    utxo_selectors: List[UTxOSelector] = field(
+        default_factory=lambda: [RandomImproveMultiAsset(), LargestFirstSelector()]
+    )
+
+    _inputs: List[UTxO] = field(init=False, default_factory=lambda: [])
+
+    _excluded_inputs: List[UTxO] = field(init=False, default_factory=lambda: [])
+
+    _input_addresses: List[Address] = field(init=False, default_factory=lambda: [])
+
+    _outputs: List[TransactionOutput] = field(init=False, default_factory=lambda: [])
+
+    _fee: int = field(init=False, default=0)
+
+    _ttl: int = field(init=False, default=None)
+
+    _validity_start: int = field(init=False, default=None)
+
+    _auxiliary_data: AuxiliaryData = field(init=False, default=None)
+
+    _native_scripts: List[NativeScript] = field(init=False, default=None)
+
+    _mint: MultiAsset = field(init=False, default=None)
+
+    _required_signers: List[VerificationKeyHash] = field(init=False, default=None)
+
+    _datums: Dict[DatumHash, Datum] = field(init=False, default_factory=lambda: {})
+
+    _inputs_to_redeemers: Dict[UTxO, Redeemer] = field(
+        init=False, default_factory=lambda: {}
+    )
+
+    _inputs_to_scripts: Dict[UTxO, bytes] = field(
+        init=False, default_factory=lambda: {}
+    )
+
+    _collaterals: List[UTxO] = field(init=False, default_factory=lambda: [])
 
     def add_input(self, utxo: UTxO) -> TransactionBuilder:
         """Add a specific UTxO to transaction's inputs.
@@ -129,9 +144,7 @@ class TransactionBuilder:
                 f"Datum hash in transaction output is {utxo.output.datum_hash}, "
                 f"but actual datum hash from input datum is {datum.hash()}."
             )
-        self.scripts[plutus_script_hash(script)] = script
         self.datums[datum.hash()] = datum
-        self.redeemers.append(redeemer)
         self._inputs_to_redeemers[utxo] = redeemer
         self._inputs_to_scripts[utxo] = script
         self.inputs.append(utxo)
@@ -252,8 +265,8 @@ class TransactionBuilder:
         self._required_signers = signers
 
     @property
-    def scripts(self) -> Dict[ScriptHash, bytes]:
-        return self._scripts
+    def scripts(self) -> List[bytes]:
+        return list(set(self._inputs_to_scripts.values()))
 
     @property
     def datums(self) -> Dict[DatumHash, Datum]:
@@ -261,7 +274,7 @@ class TransactionBuilder:
 
     @property
     def redeemers(self) -> List[Redeemer]:
-        return self._redeemers
+        return list(self._inputs_to_redeemers.values())
 
     @property
     def collaterals(self) -> List[UTxO]:
@@ -579,7 +592,7 @@ class TransactionBuilder:
         """
         return TransactionWitnessSet(
             native_scripts=self.native_scripts,
-            plutus_script=list(self.scripts.values()) if self.scripts else None,
+            plutus_script=self.scripts if self.scripts else None,
             redeemer=self.redeemers if self.redeemers else None,
             plutus_data=list(self.datums.values()) if self.datums else None,
         )
