@@ -10,7 +10,7 @@ from nacl.hash import blake2b
 
 from pycardano.backend.base import ChainContext
 from pycardano.hash import SCRIPT_DATA_HASH_SIZE, SCRIPT_HASH_SIZE, ScriptDataHash
-from pycardano.plutus import COST_MODELS, CostModels, PlutusData, Redeemer
+from pycardano.plutus import COST_MODELS, CostModels, Datum, Redeemer
 from pycardano.serialization import default_encoder
 from pycardano.transaction import MultiAsset, Value
 
@@ -116,14 +116,14 @@ def min_lovelace(
 
 def script_data_hash(
     redeemers: List[Redeemer],
-    datums: List[PlutusData],
+    datums: List[Datum],
     cost_models: Optional[CostModels] = None,
 ) -> ScriptDataHash:
     """Calculate plutus script data hash
 
     Args:
         redeemers (List[Redeemer]): Redeemers to include.
-        datums (List[PlutusData]): Datums to include.
+        datums (List[Datum]): Datums to include.
         cost_models (Optional[CostModels]): Cost models.
 
     Returns:

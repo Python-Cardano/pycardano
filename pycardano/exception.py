@@ -14,6 +14,10 @@ class InvalidAddressInputException(PyCardanoException):
     pass
 
 
+class InvalidDataException(PyCardanoException):
+    pass
+
+
 class InvalidArgumentException(PyCardanoException):
     pass
 

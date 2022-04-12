@@ -158,9 +158,6 @@ min_val = min_lovelace(Value(0, my_nft), chain_context)
 # Send the NFT to our own address
 builder.add_output(TransactionOutput(address, Value(min_val, my_nft)))
 
-# Build a finalized transaction body with the change returning to our own address
-tx_body = builder.build(change_address=address)
-
 # Create final signed transaction
 signed_tx = builder.build_and_sign([payment_skey, policy_skey], change_address=address)
 

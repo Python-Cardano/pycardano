@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from copy import deepcopy
 from dataclasses import dataclass, field
 from pprint import pformat
 from typing import Any, Callable, List, Union
@@ -11,7 +12,7 @@ from nacl.hash import blake2b
 from typeguard import typechecked
 
 from pycardano.address import Address
-from pycardano.exception import InvalidOperationException
+from pycardano.exception import InvalidDataException, InvalidOperationException
 from pycardano.hash import (
     TRANSACTION_HASH_SIZE,
     AuxiliaryDataHash,
@@ -69,7 +70,7 @@ class Asset(DictCBORSerializable):
         return self + other
 
     def __add__(self, other: Asset) -> Asset:
-        new_asset = self.copy()
+        new_asset = deepcopy(self)
         for n in other:
             new_asset[n] = new_asset.get(n, 0) + other[n]
         return new_asset
@@ -80,7 +81,7 @@ class Asset(DictCBORSerializable):
         return self
 
     def __sub__(self, other: Asset) -> Asset:
-        new_asset = self.copy()
+        new_asset = deepcopy(self)
         for n in other:
             if n not in new_asset:
                 raise InvalidOperationException(
@@ -120,7 +121,7 @@ class MultiAsset(DictCBORSerializable):
         return self + other
 
     def __add__(self, other):
-        new_multi_asset = self.copy()
+        new_multi_asset = deepcopy(self)
         for p in other:
             if p not in new_multi_asset:
                 new_multi_asset[p] = Asset()
@@ -133,7 +134,7 @@ class MultiAsset(DictCBORSerializable):
         return self
 
     def __sub__(self, other: MultiAsset) -> MultiAsset:
-        new_multi_asset = self.copy()
+        new_multi_asset = deepcopy(self)
         for p in other:
             if p not in new_multi_asset:
                 raise InvalidOperationException(
@@ -181,6 +182,24 @@ class MultiAsset(DictCBORSerializable):
                     new_multi_asset[p][n] = self[p][n]
 
         return new_multi_asset
+
+    def count(self, criteria=Callable[[ScriptHash, AssetName, int], bool]) -> int:
+        """Count number of distinct assets that satisfy a certain criteria.
+
+        Args:
+            criteria: A function that takes in three input arguments (policy_id, asset_name, amount) and returns a
+                bool.
+
+        Returns:
+            int: Total number of distinct assets that satisfy the criteria.
+        """
+        count = 0
+        for p in self:
+            for n in self[p]:
+                if criteria(p, n, self[p][n]):
+                    count += 1
+
+        return count
 
 
 @typechecked
@@ -235,6 +254,21 @@ class TransactionOutput(ArrayCBORSerializable):
     amount: Union[int, Value]
 
     datum_hash: DatumHash = field(default=None, metadata={"optional": True})
+
+    def validate(self):
+        if isinstance(self.amount, int) and self.amount < 0:
+            raise InvalidDataException(
+                f"Transaction output cannot have negative amount of ADA or "
+                f"native asset: \n {self.amount}"
+            )
+        if isinstance(self.amount, Value) and (
+            self.amount.coin < 0
+            or self.amount.multi_asset.count(lambda p, n, v: v < 0) > 0
+        ):
+            raise InvalidDataException(
+                f"Transaction output cannot have negative amount of ADA or "
+                f"native asset: \n {self.amount}"
+            )
 
     @property
     def lovelace(self) -> int:

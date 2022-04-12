@@ -264,9 +264,7 @@ class TestAll:
 
         # ----------- Taker take ---------------
 
-        redeemer = Redeemer(
-            RedeemerTag.SPEND, 42, ExecutionUnits(mem=10000000, steps=10000000000)
-        )
+        redeemer = Redeemer(RedeemerTag.SPEND, 42)
 
         utxo_to_spend = self.chain_context.utxos(str(script_address))[0]
 
