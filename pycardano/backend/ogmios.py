@@ -1,7 +1,7 @@
 import calendar
 import json
 import time
-from typing import List, Union
+from typing import Dict, List, Union
 
 import websocket
 
@@ -10,6 +10,7 @@ from pycardano.backend.base import ChainContext, GenesisParameters, ProtocolPara
 from pycardano.exception import TransactionFailedException
 from pycardano.hash import DatumHash, ScriptHash
 from pycardano.network import Network
+from pycardano.plutus import ExecutionUnits
 from pycardano.transaction import (
     Asset,
     AssetName,
@@ -220,3 +221,31 @@ class OgmiosChainContext(ChainContext):
         result = self._request(method, args)
         if "SubmitFail" in result:
             raise TransactionFailedException(result["SubmitFail"])
+
+    def evaluate_tx(self, cbor: Union[bytes, str]) -> Dict[str, ExecutionUnits]:
+        """Evaluate execution units of a transaction.
+
+        Args:
+            cbor (Union[bytes, str]): The serialized transaction to be evaluated.
+
+        Returns:
+            Dict[str, ExecutionUnits]: A list of execution units calculated for each of the transaction's redeemers
+
+        Raises:
+            :class:`TransactionFailedException`: When fails to evaluate the transaction.
+        """
+        if isinstance(cbor, bytes):
+            cbor = cbor.hex()
+
+        method = "EvaluateTx"
+        args = {"evaluate": cbor}
+        result = self._request(method, args)
+        if "EvaluationResult" not in result:
+            raise TransactionFailedException(result)
+        else:
+            for k in result["EvaluationResult"].keys():
+                result["EvaluationResult"][k] = ExecutionUnits(
+                    result["EvaluationResult"][k]["memory"],
+                    result["EvaluationResult"][k]["steps"],
+                )
+            return result["EvaluationResult"]

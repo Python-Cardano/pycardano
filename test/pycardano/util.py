@@ -1,7 +1,8 @@
-from typing import List, Union
+from typing import Dict, List, Union
 
 import pytest
 
+from pycardano import ExecutionUnits
 from pycardano.backend.base import ChainContext, GenesisParameters, ProtocolParameters
 from pycardano.network import Network
 from pycardano.serialization import CBORSerializable
@@ -118,6 +119,9 @@ class FixedChainContext(ChainContext):
             :class:`TransactionFailedException`: When fails to submit the transaction to blockchain.
         """
         pass
+
+    def evaluate_tx(self, cbor: Union[bytes, str]) -> Dict[str, ExecutionUnits]:
+        return {"spend:0": ExecutionUnits(399882, 175940720)}
 
 
 @pytest.fixture

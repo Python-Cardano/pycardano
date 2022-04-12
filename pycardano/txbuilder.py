@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from copy import deepcopy
-from dataclasses import dataclass, field
+from copy import copy, deepcopy
+from dataclasses import dataclass, field, fields
 from typing import Dict, List, Optional, Set, Union
 
 from pycardano.address import Address
@@ -47,32 +47,45 @@ from pycardano.witness import TransactionWitnessSet, VerificationKeyWitness
 __all__ = ["TransactionBuilder"]
 
 FAKE_VKEY = VerificationKey.from_primitive(
-    bytes.fromhex(
-        "58205e750db9facf42b15594790e3ac882ed5254eb214a744353a2e24e4e65b8ceb4"
-    )
+    bytes.fromhex("5797dc2cc919dfec0bb849551ebdf30d96e5cbe0f33f734a87fe826db30f7ef9")
 )
 
 # Ed25519 signature of a 32-bytes message (TX hash) will have length of 64
 FAKE_TX_SIGNATURE = bytes.fromhex(
-    "7a40e127815e62595e8de6fdeac6dd0346b8dbb0275dca5f244b8107cff"
-    "e9f9fd8de14b60c3fdc3409e70618d8681afb63b69a107eb1af15f8ef49edb4494001"
+    "577ccb5b487b64e396b0976c6f71558e52e44ad254db7d06dfb79843e5441a5d763dd42a"
+    "dcf5e8805d70373722ebbce62a58e3f30dd4560b9a898b8ceeab6a03"
 )
 
 
 @dataclass
 class TransactionBuilder:
-    """A class builder that makes it easy to build a transaction.
-
-    Args:
-        context (ChainContext): A chain context.
-        utxo_selectors (Optional[List[UTxOSelector]]): A list of UTxOSelectors that will select input UTxOs.
-    """
+    """A class builder that makes it easy to build a transaction."""
 
     context: ChainContext
 
     utxo_selectors: List[UTxOSelector] = field(
         default_factory=lambda: [RandomImproveMultiAsset(), LargestFirstSelector()]
     )
+
+    execution_memory_buffer: float = 0.2
+    """Additional amount of execution memory (in ratio) that will be on top of estimation"""
+
+    execution_step_buffer: float = 0.2
+    """Additional amount of execution step (in ratio) that will be added on top of estimation"""
+
+    ttl: int = field(default=None)
+
+    validity_start: int = field(default=None)
+
+    auxiliary_data: AuxiliaryData = field(default=None)
+
+    native_scripts: List[NativeScript] = field(default=None)
+
+    mint: MultiAsset = field(default=None)
+
+    required_signers: List[VerificationKeyHash] = field(default=None)
+
+    collaterals: List[UTxO] = field(default_factory=lambda: [])
 
     _inputs: List[UTxO] = field(init=False, default_factory=lambda: [])
 
@@ -84,18 +97,6 @@ class TransactionBuilder:
 
     _fee: int = field(init=False, default=0)
 
-    _ttl: int = field(init=False, default=None)
-
-    _validity_start: int = field(init=False, default=None)
-
-    _auxiliary_data: AuxiliaryData = field(init=False, default=None)
-
-    _native_scripts: List[NativeScript] = field(init=False, default=None)
-
-    _mint: MultiAsset = field(init=False, default=None)
-
-    _required_signers: List[VerificationKeyHash] = field(init=False, default=None)
-
     _datums: Dict[DatumHash, Datum] = field(init=False, default_factory=lambda: {})
 
     _inputs_to_redeemers: Dict[UTxO, Redeemer] = field(
@@ -106,7 +107,7 @@ class TransactionBuilder:
         init=False, default_factory=lambda: {}
     )
 
-    _collaterals: List[UTxO] = field(init=False, default_factory=lambda: [])
+    _should_estimate_execution_units: bool = None
 
     def add_input(self, utxo: UTxO) -> TransactionBuilder:
         """Add a specific UTxO to transaction's inputs.
@@ -119,6 +120,32 @@ class TransactionBuilder:
         """
         self.inputs.append(utxo)
         return self
+
+    def _consolidate_redeemer(self, redeemer):
+        if self._should_estimate_execution_units is None:
+            if redeemer.ex_units:
+                self._should_estimate_execution_units = False
+            else:
+                self._should_estimate_execution_units = True
+                redeemer.ex_units = ExecutionUnits(0, 0)
+        else:
+            if not self._should_estimate_execution_units and redeemer.ex_units is None:
+                raise InvalidArgumentException(
+                    f"All redeemers need to provide execution units if the firstly "
+                    f"added redeemer specifies execution units. \n"
+                    f"Added redeemers: {self.redeemers} \n"
+                    f"New redeemer: {redeemer}"
+                )
+            if self._should_estimate_execution_units:
+                if redeemer.ex_units is not None:
+                    raise InvalidArgumentException(
+                        f"No redeemer should provide execution units if the firstly "
+                        f"added redeemer didn't provide execution units. \n"
+                        f"Added redeemers: {self.redeemers} \n"
+                        f"New redeemer: {redeemer}"
+                    )
+                else:
+                    redeemer.ex_units = ExecutionUnits(0, 0)
 
     def add_script_input(
         self, utxo: UTxO, script: bytes, datum: Datum, redeemer: Redeemer
@@ -145,6 +172,7 @@ class TransactionBuilder:
                 f"but actual datum hash from input datum is {datum.hash()}."
             )
         self.datums[datum.hash()] = datum
+        self._consolidate_redeemer(redeemer)
         self._inputs_to_redeemers[utxo] = redeemer
         self._inputs_to_scripts[utxo] = script
         self.inputs.append(utxo)
@@ -217,54 +245,6 @@ class TransactionBuilder:
         self._fee = fee
 
     @property
-    def ttl(self) -> int:
-        return self._ttl
-
-    @ttl.setter
-    def ttl(self, ttl: int):
-        self._ttl = ttl
-
-    @property
-    def mint(self) -> MultiAsset:
-        return self._mint
-
-    @mint.setter
-    def mint(self, mint: MultiAsset):
-        self._mint = mint
-
-    @property
-    def auxiliary_data(self) -> AuxiliaryData:
-        return self._auxiliary_data
-
-    @auxiliary_data.setter
-    def auxiliary_data(self, data: AuxiliaryData):
-        self._auxiliary_data = data
-
-    @property
-    def native_scripts(self) -> List[NativeScript]:
-        return self._native_scripts
-
-    @native_scripts.setter
-    def native_scripts(self, scripts: List[NativeScript]):
-        self._native_scripts = scripts
-
-    @property
-    def validity_start(self):
-        return self._validity_start
-
-    @validity_start.setter
-    def validity_start(self, validity_start: int):
-        self._validity_start = validity_start
-
-    @property
-    def required_signers(self) -> List[VerificationKeyHash]:
-        return self._required_signers
-
-    @required_signers.setter
-    def required_signers(self, signers: List[VerificationKeyHash]):
-        self._required_signers = signers
-
-    @property
     def scripts(self) -> List[bytes]:
         return list(set(self._inputs_to_scripts.values()))
 
@@ -275,14 +255,6 @@ class TransactionBuilder:
     @property
     def redeemers(self) -> List[Redeemer]:
         return list(self._inputs_to_redeemers.values())
-
-    @property
-    def collaterals(self) -> List[UTxO]:
-        return self._collaterals
-
-    @collaterals.setter
-    def collaterals(self, collaterals: List[UTxO]):
-        self._collaterals = collaterals
 
     @property
     def script_data_hash(self) -> Optional[ScriptDataHash]:
@@ -615,6 +587,7 @@ class TransactionBuilder:
         Returns:
             TransactionBody: A transaction body.
         """
+        self._update_execution_units()
         self._ensure_no_input_exclusion_conflict()
         selected_utxos = []
         selected_amount = Value()
@@ -712,6 +685,43 @@ class TransactionBuilder:
         tx_body = self._build_tx_body()
 
         return tx_body
+
+    def _update_execution_units(self):
+        if self._should_estimate_execution_units:
+            estimated_execution_units = self._estimate_execution_units()
+            for r in self.redeemers:
+                key = f"{r.tag.name.lower()}:{r.index}"
+                if key not in estimated_execution_units:
+                    raise TransactionBuilderException(
+                        f"Cannot find execution unit for redeemer: {r} "
+                        f"in estimated execution units: {estimated_execution_units}"
+                    )
+                r.ex_units = estimated_execution_units[key]
+                r.ex_units.mem = int(
+                    r.ex_units.mem * (1 + self.execution_memory_buffer)
+                )
+                r.ex_units.steps = int(
+                    r.ex_units.steps * (1 + self.execution_step_buffer)
+                )
+
+    def _estimate_execution_units(
+        self,
+        change_address: Optional[Address] = None,
+    ):
+        # Create a shallow copy of current builder, so we won't mess up current builder's internal states
+        tmp_builder = TransactionBuilder(self.context)
+        for f in fields(self):
+            if f.name not in ("context",):
+                setattr(tmp_builder, f.name, copy(getattr(self, f.name)))
+        tmp_builder._should_estimate_execution_units = False
+        self._should_estimate_execution_units = False
+        tx_body = tmp_builder.build(change_address)
+        witness_set = tmp_builder._build_fake_witness_set()
+        tx = Transaction(
+            tx_body, witness_set, auxiliary_data=tmp_builder.auxiliary_data
+        )
+
+        return self.context.evaluate_tx(tx.to_cbor())
 
     def build_and_sign(
         self,

@@ -487,7 +487,7 @@ class Redeemer(ArrayCBORSerializable):
 
     data: Datum
 
-    ex_units: ExecutionUnits
+    ex_units: ExecutionUnits = None
 
     @classmethod
     def from_primitive(cls: Redeemer, values: List[Primitive]) -> Redeemer:
