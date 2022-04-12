@@ -1,11 +1,12 @@
 """Defines interfaces for client codes to interact (read/write) with the blockchain."""
 
 from dataclasses import dataclass
-from typing import List, Union
+from typing import Dict, List, Union
 
 from typeguard import typechecked
 
 from pycardano.network import Network
+from pycardano.plutus import ExecutionUnits
 from pycardano.transaction import UTxO
 
 __all__ = ["GenesisParameters", "ProtocolParameters", "ChainContext"]
@@ -137,10 +138,21 @@ class ChainContext:
         """Submit a transaction to the blockchain.
 
         Args:
-            cbor (Union[bytes, str]): The transaction to be submitted.
+            cbor (Union[bytes, str]): The serialized transaction to be submitted.
 
         Raises:
             :class:`InvalidArgumentException`: When the transaction is invalid.
             :class:`TransactionFailedException`: When fails to submit the transaction to blockchain.
+        """
+        raise NotImplementedError()
+
+    def evaluate_tx(self, cbor: Union[bytes, str]) -> Dict[str, ExecutionUnits]:
+        """Evaluate execution units of a transaction.
+
+        Args:
+            cbor (Union[bytes, str]): The serialized transaction to be evaluated.
+
+        Returns:
+            List[ExecutionUnits]: A list of execution units calculated for each of the transaction's redeemers
         """
         raise NotImplementedError()

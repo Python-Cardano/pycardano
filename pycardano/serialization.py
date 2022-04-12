@@ -93,7 +93,7 @@ def default_encoder(
             encoder.encode(item)
         encoder.write(b"\xff")
     else:
-        encoder.encode(value.to_primitive())
+        encoder.encode(value.to_validated_primitive())
 
 
 @typechecked
@@ -126,7 +126,7 @@ class CBORSerializable:
             :const:`Primitive`: A CBOR primitive.
 
         Raises:
-            :class:`pycardano.exception.SerializeException`: When the object could not be converted to CBOR primitive
+            SerializeException: When the object could not be converted to CBOR primitive
                 types.
         """
         raise NotImplementedError(
@@ -140,7 +140,7 @@ class CBORSerializable:
             :const:`Primitive`: A CBOR primitive.
 
         Raises:
-            :class:`pycardano.exception.SerializeException`: When the object or its elements could not be converted to
+            SerializeException: When the object or its elements could not be converted to
                 CBOR primitive types.
         """
         result = self.to_shallow_primitive()
@@ -189,6 +189,28 @@ class CBORSerializable:
 
         return _dfs(result)
 
+    def validate(self):
+        """Validate the data stored in the current instance. Defaults to always pass.
+
+        Raises:
+            InvalidDataException: When the data is invalid.
+        """
+        pass
+
+    def to_validated_primitive(self) -> Primitive:
+        """Convert the instance and its elements to CBOR primitives recursively with data validated by :meth:`validate`
+        method.
+
+        Returns:
+            :const:`Primitive`: A CBOR primitive.
+
+        Raises:
+            SerializeException: When the object or its elements could not be converted to
+                CBOR primitive types.
+        """
+        self.validate()
+        return self.to_primitive()
+
     @classmethod
     def from_primitive(cls: CBORBase, value: Primitive) -> CBORBase:
         """Turn a CBOR primitive to its original class type.
@@ -201,7 +223,7 @@ class CBORSerializable:
             CBORBase: A CBOR serializable object.
 
         Raises:
-            :class:`pycardano.exception.DeserializeException`: When the object could not be restored from primitives.
+            DeserializeException: When the object could not be restored from primitives.
         """
         raise NotImplementedError(
             f"'from_primitive()' is not implemented by {cls.__name__}."
@@ -342,7 +364,9 @@ def _restore_dataclass_field(
     elif hasattr(f.type, "__origin__") and f.type.__origin__ is Union:
         t_args = f.type.__args__
         for t in t_args:
-            if isclass(t) and issubclass(t, CBORSerializable):
+            if isclass(t) and issubclass(t, IndefiniteList):
+                return IndefiniteList(v)
+            elif isclass(t) and issubclass(t, CBORSerializable):
                 try:
                     return t.from_primitive(v)
                 except DeserializeException:
@@ -427,7 +451,7 @@ class ArrayCBORSerializable(CBORSerializable):
             :const:`Primitive`: A CBOR primitive.
 
         Raises:
-            :class:`pycardano.exception.SerializeException`: When the object could not be converted to CBOR primitive
+            SerializeException: When the object could not be converted to CBOR primitive
                 types.
         """
         primitives = []
@@ -450,7 +474,7 @@ class ArrayCBORSerializable(CBORSerializable):
             :const:`ArrayBase`: Restored object.
 
         Raises:
-            :class:`pycardano.exception.DeserializeException`: When the object could not be restored from primitives.
+            DeserializeException: When the object could not be restored from primitives.
         """
         all_fields = [f for f in fields(cls) if f.init]
         if type(values) != list:
@@ -678,7 +702,7 @@ class DictCBORSerializable(CBORSerializable):
             :const:`DictBase`: Restored object.
 
         Raises:
-            :class:`pycardano.exception.DeserializeException`: When the object could not be restored from primitives.
+            DeserializeException: When the object could not be restored from primitives.
         """
         if not value:
             raise DeserializeException(f"Cannot accept empty value {value}.")

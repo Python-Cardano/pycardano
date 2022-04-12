@@ -293,6 +293,10 @@ class PlutusData(ArrayCBORSerializable):
 
     @classmethod
     def from_primitive(cls: PlutusData, value: CBORTag) -> PlutusData:
+        if not isinstance(value, CBORTag):
+            raise DeserializeException(
+                f"Unexpected type: {CBORTag}. Got {type(value)} instead."
+            )
         if value.tag == 102:
             tag = value.value[0]
             if tag != cls.CONSTR_ID:
@@ -483,7 +487,7 @@ class Redeemer(ArrayCBORSerializable):
 
     data: Datum
 
-    ex_units: ExecutionUnits
+    ex_units: ExecutionUnits = None
 
     @classmethod
     def from_primitive(cls: Redeemer, values: List[Primitive]) -> Redeemer:

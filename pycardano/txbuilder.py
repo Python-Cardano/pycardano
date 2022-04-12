@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from copy import deepcopy
-from typing import List, Optional, Set, Union
+from copy import copy, deepcopy
+from dataclasses import dataclass, field, fields
+from typing import Dict, List, Optional, Set, Union
 
 from pycardano.address import Address
 from pycardano.backend.base import ChainContext
@@ -17,12 +18,19 @@ from pycardano.exception import (
     TransactionBuilderException,
     UTxOSelectionException,
 )
-from pycardano.hash import ScriptDataHash, ScriptHash, VerificationKeyHash
+from pycardano.hash import DatumHash, ScriptDataHash, ScriptHash, VerificationKeyHash
 from pycardano.key import ExtendedSigningKey, SigningKey, VerificationKey
 from pycardano.logging import logger
 from pycardano.metadata import AuxiliaryData
 from pycardano.nativescript import NativeScript, ScriptAll, ScriptAny, ScriptPubkey
-from pycardano.plutus import Datum, ExecutionUnits, Redeemer, datum_hash
+from pycardano.plutus import (
+    Datum,
+    ExecutionUnits,
+    Redeemer,
+    RedeemerTag,
+    datum_hash,
+    plutus_script_hash,
+)
 from pycardano.transaction import (
     Asset,
     AssetName,
@@ -39,50 +47,67 @@ from pycardano.witness import TransactionWitnessSet, VerificationKeyWitness
 __all__ = ["TransactionBuilder"]
 
 FAKE_VKEY = VerificationKey.from_primitive(
-    bytes.fromhex(
-        "58205e750db9facf42b15594790e3ac882ed5254eb214a744353a2e24e4e65b8ceb4"
-    )
+    bytes.fromhex("5797dc2cc919dfec0bb849551ebdf30d96e5cbe0f33f734a87fe826db30f7ef9")
 )
 
 # Ed25519 signature of a 32-bytes message (TX hash) will have length of 64
 FAKE_TX_SIGNATURE = bytes.fromhex(
-    "7a40e127815e62595e8de6fdeac6dd0346b8dbb0275dca5f244b8107cff"
-    "e9f9fd8de14b60c3fdc3409e70618d8681afb63b69a107eb1af15f8ef49edb4494001"
+    "577ccb5b487b64e396b0976c6f71558e52e44ad254db7d06dfb79843e5441a5d763dd42a"
+    "dcf5e8805d70373722ebbce62a58e3f30dd4560b9a898b8ceeab6a03"
 )
 
 
+@dataclass
 class TransactionBuilder:
-    """A class builder that makes it easy to build a transaction.
-    Args:
-        context (ChainContext): A chain context.
-        utxo_selectors (Optional[List[UTxOSelector]]): A list of UTxOSelectors that will select input UTxOs.
-    """
+    """A class builder that makes it easy to build a transaction."""
 
-    def __init__(
-        self, context: ChainContext, utxo_selectors: Optional[List[UTxOSelector]] = None
-    ):
-        self.context = context
-        self._inputs = []
-        self._excluded_inputs = []
-        self._input_addresses = []
-        self._outputs = []
-        self._fee = 0
-        self._ttl = None
-        self._validity_start = None
-        self._auxiliary_data = None
-        self._native_scripts = None
-        self._mint = None
-        self._required_signers = None
-        self._scripts = []
-        self._datums = []
-        self._redeemers = []
-        self._inputs_to_redeemers = {}
-        self._collaterals = []
+    context: ChainContext
 
-        if utxo_selectors:
-            self.utxo_selectors = utxo_selectors
-        else:
-            self.utxo_selectors = [RandomImproveMultiAsset(), LargestFirstSelector()]
+    utxo_selectors: List[UTxOSelector] = field(
+        default_factory=lambda: [RandomImproveMultiAsset(), LargestFirstSelector()]
+    )
+
+    execution_memory_buffer: float = 0.2
+    """Additional amount of execution memory (in ratio) that will be on top of estimation"""
+
+    execution_step_buffer: float = 0.2
+    """Additional amount of execution step (in ratio) that will be added on top of estimation"""
+
+    ttl: int = field(default=None)
+
+    validity_start: int = field(default=None)
+
+    auxiliary_data: AuxiliaryData = field(default=None)
+
+    native_scripts: List[NativeScript] = field(default=None)
+
+    mint: MultiAsset = field(default=None)
+
+    required_signers: List[VerificationKeyHash] = field(default=None)
+
+    collaterals: List[UTxO] = field(default_factory=lambda: [])
+
+    _inputs: List[UTxO] = field(init=False, default_factory=lambda: [])
+
+    _excluded_inputs: List[UTxO] = field(init=False, default_factory=lambda: [])
+
+    _input_addresses: List[Address] = field(init=False, default_factory=lambda: [])
+
+    _outputs: List[TransactionOutput] = field(init=False, default_factory=lambda: [])
+
+    _fee: int = field(init=False, default=0)
+
+    _datums: Dict[DatumHash, Datum] = field(init=False, default_factory=lambda: {})
+
+    _inputs_to_redeemers: Dict[UTxO, Redeemer] = field(
+        init=False, default_factory=lambda: {}
+    )
+
+    _inputs_to_scripts: Dict[UTxO, bytes] = field(
+        init=False, default_factory=lambda: {}
+    )
+
+    _should_estimate_execution_units: bool = None
 
     def add_input(self, utxo: UTxO) -> TransactionBuilder:
         """Add a specific UTxO to transaction's inputs.
@@ -93,6 +118,32 @@ class TransactionBuilder:
         """
         self.inputs.append(utxo)
         return self
+
+    def _consolidate_redeemer(self, redeemer):
+        if self._should_estimate_execution_units is None:
+            if redeemer.ex_units:
+                self._should_estimate_execution_units = False
+            else:
+                self._should_estimate_execution_units = True
+                redeemer.ex_units = ExecutionUnits(0, 0)
+        else:
+            if not self._should_estimate_execution_units and redeemer.ex_units is None:
+                raise InvalidArgumentException(
+                    f"All redeemers need to provide execution units if the firstly "
+                    f"added redeemer specifies execution units. \n"
+                    f"Added redeemers: {self.redeemers} \n"
+                    f"New redeemer: {redeemer}"
+                )
+            if self._should_estimate_execution_units:
+                if redeemer.ex_units is not None:
+                    raise InvalidArgumentException(
+                        f"No redeemer should provide execution units if the firstly "
+                        f"added redeemer didn't provide execution units. \n"
+                        f"Added redeemers: {self.redeemers} \n"
+                        f"New redeemer: {redeemer}"
+                    )
+                else:
+                    redeemer.ex_units = ExecutionUnits(0, 0)
 
     def add_script_input(
         self, utxo: UTxO, script: bytes, datum: Datum, redeemer: Redeemer
@@ -116,10 +167,10 @@ class TransactionBuilder:
                 f"Datum hash in transaction output is {utxo.output.datum_hash}, "
                 f"but actual datum hash from input datum is {datum.hash()}."
             )
-        self.scripts.append(script)
-        self.datums.append(datum)
-        self.redeemers.append(redeemer)
+        self.datums[datum.hash()] = datum
+        self._consolidate_redeemer(redeemer)
         self._inputs_to_redeemers[utxo] = redeemer
+        self._inputs_to_scripts[utxo] = script
         self.inputs.append(utxo)
         return self
 
@@ -154,7 +205,7 @@ class TransactionBuilder:
             tx_out.datum_hash = datum_hash(datum)
         self.outputs.append(tx_out)
         if add_datum_to_witness:
-            self.datums.append(datum)
+            self.datums[datum.hash()] = datum
         return self
 
     @property
@@ -186,77 +237,21 @@ class TransactionBuilder:
         self._fee = fee
 
     @property
-    def ttl(self) -> int:
-        return self._ttl
-
-    @ttl.setter
-    def ttl(self, ttl: int):
-        self._ttl = ttl
-
-    @property
-    def mint(self) -> MultiAsset:
-        return self._mint
-
-    @mint.setter
-    def mint(self, mint: MultiAsset):
-        self._mint = mint
-
-    @property
-    def auxiliary_data(self) -> AuxiliaryData:
-        return self._auxiliary_data
-
-    @auxiliary_data.setter
-    def auxiliary_data(self, data: AuxiliaryData):
-        self._auxiliary_data = data
-
-    @property
-    def native_scripts(self) -> List[NativeScript]:
-        return self._native_scripts
-
-    @native_scripts.setter
-    def native_scripts(self, scripts: List[NativeScript]):
-        self._native_scripts = scripts
-
-    @property
-    def validity_start(self):
-        return self._validity_start
-
-    @validity_start.setter
-    def validity_start(self, validity_start: int):
-        self._validity_start = validity_start
-
-    @property
-    def required_signers(self) -> List[VerificationKeyHash]:
-        return self._required_signers
-
-    @required_signers.setter
-    def required_signers(self, signers: List[VerificationKeyHash]):
-        self._required_signers = signers
-
-    @property
     def scripts(self) -> List[bytes]:
-        return self._scripts
+        return list(set(self._inputs_to_scripts.values()))
 
     @property
-    def datums(self) -> List[Datum]:
+    def datums(self) -> Dict[DatumHash, Datum]:
         return self._datums
 
     @property
     def redeemers(self) -> List[Redeemer]:
-        return self._redeemers
-
-    @property
-    def collaterals(self) -> List[UTxO]:
-        return self._collaterals
-
-    @collaterals.setter
-    def collaterals(self, collaterals: List[UTxO]):
-        self._collaterals = collaterals
+        return list(self._inputs_to_redeemers.values())
 
     @property
     def script_data_hash(self) -> Optional[ScriptDataHash]:
         if self.datums or self.redeemers:
-            return script_data_hash(self.redeemers, self.datums)
+            return script_data_hash(self.redeemers, list(self.datums.values()))
         else:
             return None
 
@@ -282,10 +277,6 @@ class TransactionBuilder:
             )
 
         change = provided - requested
-        if change.coin < 0:
-            # We assign max fee for now to ensure enough balance regardless of splits condition
-            # We can implement a more precise fee logic and requirements later
-            raise InsufficientUTxOBalanceException("Not enough ADA to cover fees")
 
         # Remove any asset that has 0 quantity
         if change.multi_asset:
@@ -484,9 +475,30 @@ class TransactionBuilder:
         return results
 
     def _set_redeemer_index(self):
+        # Set redeemers' index according to section 4.1 in
+        # https://hydra.iohk.io/build/13099856/download/1/alonzo-changes.pdf
+
+        if self.mint:
+            sorted_mint_policies = sorted(
+                self.mint.keys(), key=lambda x: x.to_cbor("bytes")
+            )
+        else:
+            sorted_mint_policies = []
+
         for i, utxo in enumerate(self.inputs):
-            if utxo in self._inputs_to_redeemers:
+            if (
+                utxo in self._inputs_to_redeemers
+                and self._inputs_to_redeemers[utxo].tag == RedeemerTag.SPEND
+            ):
                 self._inputs_to_redeemers[utxo].index = i
+            elif (
+                utxo in self._inputs_to_redeemers
+                and self._inputs_to_redeemers[utxo].tag == RedeemerTag.MINT
+            ):
+                redeemer = self._inputs_to_redeemers[utxo]
+                redeemer.index = sorted_mint_policies.index(
+                    plutus_script_hash(self._inputs_to_scripts[utxo])
+                )
         self.redeemers.sort(key=lambda r: r.index)
 
     def _build_tx_body(self) -> TransactionBody:
@@ -543,7 +555,7 @@ class TransactionBuilder:
             native_scripts=self.native_scripts,
             plutus_script=self.scripts if self.scripts else None,
             redeemer=self.redeemers if self.redeemers else None,
-            plutus_data=self.datums if self.datums else None,
+            plutus_data=list(self.datums.values()) if self.datums else None,
         )
 
     def _ensure_no_input_exclusion_conflict(self):
@@ -562,6 +574,7 @@ class TransactionBuilder:
         Returns:
             TransactionBody: A transaction body.
         """
+        self._update_execution_units()
         self._ensure_no_input_exclusion_conflict()
         selected_utxos = []
         selected_amount = Value()
@@ -594,10 +607,16 @@ class TransactionBuilder:
         # When there are positive coin or native asset quantity in unfulfilled Value
         if Value() < unfulfilled_amount:
             additional_utxo_pool = []
+            additional_amount = Value()
             for address in self.input_addresses:
                 for utxo in self.context.utxos(str(address)):
-                    if utxo not in selected_utxos and utxo not in self.excluded_inputs:
+                    if (
+                        utxo not in selected_utxos
+                        and utxo not in self.excluded_inputs
+                        and not utxo.output.datum_hash  # UTxO with datum should be added by using `add_script_input`
+                    ):
                         additional_utxo_pool.append(utxo)
+                        additional_amount += utxo.output.amount
 
             for i, selector in enumerate(self.utxo_selectors):
                 try:
@@ -617,7 +636,28 @@ class TransactionBuilder:
                         logger.info(e)
                         logger.info(f"{selector} failed. Trying next selector.")
                     else:
-                        raise UTxOSelectionException("All UTxO selectors failed.")
+                        trimmed_additional_amount = Value(
+                            additional_amount.coin,
+                            additional_amount.multi_asset.filter(
+                                lambda p, n, v: p in requested_amount.multi_asset
+                                and n in requested_amount.multi_asset[p]
+                            ),
+                        )
+                        diff = (
+                            requested_amount
+                            - trimmed_selected_amount
+                            - trimmed_additional_amount
+                        )
+                        diff.multi_asset = diff.multi_asset.filter(
+                            lambda p, n, v: v > 0
+                        )
+                        raise UTxOSelectionException(
+                            f"All UTxO selectors failed.\n"
+                            f"Requested output:\n {requested_amount} \n"
+                            f"Pre-selected inputs:\n {selected_amount} \n"
+                            f"Additional UTxO pool:\n {additional_utxo_pool} \n"
+                            f"Unfulfilled amount:\n {diff}"
+                        )
 
         selected_utxos.sort(
             key=lambda utxo: (str(utxo.input.transaction_id), utxo.input.index)
@@ -632,6 +672,43 @@ class TransactionBuilder:
         tx_body = self._build_tx_body()
 
         return tx_body
+
+    def _update_execution_units(self):
+        if self._should_estimate_execution_units:
+            estimated_execution_units = self._estimate_execution_units()
+            for r in self.redeemers:
+                key = f"{r.tag.name.lower()}:{r.index}"
+                if key not in estimated_execution_units:
+                    raise TransactionBuilderException(
+                        f"Cannot find execution unit for redeemer: {r} "
+                        f"in estimated execution units: {estimated_execution_units}"
+                    )
+                r.ex_units = estimated_execution_units[key]
+                r.ex_units.mem = int(
+                    r.ex_units.mem * (1 + self.execution_memory_buffer)
+                )
+                r.ex_units.steps = int(
+                    r.ex_units.steps * (1 + self.execution_step_buffer)
+                )
+
+    def _estimate_execution_units(
+        self,
+        change_address: Optional[Address] = None,
+    ):
+        # Create a shallow copy of current builder, so we won't mess up current builder's internal states
+        tmp_builder = TransactionBuilder(self.context)
+        for f in fields(self):
+            if f.name not in ("context",):
+                setattr(tmp_builder, f.name, copy(getattr(self, f.name)))
+        tmp_builder._should_estimate_execution_units = False
+        self._should_estimate_execution_units = False
+        tx_body = tmp_builder.build(change_address)
+        witness_set = tmp_builder._build_fake_witness_set()
+        tx = Transaction(
+            tx_body, witness_set, auxiliary_data=tmp_builder.auxiliary_data
+        )
+
+        return self.context.evaluate_tx(tx.to_cbor())
 
     def build_and_sign(
         self,
