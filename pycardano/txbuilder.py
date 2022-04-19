@@ -301,11 +301,7 @@ class TransactionBuilder:
                 # Combine remainder of provided ADA with last MultiAsset for output
                 # There may be rare cases where adding ADA causes size exceeds limit
                 # We will revisit if it becomes an issue
-                if (
-                    precise_fee
-                    and change.coin - min_lovelace(Value(0, multi_asset), self.context)
-                    < 0
-                ):
+                if change.coin - min_lovelace(Value(0, multi_asset), self.context) < 0:
                     raise InsufficientUTxOBalanceException(
                         "Not enough ADA left to cover non-ADA assets in a change address"
                     )
@@ -327,18 +323,25 @@ class TransactionBuilder:
         self, change_address: Optional[Address]
     ) -> TransactionBuilder:
         original_outputs = self.outputs[:]
-        if change_address:
-            # Set fee to max
-            self.fee = max_tx_fee(self.context)
-            changes = self._calc_change(
-                self.fee, self.inputs, self.outputs, change_address, precise_fee=False
-            )
-            self._outputs += changes
 
         plutus_execution_units = ExecutionUnits(0, 0)
         for redeemer in self.redeemers:
             plutus_execution_units += redeemer.ex_units
 
+        if change_address:
+            # Set fee to max
+            self.fee = fee(
+                self.context,
+                len(self._build_full_fake_tx().to_cbor("bytes")),
+                plutus_execution_units.steps,
+                plutus_execution_units.mem,
+            )
+            changes = self._calc_change(
+                self.fee, self.inputs, self.outputs, change_address, precise_fee=True
+            )
+            self._outputs += changes
+
+        # With changes included, we can estimate the fee more precisely
         self.fee = fee(
             self.context,
             len(self._build_full_fake_tx().to_cbor("bytes")),
@@ -588,6 +591,22 @@ class TransactionBuilder:
         for o in self.outputs:
             requested_amount += o.amount
 
+        # Include min fees associated as part of requested amount.
+        # The fees will be slightly smaller because changes aren't included yet.
+        # The edge case will be covered in _calc_change function if requested is
+        # greater than provided
+        plutus_execution_units = ExecutionUnits(0, 0)
+        for redeemer in self.redeemers:
+            plutus_execution_units += redeemer.ex_units
+
+        min_fee = fee(
+            self.context,
+            len(self._build_full_fake_tx().to_cbor("bytes")),
+            plutus_execution_units.steps,
+            plutus_execution_units.mem,
+        )
+        requested_amount += min_fee
+
         # Trim off assets that are not requested because they will be returned as changes eventually.
         trimmed_selected_amount = Value(
             selected_amount.coin,
@@ -624,6 +643,7 @@ class TransactionBuilder:
                         additional_utxo_pool,
                         [TransactionOutput(None, unfulfilled_amount)],
                         self.context,
+                        include_max_fee=False
                     )
                     for s in selected:
                         selected_amount += s.output.amount

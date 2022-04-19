@@ -112,7 +112,7 @@ def test_tx_builder_with_certain_input(chain_context):
 
     assert expected == tx_body.to_primitive()
 
-
+# TODO: verify the Random UTXO selector so only sufficient utxos need to be selected to reduce fee
 def test_tx_builder_multi_asset(chain_context):
     tx_builder = TransactionBuilder(chain_context)
     sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
