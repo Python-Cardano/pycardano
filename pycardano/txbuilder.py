@@ -286,6 +286,8 @@ class TransactionBuilder:
 
         # when there is only ADA left, simply use remaining coin value as change
         if not change.multi_asset:
+            if change.coin < min_lovelace(change, self.context):
+                raise InsufficientUTxOBalanceException("Not enough ADA left for change")
             lovelace_change = change.coin
             change_output_arr.append(TransactionOutput(address, lovelace_change))
 
@@ -301,7 +303,7 @@ class TransactionBuilder:
                 # Combine remainder of provided ADA with last MultiAsset for output
                 # There may be rare cases where adding ADA causes size exceeds limit
                 # We will revisit if it becomes an issue
-                if change.coin - min_lovelace(Value(0, multi_asset), self.context) < 0:
+                if change.coin < min_lovelace(Value(0, multi_asset), self.context):
                     raise InsufficientUTxOBalanceException(
                         "Not enough ADA left to cover non-ADA assets in a change address"
                     )
@@ -591,10 +593,8 @@ class TransactionBuilder:
         for o in self.outputs:
             requested_amount += o.amount
 
-        # Include min fees associated as part of requested amount.
-        # The fees will be slightly smaller because changes aren't included yet.
-        # The edge case will be covered in _calc_change function if requested is
-        # greater than provided
+        # Include min fees associated as part of requested amount
+        # The fees will be slightly smaller because changes aren't included yet
         plutus_execution_units = ExecutionUnits(0, 0)
         for redeemer in self.redeemers:
             plutus_execution_units += redeemer.ex_units
@@ -617,7 +617,13 @@ class TransactionBuilder:
         )
 
         unfulfilled_amount = requested_amount - trimmed_selected_amount
-        unfulfilled_amount.coin = max(0, unfulfilled_amount.coin)
+        # if remainder is smaller than minimum ADA required in change,
+        # we need to select additional UTxOs available from the address
+        unfulfilled_amount.coin = max(
+            0,
+            unfulfilled_amount.coin
+            + min_lovelace(selected_amount - trimmed_selected_amount, self.context),
+        )
         # Clean up all non-positive assets
         unfulfilled_amount.multi_asset = unfulfilled_amount.multi_asset.filter(
             lambda p, n, v: v > 0
@@ -643,7 +649,7 @@ class TransactionBuilder:
                         additional_utxo_pool,
                         [TransactionOutput(None, unfulfilled_amount)],
                         self.context,
-                        include_max_fee=False
+                        include_max_fee=False,
                     )
                     for s in selected:
                         selected_amount += s.output.amount
