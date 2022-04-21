@@ -41,7 +41,7 @@ from pycardano.transaction import (
     UTxO,
     Value,
 )
-from pycardano.utils import fee, max_tx_fee, min_lovelace, script_data_hash
+from pycardano.utils import fee, min_lovelace, script_data_hash
 from pycardano.witness import TransactionWitnessSet, VerificationKeyWitness
 
 __all__ = ["TransactionBuilder"]
@@ -294,6 +294,8 @@ class TransactionBuilder:
 
         # when there is only ADA left, simply use remaining coin value as change
         if not change.multi_asset:
+            if change.coin < min_lovelace(change, self.context):
+                raise InsufficientUTxOBalanceException("Not enough ADA left for change")
             lovelace_change = change.coin
             change_output_arr.append(TransactionOutput(address, lovelace_change))
 
@@ -309,11 +311,7 @@ class TransactionBuilder:
                 # Combine remainder of provided ADA with last MultiAsset for output
                 # There may be rare cases where adding ADA causes size exceeds limit
                 # We will revisit if it becomes an issue
-                if (
-                    precise_fee
-                    and change.coin - min_lovelace(Value(0, multi_asset), self.context)
-                    < 0
-                ):
+                if change.coin < min_lovelace(Value(0, multi_asset), self.context):
                     raise InsufficientUTxOBalanceException(
                         "Not enough ADA left to cover non-ADA assets in a change address"
                     )
@@ -335,24 +333,17 @@ class TransactionBuilder:
         self, change_address: Optional[Address]
     ) -> TransactionBuilder:
         original_outputs = self.outputs[:]
+
         if change_address:
             # Set fee to max
-            self.fee = max_tx_fee(self.context)
+            self.fee = self._estimate_fee()
             changes = self._calc_change(
-                self.fee, self.inputs, self.outputs, change_address, precise_fee=False
+                self.fee, self.inputs, self.outputs, change_address, precise_fee=True
             )
             self._outputs += changes
 
-        plutus_execution_units = ExecutionUnits(0, 0)
-        for redeemer in self.redeemers:
-            plutus_execution_units += redeemer.ex_units
-
-        self.fee = fee(
-            self.context,
-            len(self._build_full_fake_tx().to_cbor("bytes")),
-            plutus_execution_units.steps,
-            plutus_execution_units.mem,
-        )
+        # With changes included, we can estimate the fee more precisely
+        self.fee = self._estimate_fee()
 
         if change_address:
             self._outputs = original_outputs
@@ -375,11 +366,15 @@ class TransactionBuilder:
         """Check if adding the asset will make output exceed maximum size limit
 
         Args:
-            output (TransactionOutput): current output
-            current_assets (Asset): current Assets to be included in output
-            policy_id (ScriptHash): policy id containing the MultiAsset
-            asset_to_add (Asset): Asset to add to current MultiAsset to check size limit
+            output (TransactionOutput): Current output
+            current_assets (Asset): Current Assets to be included in output
+            policy_id (ScriptHash): Policy id containing the MultiAsset
+            add_asset_name (AssetName): Name of asset to add to current MultiAsset
+            add_asset_val (int): Value of asset to add to current MultiAsset
+            max_val_size (int): maximum size limit for output
 
+        Returns:
+            bool: whether adding asset will make output greater than maximum size limit
         """
         attempt_assets = deepcopy(current_assets)
         attempt_assets += Asset({add_asset_name: add_asset_val})
@@ -577,6 +572,20 @@ class TransactionBuilder:
                 f"{intersection}."
             )
 
+    def _estimate_fee(self):
+        plutus_execution_units = ExecutionUnits(0, 0)
+        for redeemer in self.redeemers:
+            plutus_execution_units += redeemer.ex_units
+
+        estimated_fee = fee(
+            self.context,
+            len(self._build_full_fake_tx().to_cbor("bytes")),
+            plutus_execution_units.steps,
+            plutus_execution_units.mem,
+        )
+
+        return estimated_fee
+
     def build(self, change_address: Optional[Address] = None) -> TransactionBody:
         """Build a transaction body from all constraints set through the builder.
 
@@ -601,6 +610,9 @@ class TransactionBuilder:
         for o in self.outputs:
             requested_amount += o.amount
 
+        # Include min fees associated as part of requested amount
+        requested_amount += self._estimate_fee()
+
         # Trim off assets that are not requested because they will be returned as changes eventually.
         trimmed_selected_amount = Value(
             selected_amount.coin,
@@ -611,7 +623,13 @@ class TransactionBuilder:
         )
 
         unfulfilled_amount = requested_amount - trimmed_selected_amount
-        unfulfilled_amount.coin = max(0, unfulfilled_amount.coin)
+        # if remainder is smaller than minimum ADA required in change,
+        # we need to select additional UTxOs available from the address
+        unfulfilled_amount.coin = max(
+            0,
+            unfulfilled_amount.coin
+            + min_lovelace(selected_amount - trimmed_selected_amount, self.context),
+        )
         # Clean up all non-positive assets
         unfulfilled_amount.multi_asset = unfulfilled_amount.multi_asset.filter(
             lambda p, n, v: v > 0
@@ -637,6 +655,7 @@ class TransactionBuilder:
                         additional_utxo_pool,
                         [TransactionOutput(None, unfulfilled_amount)],
                         self.context,
+                        include_max_fee=False,
                     )
                     for s in selected:
                         selected_amount += s.output.amount

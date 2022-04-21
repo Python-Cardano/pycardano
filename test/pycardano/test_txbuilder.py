@@ -120,7 +120,7 @@ def test_tx_builder_multi_asset(chain_context):
 
     # Add sender address as input
     tx_builder.add_input_address(sender).add_output(
-        TransactionOutput.from_primitive([sender, 1000000])
+        TransactionOutput.from_primitive([sender, 3000000])
     ).add_output(
         TransactionOutput.from_primitive(
             [sender, [2000000, {b"1" * 28: {b"Token1": 1}}]]
@@ -136,7 +136,7 @@ def test_tx_builder_multi_asset(chain_context):
         ],
         1: [
             # First output
-            [sender_address.to_primitive(), 1000000],
+            [sender_address.to_primitive(), 3000000],
             # Second output
             [
                 sender_address.to_primitive(),
@@ -145,7 +145,7 @@ def test_tx_builder_multi_asset(chain_context):
             # Third output as change
             [
                 sender_address.to_primitive(),
-                [7827767, {b"1111111111111111111111111111": {b"Token2": 2}}],
+                [5827767, {b"1111111111111111111111111111": {b"Token2": 2}}],
             ],
         ],
         2: 172233,
@@ -171,7 +171,8 @@ def test_tx_builder_raises_utxo_selection(chain_context):
     with pytest.raises(UTxOSelectionException) as e:
         tx_body = tx_builder.build(change_address=sender_address)
     assert "Unfulfilled amount:" in e.value.args[0]
-    assert "'coin': 991000000" in e.value.args[0]
+    # The unfulfilled amount includes requested (991000000) and estimated fees (161101)
+    assert "'coin': 991161101" in e.value.args[0]
     assert "{AssetName(b'NewToken'): 1}" in e.value.args[0]
 
 
@@ -187,6 +188,92 @@ def test_tx_too_big_exception(chain_context):
 
     with pytest.raises(InvalidTransactionException):
         tx_body = tx_builder.build(change_address=sender_address)
+
+
+def test_tx_small_utxo_precise_fee(chain_context):
+    tx_builder = TransactionBuilder(chain_context)
+    sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    sender_address = Address.from_primitive(sender)
+
+    tx_in1 = TransactionInput.from_primitive([b"1" * 32, 3])
+    tx_out1 = TransactionOutput.from_primitive([sender, 4000000])
+    utxo1 = UTxO(tx_in1, tx_out1)
+
+    tx_builder.add_input(utxo1).add_output(
+        TransactionOutput.from_primitive([sender, 2500000])
+    )
+
+    # This will not fail as we replace max fee constraint with more precise fee calculation
+    # And remainder is greater than minimum ada required for change
+    tx_body = tx_builder.build(change_address=sender_address)
+
+    expect = {
+        0: [
+            [b"11111111111111111111111111111111", 3],
+        ],
+        1: [
+            # First output
+            [sender_address.to_primitive(), 2500000],
+            # Second output as change
+            [sender_address.to_primitive(), 1334587],
+        ],
+        2: 165413,
+    }
+
+    expect == tx_body.to_primitive()
+
+
+def test_tx_small_utxo_balance_fail(chain_context):
+    tx_builder = TransactionBuilder(chain_context)
+    sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    sender_address = Address.from_primitive(sender)
+
+    tx_in1 = TransactionInput.from_primitive([b"1" * 32, 3])
+    tx_out1 = TransactionOutput.from_primitive([sender, 4000000])
+    utxo1 = UTxO(tx_in1, tx_out1)
+
+    tx_builder.add_input(utxo1).add_output(
+        TransactionOutput.from_primitive([sender, 3000000])
+    )
+
+    # Balance is smaller than minimum ada required in change
+    # No more UTxO is available, throwing UTxO selection exception
+    with pytest.raises(UTxOSelectionException):
+        tx_body = tx_builder.build(change_address=sender_address)
+
+
+def test_tx_small_utxo_balance_pass(chain_context):
+    tx_builder = TransactionBuilder(chain_context)
+    sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    sender_address = Address.from_primitive(sender)
+
+    tx_in1 = TransactionInput.from_primitive([b"1" * 32, 3])
+    tx_out1 = TransactionOutput.from_primitive([sender, 4000000])
+    utxo1 = UTxO(tx_in1, tx_out1)
+
+    tx_builder.add_input(utxo1).add_input_address(sender_address).add_output(
+        TransactionOutput.from_primitive([sender, 3000000])
+    )
+
+    # Balance is smaller than minimum ada required in change
+    # Additional UTxOs are selected from the input address
+    tx_body = tx_builder.build(change_address=sender_address)
+
+    expected = {
+        0: [
+            [b"11111111111111111111111111111111", 3],
+            [b"11111111111111111111111111111111", 1],
+        ],
+        1: [
+            # First output
+            [sender_address.to_primitive(), 3000000],
+            # Second output as change
+            [sender_address.to_primitive(), 5833003],
+        ],
+        2: 166997,
+    }
+
+    expected == tx_body.to_primitive()
 
 
 def test_tx_builder_mint_multi_asset(chain_context):
@@ -210,7 +297,7 @@ def test_tx_builder_mint_multi_asset(chain_context):
     # Add sender address as input
     mint = {policy_id.payload: {b"Token1": 1}}
     tx_builder.add_input_address(sender).add_output(
-        TransactionOutput.from_primitive([sender, 1000000])
+        TransactionOutput.from_primitive([sender, 3000000])
     ).add_output(TransactionOutput.from_primitive([sender, [2000000, mint]]))
     tx_builder.mint = MultiAsset.from_primitive(mint)
     tx_builder.native_scripts = [script]
@@ -225,14 +312,14 @@ def test_tx_builder_mint_multi_asset(chain_context):
         ],
         1: [
             # First output
-            [sender_address.to_primitive(), 1000000],
+            [sender_address.to_primitive(), 3000000],
             # Second output
             [sender_address.to_primitive(), [2000000, mint]],
             # Third output as change
             [
                 sender_address.to_primitive(),
                 [
-                    7811267,
+                    5811267,
                     {b"1111111111111111111111111111": {b"Token1": 1, b"Token2": 2}},
                 ],
             ],
@@ -332,7 +419,7 @@ def test_not_enough_input_amount(chain_context):
         TransactionOutput.from_primitive([sender, input_utxo.output.amount])
     )
 
-    with pytest.raises(InvalidTransactionException):
+    with pytest.raises(UTxOSelectionException):
         # Tx builder must fail here because there is not enough amount of input ADA to pay tx fee
         tx_body = tx_builder.build(change_address=sender_address)
 
