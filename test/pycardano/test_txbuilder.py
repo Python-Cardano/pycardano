@@ -256,7 +256,7 @@ def test_tx_small_utxo_balance_pass(chain_context):
     )
 
     # Balance is smaller than minimum ada required in change
-    # No more UTxO is available, throwing UTxO selection exception
+    # Additional UTxOs are selected from the input address
     tx_body = tx_builder.build(change_address=sender_address)
 
     expected = {

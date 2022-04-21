@@ -111,8 +111,10 @@ class TransactionBuilder:
 
     def add_input(self, utxo: UTxO) -> TransactionBuilder:
         """Add a specific UTxO to transaction's inputs.
+
         Args:
             utxo (UTxO): UTxO to be added.
+
         Returns:
             TransactionBuilder: Current transaction builder.
         """
@@ -149,11 +151,13 @@ class TransactionBuilder:
         self, utxo: UTxO, script: bytes, datum: Datum, redeemer: Redeemer
     ) -> TransactionBuilder:
         """Add a script UTxO to transaction's inputs.
+
         Args:
             utxo (UTxO): Script UTxO to be added.
             script (Optional[bytes]): A plutus script.
             datum (Optional[Datum]): A plutus datum to unlock the UTxO.
             redeemer (Optional[Redeemer]): A plutus redeemer to unlock the UTxO.
+
         Returns:
             TransactionBuilder: Current transaction builder.
         """
@@ -179,8 +183,10 @@ class TransactionBuilder:
         Unlike :meth:`add_input`, which deterministically adds a UTxO to the transaction's inputs, `add_input_address`
         will not immediately select any UTxO when called. Instead, it will delegate UTxO selection to
         :class:`UTxOSelector`s of the builder when :meth:`build` is called.
+
         Args:
             address (Union[Address, str]): Address to be added.
+
         Returns:
             TransactionBuilder: The current transaction builder.
         """
@@ -194,10 +200,12 @@ class TransactionBuilder:
         add_datum_to_witness: bool = False,
     ) -> TransactionBuilder:
         """Add a transaction output.
+
         Args:
             tx_out (TransactionOutput): The transaction output to be added.
             datum (Datum): Attach a datum hash to this transaction output.
             add_datum_to_witness (bool): Optionally add the actual datum to transaction witness set. Defaults to False.
+
         Returns:
             TransactionBuilder: Current transaction builder.
         """
@@ -326,30 +334,16 @@ class TransactionBuilder:
     ) -> TransactionBuilder:
         original_outputs = self.outputs[:]
 
-        plutus_execution_units = ExecutionUnits(0, 0)
-        for redeemer in self.redeemers:
-            plutus_execution_units += redeemer.ex_units
-
         if change_address:
             # Set fee to max
-            self.fee = fee(
-                self.context,
-                len(self._build_full_fake_tx().to_cbor("bytes")),
-                plutus_execution_units.steps,
-                plutus_execution_units.mem,
-            )
+            self.fee = self._estimate_fee()
             changes = self._calc_change(
                 self.fee, self.inputs, self.outputs, change_address, precise_fee=True
             )
             self._outputs += changes
 
         # With changes included, we can estimate the fee more precisely
-        self.fee = fee(
-            self.context,
-            len(self._build_full_fake_tx().to_cbor("bytes")),
-            plutus_execution_units.steps,
-            plutus_execution_units.mem,
-        )
+        self.fee = self._estimate_fee()
 
         if change_address:
             self._outputs = original_outputs
@@ -370,11 +364,17 @@ class TransactionBuilder:
         max_val_size: int,
     ) -> bool:
         """Check if adding the asset will make output exceed maximum size limit
+
         Args:
-            output (TransactionOutput): current output
-            current_assets (Asset): current Assets to be included in output
-            policy_id (ScriptHash): policy id containing the MultiAsset
-            asset_to_add (Asset): Asset to add to current MultiAsset to check size limit
+            output (TransactionOutput): Current output
+            current_assets (Asset): Current Assets to be included in output
+            policy_id (ScriptHash): Policy id containing the MultiAsset
+            add_asset_name (AssetName): Name of asset to add to current MultiAsset
+            add_asset_val (int): Value of asset to add to current MultiAsset
+            max_val_size (int): maximum size limit for output
+
+        Returns:
+            bool: whether adding asset will make output greater than maximum size limit
         """
         attempt_assets = deepcopy(current_assets)
         attempt_assets += Asset({add_asset_name: add_asset_val})
@@ -553,6 +553,7 @@ class TransactionBuilder:
     def build_witness_set(self) -> TransactionWitnessSet:
         """Build a transaction witness set, excluding verification key witnesses.
         This function is especially useful when the transaction involves Plutus scripts.
+
         Returns:
             TransactionWitnessSet: A transaction witness set without verification key witnesses.
         """
@@ -571,11 +572,27 @@ class TransactionBuilder:
                 f"{intersection}."
             )
 
+    def _estimate_fee(self):
+        plutus_execution_units = ExecutionUnits(0, 0)
+        for redeemer in self.redeemers:
+            plutus_execution_units += redeemer.ex_units
+
+        estimated_fee = fee(
+            self.context,
+            len(self._build_full_fake_tx().to_cbor("bytes")),
+            plutus_execution_units.steps,
+            plutus_execution_units.mem,
+        )
+
+        return estimated_fee
+
     def build(self, change_address: Optional[Address] = None) -> TransactionBody:
         """Build a transaction body from all constraints set through the builder.
+
         Args:
             change_address (Optional[Address]): Address to which changes will be returned. If not provided, the
                 transaction body will likely be unbalanced (sum of inputs is greater than the sum of outputs).
+
         Returns:
             TransactionBody: A transaction body.
         """
@@ -594,18 +611,7 @@ class TransactionBuilder:
             requested_amount += o.amount
 
         # Include min fees associated as part of requested amount
-        # The fees will be slightly smaller because changes aren't included yet
-        plutus_execution_units = ExecutionUnits(0, 0)
-        for redeemer in self.redeemers:
-            plutus_execution_units += redeemer.ex_units
-
-        min_fee = fee(
-            self.context,
-            len(self._build_full_fake_tx().to_cbor("bytes")),
-            plutus_execution_units.steps,
-            plutus_execution_units.mem,
-        )
-        requested_amount += min_fee
+        requested_amount += self._estimate_fee()
 
         # Trim off assets that are not requested because they will be returned as changes eventually.
         trimmed_selected_amount = Value(
@@ -743,11 +749,13 @@ class TransactionBuilder:
     ) -> Transaction:
         """Build a transaction body from all constraints set through the builder and sign the transaction with
         provided signing keys.
+
         Args:
             signing_keys (List[Union[SigningKey, ExtendedSigningKey]]): A list of signing keys that will be used to
                 sign the transaction.
             change_address (Optional[Address]): Address to which changes will be returned. If not provided, the
                 transaction body will likely be unbalanced (sum of inputs is greater than the sum of outputs).
+
         Returns:
             Transaction: A signed transaction.
         """
