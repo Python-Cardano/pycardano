@@ -1,14 +1,16 @@
 import os
 import tempfile
 import time
-from typing import List, Union
+from typing import Dict, List, Union
 
 from blockfrost import ApiUrls, BlockFrostApi
 
 from pycardano.address import Address
 from pycardano.backend.base import ChainContext, GenesisParameters, ProtocolParameters
+from pycardano.exception import TransactionFailedException
 from pycardano.hash import SCRIPT_HASH_SIZE, DatumHash, ScriptHash
 from pycardano.network import Network
+from pycardano.plutus import ExecutionUnits
 from pycardano.transaction import (
     Asset,
     AssetName,
@@ -158,3 +160,32 @@ class BlockFrostChainContext(ChainContext):
             f.write(cbor)
         self.api.transaction_submit(f.name)
         os.remove(f.name)
+
+    def evaluate_tx(self, cbor: Union[bytes, str]) -> Dict[str, ExecutionUnits]:
+        """Evaluate execution units of a transaction.
+
+        Args:
+            cbor (Union[bytes, str]): The serialized transaction to be evaluated.
+
+        Returns:
+            Dict[str, ExecutionUnits]: A list of execution units calculated for each of the transaction's redeemers
+
+        Raises:
+            :class:`TransactionFailedException`: When fails to evaluate the transaction.
+        """
+        if isinstance(cbor, bytes):
+            cbor = cbor.hex()
+        with tempfile.NamedTemporaryFile(delete=False, mode="w") as f:
+            f.write(cbor)
+        result = self.api.transaction_evaluate(f.name).result
+        os.remove(f.name)
+        return_val = {}
+        if not hasattr(result, "EvaluationResult"):
+            raise TransactionFailedException(result)
+        else:
+            for k in vars(result.EvaluationResult):
+                return_val[k] = ExecutionUnits(
+                    getattr(result.EvaluationResult, k).memory,
+                    getattr(result.EvaluationResult, k).steps,
+                )
+            return return_val

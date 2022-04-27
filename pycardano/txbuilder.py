@@ -107,7 +107,7 @@ class TransactionBuilder:
         init=False, default_factory=lambda: {}
     )
 
-    _should_estimate_execution_units: bool = None
+    _should_estimate_execution_units: bool = field(init=False, default=None)
 
     def add_input(self, utxo: UTxO) -> TransactionBuilder:
         """Add a specific UTxO to transaction's inputs.
