@@ -13,20 +13,19 @@ Below is the visualization of the lifecycle of UTxOs involved:
 
 ```
  
-                                 Giver Tx                                           Taker Tx
-                ┏-------------------------------------------┓     ┏-------------------------------------------┓
-                |                                           |     |                                           |
-               Spend                               Spend with Redeemer (42)                                   |
-UTxO (X ADA) ━━━━━━━━┳━━━━━ Script UTxO (10 ADA) ━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━ UTxO (5 ADA)               |
-                |    ┃                                      |     |  ┃                                        |
-                |    ┣━━━━━ Change UTxO (X-10 ADA)          |     |  ┣━━━━━━━━━━━━ Change UTxO (~4.7 ADA)     |
-                |    ┃                                      |     |  ┃                                        |
-                |    ┗━━━━━ Tx fee (~0.16 ADA)              |     |  ┣━━━━━━━━━━━━ Tx fee (~0.3 ADA)          |
-                ┗-------------------------------------------┛     |  ┃                                        |
-                                                                  |  ┃                                        |
-                                                                  |  ┃                                        |
-                                                                  |  ┣━━━━━━━━━━━━ Collateral UTxO (5 ADA)    |
-                           Taker's Collateral UTxO (5 ADA) ━━━━━━━━━━┛                                        |
-                                                                  ┗-------------------------------------------┛                                                    |
-                                                                       
+                   Giver Tx                                           Taker Tx
+                 ┌-----------┐                            ┌-----------------------------┐  
+                 |           |                            |                             |                          
+                 |  Spend    |                            |  Spend with Redeemer (42)   |                          
+  UTxO (X ADA) ━━━━━━━┳━━━━━━━━━ Script UTxO (10 ADA) ━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━ UTxO (5 ADA)           
+                 |    ┃      |                            |                 ┃           |                          
+                 |    ┗━━━━━━━━━ Change UTxO (X-10 ADA)   |                 ┗━━━━━━━━━━━━━━ Change UTxO (~4.7 ADA) 
+                 |  Tx Fee   |                            |                             |                          
+                 |(~0.16 ADA)|                            |                             |
+                 |           |      Taker's Collateral ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ Taker's Collateral 
+                 └-----------┘          UTxO (5 ADA)      |                             |     UTxO (5 ADA)                                                  
+                                                          |      Tx fee (~0.3 ADA)      |                           
+                                                          └-----------------------------┘
+
+                                                                        
 ```
