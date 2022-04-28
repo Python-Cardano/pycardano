@@ -45,6 +45,13 @@ def submit_tx(tx):
     wait_for_tx(str(tx.id))
 
 
+def find_collateral(target_address):
+    for utxo in chain_context.utxos(str(target_address)):
+        if isinstance(utxo.output.amount, int):
+            return utxo
+    return None
+
+
 def create_collateral(target_address, skey):
     collateral_builder = TransactionBuilder(chain_context)
 
@@ -96,14 +103,11 @@ builder.add_script_input(utxo_to_spend, forty_two_script, datum, redeemer)
 take_output = TransactionOutput(taker_address, 5000000)
 builder.add_output(take_output)
 
-non_nft_utxo = None
-for utxo in chain_context.utxos(str(taker_address)):
-    if isinstance(utxo.output.amount, int):
-        non_nft_utxo = utxo
-        break
+non_nft_utxo = find_collateral(taker_address)
 
 if non_nft_utxo is None:
     create_collateral(taker_address, payment_skey)
+    non_nft_utxo = find_collateral(taker_address)
 
 builder.collaterals.append(non_nft_utxo)
 
