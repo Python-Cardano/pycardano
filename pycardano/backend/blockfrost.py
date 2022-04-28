@@ -78,7 +78,7 @@ class BlockFrostChainContext(ChainContext):
     @property
     def protocol_param(self) -> ProtocolParameters:
         if not self._protocol_param or self._check_epoch_and_update():
-            params = self.api.epoch_latest_parameters(self.epoch)
+            params = self.api.epoch_latest_parameters()
             self._protocol_param = ProtocolParameters(
                 min_fee_constant=int(params.min_fee_b),
                 min_fee_coefficient=int(params.min_fee_a),
