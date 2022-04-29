@@ -5,6 +5,27 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
 
+## [0.4.0] - 2022-04-29
+
+### Added
+
+- Support mint redeemer
+- Add execution units estimation
+- Fee Estimation Improvement ([#27](https://github.com/cffls/pycardano/pull/27))
+- Add blockfrost support for transaction evaluation
+
+### Changed
+
+- Refactor transaction builder to a dataclass
+- Upgrade Blockfrost to 0.4.4
+
+### Fixed
+
+- Do not modify multiassets when being added or subtracted
+- Restore empty datum in redeemer
+
+
+
 ## [0.3.1] - 2022-03-31
 
 Some minor improvements in transaction builder.
