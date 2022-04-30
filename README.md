@@ -179,7 +179,7 @@ Clone the repository:
 PyCardano uses [poetry](https://python-poetry.org/) to manage its dependencies. 
 Install poetry for osx / linux / bashonwindows:
 
-`curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python -`
+`curl -sSL https://install.python-poetry.org | python3 -`
 
 Go to [poetry installation](https://python-poetry.org/docs/#installation) for more details. 
 
