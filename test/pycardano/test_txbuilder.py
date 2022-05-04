@@ -220,7 +220,7 @@ def test_tx_small_utxo_precise_fee(chain_context):
         2: 165413,
     }
 
-    expect == tx_body.to_primitive()
+    assert expect == tx_body.to_primitive()
 
 
 def test_tx_small_utxo_balance_fail(chain_context):
@@ -261,8 +261,8 @@ def test_tx_small_utxo_balance_pass(chain_context):
 
     expected = {
         0: [
+            [b"11111111111111111111111111111111", 0],
             [b"11111111111111111111111111111111", 3],
-            [b"11111111111111111111111111111111", 1],
         ],
         1: [
             # First output
@@ -273,7 +273,7 @@ def test_tx_small_utxo_balance_pass(chain_context):
         2: 166997,
     }
 
-    expected == tx_body.to_primitive()
+    assert expected == tx_body.to_primitive()
 
 
 def test_tx_builder_mint_multi_asset(chain_context):
@@ -578,3 +578,46 @@ def test_estimate_execution_unit(chain_context):
         "1eb6776ed7f80b68536a14954657374546f6b656e010b58206b5664c6f79646f2a4c17bdc1e"
         "cb6f6bf540db5c82dfa0a9d806c435398756fa" == tx_body.to_cbor()
     )
+
+
+def test_tx_builder_exact_fee_no_change(chain_context):
+    tx_builder = TransactionBuilder(chain_context)
+    sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    sender_address = Address.from_primitive(sender)
+
+    input_amount = 10000000
+
+    tx_in1 = TransactionInput.from_primitive([b"1" * 32, 3])
+    tx_out1 = TransactionOutput.from_primitive([sender, input_amount])
+    utxo1 = UTxO(tx_in1, tx_out1)
+
+    tx_builder.add_input(utxo1)
+
+    tx_builder.add_output(TransactionOutput.from_primitive([sender, 5000000]))
+
+    tx_body = tx_builder.build()
+
+    tx_builder = TransactionBuilder(chain_context)
+
+    tx_in1 = TransactionInput.from_primitive([b"1" * 32, 3])
+    tx_out1 = TransactionOutput.from_primitive([sender, input_amount])
+    utxo1 = UTxO(tx_in1, tx_out1)
+
+    tx_builder.add_input(utxo1)
+
+    tx_builder.add_output(
+        TransactionOutput.from_primitive([sender, input_amount - tx_body.fee])
+    )
+
+    tx_body = tx_builder.build()
+
+    expected = {
+        0: [[b"11111111111111111111111111111111", 3]],
+        1: [
+            # First output
+            [sender_address.to_primitive(), 9836391],
+        ],
+        2: 163609,
+    }
+
+    assert expected == tx_body.to_primitive()

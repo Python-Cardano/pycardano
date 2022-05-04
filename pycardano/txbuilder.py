@@ -623,13 +623,17 @@ class TransactionBuilder:
         )
 
         unfulfilled_amount = requested_amount - trimmed_selected_amount
-        # if remainder is smaller than minimum ADA required in change,
-        # we need to select additional UTxOs available from the address
-        unfulfilled_amount.coin = max(
-            0,
-            unfulfilled_amount.coin
-            + min_lovelace(selected_amount - trimmed_selected_amount, self.context),
-        )
+
+        if change_address is not None:
+            # If change address is provided and remainder is smaller than minimum ADA required in change,
+            # we need to select additional UTxOs available from the address
+            unfulfilled_amount.coin = max(
+                0,
+                unfulfilled_amount.coin
+                + min_lovelace(selected_amount - trimmed_selected_amount, self.context),
+            )
+        else:
+            unfulfilled_amount.coin = max(0, unfulfilled_amount.coin)
         # Clean up all non-positive assets
         unfulfilled_amount.multi_asset = unfulfilled_amount.multi_asset.filter(
             lambda p, n, v: v > 0
