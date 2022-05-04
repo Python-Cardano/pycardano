@@ -243,7 +243,7 @@ def test_tx_small_utxo_balance_fail(chain_context):
 
 
 def test_tx_small_utxo_balance_pass(chain_context):
-    tx_builder = TransactionBuilder(chain_context)
+    tx_builder = TransactionBuilder(chain_context, [RandomImproveMultiAsset([0, 0])])
     sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
     sender_address = Address.from_primitive(sender)
 
