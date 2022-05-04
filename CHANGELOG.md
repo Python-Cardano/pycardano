@@ -5,6 +5,17 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
 
+## [0.4.1] - 2022-05-03
+
+### Changed
+
+- Use specific version of blockfrost-python
+
+### Fixed
+
+- Don't add min_lovelace to unfulfilled_amount when change address is not provided
+
+
 ## [0.4.0] - 2022-04-29
 
 ### Added
