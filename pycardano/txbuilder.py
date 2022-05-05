@@ -41,7 +41,7 @@ from pycardano.transaction import (
     UTxO,
     Value,
 )
-from pycardano.utils import fee, min_lovelace, script_data_hash
+from pycardano.utils import fee, max_tx_fee, min_lovelace, script_data_hash
 from pycardano.witness import TransactionWitnessSet, VerificationKeyWitness
 
 __all__ = ["TransactionBuilder"]
@@ -539,6 +539,12 @@ class TransactionBuilder:
 
     def _build_full_fake_tx(self) -> Transaction:
         tx_body = self._build_tx_body()
+
+        if tx_body.fee == 0:
+            # When fee is not specified, we will use max possible fee to fill in the fee field.
+            # This will make sure the size of fee field itself is taken into account during fee estimation.
+            tx_body.fee = max_tx_fee(self.context)
+
         witness = self._build_fake_witness_set()
         tx = Transaction(tx_body, witness, True, self.auxiliary_data)
         size = len(tx.to_cbor("bytes"))

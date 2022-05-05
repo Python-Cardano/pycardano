@@ -2,10 +2,7 @@ from dataclasses import replace
 from test.pycardano.test_key import SK
 from test.pycardano.util import chain_context
 
-import cbor2
 import pytest
-from nacl.encoding import RawEncoder
-from nacl.hash import blake2b
 
 from pycardano.address import Address
 from pycardano.coinselection import RandomImproveMultiAsset
@@ -14,7 +11,6 @@ from pycardano.exception import (
     InvalidTransactionException,
     UTxOSelectionException,
 )
-from pycardano.hash import SCRIPT_HASH_SIZE, ScriptHash
 from pycardano.key import VerificationKey
 from pycardano.nativescript import (
     InvalidBefore,
@@ -37,6 +33,7 @@ from pycardano.transaction import (
     Value,
 )
 from pycardano.txbuilder import TransactionBuilder
+from pycardano.utils import fee
 from pycardano.witness import VerificationKeyWitness
 
 
@@ -170,9 +167,8 @@ def test_tx_builder_raises_utxo_selection(chain_context):
 
     with pytest.raises(UTxOSelectionException) as e:
         tx_body = tx_builder.build(change_address=sender_address)
-    assert "Unfulfilled amount:" in e.value.args[0]
-    # The unfulfilled amount includes requested (991000000) and estimated fees (161101)
-    assert "'coin': 991161101" in e.value.args[0]
+    # The unfulfilled amount includes requested (991000000) and estimated fees (161277)
+    assert "Unfulfilled amount:\n {'coin': 991161277" in e.value.args[0]
     assert "{AssetName(b'NewToken'): 1}" in e.value.args[0]
 
 
@@ -609,15 +605,15 @@ def test_tx_builder_exact_fee_no_change(chain_context):
         TransactionOutput.from_primitive([sender, input_amount - tx_body.fee])
     )
 
-    tx_body = tx_builder.build()
+    tx = tx_builder.build_and_sign([SK])
 
     expected = {
         0: [[b"11111111111111111111111111111111", 3]],
         1: [
-            # First output
-            [sender_address.to_primitive(), 9836391],
+            [sender_address.to_primitive(), 9836215],
         ],
-        2: 163609,
+        2: 163785,
     }
 
-    assert expected == tx_body.to_primitive()
+    assert expected == tx.transaction_body.to_primitive()
+    assert tx.transaction_body.fee >= fee(chain_context, len(tx.to_cbor("bytes")))
