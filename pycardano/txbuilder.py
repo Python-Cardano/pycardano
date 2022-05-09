@@ -367,7 +367,9 @@ class TransactionBuilder:
             
             if change_output_indices:
                 # Add the leftover change to the TransactionOutput containing the change address
-                self._outputs[change_output_indices[-1]].amount += changes[0].amount
+                self._outputs[change_output_indices[-1]].amount = changes[0].amount + self._outputs[change_output_indices[-1]].amount
+                # if we enforce that TransactionOutputs must use Values for `amount`, we can use += here
+
             else:
                 self._outputs += changes
 
