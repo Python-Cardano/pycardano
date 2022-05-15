@@ -295,7 +295,9 @@ class TransactionBuilder:
         # when there is only ADA left, simply use remaining coin value as change
         if not change.multi_asset:
             if change.coin < min_lovelace(change, self.context):
-                raise InsufficientUTxOBalanceException(f"Not enough ADA left for change: {change.coin} but needs {min_lovelace(change, self.context)}")
+                raise InsufficientUTxOBalanceException(
+                    f"Not enough ADA left for change: {change.coin} but needs {min_lovelace(change, self.context)}"
+                )
             lovelace_change = change.coin
             change_output_arr.append(TransactionOutput(address, lovelace_change))
 
@@ -338,14 +340,14 @@ class TransactionBuilder:
 
             change_output_indices = []
             for idx, output in enumerate(original_outputs):
-                
+
                 # Find any transaction outputs which already contain the change address
                 if change_address == output.address:
                     change_output_indices.append(idx)
-                
+
                 # if any output is empty, set to 1 ADA for fee calculation
                 if output.lovelace == 0:
-                    self._outputs[idx] = output.copy(dummy_amount=1000000)  
+                    self._outputs[idx] = output.copy(dummy_amount=1000000)
 
             # Set fee to max
             self.fee = self._estimate_fee()
@@ -364,10 +366,12 @@ class TransactionBuilder:
             changes = self._calc_change(
                 self.fee, self.inputs, self.outputs, change_address, precise_fee=True
             )
-            
+
             if change_output_indices:
                 # Add the leftover change to the TransactionOutput containing the change address
-                self._outputs[change_output_indices[-1]].amount = changes[0].amount + self._outputs[change_output_indices[-1]].amount
+                self._outputs[change_output_indices[-1]].amount = (
+                    changes[0].amount + self._outputs[change_output_indices[-1]].amount
+                )
                 # if we enforce that TransactionOutputs must use Values for `amount`, we can use += here
 
             else:

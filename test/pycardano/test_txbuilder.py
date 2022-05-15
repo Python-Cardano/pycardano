@@ -133,7 +133,10 @@ def test_tx_builder_multi_asset(chain_context):
             # Second output includes change
             [
                 sender_address.to_primitive(),
-                [7831199, {b'1111111111111111111111111111': {b'Token1': 1, b'Token2': 2}}],
+                [
+                    7831199,
+                    {b"1111111111111111111111111111": {b"Token1": 1, b"Token2": 2}},
+                ],
             ],
         ],
         2: 168801,
@@ -298,14 +301,14 @@ def test_tx_builder_mint_multi_asset(chain_context):
             [sender_address.to_primitive(), 3000000],
             # Second output including change
             [
-                sender_address.to_primitive(), 
+                sender_address.to_primitive(),
                 [
-                    7815051, 
+                    7815051,
                     {
-                        b"1111111111111111111111111111": {b"Token1": 1, b"Token2": 2}, 
-                        policy_id.payload: {b"Token1": 1}
-                    }
-                ]
+                        b"1111111111111111111111111111": {b"Token1": 1, b"Token2": 2},
+                        policy_id.payload: {b"Token1": 1},
+                    },
+                ],
             ],
         ],
         2: 184949,
@@ -449,7 +452,8 @@ def test_add_script_input(chain_context):
         "c72a9113ad98bcc5dbb30d2ac960262444f6e5f4821a00e083cfa1581c876f1",
         "9078b059c928258d848c8cd871864d281eb6776ed7f80b68536a14954657374",
         "546f6b656e02021a00045df109a1581c876f19078b059c928258d848c8cd871",
-        "864d281eb6776ed7f80b68536a14954657374546f6b656e010b5820c0978261" == tx_body.to_cbor()
+        "864d281eb6776ed7f80b68536a14954657374546f6b656e010b5820c0978261"
+        == tx_body.to_cbor(),
     )
 
 
@@ -512,7 +516,8 @@ def test_build_and_sign(chain_context):
     assert (
         "a300818258203131313131313131313131313131313131313131313131313131313131313131",
         "00018282581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f41a0007",
-        "a12082581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f41a004223" == tx_body.to_cbor()
+        "a12082581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f41a004223"
+        == tx_body.to_cbor(),
     )
 
 
@@ -548,7 +553,8 @@ def test_estimate_execution_unit(chain_context):
         "4c4b4082581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f4821a0",
         "0491226a1581c876f19078b059c928258d848c8cd871864d281eb6776ed7f80b68536a14954",
         "657374546f6b656e01021a0003391a09a1581c876f19078b059c928258d848c8cd871864d28",
-        "1eb6776ed7f80b68536a14954657374546f6b656e010b58206b5664c6f79646f2a4c17bdc1e" == tx_body.to_cbor()
+        "1eb6776ed7f80b68536a14954657374546f6b656e010b58206b5664c6f79646f2a4c17bdc1e"
+        == tx_body.to_cbor(),
     )
 
 

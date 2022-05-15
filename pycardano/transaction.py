@@ -5,7 +5,7 @@ from __future__ import annotations
 from copy import deepcopy
 from dataclasses import dataclass, field
 from pprint import pformat
-from typing import Any, Callable, List, Union, Optional
+from typing import Any, Callable, List, Optional, Union
 
 from nacl.encoding import RawEncoder
 from nacl.hash import blake2b
@@ -277,9 +277,13 @@ class TransactionOutput(ArrayCBORSerializable):
         else:
             return self.amount.coin
 
-    def copy(self, dummy_amount: Optional[Union[int, Value]] = None) -> TransactionOutput:
+    def copy(
+        self, dummy_amount: Optional[Union[int, Value]] = None
+    ) -> TransactionOutput:
         """Return a copy of itself."""
-        return TransactionOutput(self.address, dummy_amount if dummy_amount else self.amount, self.datum_hash)
+        return TransactionOutput(
+            self.address, dummy_amount if dummy_amount else self.amount, self.datum_hash
+        )
 
 
 @dataclass(repr=False)
