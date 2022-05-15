@@ -255,6 +255,10 @@ class TransactionOutput(ArrayCBORSerializable):
 
     datum_hash: DatumHash = field(default=None, metadata={"optional": True})
 
+    def __post_init__(self):
+        if isinstance(self.amount, int):
+            self.amount = Value(self.amount)
+
     def validate(self):
         if isinstance(self.amount, int) and self.amount < 0:
             raise InvalidDataException(
