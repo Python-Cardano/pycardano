@@ -246,6 +246,12 @@ class Value(ArrayCBORSerializable):
     def __lt__(self, other: Union[Value, int]):
         return self <= other and self != other
 
+    def to_shallow_primitive(self):
+        if self.multi_asset:
+            return super().to_shallow_primitive()
+        else:
+            return self.coin
+
 
 @dataclass(repr=False)
 class TransactionOutput(ArrayCBORSerializable):
