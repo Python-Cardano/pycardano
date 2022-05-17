@@ -2,10 +2,7 @@ from dataclasses import replace
 from test.pycardano.test_key import SK
 from test.pycardano.util import chain_context
 
-import cbor2
 import pytest
-from nacl.encoding import RawEncoder
-from nacl.hash import blake2b
 
 from pycardano.address import Address
 from pycardano.coinselection import RandomImproveMultiAsset
@@ -14,7 +11,6 @@ from pycardano.exception import (
     InvalidTransactionException,
     UTxOSelectionException,
 )
-from pycardano.hash import SCRIPT_HASH_SIZE, ScriptHash
 from pycardano.key import VerificationKey
 from pycardano.nativescript import (
     InvalidBefore,
@@ -37,6 +33,7 @@ from pycardano.transaction import (
     Value,
 )
 from pycardano.txbuilder import TransactionBuilder
+from pycardano.utils import fee
 from pycardano.witness import VerificationKeyWitness
 
 
@@ -170,9 +167,9 @@ def test_tx_builder_raises_utxo_selection(chain_context):
 
     with pytest.raises(UTxOSelectionException) as e:
         tx_body = tx_builder.build(change_address=sender_address)
-    assert "Unfulfilled amount:" in e.value.args[0]
-    # The unfulfilled amount includes requested (991000000) and estimated fees (161101)
-    assert "'coin': 991161101" in e.value.args[0]
+
+    # The unfulfilled amount includes requested (991000000) and estimated fees (161277)
+    assert "Unfulfilled amount:\n {'coin': 991161277" in e.value.args[0]
     assert "{AssetName(b'NewToken'): 1}" in e.value.args[0]
 
 
@@ -191,7 +188,11 @@ def test_tx_too_big_exception(chain_context):
 
 
 def test_tx_small_utxo_precise_fee(chain_context):
+<<<<<<< HEAD
     tx_builder = TransactionBuilder(chain_context)
+=======
+    tx_builder = TransactionBuilder(chain_context, [RandomImproveMultiAsset([0, 0])])
+>>>>>>> 7ac73501ff3093b1b467b51c685ded3336cdc526
     sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
     sender_address = Address.from_primitive(sender)
 
@@ -220,7 +221,11 @@ def test_tx_small_utxo_precise_fee(chain_context):
         2: 165413,
     }
 
+<<<<<<< HEAD
     expect == tx_body.to_primitive()
+=======
+    assert expect == tx_body.to_primitive()
+>>>>>>> 7ac73501ff3093b1b467b51c685ded3336cdc526
 
 
 def test_tx_small_utxo_balance_fail(chain_context):
@@ -243,7 +248,7 @@ def test_tx_small_utxo_balance_fail(chain_context):
 
 
 def test_tx_small_utxo_balance_pass(chain_context):
-    tx_builder = TransactionBuilder(chain_context)
+    tx_builder = TransactionBuilder(chain_context, [RandomImproveMultiAsset([0, 0])])
     sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
     sender_address = Address.from_primitive(sender)
 
@@ -261,8 +266,8 @@ def test_tx_small_utxo_balance_pass(chain_context):
 
     expected = {
         0: [
+            [b"11111111111111111111111111111111", 0],
             [b"11111111111111111111111111111111", 3],
-            [b"11111111111111111111111111111111", 1],
         ],
         1: [
             # First output
@@ -273,7 +278,7 @@ def test_tx_small_utxo_balance_pass(chain_context):
         2: 166997,
     }
 
-    expected == tx_body.to_primitive()
+    assert expected == tx_body.to_primitive()
 
 
 def test_tx_builder_mint_multi_asset(chain_context):
@@ -578,3 +583,46 @@ def test_estimate_execution_unit(chain_context):
         "1eb6776ed7f80b68536a14954657374546f6b656e010b58206b5664c6f79646f2a4c17bdc1e"
         "cb6f6bf540db5c82dfa0a9d806c435398756fa" == tx_body.to_cbor()
     )
+
+
+def test_tx_builder_exact_fee_no_change(chain_context):
+    tx_builder = TransactionBuilder(chain_context)
+    sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    sender_address = Address.from_primitive(sender)
+
+    input_amount = 10000000
+
+    tx_in1 = TransactionInput.from_primitive([b"1" * 32, 3])
+    tx_out1 = TransactionOutput.from_primitive([sender, input_amount])
+    utxo1 = UTxO(tx_in1, tx_out1)
+
+    tx_builder.add_input(utxo1)
+
+    tx_builder.add_output(TransactionOutput.from_primitive([sender, 5000000]))
+
+    tx_body = tx_builder.build()
+
+    tx_builder = TransactionBuilder(chain_context)
+
+    tx_in1 = TransactionInput.from_primitive([b"1" * 32, 3])
+    tx_out1 = TransactionOutput.from_primitive([sender, input_amount])
+    utxo1 = UTxO(tx_in1, tx_out1)
+
+    tx_builder.add_input(utxo1)
+
+    tx_builder.add_output(
+        TransactionOutput.from_primitive([sender, input_amount - tx_body.fee])
+    )
+
+    tx = tx_builder.build_and_sign([SK])
+
+    expected = {
+        0: [[b"11111111111111111111111111111111", 3]],
+        1: [
+            [sender_address.to_primitive(), 9836215],
+        ],
+        2: 163785,
+    }
+
+    assert expected == tx.transaction_body.to_primitive()
+    assert tx.transaction_body.fee >= fee(chain_context, len(tx.to_cbor("bytes")))
