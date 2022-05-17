@@ -22,7 +22,9 @@ class TestAll:
 
     OGMIOS_WS = "ws://localhost:1337"
 
-    chain_context = OgmiosChainContext(OGMIOS_WS, Network.TESTNET)
+    KUPO_HTTP = "http://localhost:1442/v1/matches"
+
+    chain_context = OgmiosChainContext(OGMIOS_WS, Network.TESTNET, support_kupo=True, http_url=KUPO_HTTP)
 
     check_chain_context(chain_context)
 
@@ -167,7 +169,7 @@ class TestAll:
 
         time.sleep(3)
 
-        utxos = self.chain_context.utxos(str(address))
+        utxos = self.chain_context.utxos(str(address), use_kupo=True)
         found_nft = False
 
         for utxo in utxos:
@@ -177,8 +179,12 @@ class TestAll:
 
         assert found_nft, f"Cannot find target NFT in address: {address}"
 
+        # Generate another set of keys and address to send NFT to
+        skey2, vkey2 = load_or_create_key_pair(key_dir, "keys2")
+        address2 = Address(vkey2.hash(), network=self.NETWORK)
+
         nft_to_send = TransactionOutput(
-            address,
+            address2,
             Value(
                 20000000,
                 MultiAsset.from_primitive({policy_id.payload: {b"MY_NFT_1": 1}}),
@@ -203,7 +209,7 @@ class TestAll:
 
         time.sleep(3)
 
-        utxos = self.chain_context.utxos(str(address))
+        utxos = self.chain_context.utxos(str(address2), use_kupo=True)
         found_nft = False
 
         for utxo in utxos:
@@ -211,7 +217,7 @@ class TestAll:
             if output == nft_to_send:
                 found_nft = True
 
-        assert found_nft, f"Cannot find target NFT in address: {address}"
+        assert found_nft, f"Cannot find target NFT in address: {address2}"
 
     @retry(tries=2, delay=6)
     def test_plutus(self):

@@ -40,6 +40,24 @@ services:
         max-size: "200k"
         max-file: "10"
 
+  kupo:
+    image: cardanosolutions/kupo
+    environment:
+      NETWORK: "${NETWORK:-local}"
+
+    command: [
+      "--node-socket", "/ipc/node.socket",
+      "--node-config", "/code/configs/${NETWORK:-local}/config.json",
+      "--host", "0.0.0.0",
+      "--since", "origin",
+      "--match", "*",
+      "--workdir", "/db"
+    ]
+    volumes:
+      - .:/code
+      - .:/db
+      - node-ipc:/ipc
+
 volumes:
   node-db:
   node-ipc:
