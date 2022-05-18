@@ -231,7 +231,6 @@ class TestAll:
 
         assert utxos2_kupo == utxos2_ogmios
 
-
     @retry(tries=2, delay=6)
     def test_plutus(self):
 
