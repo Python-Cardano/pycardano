@@ -188,11 +188,7 @@ def test_tx_too_big_exception(chain_context):
 
 
 def test_tx_small_utxo_precise_fee(chain_context):
-<<<<<<< HEAD
-    tx_builder = TransactionBuilder(chain_context)
-=======
     tx_builder = TransactionBuilder(chain_context, [RandomImproveMultiAsset([0, 0])])
->>>>>>> 7ac73501ff3093b1b467b51c685ded3336cdc526
     sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
     sender_address = Address.from_primitive(sender)
 
@@ -221,11 +217,7 @@ def test_tx_small_utxo_precise_fee(chain_context):
         2: 165413,
     }
 
-<<<<<<< HEAD
-    expect == tx_body.to_primitive()
-=======
     assert expect == tx_body.to_primitive()
->>>>>>> 7ac73501ff3093b1b467b51c685ded3336cdc526
 
 
 def test_tx_small_utxo_balance_fail(chain_context):

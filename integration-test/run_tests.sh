@@ -11,7 +11,7 @@ poetry install
 ./bootstrap.sh local-alonzo
 
 # Cleanup containers and volumes in case there is any running
-docker-compose down --volume
+docker-compose down --volumes
 
 # Launch containers
 docker-compose up -d
@@ -21,4 +21,4 @@ export EXTENDED_PAYMENT_KEY="$ROOT"/keys/extended.skey
 poetry run pytest -s "$ROOT"/test
 
 # Cleanup
-docker-compose down --volume
+docker-compose down --volumes

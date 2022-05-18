@@ -3,8 +3,8 @@ import json
 import time
 from typing import Dict, List, Union
 
-import websocket
 import requests
+import websocket
 
 from pycardano.address import Address
 from pycardano.backend.base import ChainContext, GenesisParameters, ProtocolParameters
@@ -26,7 +26,14 @@ __all__ = ["OgmiosChainContext"]
 
 
 class OgmiosChainContext(ChainContext):
-    def __init__(self, ws_url: str, network: Network, compact_result=True, support_kupo=False, http_url=None):
+    def __init__(
+        self,
+        ws_url: str,
+        network: Network,
+        compact_result=True,
+        support_kupo=False,
+        http_url=None,
+    ):
         self._ws_url = ws_url
         self._network = network
         self._service_name = "ogmios.v1:compact" if compact_result else "ogmios"
@@ -36,9 +43,7 @@ class OgmiosChainContext(ChainContext):
         self._genesis_param = None
         self._protocol_param = None
         if self._support_kupo and not self._http_url:
-            raise Exception(
-                "Cannot find http url to request from Kupo."
-            )
+            raise Exception("Cannot find http url to request from Kupo.")
 
     def _request(self, method: str, args: dict) -> Union[dict, int]:
         ws = websocket.WebSocket()
@@ -168,7 +173,8 @@ class OgmiosChainContext(ChainContext):
 
     def _utxos_kupo(self, address: str) -> List[UTxO]:
         """Get all UTxOs associated with an address with Kupo.
-        Since UTxO querying will be deprecated from Ogmios in next major release: https://ogmios.dev/mini-protocols/local-state-query/.
+        Since UTxO querying will be deprecated from Ogmios in next
+        major release: https://ogmios.dev/mini-protocols/local-state-query/.
 
         Args:
             address (str): An address encoded with bech32.
@@ -182,24 +188,24 @@ class OgmiosChainContext(ChainContext):
         utxos = []
 
         for result in results:
-            tx_id = result['transaction_id']
-            index = result['output_index']
+            tx_id = result["transaction_id"]
+            index = result["output_index"]
             tx_in = TransactionInput.from_primitive([tx_id, index])
 
-            lovelace_amount = result['value']['coins']
+            lovelace_amount = result["value"]["coins"]
 
-            datum_hash = result['datum_hash']
+            datum_hash = result["datum_hash"]
 
-            if not result['value']['assets']:
+            if not result["value"]["assets"]:
                 tx_out = TransactionOutput(
                     Address.from_primitive(address),
                     amount=lovelace_amount,
-                    datum_hash=datum_hash
+                    datum_hash=datum_hash,
                 )
             else:
                 multi_assets = MultiAsset()
 
-                for asset, quantity in result['value']['assets'].items():
+                for asset, quantity in result["value"]["assets"].items():
                     policy_hex, policy, asset_name_hex = self._extract_asset_info(asset)
                     multi_assets.setdefault(policy, Asset())[asset_name_hex] = quantity
 
@@ -261,7 +267,6 @@ class OgmiosChainContext(ChainContext):
 
         return utxos
 
-
     def utxos(self, address: str, use_kupo=False) -> List[UTxO]:
         """Get all UTxOs associated with an address.
 
@@ -277,7 +282,6 @@ class OgmiosChainContext(ChainContext):
             utxos = self._utxos_kupo(address)
 
         return utxos
-
 
     def submit_tx(self, cbor: Union[bytes, str]):
         """Submit a transaction to the blockchain.

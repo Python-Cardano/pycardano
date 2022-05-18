@@ -24,7 +24,9 @@ class TestAll:
 
     KUPO_HTTP = "http://localhost:1442/v1/matches"
 
-    chain_context = OgmiosChainContext(OGMIOS_WS, Network.TESTNET, support_kupo=True, http_url=KUPO_HTTP)
+    chain_context = OgmiosChainContext(
+        OGMIOS_WS, Network.TESTNET, support_kupo=True, http_url=KUPO_HTTP
+    )
 
     check_chain_context(chain_context)
 
@@ -218,6 +220,17 @@ class TestAll:
                 found_nft = True
 
         assert found_nft, f"Cannot find target NFT in address: {address2}"
+
+        # Compare utxo query using Ogmios and Kupo
+        # Right now, all UTxOs of the address will be returned, which requires Ogmios to validate
+        # if the UTxOs are spent. This feature is being considered to be added to Kupo to avoid
+        # extra API calls. See discussion here: https://github.com/CardanoSolutions/kupo/discussions/19.
+
+        utxos2_kupo = self.chain_context.utxos(str(address2), use_kupo=True)
+        utxos2_ogmios = self.chain_context.utxos(str(address2), use_kupo=False)
+
+        assert utxos2_kupo == utxos2_ogmios
+
 
     @retry(tries=2, delay=6)
     def test_plutus(self):

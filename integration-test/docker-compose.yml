@@ -51,12 +51,13 @@ services:
       "--host", "0.0.0.0",
       "--since", "origin",
       "--match", "*",
-      "--workdir", "/db"
+      "--in-memory"
     ]
     volumes:
       - .:/code
-      - .:/db
       - node-ipc:/ipc
+    ports:
+      - ${KUPO_PORT:-1442}:1442
 
 volumes:
   node-db:
