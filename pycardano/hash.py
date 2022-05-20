@@ -18,6 +18,7 @@ __all__ = [
     "TransactionId",
     "DatumHash",
     "AuxiliaryDataHash",
+    "PoolKeyHash",
 ]
 
 VERIFICATION_KEY_HASH_SIZE = 28
@@ -26,6 +27,7 @@ SCRIPT_DATA_HASH_SIZE = 32
 TRANSACTION_HASH_SIZE = 32
 DATUM_HASH_SIZE = 32
 AUXILIARY_DATA_HASH_SIZE = 32
+POOL_KEY_HASH_SIZE = 28
 
 
 T = TypeVar("T", bound="ConstrainedBytes")
@@ -118,3 +120,9 @@ class AuxiliaryDataHash(ConstrainedBytes):
     """Hash of auxiliary data"""
 
     MAX_SIZE = MIN_SIZE = AUXILIARY_DATA_HASH_SIZE
+
+
+class PoolKeyHash(ConstrainedBytes):
+    """Hash of a stake pool"""
+
+    MAX_SIZE = MIN_SIZE = POOL_KEY_HASH_SIZE
