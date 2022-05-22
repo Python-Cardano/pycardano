@@ -20,22 +20,6 @@ Current goal of this project is to enable developers to write off-chain code and
 Nevertheless, we see the potential in expanding this project to a full Cardano node client, which 
 could be beneficial for faster R&D iterations.
 
-### Table of contents
-
-- [Features](#features)
-- [Installation](#installation)
-- [Documentation](#documentation)
-- [Examples](#examples)
-  - [Full stack DApp](#full-stack-dapp)
-  - [Transaction creation and signing](#transaction-creation-and-signing)
-- [Development](#development)
-  - [Workspace setup](#workspace-setup)
-  - [Test](#test)
-  - [Test coverage](#test-coverage)
-- [Style guidelines](#style-guidelines)
-- [Docs generation](#docs-generation)
-- [Sponsors](#sponsors-heart)
-
 ### Features
 
 - [x] Shelly address
@@ -48,12 +32,13 @@ could be beneficial for faster R&D iterations.
 - [X] Native script
 - [X] Native token
 - [X] Metadata
-- [ ] Plutus script
+- [X] Plutus script
+- [X] Staking certificates
+- [X] Reward withdraw
 - [ ] Mnemonic 
 - [ ] Byron Address
-- [ ] Reward withdraw
 - [ ] HD Wallet
-- [ ] Staking certificates
+- [ ] Pool certificate
 - [ ] Protocol proposal update
 
 
@@ -77,6 +62,9 @@ To learn more details, go to the [DApp page](https://github.com/cffls/pycardano/
 
 #### Transaction creation and signing
 
+<details>
+  <summary>Expand code</summary>
+  
 ```python
 """Build a transaction using transaction builder"""
 
@@ -162,13 +150,15 @@ signed_tx = builder.build_and_sign([psk], change_address=address)
 context.submit_tx(signed_tx.to_cbor())
 
 ```
+</details>
 
 See more usages under [examples](https://github.com/cffls/pycardano/tree/main/examples).
 
 
------------------
-
 ### Development
+
+<details>
+<summary>Click to expand</summary>
 
 #### Workspace setup
 
@@ -237,11 +227,11 @@ Build docs and open the docs in browser:
 
 `make docs`
 
------------------
+</details>
 
 ## Sponsors :heart:
 
 <p align="left">
-  <a href="https://www.blockery.io/"><img src="https://avatars.githubusercontent.com/u/97766045?s=60&v=4"/></a>
-  <a href="https://github.com/KtorZ"><img src="https://avatars.githubusercontent.com/u/5680256?s=60&v=4"/></a>
+  <a href="https://www.blockery.io/"><img src="https://avatars.githubusercontent.com/u/97766045?s=50&v=4"/></a>
+  <a href="https://github.com/KtorZ"><img src="https://avatars.githubusercontent.com/u/5680256?s=50&v=4"/></a>
 </p>
