@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from copy import copy, deepcopy
 from dataclasses import dataclass, field, fields
+from heapq import merge
 from typing import Dict, List, Optional, Set, Union
 
 from pycardano.address import Address
@@ -332,22 +333,25 @@ class TransactionBuilder:
         return change_output_arr
 
     def _add_change_and_fee(
-        self, change_address: Optional[Address]
+        self, change_address: Optional[Address], merge_change: Optional[bool] = False,
     ) -> TransactionBuilder:
         original_outputs = self.outputs[:]
 
         if change_address:
 
             change_output_indices = []
-            for idx, output in enumerate(original_outputs):
 
-                # Find any transaction outputs which already contain the change address
-                if change_address == output.address:
-                    change_output_indices.append(idx)
+            if merge_change:
+                
+                for idx, output in enumerate(original_outputs):
 
-                # if any output is empty, set to 1 ADA for fee calculation
-                if output.lovelace == 0:
-                    self._outputs[idx] = output.copy(dummy_amount=1000000)
+                    # Find any transaction outputs which already contain the change address
+                    if change_address == output.address:
+                        change_output_indices.append(idx)
+
+                    # if any output is empty, set to 1 ADA for fee calculation
+                    if output.lovelace == 0:
+                        self._outputs[idx] = copy(output, dummy_amount=1000000)
 
             # Set fee to max
             self.fee = self._estimate_fee()
@@ -617,7 +621,7 @@ class TransactionBuilder:
 
         return estimated_fee
 
-    def build(self, change_address: Optional[Address] = None) -> TransactionBody:
+    def build(self, change_address: Optional[Address] = None, merge_change: Optional[bool] = False) -> TransactionBody:
         """Build a transaction body from all constraints set through the builder.
 
         Args:
