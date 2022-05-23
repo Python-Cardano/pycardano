@@ -412,7 +412,7 @@ def test_not_enough_input_amount(chain_context):
 
     # Make output amount equal to the input amount
     tx_builder.add_input(input_utxo).add_output(
-        TransactionOutput.from_primitive([sender, input_utxo.output.amount])
+        TransactionOutput(Address.from_primitive(sender), input_utxo.output.amount)
     )
 
     with pytest.raises(UTxOSelectionException):
