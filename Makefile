@@ -27,7 +27,7 @@ help:
 	@python -c "$$PRINT_HELP_PYSCRIPT" < $(MAKEFILE_LIST)
 
 cov: ## check code coverage
-	poetry run coverage run --source pycardano -m pytest
+	poetry run coverage run --source pycardano -m pytest -n 4
 	poetry run coverage report -m
 
 cov-html: cov ## check code coverage and generate an html report
@@ -56,7 +56,7 @@ clean-test: ## remove test and coverage artifacts
 	rm -fr .pytest_cache
 
 test: ## runs tests
-	poetry run pytest
+	poetry run pytest -n 4
 
 qa: ## runs static analysis with flake8
 	poetry run flake8 pycardano

@@ -6,12 +6,30 @@ services:
     image: inputoutput/cardano-node:${CARDANO_NODE_VERSION:-1.34.1}
     entrypoint: bash
     environment:
-      NETWORK: "${NETWORK:-local}"
+      NETWORK: "${NETWORK:-local-alonzo}"
     command: /code/run_node.sh
 
     volumes:
       - .:/code
       - node-db:/data/db
+      - node-ipc:/ipc
+    ports:
+      - ${BFT_NODE_PORT:-3000}:3000
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10"
+
+  cardano-pool:
+    image: inputoutput/cardano-node:${CARDANO_NODE_VERSION:-1.34.1}
+    entrypoint: bash
+    environment:
+      NETWORK: "${NETWORK:-local-alonzo}"
+    command: /code/run_pool.sh
+
+    volumes:
+      - .:/code
       - node-ipc:/ipc
     logging:
       driver: "json-file"
@@ -22,7 +40,7 @@ services:
   ogmios:
     image: cardanosolutions/ogmios:latest
     environment:
-      NETWORK: "${NETWORK:-local}"
+      NETWORK: "${NETWORK:-local-alonzo}"
 
     command: [
       "--host", "0.0.0.0",

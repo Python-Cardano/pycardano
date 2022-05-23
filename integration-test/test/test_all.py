@@ -11,7 +11,7 @@ from retry import retry
 from pycardano import *
 
 
-@retry(tries=10, delay=6)
+@retry(tries=10, delay=4)
 def check_chain_context(chain_context):
     print(f"Current chain tip: {chain_context.last_block_slot}")
 
@@ -39,7 +39,23 @@ class TestAll:
         extended_payment_skey
     )
 
-    @retry(tries=2, delay=6)
+    payment_key_pair = PaymentKeyPair.generate()
+    stake_key_pair = StakeKeyPair.generate()
+
+    @retry(tries=4, delay=1)
+    def assert_output(self, target_address, target_output):
+        time.sleep(1)
+        utxos = self.chain_context.utxos(str(target_address))
+        found = False
+
+        for utxo in utxos:
+            output = utxo.output
+            if output == target_output:
+                found = True
+
+        assert found, f"Cannot find target UTxO in address: {target_address}"
+
+    @retry(tries=4, delay=6, backoff=2, jitter=(1, 3))
     def test_mint(self):
         address = Address(self.payment_vkey.hash(), network=self.NETWORK)
 
@@ -165,17 +181,7 @@ class TestAll:
         print("############### Submitting transaction ###############")
         self.chain_context.submit_tx(signed_tx.to_cbor())
 
-        time.sleep(3)
-
-        utxos = self.chain_context.utxos(str(address))
-        found_nft = False
-
-        for utxo in utxos:
-            output = utxo.output
-            if output == nft_output:
-                found_nft = True
-
-        assert found_nft, f"Cannot find target NFT in address: {address}"
+        self.assert_output(address, nft_output)
 
         nft_to_send = TransactionOutput(
             address,
@@ -201,19 +207,9 @@ class TestAll:
         print("############### Submitting transaction ###############")
         self.chain_context.submit_tx(signed_tx.to_cbor())
 
-        time.sleep(3)
+        self.assert_output(address, nft_to_send)
 
-        utxos = self.chain_context.utxos(str(address))
-        found_nft = False
-
-        for utxo in utxos:
-            output = utxo.output
-            if output == nft_to_send:
-                found_nft = True
-
-        assert found_nft, f"Cannot find target NFT in address: {address}"
-
-    @retry(tries=2, delay=6)
+    @retry(tries=4, delay=6, backoff=2, jitter=(1, 3))
     def test_plutus(self):
 
         # ----------- Giver give ---------------
@@ -278,7 +274,8 @@ class TestAll:
 
         non_nft_utxo = None
         for utxo in self.chain_context.utxos(str(taker_address)):
-            if isinstance(utxo.output.amount, int):
+            # multi_asset should be empty for collateral utxo
+            if not utxo.output.amount.multi_asset:
                 non_nft_utxo = utxo
                 break
 
@@ -292,14 +289,84 @@ class TestAll:
         print("############### Submitting transaction ###############")
         self.chain_context.submit_tx(signed_tx.to_cbor())
 
-        time.sleep(3)
+        self.assert_output(taker_address, take_output)
 
-        utxos = self.chain_context.utxos(str(taker_address))
-        found = False
+    @retry(tries=4, delay=6, backoff=2, jitter=(1, 3))
+    def test_stake_delegation(self):
 
-        for utxo in utxos:
-            output = utxo.output
-            if output == take_output:
-                found = True
+        address = Address(
+            self.payment_key_pair.verification_key.hash(),
+            self.stake_key_pair.verification_key.hash(),
+            self.NETWORK,
+        )
 
-        assert found, f"Cannot find target UTxO in address: {taker_address}"
+        utxos = self.chain_context.utxos(str(address))
+
+        if not utxos:
+            giver_address = Address(self.payment_vkey.hash(), network=self.NETWORK)
+
+            builder = TransactionBuilder(self.chain_context)
+
+            builder.add_input_address(giver_address)
+            builder.add_output(TransactionOutput(address, 440000000000))
+
+            signed_tx = builder.build_and_sign([self.payment_skey], giver_address)
+
+            print("############### Transaction created ###############")
+            print(signed_tx)
+            print(signed_tx.to_cbor())
+            print("############### Submitting transaction ###############")
+            self.chain_context.submit_tx(signed_tx.to_cbor())
+
+            time.sleep(3)
+
+            stake_credential = StakeCredential(
+                self.stake_key_pair.verification_key.hash()
+            )
+            stake_registration = StakeRegistration(stake_credential)
+            pool_hash = PoolKeyHash(bytes.fromhex(os.environ.get("POOL_ID").strip()))
+            stake_delegation = StakeDelegation(stake_credential, pool_keyhash=pool_hash)
+
+            builder = TransactionBuilder(self.chain_context)
+
+            builder.add_input_address(address)
+            builder.add_output(TransactionOutput(address, 35000000))
+
+            builder.certificates = [stake_registration, stake_delegation]
+
+            signed_tx = builder.build_and_sign(
+                [self.stake_key_pair.signing_key, self.payment_key_pair.signing_key],
+                address,
+            )
+
+            print("############### Transaction created ###############")
+            print(signed_tx)
+            print(signed_tx.to_cbor())
+            print("############### Submitting transaction ###############")
+            self.chain_context.submit_tx(signed_tx.to_cbor())
+
+        time.sleep(8)
+
+        builder = TransactionBuilder(self.chain_context)
+
+        builder.add_input_address(address)
+
+        stake_address = Address(
+            staking_part=self.stake_key_pair.verification_key.hash(),
+            network=self.NETWORK,
+        )
+
+        builder.withdrawals = Withdrawals({bytes(stake_address): 0})
+
+        builder.add_output(TransactionOutput(address, 1000000))
+
+        signed_tx = builder.build_and_sign(
+            [self.stake_key_pair.signing_key, self.payment_key_pair.signing_key],
+            address,
+        )
+
+        print("############### Transaction created ###############")
+        print(signed_tx)
+        print(signed_tx.to_cbor())
+        print("############### Submitting transaction ###############")
+        self.chain_context.submit_tx(signed_tx.to_cbor())

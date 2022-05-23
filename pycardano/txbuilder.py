@@ -5,8 +5,15 @@ from dataclasses import dataclass, field, fields
 from heapq import merge
 from typing import Dict, List, Optional, Set, Union
 
-from pycardano.address import Address
+from pycardano.address import Address, AddressType
 from pycardano.backend.base import ChainContext
+from pycardano.certificate import (
+    Certificate,
+    StakeCredential,
+    StakeDelegation,
+    StakeDeregistration,
+    StakeRegistration,
+)
 from pycardano.coinselection import (
     LargestFirstSelector,
     RandomImproveMultiAsset,
@@ -41,6 +48,7 @@ from pycardano.transaction import (
     TransactionOutput,
     UTxO,
     Value,
+    Withdrawals,
 )
 from pycardano.utils import fee, max_tx_fee, min_lovelace, script_data_hash
 from pycardano.witness import TransactionWitnessSet, VerificationKeyWitness
@@ -87,6 +95,10 @@ class TransactionBuilder:
     required_signers: List[VerificationKeyHash] = field(default=None)
 
     collaterals: List[UTxO] = field(default_factory=lambda: [])
+
+    certificates: List[Certificate] = field(default=None)
+
+    withdrawals: Withdrawals = field(default=None)
 
     _inputs: List[UTxO] = field(init=False, default_factory=lambda: [])
 
@@ -276,6 +288,11 @@ class TransactionBuilder:
             provided += i.output.amount
         if self.mint:
             provided.multi_asset += self.mint
+        if self.withdrawals:
+            for v in self.withdrawals.values():
+                provided.coin += v
+
+        provided.coin -= self._get_total_key_deposit()
 
         if not requested < provided:
             raise InvalidTransactionException(
@@ -490,6 +507,42 @@ class TransactionBuilder:
                 results.add(i.output.address.payment_part)
         return results
 
+    def _certificate_vkey_hashes(self) -> Set[VerificationKeyHash]:
+
+        results = set()
+
+        def _check_and_add_vkey(stake_credential: StakeCredential):
+            if isinstance(stake_credential.credential, VerificationKeyHash):
+                results.add(stake_credential.credential)
+
+        if self.certificates:
+            for cert in self.certificates:
+                if isinstance(
+                    cert, (StakeRegistration, StakeDeregistration, StakeDelegation)
+                ):
+                    _check_and_add_vkey(cert.stake_credential)
+        return results
+
+    def _get_total_key_deposit(self):
+        results = set()
+        if self.certificates:
+            for cert in self.certificates:
+                if isinstance(cert, StakeRegistration):
+                    results.add(cert.stake_credential.credential)
+        return self.context.protocol_param.key_deposit * len(results)
+
+    def _withdrawal_vkey_hashes(self) -> Set[VerificationKeyHash]:
+
+        results = set()
+
+        if self.withdrawals:
+            for k in self.withdrawals:
+                address = Address.from_primitive(k)
+                if address.address_type == AddressType.NONE_KEY:
+                    results.add(address.staking_part)
+
+        return results
+
     def _native_scripts_vkey_hashes(self) -> Set[VerificationKeyHash]:
         results = set()
 
@@ -551,12 +604,16 @@ class TransactionBuilder:
             collateral=[c.input for c in self.collaterals]
             if self.collaterals
             else None,
+            certificates=self.certificates,
+            withdraws=self.withdrawals,
         )
         return tx_body
 
     def _build_fake_vkey_witnesses(self) -> List[VerificationKeyWitness]:
         vkey_hashes = self._input_vkey_hashes()
         vkey_hashes.update(self._native_scripts_vkey_hashes())
+        vkey_hashes.update(self._certificate_vkey_hashes())
+        vkey_hashes.update(self._withdrawal_vkey_hashes())
         return [
             VerificationKeyWitness(FAKE_VKEY, FAKE_TX_SIGNATURE) for _ in vkey_hashes
         ]
@@ -638,8 +695,15 @@ class TransactionBuilder:
         for i in self.inputs:
             selected_utxos.append(i)
             selected_amount += i.output.amount
+
         if self.mint:
             selected_amount.multi_asset += self.mint
+
+        if self.withdrawals:
+            for v in self.withdrawals.values():
+                selected_amount.coin += v
+
+        selected_amount.coin -= self._get_total_key_deposit()
 
         requested_amount = Value()
         for o in self.outputs:

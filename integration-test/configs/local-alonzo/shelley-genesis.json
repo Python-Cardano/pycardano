@@ -1,7 +1,7 @@
 {
     "maxLovelaceSupply": 1000000000000,
     "securityParam": 1000000000,
-    "slotsPerKESPeriod": 129600,
+    "slotsPerKESPeriod": 1000000000,
     "updateQuorum": 2,
     "activeSlotsCoeff": 0.5,
     "protocolParams": {
@@ -18,15 +18,15 @@
         "maxTxSize": 16384,
         "nOpt": 100,
         "maxBlockHeaderSize": 1100,
-        "keyDeposit": 0,
+        "keyDeposit": 1000000,
         "protocolVersion": {
             "minor": 0,
             "major": 5
         },
-        "poolDeposit": 0,
+        "poolDeposit": 1000000,
         "a0": 0.0,
         "rho": 0.1,
-        "decentralisationParam": 1.0
+        "decentralisationParam": 0.1
     },
     "networkMagic": 42,
     "initialFunds": {
@@ -46,5 +46,5 @@
         "pools": {},
         "stake": {}
     },
-    "epochLength": 500
+    "epochLength": 2
 }
