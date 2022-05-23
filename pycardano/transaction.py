@@ -277,12 +277,9 @@ class TransactionOutput(ArrayCBORSerializable):
         else:
             return self.amount.coin
 
-    def copy(
-        self, dummy_amount: Optional[Union[int, Value]] = None
-    ) -> TransactionOutput:
-        """Return a copy of itself."""
-        return TransactionOutput(
-            self.address, dummy_amount if dummy_amount else self.amount, self.datum_hash
+    def __copy__(self) -> TransactionOutput:
+        return self.__class__(
+            self.amount, self.datum_hash
         )
 
 
