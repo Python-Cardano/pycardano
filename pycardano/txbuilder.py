@@ -359,7 +359,7 @@ class TransactionBuilder:
                 self.fee, self.inputs, self.outputs, change_address, precise_fee=True
             )
 
-            if not change_output_indices:
+            if not change_output_indices or len(changes) > 1:
                 self._outputs += changes
 
         # With changes included, we can estimate the fee more precisely
@@ -371,7 +371,7 @@ class TransactionBuilder:
                 self.fee, self.inputs, self.outputs, change_address, precise_fee=True
             )
 
-            if change_output_indices:
+            if change_output_indices and len(changes) == 1:
                 # Add the leftover change to the TransactionOutput containing the change address
                 self._outputs[change_output_indices[-1]].amount = (
                     changes[0].amount + self._outputs[change_output_indices[-1]].amount
