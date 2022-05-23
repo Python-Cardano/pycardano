@@ -52,10 +52,12 @@ def test_tx_builder(chain_context):
     expected = {
         0: [[b"11111111111111111111111111111111", 0]],
         1: [
-            # Change automatically added to sender output
-            [sender_address.to_primitive(), 4836215],
+            # First output
+            [sender_address.to_primitive(), 500000],
+            # Second output as change
+            [sender_address.to_primitive(), 4334587],
         ],
-        2: 163785,
+        2: 165413,
     }
 
     assert expected == tx_body.to_primitive()
@@ -91,16 +93,18 @@ def test_tx_builder_with_certain_input(chain_context):
     expected = {
         0: [[b"22222222222222222222222222222222", 1]],
         1: [
-            # Change is added to the sender output
+            # First output
+            [sender_address.to_primitive(), 500000],
+            # Second output as change
             [
                 sender_address.to_primitive(),
                 [
-                    5836215,
+                    5332431,
                     {b"1111111111111111111111111111": {b"Token1": 1, b"Token2": 2}},
                 ],
             ],
         ],
-        2: 163785,
+        2: 167569,
     }
 
     assert expected == tx_body.to_primitive()
@@ -130,16 +134,18 @@ def test_tx_builder_multi_asset(chain_context):
         1: [
             # First output
             [sender_address.to_primitive(), 3000000],
-            # Second output includes change
+            # Second output
             [
                 sender_address.to_primitive(),
-                [
-                    7831199,
-                    {b"1111111111111111111111111111": {b"Token1": 1, b"Token2": 2}},
-                ],
+                [2000000, {b"1111111111111111111111111111": {b"Token1": 1}}],
+            ],
+            # Third output as change
+            [
+                sender_address.to_primitive(),
+                [5827767, {b"1111111111111111111111111111": {b"Token2": 2}}],
             ],
         ],
-        2: 168801,
+        2: 172233,
     }
 
     assert expected == tx_body.to_primitive()
@@ -197,18 +203,20 @@ def test_tx_small_utxo_precise_fee(chain_context):
     # And remainder is greater than minimum ada required for change
     tx_body = tx_builder.build(change_address=sender_address)
 
-    expected = {
+    expect = {
         0: [
             [b"11111111111111111111111111111111", 3],
         ],
         1: [
-            # Single output including change
-            [sender_address.to_primitive(), 3836215],
+            # First output
+            [sender_address.to_primitive(), 2500000],
+            # Second output as change
+            [sender_address.to_primitive(), 1334587],
         ],
-        2: 163785,
+        2: 165413,
     }
 
-    assert expected == tx_body.to_primitive()
+    assert expect == tx_body.to_primitive()
 
 
 def test_tx_small_utxo_balance_fail(chain_context):
@@ -253,10 +261,12 @@ def test_tx_small_utxo_balance_pass(chain_context):
             [b"11111111111111111111111111111111", 3],
         ],
         1: [
-            # First output including change
-            [sender_address.to_primitive(), 8834631],
+            # First output
+            [sender_address.to_primitive(), 3000000],
+            # Second output as change
+            [sender_address.to_primitive(), 5833003],
         ],
-        2: 165369,
+        2: 166997,
     }
 
     assert expected == tx_body.to_primitive()
@@ -299,19 +309,18 @@ def test_tx_builder_mint_multi_asset(chain_context):
         1: [
             # First output
             [sender_address.to_primitive(), 3000000],
-            # Second output including change
+            # Second output
+            [sender_address.to_primitive(), [2000000, mint]],
+            # Third output as change
             [
                 sender_address.to_primitive(),
                 [
-                    7815051,
-                    {
-                        b"1111111111111111111111111111": {b"Token1": 1, b"Token2": 2},
-                        policy_id.payload: {b"Token1": 1},
-                    },
+                    5811267,
+                    {b"1111111111111111111111111111": {b"Token1": 1, b"Token2": 2}},
                 ],
             ],
         ],
-        2: 184949,
+        2: 188733,
         3: 123456789,
         9: mint,
     }
@@ -321,7 +330,6 @@ def test_tx_builder_mint_multi_asset(chain_context):
 
 def test_tx_add_change_split_nfts(chain_context):
     # Set the max value size to be very small for testing purpose
-    # NOTE: does this still test as intended?
     param = {"max_val_size": 50}
     temp_protocol_param = replace(chain_context.protocol_param, **param)
     chain_context.protocol_param = temp_protocol_param
@@ -341,13 +349,21 @@ def test_tx_add_change_split_nfts(chain_context):
             [b"22222222222222222222222222222222", 1],
         ],
         1: [
-            # First output, includes change
+            # First output
+            [sender_address.to_primitive(), 7000000],
+            # Change output
             [
                 sender_address.to_primitive(),
-                [8344798, {b"1111111111111111111111111111": {b"Token1": 1}}],
+                [1344798, {b"1111111111111111111111111111": {b"Token1": 1}}],
+            ],
+            # Second change output from split due to change size limit exceed
+            # Fourth output as change
+            [
+                sender_address.to_primitive(),
+                [2482969, {b"1111111111111111111111111111": {b"Token2": 2}}],
             ],
         ],
-        2: 165369,
+        2: 172233,
     }
 
     assert expected == tx_body.to_primitive()
@@ -445,15 +461,15 @@ def test_add_script_input(chain_context):
     assert [redeemer1, redeemer2] == witness.redeemer
     assert [plutus_script] == witness.plutus_script
     assert (
-        "a5008282582018cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad2143159",
-        "0f7e6643438ef0082582018cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1",
-        "ad21431590f7e6643438ef01018282581d60f6532850e1bccee9c72a9113ad9",
-        "8bcc5dbb30d2ac960262444f6e5f41a004c4b4082581d60f6532850e1bccee9",
-        "c72a9113ad98bcc5dbb30d2ac960262444f6e5f4821a00e083cfa1581c876f1",
-        "9078b059c928258d848c8cd871864d281eb6776ed7f80b68536a14954657374",
-        "546f6b656e02021a00045df109a1581c876f19078b059c928258d848c8cd871",
+        "a5008282582018cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad2143159"
+        "0f7e6643438ef0082582018cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1"
+        "ad21431590f7e6643438ef01018282581d60f6532850e1bccee9c72a9113ad9"
+        "8bcc5dbb30d2ac960262444f6e5f41a004c4b4082581d60f6532850e1bccee9"
+        "c72a9113ad98bcc5dbb30d2ac960262444f6e5f4821a00e083cfa1581c876f1"
+        "9078b059c928258d848c8cd871864d281eb6776ed7f80b68536a14954657374"
+        "546f6b656e02021a00045df109a1581c876f19078b059c928258d848c8cd871"
         "864d281eb6776ed7f80b68536a14954657374546f6b656e010b5820c0978261"
-        == tx_body.to_cbor(),
+        "d9818d92926eb031d38d141f513a05478d697555f32edf6443ebeb08" == tx_body.to_cbor()
     )
 
 
@@ -474,16 +490,18 @@ def test_excluded_input(chain_context):
     expected = {
         0: [[b"22222222222222222222222222222222", 1]],
         1: [
-            # First output with change
+            # First output
+            [sender_address.to_primitive(), 500000],
+            # Second output as change
             [
                 sender_address.to_primitive(),
                 [
-                    5836215,
+                    5332431,
                     {b"1111111111111111111111111111": {b"Token1": 1, b"Token2": 2}},
                 ],
             ],
         ],
-        2: 163785,
+        2: 167569,
     }
 
     assert expected == tx_body.to_primitive()
@@ -514,10 +532,10 @@ def test_build_and_sign(chain_context):
         VerificationKeyWitness(SK.to_verification_key(), SK.sign(tx_body.hash()))
     ]
     assert (
-        "a300818258203131313131313131313131313131313131313131313131313131313131313131",
-        "00018282581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f41a0007",
+        "a300818258203131313131313131313131313131313131313131313131313131313131313131"
+        "00018282581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f41a0007"
         "a12082581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f41a004223"
-        == tx_body.to_cbor(),
+        "fb021a00028625" == tx_body.to_cbor()
     )
 
 
@@ -548,13 +566,13 @@ def test_estimate_execution_unit(chain_context):
     assert redeemer1.ex_units is not None
     assert [plutus_script] == witness.plutus_script
     assert (
-        "a5008182582018cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad21431590f7e6643438e",
-        "f00018282581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f41a00",
-        "4c4b4082581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f4821a0",
-        "0491226a1581c876f19078b059c928258d848c8cd871864d281eb6776ed7f80b68536a14954",
-        "657374546f6b656e01021a0003391a09a1581c876f19078b059c928258d848c8cd871864d28",
+        "a5008182582018cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad21431590f7e6643438e"
+        "f00018282581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f41a00"
+        "4c4b4082581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f4821a0"
+        "0491226a1581c876f19078b059c928258d848c8cd871864d281eb6776ed7f80b68536a14954"
+        "657374546f6b656e01021a0003391a09a1581c876f19078b059c928258d848c8cd871864d28"
         "1eb6776ed7f80b68536a14954657374546f6b656e010b58206b5664c6f79646f2a4c17bdc1e"
-        == tx_body.to_cbor(),
+        "cb6f6bf540db5c82dfa0a9d806c435398756fa" == tx_body.to_cbor()
     )
 
 
