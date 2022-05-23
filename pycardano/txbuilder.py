@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from copy import copy, deepcopy
 from dataclasses import dataclass, field, fields
-from heapq import merge
 from typing import Dict, List, Optional, Set, Union
 
 from pycardano.address import Address, AddressType

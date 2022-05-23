@@ -5,7 +5,7 @@ from __future__ import annotations
 from copy import deepcopy
 from dataclasses import dataclass, field
 from pprint import pformat
-from typing import Any, Callable, List, Optional, Union
+from typing import Any, Callable, List, Union
 
 from nacl.encoding import RawEncoder
 from nacl.hash import blake2b
