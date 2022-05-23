@@ -350,7 +350,9 @@ class TransactionBuilder:
         return change_output_arr
 
     def _add_change_and_fee(
-        self, change_address: Optional[Address], merge_change: Optional[bool] = False,
+        self,
+        change_address: Optional[Address],
+        merge_change: Optional[bool] = False,
     ) -> TransactionBuilder:
         original_outputs = self.outputs[:]
 
@@ -359,7 +361,7 @@ class TransactionBuilder:
             change_output_indices = []
 
             if merge_change:
-                
+
                 for idx, output in enumerate(original_outputs):
 
                     # Find any transaction outputs which already contain the change address
@@ -678,7 +680,11 @@ class TransactionBuilder:
 
         return estimated_fee
 
-    def build(self, change_address: Optional[Address] = None, merge_change: Optional[bool] = False) -> TransactionBody:
+    def build(
+        self,
+        change_address: Optional[Address] = None,
+        merge_change: Optional[bool] = False,
+    ) -> TransactionBody:
         """Build a transaction body from all constraints set through the builder.
 
         Args:
