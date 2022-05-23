@@ -278,7 +278,8 @@ class TestAll:
 
         non_nft_utxo = None
         for utxo in self.chain_context.utxos(str(taker_address)):
-            if isinstance(utxo.output.amount, int):
+            # multi_asset should be empty for collateral utxo
+            if not utxo.output.amount.multi_asset:
                 non_nft_utxo = utxo
                 break
 
