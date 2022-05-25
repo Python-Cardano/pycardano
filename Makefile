@@ -27,8 +27,7 @@ help:
 	@python -c "$$PRINT_HELP_PYSCRIPT" < $(MAKEFILE_LIST)
 
 cov: ## check code coverage
-	poetry run coverage run --source pycardano -m pytest -n 4
-	poetry run coverage report -m
+	poetry run pytest -n 4 --cov pycardano
 
 cov-html: cov ## check code coverage and generate an html report
 	poetry run coverage html -d cov_html
