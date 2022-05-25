@@ -353,11 +353,21 @@ class TransactionBuilder:
         change_address: Optional[Address],
         merge_change: Optional[bool] = False,
     ) -> TransactionBuilder:
-        original_outputs = self.outputs[:]
+        original_outputs = deepcopy(self.outputs)
+        change_output_index = None
+
+        def _merge_changes(changes):
+            if change_output_index is not None and len(changes) == 1:
+                # Add the leftover change to the TransactionOutput containing the change address
+                self._outputs[change_output_index].amount = (
+                    changes[0].amount + self._outputs[change_output_index].amount
+                )
+                # if we enforce that TransactionOutputs must use Values for `amount`, we can use += here
+
+            else:
+                self._outputs += changes
 
         if change_address:
-
-            change_output_indices = []
 
             if merge_change:
 
@@ -365,11 +375,8 @@ class TransactionBuilder:
 
                     # Find any transaction outputs which already contain the change address
                     if change_address == output.address:
-                        change_output_indices.append(idx)
-
-                    # if any output is empty, set to 1 ADA for fee calculation
-                    if output.lovelace == 0:
-                        self._outputs[idx] = copy(output, dummy_amount=1000000)
+                        if change_output_index is None or output.lovelace == 0:
+                            change_output_index = idx
 
             # Set fee to max
             self.fee = self._estimate_fee()
@@ -377,8 +384,7 @@ class TransactionBuilder:
                 self.fee, self.inputs, self.outputs, change_address, precise_fee=True
             )
 
-            if not change_output_indices or len(changes) > 1:
-                self._outputs += changes
+            _merge_changes(changes)
 
         # With changes included, we can estimate the fee more precisely
         self.fee = self._estimate_fee()
@@ -389,15 +395,7 @@ class TransactionBuilder:
                 self.fee, self.inputs, self.outputs, change_address, precise_fee=True
             )
 
-            if change_output_indices and len(changes) == 1:
-                # Add the leftover change to the TransactionOutput containing the change address
-                self._outputs[change_output_indices[-1]].amount = (
-                    changes[0].amount + self._outputs[change_output_indices[-1]].amount
-                )
-                # if we enforce that TransactionOutputs must use Values for `amount`, we can use += here
-
-            else:
-                self._outputs += changes
+            _merge_changes(changes)
 
         return self
 
@@ -689,6 +687,8 @@ class TransactionBuilder:
         Args:
             change_address (Optional[Address]): Address to which changes will be returned. If not provided, the
                 transaction body will likely be unbalanced (sum of inputs is greater than the sum of outputs).
+            merge_change (Optional[bool]): If the change address match one of the transaction output, the change amount
+                will be directly added to that transaction output, instead of being added as a separate output.
 
         Returns:
             TransactionBody: A transaction body.
@@ -807,7 +807,7 @@ class TransactionBuilder:
 
         self._set_redeemer_index()
 
-        self._add_change_and_fee(change_address)
+        self._add_change_and_fee(change_address, merge_change=merge_change)
 
         tx_body = self._build_tx_body()
 
@@ -854,6 +854,7 @@ class TransactionBuilder:
         self,
         signing_keys: List[Union[SigningKey, ExtendedSigningKey]],
         change_address: Optional[Address] = None,
+        merge_change: Optional[bool] = False,
     ) -> Transaction:
         """Build a transaction body from all constraints set through the builder and sign the transaction with
         provided signing keys.
@@ -863,12 +864,14 @@ class TransactionBuilder:
                 sign the transaction.
             change_address (Optional[Address]): Address to which changes will be returned. If not provided, the
                 transaction body will likely be unbalanced (sum of inputs is greater than the sum of outputs).
+            merge_change (Optional[bool]): If the change address match one of the transaction output, the change amount
+                will be directly added to that transaction output, instead of being added as a separate output.
 
         Returns:
             Transaction: A signed transaction.
         """
 
-        tx_body = self.build(change_address=change_address)
+        tx_body = self.build(change_address=change_address, merge_change=merge_change)
         witness_set = self.build_witness_set()
         witness_set.vkey_witnesses = []
 

@@ -289,9 +289,6 @@ class TransactionOutput(ArrayCBORSerializable):
         else:
             return self.amount.coin
 
-    def __copy__(self) -> TransactionOutput:
-        return self.__class__(self.amount, self.datum_hash)
-
 
 @dataclass(repr=False)
 class UTxO:
