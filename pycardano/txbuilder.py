@@ -4,8 +4,15 @@ from copy import copy, deepcopy
 from dataclasses import dataclass, field, fields
 from typing import Dict, List, Optional, Set, Union
 
-from pycardano.address import Address
+from pycardano.address import Address, AddressType
 from pycardano.backend.base import ChainContext
+from pycardano.certificate import (
+    Certificate,
+    StakeCredential,
+    StakeDelegation,
+    StakeDeregistration,
+    StakeRegistration,
+)
 from pycardano.coinselection import (
     LargestFirstSelector,
     RandomImproveMultiAsset,
@@ -40,6 +47,7 @@ from pycardano.transaction import (
     TransactionOutput,
     UTxO,
     Value,
+    Withdrawals,
 )
 from pycardano.utils import fee, max_tx_fee, min_lovelace, script_data_hash
 from pycardano.witness import TransactionWitnessSet, VerificationKeyWitness
@@ -86,6 +94,10 @@ class TransactionBuilder:
     required_signers: List[VerificationKeyHash] = field(default=None)
 
     collaterals: List[UTxO] = field(default_factory=lambda: [])
+
+    certificates: List[Certificate] = field(default=None)
+
+    withdrawals: Withdrawals = field(default=None)
 
     _inputs: List[UTxO] = field(init=False, default_factory=lambda: [])
 
@@ -275,6 +287,11 @@ class TransactionBuilder:
             provided += i.output.amount
         if self.mint:
             provided.multi_asset += self.mint
+        if self.withdrawals:
+            for v in self.withdrawals.values():
+                provided.coin += v
+
+        provided.coin -= self._get_total_key_deposit()
 
         if not requested < provided:
             raise InvalidTransactionException(
@@ -295,7 +312,9 @@ class TransactionBuilder:
         # when there is only ADA left, simply use remaining coin value as change
         if not change.multi_asset:
             if change.coin < min_lovelace(change, self.context):
-                raise InsufficientUTxOBalanceException("Not enough ADA left for change")
+                raise InsufficientUTxOBalanceException(
+                    f"Not enough ADA left for change: {change.coin} but needs {min_lovelace(change, self.context)}"
+                )
             lovelace_change = change.coin
             change_output_arr.append(TransactionOutput(address, lovelace_change))
 
@@ -330,17 +349,42 @@ class TransactionBuilder:
         return change_output_arr
 
     def _add_change_and_fee(
-        self, change_address: Optional[Address]
+        self,
+        change_address: Optional[Address],
+        merge_change: Optional[bool] = False,
     ) -> TransactionBuilder:
-        original_outputs = self.outputs[:]
+        original_outputs = deepcopy(self.outputs)
+        change_output_index = None
+
+        def _merge_changes(changes):
+            if change_output_index is not None and len(changes) == 1:
+                # Add the leftover change to the TransactionOutput containing the change address
+                self._outputs[change_output_index].amount = (
+                    changes[0].amount + self._outputs[change_output_index].amount
+                )
+                # if we enforce that TransactionOutputs must use Values for `amount`, we can use += here
+
+            else:
+                self._outputs += changes
 
         if change_address:
+
+            if merge_change:
+
+                for idx, output in enumerate(original_outputs):
+
+                    # Find any transaction outputs which already contain the change address
+                    if change_address == output.address:
+                        if change_output_index is None or output.lovelace == 0:
+                            change_output_index = idx
+
             # Set fee to max
             self.fee = self._estimate_fee()
             changes = self._calc_change(
                 self.fee, self.inputs, self.outputs, change_address, precise_fee=True
             )
-            self._outputs += changes
+
+            _merge_changes(changes)
 
         # With changes included, we can estimate the fee more precisely
         self.fee = self._estimate_fee()
@@ -350,7 +394,8 @@ class TransactionBuilder:
             changes = self._calc_change(
                 self.fee, self.inputs, self.outputs, change_address, precise_fee=True
             )
-            self._outputs += changes
+
+            _merge_changes(changes)
 
         return self
 
@@ -461,6 +506,42 @@ class TransactionBuilder:
                 results.add(i.output.address.payment_part)
         return results
 
+    def _certificate_vkey_hashes(self) -> Set[VerificationKeyHash]:
+
+        results = set()
+
+        def _check_and_add_vkey(stake_credential: StakeCredential):
+            if isinstance(stake_credential.credential, VerificationKeyHash):
+                results.add(stake_credential.credential)
+
+        if self.certificates:
+            for cert in self.certificates:
+                if isinstance(
+                    cert, (StakeRegistration, StakeDeregistration, StakeDelegation)
+                ):
+                    _check_and_add_vkey(cert.stake_credential)
+        return results
+
+    def _get_total_key_deposit(self):
+        results = set()
+        if self.certificates:
+            for cert in self.certificates:
+                if isinstance(cert, StakeRegistration):
+                    results.add(cert.stake_credential.credential)
+        return self.context.protocol_param.key_deposit * len(results)
+
+    def _withdrawal_vkey_hashes(self) -> Set[VerificationKeyHash]:
+
+        results = set()
+
+        if self.withdrawals:
+            for k in self.withdrawals:
+                address = Address.from_primitive(k)
+                if address.address_type == AddressType.NONE_KEY:
+                    results.add(address.staking_part)
+
+        return results
+
     def _native_scripts_vkey_hashes(self) -> Set[VerificationKeyHash]:
         results = set()
 
@@ -522,12 +603,16 @@ class TransactionBuilder:
             collateral=[c.input for c in self.collaterals]
             if self.collaterals
             else None,
+            certificates=self.certificates,
+            withdraws=self.withdrawals,
         )
         return tx_body
 
     def _build_fake_vkey_witnesses(self) -> List[VerificationKeyWitness]:
         vkey_hashes = self._input_vkey_hashes()
         vkey_hashes.update(self._native_scripts_vkey_hashes())
+        vkey_hashes.update(self._certificate_vkey_hashes())
+        vkey_hashes.update(self._withdrawal_vkey_hashes())
         return [
             VerificationKeyWitness(FAKE_VKEY, FAKE_TX_SIGNATURE) for _ in vkey_hashes
         ]
@@ -592,12 +677,18 @@ class TransactionBuilder:
 
         return estimated_fee
 
-    def build(self, change_address: Optional[Address] = None) -> TransactionBody:
+    def build(
+        self,
+        change_address: Optional[Address] = None,
+        merge_change: Optional[bool] = False,
+    ) -> TransactionBody:
         """Build a transaction body from all constraints set through the builder.
 
         Args:
             change_address (Optional[Address]): Address to which changes will be returned. If not provided, the
                 transaction body will likely be unbalanced (sum of inputs is greater than the sum of outputs).
+            merge_change (Optional[bool]): If the change address match one of the transaction output, the change amount
+                will be directly added to that transaction output, instead of being added as a separate output.
 
         Returns:
             TransactionBody: A transaction body.
@@ -609,8 +700,15 @@ class TransactionBuilder:
         for i in self.inputs:
             selected_utxos.append(i)
             selected_amount += i.output.amount
+
         if self.mint:
             selected_amount.multi_asset += self.mint
+
+        if self.withdrawals:
+            for v in self.withdrawals.values():
+                selected_amount.coin += v
+
+        selected_amount.coin -= self._get_total_key_deposit()
 
         requested_amount = Value()
         for o in self.outputs:
@@ -710,7 +808,7 @@ class TransactionBuilder:
 
         self._set_redeemer_index()
 
-        self._add_change_and_fee(change_address)
+        self._add_change_and_fee(change_address, merge_change=merge_change)
 
         tx_body = self._build_tx_body()
 
@@ -757,6 +855,7 @@ class TransactionBuilder:
         self,
         signing_keys: List[Union[SigningKey, ExtendedSigningKey]],
         change_address: Optional[Address] = None,
+        merge_change: Optional[bool] = False,
     ) -> Transaction:
         """Build a transaction body from all constraints set through the builder and sign the transaction with
         provided signing keys.
@@ -766,12 +865,14 @@ class TransactionBuilder:
                 sign the transaction.
             change_address (Optional[Address]): Address to which changes will be returned. If not provided, the
                 transaction body will likely be unbalanced (sum of inputs is greater than the sum of outputs).
+            merge_change (Optional[bool]): If the change address match one of the transaction output, the change amount
+                will be directly added to that transaction output, instead of being added as a separate output.
 
         Returns:
             Transaction: A signed transaction.
         """
 
-        tx_body = self.build(change_address=change_address)
+        tx_body = self.build(change_address=change_address, merge_change=merge_change)
         witness_set = self.build_witness_set()
         witness_set.vkey_witnesses = []
 

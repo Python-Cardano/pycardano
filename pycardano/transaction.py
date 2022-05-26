@@ -12,6 +12,7 @@ from nacl.hash import blake2b
 from typeguard import typechecked
 
 from pycardano.address import Address
+from pycardano.certificate import Certificate
 from pycardano.exception import InvalidDataException, InvalidOperationException
 from pycardano.hash import (
     TRANSACTION_HASH_SIZE,
@@ -43,6 +44,7 @@ __all__ = [
     "UTxO",
     "TransactionBody",
     "Transaction",
+    "Withdrawals",
 ]
 
 
@@ -246,6 +248,12 @@ class Value(ArrayCBORSerializable):
     def __lt__(self, other: Union[Value, int]):
         return self <= other and self != other
 
+    def to_shallow_primitive(self):
+        if self.multi_asset:
+            return super().to_shallow_primitive()
+        else:
+            return self.coin
+
 
 @dataclass(repr=False)
 class TransactionOutput(ArrayCBORSerializable):
@@ -254,6 +262,10 @@ class TransactionOutput(ArrayCBORSerializable):
     amount: Union[int, Value]
 
     datum_hash: DatumHash = field(default=None, metadata={"optional": True})
+
+    def __post_init__(self):
+        if isinstance(self.amount, int):
+            self.amount = Value(self.amount)
 
     def validate(self):
         if isinstance(self.amount, int) and self.amount < 0:
@@ -293,6 +305,24 @@ class UTxO:
         )
 
 
+class Withdrawals(DictCBORSerializable):
+    """A disctionary of reward addresses to reward withdrawal amount.
+
+    Key is address bytes, value is an integer.
+
+    Examples:
+
+        >>> address = Address.from_primitive("stake_test1upyz3gk6mw5he20apnwfn96cn9rscgvmmsxc9r86dh0k66gswf59n")
+        >>> Withdrawals({bytes(address): 1000000}) # doctest: +NORMALIZE_WHITESPACE
+        {b'\\xe0H(\\xa2\\xda\\xdb\\xa9|\\xa9\\xfd\\x0c\\xdc\\x99\\x97X\\x99G\\x0c!\\x9b\\xdc\\r\\x82\\x8c\\xfam\\xdfmi':
+        1000000}
+    """
+
+    KEY_TYPE = bytes
+
+    VALUE_TYPE = int
+
+
 @dataclass(repr=False)
 class TransactionBody(MapCBORSerializable):
     inputs: List[TransactionInput] = field(
@@ -309,11 +339,11 @@ class TransactionBody(MapCBORSerializable):
 
     ttl: int = field(default=None, metadata={"key": 3, "optional": True})
 
-    # TODO: Add certificate support
-    certificates: Any = field(default=None, metadata={"key": 4, "optional": True})
+    certificates: List[Certificate] = field(
+        default=None, metadata={"key": 4, "optional": True}
+    )
 
-    # TODO: Add reward withdraw support
-    withdraws: Any = field(default=None, metadata={"key": 5, "optional": True})
+    withdraws: Withdrawals = field(default=None, metadata={"key": 5, "optional": True})
 
     # TODO: Add proposal update support
     update: Any = field(default=None, metadata={"key": 6, "optional": True})

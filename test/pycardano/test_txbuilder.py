@@ -5,11 +5,18 @@ from test.pycardano.util import chain_context
 import pytest
 
 from pycardano.address import Address
+from pycardano.certificate import StakeCredential, StakeDelegation, StakeRegistration
 from pycardano.coinselection import RandomImproveMultiAsset
 from pycardano.exception import (
     InsufficientUTxOBalanceException,
     InvalidTransactionException,
     UTxOSelectionException,
+)
+from pycardano.hash import (
+    POOL_KEY_HASH_SIZE,
+    VERIFICATION_KEY_HASH_SIZE,
+    PoolKeyHash,
+    VerificationKeyHash,
 )
 from pycardano.key import VerificationKey
 from pycardano.nativescript import (
@@ -31,6 +38,7 @@ from pycardano.transaction import (
     TransactionOutput,
     UTxO,
     Value,
+    Withdrawals,
 )
 from pycardano.txbuilder import TransactionBuilder
 from pycardano.utils import fee
@@ -413,7 +421,7 @@ def test_not_enough_input_amount(chain_context):
 
     # Make output amount equal to the input amount
     tx_builder.add_input(input_utxo).add_output(
-        TransactionOutput.from_primitive([sender, input_utxo.output.amount])
+        TransactionOutput(Address.from_primitive(sender), input_utxo.output.amount)
     )
 
     with pytest.raises(UTxOSelectionException):
@@ -618,3 +626,194 @@ def test_tx_builder_exact_fee_no_change(chain_context):
 
     assert expected == tx.transaction_body.to_primitive()
     assert tx.transaction_body.fee >= fee(chain_context, len(tx.to_cbor("bytes")))
+
+
+def test_tx_builder_certificates(chain_context):
+    tx_builder = TransactionBuilder(chain_context, [RandomImproveMultiAsset([0, 0])])
+    sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    sender_address = Address.from_primitive(sender)
+
+    stake_key_hash = VerificationKeyHash(b"1" * VERIFICATION_KEY_HASH_SIZE)
+
+    stake_credential = StakeCredential(stake_key_hash)
+
+    pool_hash = PoolKeyHash(b"1" * POOL_KEY_HASH_SIZE)
+
+    stake_registration = StakeRegistration(stake_credential)
+
+    stake_delegation = StakeDelegation(stake_credential, pool_hash)
+
+    # Add sender address as input
+    tx_builder.add_input_address(sender).add_output(
+        TransactionOutput.from_primitive([sender, 500000])
+    )
+
+    tx_builder.certificates = [stake_registration, stake_delegation]
+
+    tx_body = tx_builder.build(change_address=sender_address)
+
+    expected = {
+        0: [[b"11111111111111111111111111111111", 0]],
+        1: [
+            # First output
+            [sender_address.to_primitive(), 500000],
+            # Second output as change
+            [sender_address.to_primitive(), 2325743],
+        ],
+        2: 174257,
+        4: [
+            [0, [0, b"1111111111111111111111111111"]],
+            [2, [0, b"1111111111111111111111111111"], b"1111111111111111111111111111"],
+        ],
+    }
+
+    assert expected == tx_body.to_primitive()
+
+
+def test_tx_builder_withdrawal(chain_context):
+    tx_builder = TransactionBuilder(chain_context, [RandomImproveMultiAsset([0, 0])])
+    sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    sender_address = Address.from_primitive(sender)
+
+    stake_address = Address.from_primitive(
+        "stake_test1upyz3gk6mw5he20apnwfn96cn9rscgvmmsxc9r86dh0k66gswf59n"
+    )
+
+    # Add sender address as input
+    tx_builder.add_input_address(sender).add_output(
+        TransactionOutput.from_primitive([sender, 500000])
+    )
+
+    withdrawals = Withdrawals({bytes(stake_address): 10000})
+    tx_builder.withdrawals = withdrawals
+
+    tx_body = tx_builder.build(change_address=sender_address)
+
+    expected = {
+        0: [[b"11111111111111111111111111111111", 0]],
+        1: [
+            # First output
+            [sender_address.to_primitive(), 500000],
+            # Second output as change
+            [sender_address.to_primitive(), 4338559],
+        ],
+        2: 171441,
+        5: {
+            b"\xe0H(\xa2\xda\xdb\xa9|\xa9\xfd\x0c\xdc\x99\x97X\x99G\x0c!\x9b\xdc\r\x82\x8c\xfam\xdfmi": 10000
+        },
+    }
+
+    assert expected == tx_body.to_primitive()
+
+
+def test_tx_builder_no_output(chain_context):
+    tx_builder = TransactionBuilder(chain_context)
+    sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    sender_address = Address.from_primitive(sender)
+
+    input_amount = 10000000
+
+    tx_in1 = TransactionInput.from_primitive([b"1" * 32, 3])
+    tx_out1 = TransactionOutput.from_primitive([sender, input_amount])
+    utxo1 = UTxO(tx_in1, tx_out1)
+
+    tx_builder.add_input(utxo1)
+
+    tx_body = tx_builder.build(change_address=sender_address, merge_change=True)
+
+    expected = {
+        0: [[b"11111111111111111111111111111111", 3]],
+        1: [
+            [sender_address.to_primitive(), 9836215],
+        ],
+        2: 163785,
+    }
+
+    assert expected == tx_body.to_primitive()
+
+
+def test_tx_builder_merge_change_to_output(chain_context):
+    tx_builder = TransactionBuilder(chain_context)
+    sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    sender_address = Address.from_primitive(sender)
+
+    input_amount = 10000000
+
+    tx_in1 = TransactionInput.from_primitive([b"1" * 32, 3])
+    tx_out1 = TransactionOutput.from_primitive([sender, input_amount])
+    utxo1 = UTxO(tx_in1, tx_out1)
+
+    tx_builder.add_input(utxo1)
+    tx_builder.add_output(TransactionOutput.from_primitive([sender, 10000]))
+
+    tx_body = tx_builder.build(change_address=sender_address, merge_change=True)
+
+    expected = {
+        0: [[b"11111111111111111111111111111111", 3]],
+        1: [
+            [sender_address.to_primitive(), 9836215],
+        ],
+        2: 163785,
+    }
+
+    assert expected == tx_body.to_primitive()
+
+
+def test_tx_builder_merge_change_to_output_2(chain_context):
+    tx_builder = TransactionBuilder(chain_context)
+    sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    sender_address = Address.from_primitive(sender)
+    receiver = "addr_test1vr2p8st5t5cxqglyjky7vk98k7jtfhdpvhl4e97cezuhn0cqcexl7"
+    receiver_address = Address.from_primitive(receiver)
+
+    input_amount = 10000000
+
+    tx_in1 = TransactionInput.from_primitive([b"1" * 32, 3])
+    tx_out1 = TransactionOutput.from_primitive([sender, input_amount])
+    utxo1 = UTxO(tx_in1, tx_out1)
+
+    tx_builder.add_input(utxo1)
+    tx_builder.add_output(TransactionOutput.from_primitive([sender, 10000]))
+    tx_builder.add_output(TransactionOutput.from_primitive([receiver, 10000]))
+    tx_builder.add_output(TransactionOutput.from_primitive([sender, 0]))
+
+    tx_body = tx_builder.build(change_address=sender_address, merge_change=True)
+
+    expected = {
+        0: [[b"11111111111111111111111111111111", 3]],
+        1: [
+            [sender_address.to_primitive(), 10000],
+            [receiver_address.to_primitive(), 10000],
+            [sender_address.to_primitive(), 9813135],
+        ],
+        2: 166865,
+    }
+
+    assert expected == tx_body.to_primitive()
+
+
+def test_tx_builder_merge_change_to_zero_amount_output(chain_context):
+    tx_builder = TransactionBuilder(chain_context)
+    sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    sender_address = Address.from_primitive(sender)
+
+    input_amount = 10000000
+
+    tx_in1 = TransactionInput.from_primitive([b"1" * 32, 3])
+    tx_out1 = TransactionOutput.from_primitive([sender, input_amount])
+    utxo1 = UTxO(tx_in1, tx_out1)
+
+    tx_builder.add_input(utxo1)
+    tx_builder.add_output(TransactionOutput.from_primitive([sender, 0]))
+
+    tx_body = tx_builder.build(change_address=sender_address, merge_change=True)
+
+    expected = {
+        0: [[b"11111111111111111111111111111111", 3]],
+        1: [
+            [sender_address.to_primitive(), 9836215],
+        ],
+        2: 163785,
+    }
+
+    assert expected == tx_body.to_primitive()
