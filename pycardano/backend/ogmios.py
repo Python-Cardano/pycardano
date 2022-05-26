@@ -31,19 +31,15 @@ class OgmiosChainContext(ChainContext):
         ws_url: str,
         network: Network,
         compact_result=True,
-        support_kupo=False,
-        http_url=None,
+        kupo_url=None,
     ):
         self._ws_url = ws_url
         self._network = network
         self._service_name = "ogmios.v1:compact" if compact_result else "ogmios"
-        self._support_kupo = support_kupo
-        self._http_url = http_url if support_kupo else None
+        self._kupo_url = kupo_url
         self._last_known_block_slot = 0
         self._genesis_param = None
         self._protocol_param = None
-        if self._support_kupo and not self._http_url:
-            raise Exception("Cannot find http url to request from Kupo.")
 
     def _request(self, method: str, args: dict) -> Union[dict, int]:
         ws = websocket.WebSocket()
@@ -171,6 +167,23 @@ class OgmiosChainContext(ChainContext):
 
         return policy_hex, policy, asset_name_hex
 
+    def _check_utxo_unspent(self, tx_id: str, index: int) -> bool:
+        """Check whether an UTxO is unspent with Ogmios.
+
+        Args:
+            tx_id (str): transaction id.
+            index (int): transaction index.
+        """
+
+        method = "Query"
+        args = {"query": {"utxo": [{"txId": tx_id, "index": index}]}}
+        results = self._request(method, args)
+
+        if results:
+            return True
+        else:
+            return False
+
     def _utxos_kupo(self, address: str) -> List[UTxO]:
         """Get all UTxOs associated with an address with Kupo.
         Since UTxO querying will be deprecated from Ogmios in next
@@ -182,7 +195,7 @@ class OgmiosChainContext(ChainContext):
         Returns:
             List[UTxO]: A list of UTxOs.
         """
-        address_url = self._http_url + "/" + address
+        address_url = self._kupo_url + "/" + address
         results = requests.get(address_url).json()
 
         utxos = []
@@ -190,31 +203,47 @@ class OgmiosChainContext(ChainContext):
         for result in results:
             tx_id = result["transaction_id"]
             index = result["output_index"]
-            tx_in = TransactionInput.from_primitive([tx_id, index])
 
-            lovelace_amount = result["value"]["coins"]
+            # Right now, all UTxOs of the address will be returned with Kupo, which requires Ogmios to
+            # validate if the UTxOs are spent with output reference. This feature is being considered to
+            # be added to Kupo to avoid extra API calls.
+            # See discussion here: https://github.com/CardanoSolutions/kupo/discussions/19.
+            if self._check_utxo_unspent(tx_id, index):
+                tx_in = TransactionInput.from_primitive([tx_id, index])
 
-            datum_hash = result["datum_hash"]
+                lovelace_amount = result["value"]["coins"]
 
-            if not result["value"]["assets"]:
-                tx_out = TransactionOutput(
-                    Address.from_primitive(address),
-                    amount=lovelace_amount,
-                    datum_hash=datum_hash,
+                datum_hash = (
+                    DatumHash.from_primitive(result["datum_hash"])
+                    if result["datum_hash"]
+                    else None
                 )
+
+                if not result["value"]["assets"]:
+                    tx_out = TransactionOutput(
+                        Address.from_primitive(address),
+                        amount=lovelace_amount,
+                        datum_hash=datum_hash,
+                    )
+                else:
+                    multi_assets = MultiAsset()
+
+                    for asset, quantity in result["value"]["assets"].items():
+                        policy_hex, policy, asset_name_hex = self._extract_asset_info(
+                            asset
+                        )
+                        multi_assets.setdefault(policy, Asset())[
+                            asset_name_hex
+                        ] = quantity
+
+                    tx_out = TransactionOutput(
+                        Address.from_primitive(address),
+                        amount=Value(lovelace_amount, multi_assets),
+                        datum_hash=datum_hash,
+                    )
+                utxos.append(UTxO(tx_in, tx_out))
             else:
-                multi_assets = MultiAsset()
-
-                for asset, quantity in result["value"]["assets"].items():
-                    policy_hex, policy, asset_name_hex = self._extract_asset_info(asset)
-                    multi_assets.setdefault(policy, Asset())[asset_name_hex] = quantity
-
-                tx_out = TransactionOutput(
-                    Address.from_primitive(address),
-                    amount=Value(lovelace_amount, multi_assets),
-                    datum_hash=datum_hash,
-                )
-            utxos.append(UTxO(tx_in, tx_out))
+                continue
 
         return utxos
 
@@ -267,7 +296,7 @@ class OgmiosChainContext(ChainContext):
 
         return utxos
 
-    def utxos(self, address: str, use_kupo=False) -> List[UTxO]:
+    def utxos(self, address: str) -> List[UTxO]:
         """Get all UTxOs associated with an address.
 
         Args:
@@ -276,10 +305,10 @@ class OgmiosChainContext(ChainContext):
         Returns:
             List[UTxO]: A list of UTxOs.
         """
-        if not use_kupo:
-            utxos = self._utxos_ogmios(address)
-        else:
+        if self._kupo_url:
             utxos = self._utxos_kupo(address)
+        else:
+            utxos = self._utxos_ogmios(address)
 
         return utxos
 

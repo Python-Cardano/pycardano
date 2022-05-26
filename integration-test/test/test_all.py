@@ -22,11 +22,9 @@ class TestAll:
 
     OGMIOS_WS = "ws://localhost:1337"
 
-    KUPO_HTTP = "http://localhost:1442/v1/matches"
+    KUPO_URL = "http://localhost:1442/v1/matches"
 
-    chain_context = OgmiosChainContext(
-        OGMIOS_WS, Network.TESTNET, support_kupo=True, http_url=KUPO_HTTP
-    )
+    chain_context = OgmiosChainContext(OGMIOS_WS, Network.TESTNET, kupo_url=KUPO_URL)
 
     check_chain_context(chain_context)
 
@@ -156,6 +154,15 @@ class TestAll:
         nft_output = TransactionOutput(address, Value(min_val, my_nft))
         builder.add_output(nft_output)
 
+        # Pass in genesis utxo for Kupo to start syncing transactions
+        utxo_init = UTxO(
+            TransactionInput.from_primitive(
+                ["732bfd67e66be8e8288349fcaaa2294973ef6271cc189a239bb431275401b8e5", 0]
+            ),
+            TransactionOutput(address, 900000000000, None),
+        )
+        builder.add_input(utxo_init)
+
         # Build and sign transaction
         signed_tx = builder.build_and_sign(
             [self.payment_skey, self.extended_payment_skey, policy_skey], address
@@ -171,7 +178,7 @@ class TestAll:
 
         time.sleep(3)
 
-        utxos = self.chain_context.utxos(str(address), use_kupo=True)
+        utxos = self.chain_context.utxos(str(address))
         found_nft = False
 
         for utxo in utxos:
@@ -211,7 +218,7 @@ class TestAll:
 
         time.sleep(3)
 
-        utxos = self.chain_context.utxos(str(address2), use_kupo=True)
+        utxos = self.chain_context.utxos(str(address2))
         found_nft = False
 
         for utxo in utxos:
@@ -221,22 +228,12 @@ class TestAll:
 
         assert found_nft, f"Cannot find target NFT in address: {address2}"
 
-        # Compare utxo query using Ogmios and Kupo
-        # Right now, all UTxOs of the address will be returned, which requires Ogmios to validate
-        # if the UTxOs are spent. This feature is being considered to be added to Kupo to avoid
-        # extra API calls. See discussion here: https://github.com/CardanoSolutions/kupo/discussions/19.
-
-        utxos2_kupo = self.chain_context.utxos(str(address2), use_kupo=True)
-        utxos2_ogmios = self.chain_context.utxos(str(address2), use_kupo=False)
-
-        assert utxos2_kupo == utxos2_ogmios
-
     @retry(tries=2, delay=6)
     def test_plutus(self):
 
         # ----------- Giver give ---------------
 
-        with open("plutus_scripts/fortytwo.plutus", "r") as f:
+        with open("./plutus_scripts/fortytwo.plutus", "r") as f:
             script_hex = f.read()
             forty_two_script = cbor2.loads(bytes.fromhex(script_hex))
 
