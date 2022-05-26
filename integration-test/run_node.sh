@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 if [ "$NETWORK" = "local-alonzo" ]
 then
@@ -10,7 +10,8 @@ then
     --database-path /data/db --socket-path /ipc/node.socket \
     --shelley-kes-key /code/tmp_configs/"$NETWORK"/shelley/kes.skey \
     --shelley-vrf-key /code/tmp_configs/"$NETWORK"/shelley/vrf.skey \
-    --shelley-operational-certificate /code/tmp_configs/"$NETWORK"/shelley/node.cert
+    --shelley-operational-certificate /code/tmp_configs/"$NETWORK"/shelley/node.cert \
+    --port 3000
 else
   cardano-node run \
     --config /code/tmp_configs/"$NETWORK"/config.json \
