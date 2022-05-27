@@ -170,15 +170,6 @@ class TestAll:
         nft_output = TransactionOutput(address, Value(min_val, my_nft))
         builder.add_output(nft_output)
 
-        # Pass in genesis utxo for Kupo to start syncing transactions
-        utxo_init = UTxO(
-            TransactionInput.from_primitive(
-                ["732bfd67e66be8e8288349fcaaa2294973ef6271cc189a239bb431275401b8e5", 0]
-            ),
-            TransactionOutput(address, 900000000000, None),
-        )
-        builder.add_input(utxo_init)
-
         # Build and sign transaction
         signed_tx = builder.build_and_sign(
             [self.payment_skey, self.extended_payment_skey, policy_skey], address
@@ -194,12 +185,8 @@ class TestAll:
 
         self.assert_output(address, nft_output)
 
-        # Generate another set of keys and address to send NFT to
-        skey2, vkey2 = load_or_create_key_pair(key_dir, "keys2")
-        address2 = Address(vkey2.hash(), network=self.NETWORK)
-
         nft_to_send = TransactionOutput(
-            address2,
+            address,
             Value(
                 20000000,
                 MultiAsset.from_primitive({policy_id.payload: {b"MY_NFT_1": 1}}),
@@ -222,7 +209,7 @@ class TestAll:
         print("############### Submitting transaction ###############")
         self.chain_context.submit_tx(signed_tx.to_cbor())
 
-        self.assert_output(address2, nft_to_send)
+        self.assert_output(address, nft_to_send)
 
     @retry(tries=4, delay=6, backoff=2, jitter=(1, 3))
     def test_plutus(self):
