@@ -738,6 +738,7 @@ class TransactionBuilder:
             )
         else:
             unfulfilled_amount.coin = max(0, unfulfilled_amount.coin)
+
         # Clean up all non-positive assets
         unfulfilled_amount.multi_asset = unfulfilled_amount.multi_asset.filter(
             lambda p, n, v: v > 0

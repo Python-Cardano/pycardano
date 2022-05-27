@@ -175,6 +175,7 @@ def test_tx_builder_raises_utxo_selection(chain_context):
 
     with pytest.raises(UTxOSelectionException) as e:
         tx_body = tx_builder.build(change_address=sender_address)
+
     # The unfulfilled amount includes requested (991000000) and estimated fees (161277)
     assert "Unfulfilled amount:\n {'coin': 991161277" in e.value.args[0]
     assert "{AssetName(b'NewToken'): 1}" in e.value.args[0]
