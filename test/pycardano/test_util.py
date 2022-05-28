@@ -145,7 +145,14 @@ def test_script_data_hash():
 
 def test_script_data_hash_datum_only():
     unit = PlutusData()
-    redeemers = []
     assert ScriptDataHash.from_primitive(
         "2f50ea2546f8ce020ca45bfcf2abeb02ff18af2283466f888ae489184b3d2d39"
-    ) == script_data_hash(redeemers=redeemers, datums=[unit])
+    ) == script_data_hash(redeemers=[], datums=[unit])
+
+
+def test_script_data_hash_redeemer_only():
+    unit = PlutusData()
+    redeemers = []
+    assert ScriptDataHash.from_primitive(
+        "a88fe2947b8d45d1f8b798e52174202579ecf847b8f17038c7398103df2d27b0"
+    ) == script_data_hash(redeemers=redeemers, datums=[])

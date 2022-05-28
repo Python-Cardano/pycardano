@@ -9,6 +9,7 @@ from pycardano.certificate import StakeCredential, StakeDelegation, StakeRegistr
 from pycardano.coinselection import RandomImproveMultiAsset
 from pycardano.exception import (
     InsufficientUTxOBalanceException,
+    InvalidArgumentException,
     InvalidTransactionException,
     UTxOSelectionException,
 )
@@ -480,6 +481,112 @@ def test_add_script_input(chain_context):
         "864d281eb6776ed7f80b68536a14954657374546f6b656e010b5820c0978261"
         "d9818d92926eb031d38d141f513a05478d697555f32edf6443ebeb08" == tx_body.to_cbor()
     )
+
+
+def test_wrong_redeemer_execution_units(chain_context):
+    tx_builder = TransactionBuilder(chain_context)
+    tx_in1 = TransactionInput.from_primitive(
+        ["18cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad21431590f7e6643438ef", 0]
+    )
+    tx_in2 = TransactionInput.from_primitive(
+        ["18cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad21431590f7e6643438ef", 1]
+    )
+    plutus_script = b"dummy test script"
+    script_hash = plutus_script_hash(plutus_script)
+    script_address = Address(script_hash)
+    datum = PlutusData()
+    utxo1 = UTxO(
+        tx_in1, TransactionOutput(script_address, 10000000, datum_hash=datum.hash())
+    )
+    mint = MultiAsset.from_primitive({script_hash.payload: {b"TestToken": 1}})
+    utxo2 = UTxO(
+        tx_in2,
+        TransactionOutput(
+            script_address, Value(10000000, mint), datum_hash=datum.hash()
+        ),
+    )
+    redeemer1 = Redeemer(RedeemerTag.SPEND, PlutusData())
+    redeemer2 = Redeemer(RedeemerTag.MINT, PlutusData())
+    redeemer3 = Redeemer(
+        RedeemerTag.MINT, PlutusData(), ExecutionUnits(1000000, 1000000)
+    )
+    tx_builder.mint = mint
+    tx_builder.add_script_input(utxo1, plutus_script, datum, redeemer1)
+    tx_builder.add_script_input(utxo1, plutus_script, datum, redeemer2)
+    with pytest.raises(InvalidArgumentException):
+        tx_builder.add_script_input(utxo2, plutus_script, datum, redeemer3)
+
+
+def test_all_redeemer_should_provide_execution_units(chain_context):
+    tx_builder = TransactionBuilder(chain_context)
+    tx_in1 = TransactionInput.from_primitive(
+        ["18cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad21431590f7e6643438ef", 0]
+    )
+    tx_in2 = TransactionInput.from_primitive(
+        ["18cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad21431590f7e6643438ef", 1]
+    )
+    plutus_script = b"dummy test script"
+    script_hash = plutus_script_hash(plutus_script)
+    script_address = Address(script_hash)
+    datum = PlutusData()
+    utxo1 = UTxO(
+        tx_in1, TransactionOutput(script_address, 10000000, datum_hash=datum.hash())
+    )
+    mint = MultiAsset.from_primitive({script_hash.payload: {b"TestToken": 1}})
+    redeemer1 = Redeemer(
+        RedeemerTag.SPEND, PlutusData(), ExecutionUnits(1000000, 1000000)
+    )
+    redeemer2 = Redeemer(RedeemerTag.MINT, PlutusData())
+    tx_builder.mint = mint
+    tx_builder.add_script_input(utxo1, plutus_script, datum, redeemer1)
+    with pytest.raises(InvalidArgumentException):
+        tx_builder.add_script_input(utxo1, plutus_script, datum, redeemer2)
+
+
+def test_add_minting_script(chain_context):
+    tx_builder = TransactionBuilder(chain_context)
+    tx_in1 = TransactionInput.from_primitive(
+        ["18cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad21431590f7e6643438ef", 0]
+    )
+    plutus_script = b"dummy test script"
+    script_hash = plutus_script_hash(plutus_script)
+    script_address = Address(script_hash)
+    utxo1 = UTxO(tx_in1, TransactionOutput(script_address, 10000000))
+    mint = MultiAsset.from_primitive({script_hash.payload: {b"TestToken": 1}})
+    redeemer1 = Redeemer(
+        RedeemerTag.MINT, PlutusData(), ExecutionUnits(1000000, 1000000)
+    )
+    tx_builder.mint = mint
+    tx_builder.add_input(utxo1)
+    tx_builder.add_minting_script(plutus_script, redeemer1)
+    receiver = Address.from_primitive(
+        "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    )
+    tx_builder.add_output(TransactionOutput(receiver, Value(5000000, mint)))
+    tx_body = tx_builder.build(change_address=receiver)
+    witness = tx_builder.build_witness_set()
+    assert [plutus_script] == witness.plutus_script
+    assert (
+        "a5008182582018cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad2143159"
+        "0f7e6643438ef00018282581d60f6532850e1bccee9c72a9113ad98bcc5dbb3"
+        "0d2ac960262444f6e5f4821a004c4b40a1581c876f19078b059c928258d848c"
+        "8cd871864d281eb6776ed7f80b68536a14954657374546f6b656e0182581d60"
+        "f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f41a0048d"
+        "8f3021a0003724d09a1581c876f19078b059c928258d848c8cd871864d281eb"
+        "6776ed7f80b68536a14954657374546f6b656e010b58205fcf68adc7eb6e507"
+        "d15fb07d1c4e39d908bc9dfe642368afcddd881c5d46517" == tx_body.to_cbor()
+    )
+
+
+def test_add_minting_script_wrong_redeemer_type(chain_context):
+    tx_builder = TransactionBuilder(chain_context)
+    plutus_script = b"dummy test script"
+    redeemer1 = Redeemer(
+        RedeemerTag.SPEND, PlutusData(), ExecutionUnits(1000000, 1000000)
+    )
+
+    with pytest.raises(InvalidArgumentException):
+        tx_builder.add_minting_script(plutus_script, redeemer1)
 
 
 def test_excluded_input(chain_context):

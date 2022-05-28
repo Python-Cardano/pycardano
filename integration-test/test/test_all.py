@@ -58,6 +58,23 @@ class TestAll:
         assert found, f"Cannot find target UTxO in address: {target_address}"
 
     @retry(tries=4, delay=6, backoff=2, jitter=(1, 3))
+    def fund(self, source_address, source_key, target_address, amount=5000000):
+        builder = TransactionBuilder(self.chain_context)
+
+        builder.add_input_address(source_address)
+        output = TransactionOutput(target_address, amount)
+        builder.add_output(output)
+
+        signed_tx = builder.build_and_sign([source_key], source_address)
+
+        print("############### Transaction created ###############")
+        print(signed_tx)
+        print(signed_tx.to_cbor())
+        print("############### Submitting transaction ###############")
+        self.chain_context.submit_tx(signed_tx.to_cbor())
+        self.assert_output(target_address, target_output=output)
+
+    @retry(tries=4, delay=6, backoff=2, jitter=(1, 3))
     def test_mint(self):
         address = Address(self.payment_vkey.hash(), network=self.NETWORK)
 
@@ -372,3 +389,94 @@ class TestAll:
         print(signed_tx.to_cbor())
         print("############### Submitting transaction ###############")
         self.chain_context.submit_tx(signed_tx.to_cbor())
+
+    @retry(tries=4, delay=6, backoff=2, jitter=(1, 3))
+    def test_mint_nft_with_script(self):
+        address = Address(self.payment_vkey.hash(), network=self.NETWORK)
+
+        with open("./plutus_scripts/fortytwo.plutus", "r") as f:
+            script_hex = f.read()
+            forty_two_script = cbor2.loads(bytes.fromhex(script_hex))
+
+        policy_id = plutus_script_hash(forty_two_script)
+
+        my_nft = MultiAsset.from_primitive(
+            {
+                policy_id.payload: {
+                    b"MY_SCRIPT_NFT_1": 1,  # Name of our NFT1  # Quantity of this NFT
+                    b"MY_SCRIPT_NFT_2": 1,  # Name of our NFT2  # Quantity of this NFT
+                }
+            }
+        )
+
+        metadata = {
+            721: {
+                policy_id.payload.hex(): {
+                    "MY_SCRIPT_NFT_1": {
+                        "description": "This is my first NFT thanks to PyCardano",
+                        "name": "PyCardano NFT example token 1",
+                        "id": 1,
+                        "image": "ipfs://QmRhTTbUrPYEw3mJGGhQqQST9k86v1DPBiTTWJGKDJsVFw",
+                    },
+                    "MY_SCRIPT_NFT_2": {
+                        "description": "This is my second NFT thanks to PyCardano",
+                        "name": "PyCardano NFT example token 2",
+                        "id": 2,
+                        "image": "ipfs://QmRhTTbUrPYEw3mJGGhQqQST9k86v1DPBiTTWJGKDJsVFw",
+                    },
+                }
+            }
+        }
+
+        # Place metadata in AuxiliaryData, the format acceptable by a transaction.
+        auxiliary_data = AuxiliaryData(AlonzoMetadata(metadata=Metadata(metadata)))
+
+        # Create a transaction builder
+        builder = TransactionBuilder(self.chain_context)
+
+        # Add our own address as the input address
+        builder.add_input_address(address)
+
+        # Add minting script with an empty datum and a minting redeemer
+        builder.add_minting_script(
+            forty_two_script, redeemer=Redeemer(RedeemerTag.MINT, 42)
+        )
+
+        # Set nft we want to mint
+        builder.mint = my_nft
+
+        # Set transaction metadata
+        builder.auxiliary_data = auxiliary_data
+
+        # Calculate the minimum amount of lovelace that need to hold the NFT we are going to mint
+        min_val = min_lovelace(Value(0, my_nft), self.chain_context)
+
+        # Send the NFT to our own address
+        nft_output = TransactionOutput(address, Value(min_val, my_nft))
+        builder.add_output(nft_output)
+
+        # Create a collateral
+        self.fund(address, self.payment_skey, address)
+
+        non_nft_utxo = None
+        for utxo in self.chain_context.utxos(str(address)):
+            # multi_asset should be empty for collateral utxo
+            if not utxo.output.amount.multi_asset:
+                non_nft_utxo = utxo
+                break
+
+        builder.collaterals.append(non_nft_utxo)
+
+        # Build and sign transaction
+        signed_tx = builder.build_and_sign([self.payment_skey], address)
+        # signed_tx.transaction_witness_set.plutus_data
+
+        print("############### Transaction created ###############")
+        print(signed_tx)
+        print(signed_tx.to_cbor())
+
+        # Submit signed transaction to the network
+        print("############### Submitting transaction ###############")
+        self.chain_context.submit_tx(signed_tx.to_cbor())
+
+        self.assert_output(address, nft_output)
