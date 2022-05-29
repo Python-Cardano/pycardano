@@ -2,14 +2,25 @@
 
 from __future__ import annotations
 
+import binascii
 import json
 import os
+from typing import Optional, Union
 
+from cose.algorithms import EdDSA
+from cose.headers import KID, Algorithm
+from cose.keys import CoseKey
+from cose.keys.curves import Ed25519
+from cose.keys.keyops import SignOp, VerifyOp
+from cose.keys.keyparam import KpAlg, KpKeyOps, KpKty, OKPKpCurve, OKPKpD, OKPKpX
+from cose.keys.keytype import KtyOKP
+from cose.messages import CoseMessage, Sign1Message
 from nacl.encoding import RawEncoder
 from nacl.hash import blake2b
 from nacl.public import PrivateKey
 from nacl.signing import SigningKey as NACLSigningKey
 
+from pycardano.address import Address
 from pycardano.crypto.bip32 import BIP32ED25519PrivateKey
 from pycardano.exception import InvalidKeyTypeException
 from pycardano.hash import VERIFICATION_KEY_HASH_SIZE, VerificationKeyHash
@@ -287,3 +298,155 @@ class StakeKeyPair:
     @classmethod
     def from_signing_key(cls, signing_key: StakeSigningKey) -> StakeKeyPair:
         return cls(signing_key, StakeVerificationKey.from_signing_key(signing_key))
+
+
+class Message:
+    def __init__(
+        self,
+        message: Optional[str] = None,
+        signed_message: Optional[Union[str, dict]] = None,
+    ):
+
+        if not message and not signed_message:
+            raise TypeError("Please provide either `message` or `signed_message`.")
+
+        self.message = message
+        self.signed_message = signed_message
+        self.verified = None
+
+        self.signature_verified = None
+        self.signing_address = None
+        self.addresses_match = None
+
+    def sign(
+        self,
+        signing_key: SigningKey,
+        verification_key: VerificationKey,
+        cose_key_separate: bool = False,
+    ):
+
+        # create the message object, attach verification key to the header
+
+        msg = Sign1Message(
+            phdr={Algorithm: EdDSA, "address": verification_key.to_primitive()},
+            payload=self.message.encode("utf-8"),
+        )
+
+        if cose_key_separate:
+            msg.phdr[KID] = verification_key.payload
+
+        # build the CoseSign1 signing key from a dictionary
+        cose_key = {
+            KpKty: KtyOKP,
+            OKPKpCurve: Ed25519,
+            KpKeyOps: [SignOp, VerifyOp],
+            OKPKpD: signing_key.payload,  # private key
+            OKPKpX: verification_key.payload,  # public key
+        }
+
+        cose_key = CoseKey.from_dict(cose_key)
+        msg.key = cose_key  # attach the key to the message
+
+        msg.uhdr = {"hashed": False}
+
+        encoded = msg.encode()
+
+        # turn the enocded message into a hex string and remove the first byte
+        # which is always "d2"
+        signed_message = binascii.hexlify(encoded).decode("utf-8")[2:]
+
+        if cose_key_separate:
+            key_to_return = {
+                KpKty: KtyOKP,
+                KpAlg: EdDSA,
+                OKPKpCurve: Ed25519,
+                OKPKpX: verification_key.payload,  # public key
+            }
+
+            signed_message = {
+                "signature": signed_message,
+                "key": binascii.hexlify(CoseKey.from_dict(key_to_return).encode()),
+            }
+
+        self.signed_message = signed_message
+
+        return signed_message
+
+    def verify(self, cose_key_separate: Optional[bool] = None):
+        """
+        Verify the signature of a COSESign1 message and decode.
+        Supports messages signed by browser wallets or `Message.sign()`.
+        Parameters:
+                self.signed_payload (str): A hex-encoded string or dict
+        Returns :
+                verified (bool): If the signature is verified
+                addresses_match (bool): Whether the address provided belongs to the verification key used to sign the message
+                message (str): The contents of the signed message
+                address (pycardano.Address): The address to which the signing keys belong
+            Note: Both `verified` and `address_match` should be True.
+        """
+
+        if not self.signed_message:
+            raise ValueError(
+                "Set `Message.signed_message` before attempting verification."
+            )
+
+        if cose_key_separate is None:
+            # try to determine automatically if the verification key is included in the header
+            if isinstance(self.signed_message, dict):
+                cose_key_separate = True
+            else:
+                cose_key_separate = False
+
+        if cose_key_separate:
+            # The cose key is attached as a dict object which contains the verification key
+            # the headers of the signature are emtpy
+            key = self.signed_message.get("key")
+            signed_message = self.signed_message.get("signature")
+
+        else:
+            key = ""  # key will be extracted later from the payload headers
+            signed_message = self.signed_message
+
+        # Add back the "D2" header byte and decode
+        decoded_message = CoseMessage.decode(binascii.unhexlify("d2" + signed_message))
+
+        # generate/extract the cose key
+        if not cose_key_separate:
+
+            # get the verification key from the headers
+            verification_key = decoded_message.phdr[KID]
+
+            # generate the COSE key
+            cose_key = {
+                KpKty: KtyOKP,
+                OKPKpCurve: Ed25519,
+                KpKeyOps: [SignOp, VerifyOp],
+                OKPKpX: verification_key,  # public key
+            }
+
+            cose_key = CoseKey.from_dict(cose_key)
+
+        else:
+            # i,e key is attached to header
+            cose_key = CoseKey.decode(binascii.unhexlify(key))
+            verification_key = cose_key[OKPKpX]
+
+        # attach the key to the decoded message
+        decoded_message.key = cose_key
+
+        self.signature_verified = decoded_message.verify_signature()
+
+        self.message = decoded_message.payload.decode("utf-8")
+
+        self.signing_address = Address.from_primitive(decoded_message.phdr["address"])
+
+        # check that the address atatched in the headers matches the one of the verification key used to sign the message
+        self.addresses_match = (
+            self.signing_address.payment_part
+            == PaymentVerificationKey.from_primitive(verification_key).hash()
+        )
+
+        self.verified = self.signature_verified & self.addresses_match
+
+        return self.verified
