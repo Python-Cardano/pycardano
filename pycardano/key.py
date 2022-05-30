@@ -324,7 +324,6 @@ class Message:
         verification_key: VerificationKey,
         cose_key_separate: bool = False,
     ):
-
         # create the message object, attach verification key to the header
 
         msg = Sign1Message(
@@ -376,14 +375,6 @@ class Message:
         """
         Verify the signature of a COSESign1 message and decode.
         Supports messages signed by browser wallets or `Message.sign()`.
-        Parameters:
-                self.signed_payload (str): A hex-encoded string or dict
-        Returns :
-                verified (bool): If the signature is verified
-                addresses_match (bool): Whether the address provided belongs to the verification key used to sign the message
-                message (str): The contents of the signed message
-                address (pycardano.Address): The address to which the signing keys belong
-            Note: Both `verified` and `address_match` should be True.
         """
 
         if not self.signed_message:
@@ -441,7 +432,8 @@ class Message:
 
         self.signing_address = Address.from_primitive(decoded_message.phdr["address"])
 
-        # check that the address atatched in the headers matches the one of the verification key used to sign the message
+        # check that the address attached matches the
+        # one of the verification keys used to sign the message
         self.addresses_match = (
             self.signing_address.payment_part
             == PaymentVerificationKey.from_primitive(verification_key).hash()
