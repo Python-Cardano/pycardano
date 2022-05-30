@@ -4,10 +4,10 @@ import tempfile
 from pycardano.key import (
     ExtendedSigningKey,
     ExtendedVerificationKey,
+    Message,
     PaymentKeyPair,
     PaymentSigningKey,
     PaymentVerificationKey,
-    Message,
 )
 
 SK = PaymentSigningKey.from_json(
