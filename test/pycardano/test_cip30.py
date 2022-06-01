@@ -39,7 +39,7 @@ def test_verify_message_cose_key_attached():
         "key": "a401010327200621582060545b786d3a6f903158e35aae9b86548a99bc47d4b0a6f503ab5e78c1a9bbfc",
     }
 
-    verification = verify(signed_message)
+    verification = verify(signed_message, attach_cose_key=True)
     assert verification["verified"]
     assert verification["message"] == "Pycardano is cool."
     assert (
