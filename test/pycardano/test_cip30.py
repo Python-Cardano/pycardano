@@ -71,6 +71,7 @@ def test_sign_message_cosy_key_separate():
         "key": "a40101032720062158208be8339e9f3addfa6810d59e2f072f85e64d4c024c087e0d24f8317c6544f62f",
     }
 
+
 def test_sign_and_verify():
 
     # try first with no cose key attached
@@ -82,10 +83,7 @@ def test_sign_and_verify():
     verification = verify(signed_message)
     assert verification["verified"]
     assert verification["message"] == "Pycardano is cool."
-    assert (
-        verification["signing_address"].payment_part
-        == VK.hash()
-    )
+    assert verification["signing_address"].payment_part == VK.hash()
 
     # try again but attach cose key
     signed_message = sign(
@@ -95,7 +93,4 @@ def test_sign_and_verify():
     verification = verify(signed_message)
     assert verification["verified"]
     assert verification["message"] == "Pycardano is cool."
-    assert (
-        verification["signing_address"].payment_part
-        == VK.hash()
-    )
+    assert verification["signing_address"].payment_part == VK.hash()
