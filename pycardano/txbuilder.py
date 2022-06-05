@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from copy import copy, deepcopy
 from dataclasses import dataclass, field, fields
-from typing import Dict, List, Optional, Set, Union
+from typing import Dict, List, Optional, Set, Tuple, Union
 
 from pycardano.address import Address, AddressType
 from pycardano.backend.base import ChainContext
@@ -115,6 +115,10 @@ class TransactionBuilder:
         init=False, default_factory=lambda: {}
     )
 
+    _minting_script_to_redeemers: List[Tuple[bytes, Redeemer]] = field(
+        init=False, default_factory=lambda: []
+    )
+
     _inputs_to_scripts: Dict[UTxO, bytes] = field(
         init=False, default_factory=lambda: {}
     )
@@ -160,7 +164,11 @@ class TransactionBuilder:
                     redeemer.ex_units = ExecutionUnits(0, 0)
 
     def add_script_input(
-        self, utxo: UTxO, script: bytes, datum: Datum, redeemer: Redeemer
+        self,
+        utxo: UTxO,
+        script: bytes,
+        datum: Optional[Datum] = None,
+        redeemer: Optional[Redeemer] = None,
     ) -> TransactionBuilder:
         """Add a script UTxO to transaction's inputs.
 
@@ -178,16 +186,42 @@ class TransactionBuilder:
                 f"Expect the output address of utxo to be script type, "
                 f"but got {utxo.output.address.address_type} instead."
             )
-        if utxo.output.datum_hash != datum.hash():
+        if utxo.output.datum_hash and utxo.output.datum_hash != datum_hash(datum):
             raise InvalidArgumentException(
                 f"Datum hash in transaction output is {utxo.output.datum_hash}, "
-                f"but actual datum hash from input datum is {datum.hash()}."
+                f"but actual datum hash from input datum is {datum_hash(datum)}."
             )
-        self.datums[datum.hash()] = datum
-        self._consolidate_redeemer(redeemer)
-        self._inputs_to_redeemers[utxo] = redeemer
+        if datum:
+            self.datums[datum_hash(datum)] = datum
+        if redeemer:
+            self._consolidate_redeemer(redeemer)
+            self._inputs_to_redeemers[utxo] = redeemer
         self._inputs_to_scripts[utxo] = script
         self.inputs.append(utxo)
+        return self
+
+    def add_minting_script(
+        self,
+        script: bytes,
+        redeemer: Optional[Redeemer] = None,
+    ) -> TransactionBuilder:
+        """Add a minting script along with its datum and redeemer to this transaction.
+
+        Args:
+            script (Optional[bytes]): A plutus script.
+            redeemer (Optional[Redeemer]): A plutus redeemer to unlock the UTxO.
+
+        Returns:
+            TransactionBuilder: Current transaction builder.
+        """
+        if redeemer:
+            if redeemer.tag != RedeemerTag.MINT:
+                raise InvalidArgumentException(
+                    f"Expect the redeemer tag's type to be {RedeemerTag.MINT}, "
+                    f"but got {redeemer.tag} instead."
+                )
+            self._consolidate_redeemer(redeemer)
+        self._minting_script_to_redeemers.append((script, redeemer))
         return self
 
     def add_input_address(self, address: Union[Address, str]) -> TransactionBuilder:
@@ -225,7 +259,7 @@ class TransactionBuilder:
             tx_out.datum_hash = datum_hash(datum)
         self.outputs.append(tx_out)
         if add_datum_to_witness:
-            self.datums[datum.hash()] = datum
+            self.datums[datum_hash(datum)] = datum
         return self
 
     @property
@@ -258,7 +292,10 @@ class TransactionBuilder:
 
     @property
     def scripts(self) -> List[bytes]:
-        return list(set(self._inputs_to_scripts.values()))
+        return list(
+            set(self._inputs_to_scripts.values())
+            | {s for s, _ in self._minting_script_to_redeemers}
+        )
 
     @property
     def datums(self) -> Dict[DatumHash, Datum]:
@@ -266,7 +303,9 @@ class TransactionBuilder:
 
     @property
     def redeemers(self) -> List[Redeemer]:
-        return list(self._inputs_to_redeemers.values())
+        return list(self._inputs_to_redeemers.values()) + [
+            r for _, r in self._minting_script_to_redeemers
+        ]
 
     @property
     def script_data_hash(self) -> Optional[ScriptDataHash]:
@@ -585,6 +624,10 @@ class TransactionBuilder:
                 redeemer.index = sorted_mint_policies.index(
                     plutus_script_hash(self._inputs_to_scripts[utxo])
                 )
+
+        for script, redeemer in self._minting_script_to_redeemers:
+            redeemer.index = sorted_mint_policies.index(plutus_script_hash(script))
+
         self.redeemers.sort(key=lambda r: r.index)
 
     def _build_tx_body(self) -> TransactionBody:

@@ -135,7 +135,10 @@ def script_data_hash(
         cost_models = COST_MODELS
 
     redeemer_bytes = cbor2.dumps(redeemers, default=default_encoder)
-    datum_bytes = cbor2.dumps(datums, default=default_encoder)
+    if datums:
+        datum_bytes = cbor2.dumps(datums, default=default_encoder)
+    else:
+        datum_bytes = b""
     cost_models_bytes = cbor2.dumps(cost_models, default=default_encoder)
 
     return ScriptDataHash(
