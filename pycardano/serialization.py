@@ -489,7 +489,10 @@ class ArrayCBORSerializable(CBORSerializable):
                 f.type = type_hints[f.name]
             v = _restore_dataclass_field(f, v)
             restored_vals.append(v)
-        return cls(*restored_vals)
+        obj = cls(*restored_vals)
+        for i in range(len(all_fields), len(values)):
+            setattr(obj, f"unknown_field{i - len(all_fields)}", values[i])
+        return obj
 
     def __repr__(self):
         return super().__repr__()
@@ -728,7 +731,9 @@ class DictCBORSerializable(CBORSerializable):
 
 
 @typechecked
-def list_hook(cls: Type[CBORBase]) -> Callable[[List[Primitive]], List[CBORBase]]:
+def list_hook(
+    cls: Type[CBORSerializable],
+) -> Callable[[List[Primitive]], List[CBORBase]]:
     """A factory that generates a Callable which turns a list of Primitive to a list of CBORSerializables.
 
     Args:

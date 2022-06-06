@@ -24,6 +24,16 @@ def test_array_cbor_serializable():
     check_two_way_cbor(t)
 
 
+def test_array_cbor_serializable_unknown_fields():
+    @dataclass
+    class Test1(ArrayCBORSerializable):
+        a: str
+        b: str
+
+    t = Test1.from_primitive(["a", "b", "c"])
+    assert hasattr(t, "unknown_field0") and t.unknown_field0 == "c"
+
+
 def test_array_cbor_serializable_optional_field():
     @dataclass
     class Test1(ArrayCBORSerializable):
