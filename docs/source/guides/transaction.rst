@@ -103,7 +103,7 @@ Step 1
 
 To use a transaction builder, we first need to create a chain context, so the builder can read protocol parameters and
 search proper transaction inputs to use. Currently, the available chain context is
-`BlockFrostChainContext <api/pycardano.backend.base.html#pycardano.backend.blockfrost.BlockFrostChainContext>`_ ::
+`BlockFrostChainContext <../api/pycardano.backend.base.html#pycardano.backend.blockfrost.BlockFrostChainContext>`_ ::
 
     >>> from pycardano import BlockFrostChainContext, Network
     >>> network = Network.TESTNET
