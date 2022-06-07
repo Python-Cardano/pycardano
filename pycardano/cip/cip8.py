@@ -147,8 +147,6 @@ def verify(
 
     message = decoded_message.payload.decode("utf-8")
 
-    print(decoded_message.phdr["address"])
-
     signing_address = Address.from_primitive(decoded_message.phdr["address"])
 
     # check that the address attached matches the
