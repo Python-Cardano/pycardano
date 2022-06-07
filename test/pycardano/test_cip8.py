@@ -1,4 +1,4 @@
-from pycardano.cip30 import sign, verify
+from pycardano.cip.cip8 import sign, verify
 from pycardano.key import PaymentSigningKey, PaymentVerificationKey
 from pycardano.network import Network
 
