@@ -21,7 +21,7 @@ def sign(
     network: Network = Network.MAINNET,
 ) -> Union[str, dict]:
     """
-    Sign an arbitrary message with a payment key following CIP-008.
+    Sign an arbitrary message with a payment key following CIP-0008.
         Parameters:
             message (str): Message to be signed
             signing_key (pycardano.key.SigningKey): Key which is used to sign the message
@@ -87,7 +87,7 @@ def verify(
     signed_message: Union[str, dict], attach_cose_key: Optional[bool] = None
 ) -> dict:
     """
-    Verify the signature of a COSESign1 message and decode.
+    Verify the signature of a COSESign1 message and decode its contents following CIP-0008.
     Supports messages signed by browser wallets or `Message.sign()`.
         Parameters:
             signed_message (str, dict): Message to be verified
