@@ -9,8 +9,62 @@ To learn how Plutus enables logic creation, we need to understand a couple key c
 * **Plutus script**: the smart contract that acts as the validator of the transaction. By evaluating the inputs from someone who wants to spend the UTxO, they either approve or deny it (by returning either True or False). The script is compiled into Plutus Core binary and sits on-chain.
 * **Script address**: the hash of the Plutus script binary. They hold UTxOs like typical public key address, but every time a transaction tries to consume the UTxOs on this address, the Plutus script generated this address will be executed by evaluating the input of the transaction, namely datum, redeemer and script context. The transaction is only valid if the script returns True.
 * **Datum**: the datum is a piece of information associated with a UTxO. When someone sends fund to script address, he or she attaches the hash of the datum to "lock" the fund. When someone tries to consume the UTxO, he or she needs to provide datum whose hash matches the attached datum hash and redeemer that meets the conditions specified by the Plutus script to "unlock" the fund.
-* **Redeemer**: the redeemer shares the same data format as datum, but is a separate input. Redeemer value is attached to the input transaction to unlock funds from a script and is used by the script to validate the transaction.
+* **Redeemer**: the redeemer shares the same data format as datum, but is a separate input. It includes datum, along with other information such as types of actions to take with the target UTxO and computational resources to reserve. Redeemer value is attached to the input transaction to unlock funds from a script and is used by the script to validate the transaction.
 * **Script context**: The script context provides information about the pending transaction, along with which input triggered the validation.
+
+--------------------------------
+Datum and Redeemer Serialization
+--------------------------------
+To calculate the hash of a datum, we can leverage the helper class `PlutusData`. `PlutusData` can serialize itself into a CBOR format, which can be interpreted as a data structure in Plutus scripts. Wrapping datum in PlutusData class will reduce the complexity of serialization and deserialization tremendously. It supports data type of int, bytes, List and hashmap. Below are some examples on how to construct some arbitrary datums.
+
+Empty datum::
+
+    >>> empty_datum = PlutusData()
+    >>> empty_datum.to_cbor()
+    'd87980'
+
+Sample datum with int, bytes, List and hashmap inputs::
+
+    >>> # Create sample datum
+    >>> @dataclass
+    ... class MyDatum(PlutusData):
+    ...     CONSTR_ID = 1
+    ...     a: int
+    ...     b: bytes
+    ...     c: IndefiniteList
+    ...     d: dict
+
+    >>> datum = MyDatum(123, b"1234", IndefiniteList([4, 5, 6]), {1: b"1", 2: b"2"})
+    >>> datum.to_cbor()
+    'd87a9f187b43333231ff'
+
+You can also wrap `PlutusData` within `PlutusData`::
+
+    >>> @dataclass
+    ... class InclusionDatum(PlutusData):
+    ...     CONSTR_ID = 1
+    ...     beneficiary: bytes
+    ...     deadline: int
+    ...     other_data: MyDatum
+
+    >>> key_hash = bytes.fromhex("c2ff616e11299d9094ce0a7eb5b7284b705147a822f4ffbd471f971a")
+    >>> deadline = 1643235300000
+    >>> other_datum = MyDatum(123, b"1234", IndefiniteList([4, 5, 6]), {1: b"1", 2: b"2"})
+    >>> include_datum = InclusionDatum(key_hash, deadline, other_datum)
+    >>> include_datum.to_cbor()
+    'd87a9f581cc2ff616e11299d9094ce0a7eb5b7284b705147a822f4ffbd471f971a1b0000017e9874d2a0d8668218829f187b44313233349f040506ffa2014131024132ffff'
+
+`PlutusData` supports conversion from/to JSON format, which
+is easier to read and write. The above could be convered to JSON like this::
+
+    >>> encoded_json = include_datum.to_json(separators=(",", ":")
+
+Similarly, redeemer can be serialized like following::
+
+    >>> data = MyDatum(123, b"234", IndefiniteList([]), {1: b"1", 2: b"2"})
+    >>> redeemer = MyRedeemer(RedeemerTag.SPEND, data, ExecutionUnits(1000000, 1000000))
+    >>> redeemer.to_cbor()
+    '840000d8668218829f187b433233349fffa2014131024132ff821a000f42401a000f4240'
 
 ------------------
 Example - FortyTwo
@@ -70,21 +124,6 @@ Build, sign and submit the transaction:
 
     >>> signed_tx = builder.build_and_sign([payment_skey], giver_address)
     >>> context.submit_tx(signed_tx.to_cbor())
-
-`PlutusData` helper class that can serialize itself into a CBOR format, which could be intepreted as a data structure in Plutus scripts. Wrapping datum in PlutusData class will reduce the complexity of serialization and deserialization tremendously. It supports data type of int, bytes, List and hashmap. For our example, we leave it empty. But to construct any arbitrary datum, we can do the following::
-
-    >>> # Create sample datum
-    >>> @dataclass
-    ... class Test(PlutusData):
-    ...     CONSTR_ID = 1
-    ...     a: int
-    ...     b: bytes
-
-    >>> test = Test(123, b"321")
-    >>> test.to_cbor()
-    'd87a9f187b43333231ff'
-    >>> assert test == Test.from_cbor("d87a9f187b43333231ff")
-    True
 
 Step 4
 
