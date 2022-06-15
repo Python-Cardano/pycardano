@@ -27,6 +27,7 @@ cbor2 = "^5.4.2"
 typeguard = "^2.13.3"
 blockfrost-python = "0.4.4"
 websocket-client = "^1.2.3"
+cose = "^0.9.dev8"
 
 [tool.poetry.dev-dependencies]
 Sphinx = "^4.3.2"
