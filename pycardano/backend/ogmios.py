@@ -108,6 +108,11 @@ class OgmiosChainContext(ChainContext):
                 max_collateral_inputs=result["maxCollateralInputs"],
                 coins_per_utxo_word=result["coinsPerUtxoWord"],
             )
+
+            args = {"query": "genesisConfig"}
+            result = self._request(method, args)
+            param.min_utxo = result["protocolParameters"]["minUtxoValue"]
+
             self._protocol_param = param
         return self._protocol_param
 
