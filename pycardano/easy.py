@@ -18,7 +18,7 @@ from pycardano.network import Network
 from pycardano.transaction import UTxO
 
 
-class _Amount:
+class Amount:
     """Base class for Cardano currency amounts."""
 
     def __init__(self, amount=0, amount_type="lovelace"):
@@ -46,7 +46,7 @@ class _Amount:
     def __eq__(self, other):
         if isinstance(other, (int, float)):
             return self.amount == other
-        elif isinstance(other, _Amount):
+        elif isinstance(other, Amount):
             return self.lovelace == other.lovelace
         else:
             raise TypeError("Must compare with a number or another Cardano amount")
@@ -54,7 +54,7 @@ class _Amount:
     def __ne__(self, other):
         if isinstance(other, (int, float)):
             return self.amount != other
-        elif isinstance(other, _Amount):
+        elif isinstance(other, Amount):
             return self.lovelace != other.lovelace
         else:
             raise TypeError("Must compare with a number or another Cardano amount")
@@ -62,7 +62,7 @@ class _Amount:
     def __gt__(self, other):
         if isinstance(other, (int, float)):
             return self.amount > other
-        elif isinstance(other, _Amount):
+        elif isinstance(other, Amount):
             return self.lovelace > other.lovelace
         else:
             raise TypeError("Must compare with a number or another Cardano amount")
@@ -70,7 +70,7 @@ class _Amount:
     def __lt__(self, other):
         if isinstance(other, (int, float)):
             return self.amount < other
-        elif isinstance(other, _Amount):
+        elif isinstance(other, Amount):
             return self.lovelace < other.lovelace
         else:
             raise TypeError("Must compare with a number or another Cardano amount")
@@ -78,7 +78,7 @@ class _Amount:
     def __ge__(self, other):
         if isinstance(other, (int, float)):
             return self.amount >= other
-        elif isinstance(other, _Amount):
+        elif isinstance(other, Amount):
             return self.lovelace >= other.lovelace
         else:
             raise TypeError("Must compare with a number or another Cardano amount")
@@ -86,7 +86,7 @@ class _Amount:
     def __le__(self, other):
         if isinstance(other, (int, float)):
             return self.amount <= other
-        elif isinstance(other, _Amount):
+        elif isinstance(other, Amount):
             return self.lovelace <= other.lovelace
         else:
             raise TypeError("Must compare with a number or another Cardano amount")
@@ -110,7 +110,7 @@ class _Amount:
     def __add__(self, other):
         if isinstance(other, (int, float)):
             return self.__class__(self.amount + other)
-        elif isinstance(other, _Amount):
+        elif isinstance(other, Amount):
             return self.__class__(self.amount + other[self._amount_type])
         else:
             raise TypeError("Must compute with a number or another Cardano amount")
@@ -118,7 +118,7 @@ class _Amount:
     def __radd__(self, other):
         if isinstance(other, (int, float)):
             return self.__class__(self.amount + other)
-        elif isinstance(other, _Amount):
+        elif isinstance(other, Amount):
             return self.__class__(self.amount + other[self._amount_type])
         else:
             raise TypeError("Must compute with a number or another Cardano amount")
@@ -126,7 +126,7 @@ class _Amount:
     def __sub__(self, other):
         if isinstance(other, (int, float)):
             return self.__class__(self.amount - other)
-        elif isinstance(other, _Amount):
+        elif isinstance(other, Amount):
             return self.__class__(self.amount - other[self._amount_type])
         else:
             raise TypeError("Must compute with a number or another Cardano amount")
@@ -134,7 +134,7 @@ class _Amount:
     def __rsub__(self, other):
         if isinstance(other, (int, float)):
             return self.__class__(self.amount - other)
-        elif isinstance(other, _Amount):
+        elif isinstance(other, Amount):
             return self.__class__(self.amount - other[self._amount_type])
         else:
             raise TypeError("Must compute with a number or another Cardano amount")
@@ -142,7 +142,7 @@ class _Amount:
     def __mul__(self, other):
         if isinstance(other, (int, float)):
             return self.__class__(self.amount * other)
-        elif isinstance(other, _Amount):
+        elif isinstance(other, Amount):
             return self.__class__(self.amount * other[self._amount_type])
         else:
             raise TypeError("Must compute with a number or another Cardano amount")
@@ -150,7 +150,7 @@ class _Amount:
     def __rmul__(self, other):
         if isinstance(other, (int, float)):
             return self.__class__(self.amount * other)
-        elif isinstance(other, _Amount):
+        elif isinstance(other, Amount):
             return self.__class__(self.amount * other[self._amount_type])
         else:
             raise TypeError("Must compute with a number or another Cardano amount")
@@ -158,7 +158,7 @@ class _Amount:
     def __truediv__(self, other):
         if isinstance(other, (int, float)):
             return self.__class__(self.amount / other)
-        elif isinstance(other, _Amount):
+        elif isinstance(other, Amount):
             return self.__class__(self.amount / other[self._amount_type])
         else:
             raise TypeError("Must compute with a number or another Cardano amount")
@@ -166,7 +166,7 @@ class _Amount:
     def __floordiv__(self, other):
         if isinstance(other, (int, float)):
             return self.__class__(self.amount // other)
-        elif isinstance(other, _Amount):
+        elif isinstance(other, Amount):
             return self.__class__(self.amount // other[self._amount_type])
         else:
             raise TypeError("Must compute with a number or another Cardano amount")
@@ -174,7 +174,7 @@ class _Amount:
     def __rtruediv__(self, other):
         if isinstance(other, (int, float)):
             return self.__class__(self.amount / other)
-        elif isinstance(other, _Amount):
+        elif isinstance(other, Amount):
             return self.__class__(self.amount / other[self._amount_type])
         else:
             raise TypeError("Must compute with a number or another Cardano amount")
@@ -182,7 +182,7 @@ class _Amount:
     def __rfloordiv__(self, other):
         if isinstance(other, (int, float)):
             return self.__class__(self.amount // other)
-        elif isinstance(other, _Amount):
+        elif isinstance(other, Amount):
             return self.__class__(self.amount // other[self._amount_type])
         else:
             raise TypeError("Must compute with a number or another Cardano amount")
@@ -200,7 +200,7 @@ class _Amount:
         return self.__class__(round(self.amount))
 
 
-class Lovelace(_Amount):
+class Lovelace(Amount):
     def __init__(self, amount=0):
         super().__init__(amount, "lovelace")
 
@@ -214,7 +214,7 @@ class Lovelace(_Amount):
         return Ada(self.ada)
 
 
-class Ada(_Amount):
+class Ada(Amount):
     def __init__(self, amount=0):
         super().__init__(amount, "ada")
 
@@ -259,13 +259,13 @@ class Wallet:
     name: str
     address: Optional[Union[Address, str]] = None
     keys_dir: Optional[Union[str, Path]] = field(repr=False, default=Path("./priv"))
-    network:  Optional[Literal["mainnet", "testnet"]] = "mainnet"
+    network: Optional[Literal["mainnet", "testnet"]] = "mainnet"
 
     # generally added later
     lovelace: Optional[Lovelace] = field(repr=False, default=Lovelace(0))
     ada: Optional[Ada] = field(repr=True, default=Ada(0))
-    signing_key: Optional[SigningKey] =  field(repr=False, default=None)
-    verification_key: Optional[VerificationKey] =  field(repr=False, default=None)
+    signing_key: Optional[SigningKey] = field(repr=False, default=None)
+    verification_key: Optional[VerificationKey] = field(repr=False, default=None)
     uxtos: Optional[list] = field(repr=False, default_factory=list)
     policy: Optional[NativeScript] = field(repr=False, default=None)
 
@@ -290,13 +290,17 @@ class Wallet:
         try:
             self.utxos = context.utxos(str(self.address))
         except Exception as e:
-            logger.debug(f"Error getting UTxOs. Address has likely not transacted yet. Details: {e}")
+            logger.debug(
+                f"Error getting UTxOs. Address has likely not transacted yet. Details: {e}"
+            )
             self.utxos = []
 
         # calculate total ada
         if self.utxos:
 
-            self.lovelace = Lovelace(sum([utxo.output.amount.coin for utxo in self.utxos]))
+            self.lovelace = Lovelace(
+                sum([utxo.output.amount.coin for utxo in self.utxos])
+            )
             self.ada = self.lovelace.as_ada()
 
             # add up all the tokens
@@ -311,7 +315,6 @@ class Wallet:
 
             self.lovelace = Lovelace(0)
             self.ada = Ada(0)
-
 
     @property
     def stake_address(self):
@@ -329,7 +332,6 @@ class Wallet:
     def verification_key_hash(self):
         return str(self.address.payment_part)
 
-    
     @property
     def tokens(self):
         return self._token_list
@@ -337,7 +339,6 @@ class Wallet:
     @property
     def tokens_dict(self):
         return self._token_dict
-
 
     def _load_or_create_key_pair(self):
 
@@ -428,7 +429,6 @@ def get_stake_address(address: Union[str, Address]):
 
 
 def list_all_wallets(wallet_path: Union[str, Path] = Path("./priv")):
-
 
     if isinstance(wallet_path, str):
         wallet_path = Path(wallet_path)
