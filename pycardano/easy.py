@@ -327,6 +327,7 @@ class Wallet:
     verification_key: Optional[VerificationKey] = field(repr=False, default=None)
     uxtos: Optional[list] = field(repr=False, default_factory=list)
     policy: Optional[NativeScript] = field(repr=False, default=None)
+    context: Optional[BlockFrostChainContext] = field(repr=False, default=None)
 
     def __post_init__(self):
 
@@ -344,7 +345,22 @@ class Wallet:
         else:
             self.network = self.address.network.name.lower()
 
-    def query_utxos(self, context: ChainContext):
+        # try to automatically create blockfrost context
+        if not self.context:
+            if self.network.lower() == "mainnet":
+                if getenv("BLOCKFROST_ID"):
+                    self.context = BlockFrostChainContext(getenv("BLOCKFROST_ID"))
+            elif getenv("BLOCKFROST_ID_TESTNET"):
+                self.context = BlockFrostChainContext(getenv("BLOCKFROST_ID_TESTNET"))
+
+        if self.context:
+            self.query_utxos()
+
+        logger.info(self.__repr__())
+
+    def query_utxos(self, context: Optional[ChainContext] = None):
+
+        context = self._find_context(context)
 
         try:
             self.utxos = context.utxos(str(self.address))
@@ -425,6 +441,18 @@ class Wallet:
 
         self.address = Address(vkey.hash(), network=Network[self.network.upper()])
 
+    def _find_context(self, context: Optional[ChainContext] = None):
+        """Helper function to ensure that a context is always provided when needed.
+        By default will return self.context unless a context variable has been specifically specified.
+        """
+
+        if not context and not self.context:
+            raise TypeError("Please pass `context` or set Wallet.context.")
+        elif not self.context:
+            return context
+        else:
+            return self.context
+
     def _get_tokens(self):
 
         # loop through the utxos and sum up all tokens
@@ -458,7 +486,9 @@ class Wallet:
         self._token_dict = tokens
         self._token_list = token_list
 
-    def get_utxo_creators(self, context: ChainContext):
+    def get_utxo_creators(self, context: Optional[ChainContext] = None):
+
+        context = self._find_context(context)
 
         for utxo in self.utxos:
             utxo.creator = get_utxo_creator(utxo, context)
