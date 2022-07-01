@@ -246,7 +246,7 @@ class Token:
     amount: int
     name: Optional[str] = field(default="")
     hex_name: Optional[str] = field(default="")
-    metadata: Optional[dict] = field(default=None, compare=False)
+    metadata: Optional[dict] = field(default_factory=dict, compare=False)
 
     def __post_init__(self):
 
@@ -260,8 +260,55 @@ class Token:
         elif isinstance(self.name, str):
             self.hex_name = bytes(self.name.encode("utf-8")).hex()
 
+        self._check_metadata(to_check=self.metadata, top_level=True)
+
     def __str__(self):
         return self.name
+
+    def _check_metadata(
+        self, to_check: Union[dict, list, str], top_level: bool = False
+    ):
+        """Screen the input metadata for potential issues.
+        Used recursively to check inside all dicts and lists of the metadata.
+        Use top_level=True only for the full metadata dictionary in order to check that
+        it is JSON serializable.
+        """
+
+        if isinstance(to_check, dict):
+            for key, value in to_check.items():
+
+                if len(str(key)) > 64:
+                    raise MetadataFormattingException(
+                        f"Metadata key is too long (> 64 characters): {key}\nConsider splitting into an array of shorter strings."
+                    )
+
+                if isinstance(value, dict) or isinstance(value, list):
+                    self._check_metadata(to_check=value)
+
+                elif len(str(value)) > 64:
+                    raise MetadataFormattingException(
+                        f"Metadata field is too long (> 64 characters): {key}: {value}\nConsider splitting into an array of shorter strings."
+                    )
+
+        elif isinstance(to_check, list):
+
+            for item in to_check:
+                if len(str(item)) > 64:
+                    raise MetadataFormattingException(
+                        f"Metadata field is too long (> 64 characters): {item}\nConsider splitting into an array of shorter strings."
+                    )
+
+        elif isinstance(to_check, str):
+            if len(to_check) > 64:
+                raise MetadataFormattingException(
+                    f"Metadata field is too long (> 64 characters): {item}\nConsider splitting into an array of shorter strings."
+                )
+
+        if top_level:
+            try:
+                json.dumps(to_check)
+            except TypeError as e:
+                raise MetadataFormattingException(f"Cannot format metadata: {e}")
 
 
 @dataclass
