@@ -493,6 +493,105 @@ class Wallet:
         for utxo in self.utxos:
             utxo.creator = get_utxo_creator(utxo, context)
 
+    def send_ada(
+        self,
+        to: Union[str, Address],
+        amount: Union[Ada, Lovelace, int],
+        utxos: Optional[Union[UTxO, List[UTxO]]] = [],
+        await_confirmation: Optional[bool] = False,
+        context: Optional[ChainContext] = None,
+    ):
+
+        context = self._find_context(context)
+
+        # streamline inputs
+        if isinstance(to, str):
+            to = Address.from_primitive(to)
+
+        if not isinstance(amount, Ada) and not isinstance(amount, Lovelace):
+            raise TypeError(
+                "Please provide amount as either `Ada(amount)` or `Lovelace(amount)`."
+            )
+
+        if utxos:
+            if isinstance(utxos, UTxO):
+                utxos = [utxos]
+
+        builder = TransactionBuilder(context)
+
+        builder.add_input_address(self.address)
+
+        if utxos:
+            for utxo in utxos:
+                builder.add_input(utxo)
+
+        builder.add_output(
+            TransactionOutput(to, Value.from_primitive([amount.as_lovelace().amount]))
+        )
+
+        signed_tx = builder.build_and_sign(
+            [self.signing_key], change_address=self.address
+        )
+
+        context.submit_tx(signed_tx.to_cbor())
+
+        if await_confirmation:
+            confirmed = wait_for_confirmation(str(signed_tx.id), self.context)
+            self.query_utxos()
+
+        return str(signed_tx.id)
+
+    def send_utxo(
+        self,
+        to: Union[str, Address],
+        utxos: Union[UTxO, List[UTxO]],
+        await_confirmation: Optional[bool] = False,
+        context: Optional[ChainContext] = None,
+    ):
+
+        # streamline inputs
+        context = self._find_context(context)
+
+        if isinstance(to, str):
+            to = Address.from_primitive(to)
+
+        if isinstance(utxos, UTxO):
+            utxos = [utxos]
+
+        builder = TransactionBuilder(context)
+
+        builder.add_input_address(self.address)
+
+        for utxo in utxos:
+            builder.add_input(utxo)
+
+        signed_tx = builder.build_and_sign(
+            [self.signing_key],
+            change_address=to,
+            merge_change=True,
+        )
+
+        context.submit_tx(signed_tx.to_cbor())
+
+        if await_confirmation:
+            confirmed = wait_for_confirmation(str(signed_tx.id), self.context)
+            self.query_utxos()
+
+        return str(signed_tx.id)
+
+    def empty_wallet(
+        self,
+        to: Union[str, Address],
+        await_confirmation: Optional[bool] = False,
+        context: Optional[ChainContext] = None,
+    ):
+
+        return self.send_utxo(
+            to=to,
+            utxos=self.utxos,
+            await_confirmation=await_confirmation,
+            context=context,
+        )
 
 # helpers
 def get_utxo_creator(utxo: UTxO, context: ChainContext):
@@ -505,6 +604,11 @@ def get_utxo_creator(utxo: UTxO, context: ChainContext):
         )
 
         return utxo_creator
+
+    else:
+        logger.warn(
+            "Fetching UTxO creators (sender) is only possible with Blockfrost Chain Context."
+        )
 
 
 def get_stake_address(address: Union[str, Address]):
@@ -525,3 +629,48 @@ def list_all_wallets(wallet_path: Union[str, Path] = Path("./priv")):
     wallets = [skey.stem for skey in list(wallet_path.glob("*.skey"))]
 
     return wallets
+
+
+def confirm_tx(tx_id: Union[str, TransactionId], context: ChainContext):
+
+    if isinstance(context, BlockFrostChainContext):
+
+        from blockfrost import ApiError
+
+        try:
+            transaction_info = context.api.transaction(str(tx_id))
+            confirmed = True
+        except ApiError:
+            confirmed = False
+            transaction_info = {}
+
+        return confirmed
+
+    else:
+        logger.warn(
+            "Confirming transactions is is only possible with Blockfrost Chain Context."
+        )
+
+
+def wait_for_confirmation(
+    tx_id: Union[str, TransactionId], context: ChainContext, delay: Optional[int] = 10
+):
+
+    if not isinstance(context, BlockFrostChainContext):
+        logger.warn(
+            "Confirming transactions is is only possible with Blockfrost Chain Context."
+        )
+        return
+
+    confirmed = False
+    while not confirmed:
+        confirmed = confirm_tx(tx_id, context)
+        if not confirmed:
+            sleep(delay)
+
+    return confirmed
+
+
+# Exceptions
+class MetadataFormattingException(PyCardanoException):
+    pass
