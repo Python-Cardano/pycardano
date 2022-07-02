@@ -111,7 +111,10 @@ class NativeScript(ArrayCBORSerializable):
                 script["scripts"] = [i.to_dict() for i in value]
 
             else:
-                script[FIELDS[self._TYPE]] = value
+                if isinstance(value, int):
+                    script[FIELDS[self._TYPE]] = value
+                else:
+                    script[FIELDS[self._TYPE]] = str(value)
 
         return script
 
