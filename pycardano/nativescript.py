@@ -52,6 +52,69 @@ class NativeScript(ArrayCBORSerializable):
             )
         )
 
+    @classmethod
+    def from_dict(
+        cls: NativeScript, script: dict, top_level: bool = True
+    ) -> Union[
+        ScriptPubkey, ScriptAll, ScriptAny, ScriptNofK, InvalidBefore, InvalidHereAfter
+    ]:
+
+        TYPES = {
+            "sig": ScriptPubkey,
+            "all": ScriptAll,
+            "any": ScriptAny,
+            "atLeast": ScriptNofK,
+            "after": InvalidBefore,
+            "before": InvalidHereAfter,
+        }
+
+        if isinstance(script, dict):
+            native_script = []
+
+            for key, value in script.items():
+                if key == "type":
+                    native_script.insert(0, list(TYPES.keys()).index(value))
+                elif key == "scripts":
+                    native_script.append(cls.from_dict(value, top_level=False))
+                else:
+                    native_script.append(value)
+
+        elif isinstance(script, list):  # list
+            native_script = [cls.from_dict(i, top_level=False) for i in script]
+
+        if not top_level:
+            return native_script
+        else:
+            return super(NativeScript, TYPES[script["type"]]).from_primitive(
+                native_script[1:]
+            )
+
+    def to_dict(self) -> dict:
+
+        TAGS = [
+            "sig",
+            "all",
+            "any",
+            "atLeast",
+            "after",
+            "before",
+        ]
+
+        FIELDS = ["keyHash", "scripts", "scripts", "required", "slot", "slot"]
+
+        script = {}
+
+        for value in self.__dict__.values():
+            script["type"] = TAGS[self._TYPE]
+
+            if isinstance(value, list):
+                script["scripts"] = [i.to_dict() for i in value]
+
+            else:
+                script[FIELDS[self._TYPE]] = value
+
+        return script
+
 
 @dataclass
 class ScriptPubkey(NativeScript):
