@@ -593,6 +593,34 @@ class Wallet:
             context=context,
         )
 
+    def mint_tokens(
+        self,
+        to: Union[str, Address],
+        amount: Union[Ada, Lovelace, int],
+        mints: Union[Token, List[Token]],
+        utxos: Optional[Union[UTxO, List[UTxO]]] = [],
+        signers: Optional[Union['Wallet', List['Wallet']]] = [],
+        await_confirmation: Optional[bool] = False,
+        context: Optional[ChainContext] = None,
+    ):
+        """Under construction."""
+
+        # streamline inputs
+        context = self._find_context(context)
+
+        if isinstance(to, str):
+            to = Address.from_primitive(to)
+
+        if isinstance(utxos, UTxO):
+            utxos = [utxos]
+
+        builder = TransactionBuilder(context)
+
+        builder.add_input_address(self.address)
+
+        # TBC...
+
+
 # helpers
 def get_utxo_creator(utxo: UTxO, context: ChainContext):
 
