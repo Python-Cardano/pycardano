@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 import datetime
 import json
 import logging
+import operator
 from os import getenv
 from pathlib import Path
 from time import sleep
@@ -514,11 +515,14 @@ class Wallet:
     - Fetch utxos
     - Send ada
     - Send specific UTxOs
+    - Get senders of all UTxOs
+    - Get metadata for all held tokens
+    - Get utxo block times and sort utxos
     - Mint tokens
+    - Automatically load in token polices where wallet is a signer
     - Attach messages to transactions
     TODO: 
     - burn tokens
-    - automatically load in token polices where wallet is a signer
     - stake wallet
     - withdraw rewards
     - generate manual transactions
@@ -710,6 +714,26 @@ class Wallet:
 
         for utxo in self.utxos:
             utxo.creator = get_utxo_creator(utxo, context)
+
+
+    def get_utxo_block_times(self, context: Optional[ChainContext] = None):
+
+        context = self._find_context(context)
+
+        for utxo in self.utxos:
+            utxo.block_time = get_utxo_block_time(utxo, context)
+        
+        self.sort_utxos()
+
+    
+    def sort_utxos(self, by="block_time"):
+
+        if self.utxos:
+            if hasattr(self.utxos[0], by):
+                self.utxos.sort(key=operator.attrgetter(by))
+            else:
+                logger.warn(f"Not all utxos have the attribute `{by}`.")
+
 
     def get_token_metadata(self, context: Optional[ChainContext] = None):
 
@@ -973,6 +997,22 @@ def get_utxo_creator(utxo: UTxO, context: ChainContext):
     else:
         logger.warn(
             "Fetching UTxO creators (sender) is only possible with Blockfrost Chain Context."
+        )
+
+
+def get_utxo_block_time(utxo: UTxO, context: ChainContext):
+
+    if isinstance(context, BlockFrostChainContext):
+        block_time = (
+            context.api.transaction(str(utxo.input.transaction_id))
+            .block_time
+        )
+
+        return block_time
+
+    else:
+        logger.warn(
+            "Fetching UTxO block time is only possible with Blockfrost Chain Context."
         )
 
 
