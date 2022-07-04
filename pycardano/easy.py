@@ -469,7 +469,13 @@ class Token:
 
 @dataclass
 class Wallet:
-    """An address for which you own the keys or will later create them."""
+    """An address for which you own the keys or will later create them.
+    TODO: 
+    - burn tokens
+    - generate manual transactions
+    - multi-output transactions
+    - multi-sig transactions
+    """
 
     name: str
     address: Optional[Union[Address, str]] = None
@@ -482,7 +488,6 @@ class Wallet:
     signing_key: Optional[SigningKey] = field(repr=False, default=None)
     verification_key: Optional[VerificationKey] = field(repr=False, default=None)
     uxtos: Optional[list] = field(repr=False, default_factory=list)
-    policy: Optional[NativeScript] = field(repr=False, default=None)
     context: Optional[BlockFrostChainContext] = field(repr=False, default=None)
 
     def __post_init__(self):
