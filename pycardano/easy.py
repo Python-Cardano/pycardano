@@ -634,8 +634,9 @@ class Wallet:
     def send_ada(
         self,
         to: Union[str, Address],
-        amount: Union[Ada, Lovelace, int],
+        amount: Union[Ada, Lovelace],
         utxos: Optional[Union[UTxO, List[UTxO]]] = [],
+        message: Optional[Union[str, List[str]]] = None,
         await_confirmation: Optional[bool] = False,
         context: Optional[ChainContext] = None,
     ):
@@ -667,6 +668,10 @@ class Wallet:
             TransactionOutput(to, Value.from_primitive([amount.as_lovelace().amount]))
         )
 
+        if message:
+            metadata = {674: format_message(message)}
+            builder.auxiliary_data = AuxiliaryData(AlonzoMetadata(metadata=Metadata(metadata)))
+
         signed_tx = builder.build_and_sign(
             [self.signing_key], change_address=self.address
         )
@@ -683,6 +688,7 @@ class Wallet:
         self,
         to: Union[str, Address],
         utxos: Union[UTxO, List[UTxO]],
+        message: Optional[Union[str, List[str]]] = None,
         await_confirmation: Optional[bool] = False,
         context: Optional[ChainContext] = None,
     ):
@@ -703,6 +709,10 @@ class Wallet:
         for utxo in utxos:
             builder.add_input(utxo)
 
+        if message:
+            metadata = {674: format_message(message)}
+            builder.auxiliary_data = AuxiliaryData(AlonzoMetadata(metadata=Metadata(metadata)))
+
         signed_tx = builder.build_and_sign(
             [self.signing_key],
             change_address=to,
@@ -720,6 +730,7 @@ class Wallet:
     def empty_wallet(
         self,
         to: Union[str, Address],
+        message: Optional[Union[str, List[str]]] = None,
         await_confirmation: Optional[bool] = False,
         context: Optional[ChainContext] = None,
     ):
@@ -727,6 +738,7 @@ class Wallet:
         return self.send_utxo(
             to=to,
             utxos=self.utxos,
+            message=message,
             await_confirmation=await_confirmation,
             context=context,
         )
@@ -785,6 +797,24 @@ def get_stake_address(address: Union[str, Address]):
     return Address.from_primitive(
         bytes.fromhex(f"e{address.network.value}" + str(address.staking_part))
     )
+
+
+def format_message(message: Union[str, List[str]]):
+
+    if isinstance(message, str):
+        message = [message]
+
+    for line in message:
+        if len(line) > 64:
+            raise MetadataFormattingException(
+                f"Message field is too long (> 64 characters): {line}\nConsider splitting into an array of shorter strings."
+            )
+        if not isinstance(line, str):
+            raise MetadataFormattingException(
+                f"Message Field must be of type `str`: {line}"
+            )
+
+    return {"msg": message}
 
 
 def list_all_wallets(wallet_path: Union[str, Path] = Path("./priv")):
