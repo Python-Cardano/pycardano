@@ -1,11 +1,11 @@
 from dataclasses import dataclass, field
+import datetime
 import json
 import logging
 from os import getenv
 from pathlib import Path
 from time import sleep
-from typing import List, Literal, Optional, Type, Union
-from pycardano import transaction
+from typing import List, Literal, Optional, Union
 from pycardano.address import Address
 
 from pycardano.backend.base import ChainContext
@@ -20,10 +20,24 @@ from pycardano.key import (
     VerificationKey,
 )
 from pycardano.logging import logger
-from pycardano.nativescript import NativeScript
+from pycardano.metadata import AlonzoMetadata, AuxiliaryData, Metadata
+from pycardano.nativescript import (
+    InvalidHereAfter,
+    NativeScript,
+    ScriptAll,
+    ScriptPubkey,
+)
 from pycardano.network import Network
-from pycardano.transaction import TransactionOutput, UTxO, Value
+from pycardano.transaction import (
+    Asset,
+    AssetName,
+    MultiAsset,
+    TransactionOutput,
+    UTxO,
+    Value,
+)
 from pycardano.txbuilder import TransactionBuilder
+from pycardano.utils import min_lovelace
 
 
 # set logging level to info
@@ -670,7 +684,9 @@ class Wallet:
 
         if message:
             metadata = {674: format_message(message)}
-            builder.auxiliary_data = AuxiliaryData(AlonzoMetadata(metadata=Metadata(metadata)))
+            builder.auxiliary_data = AuxiliaryData(
+                AlonzoMetadata(metadata=Metadata(metadata))
+            )
 
         signed_tx = builder.build_and_sign(
             [self.signing_key], change_address=self.address
@@ -711,7 +727,9 @@ class Wallet:
 
         if message:
             metadata = {674: format_message(message)}
-            builder.auxiliary_data = AuxiliaryData(AlonzoMetadata(metadata=Metadata(metadata)))
+            builder.auxiliary_data = AuxiliaryData(
+                AlonzoMetadata(metadata=Metadata(metadata))
+            )
 
         signed_tx = builder.build_and_sign(
             [self.signing_key],
@@ -746,10 +764,11 @@ class Wallet:
     def mint_tokens(
         self,
         to: Union[str, Address],
-        amount: Union[Ada, Lovelace, int],
         mints: Union[Token, List[Token]],
+        amount: Optional[Union[Ada, Lovelace]] = None,
         utxos: Optional[Union[UTxO, List[UTxO]]] = [],
-        signers: Optional[Union['Wallet', List['Wallet']]] = [],
+        other_signers: Optional[Union["Wallet", List["Wallet"]]] = [],
+        message: Optional[Union[str, List[str]]] = None,
         await_confirmation: Optional[bool] = False,
         context: Optional[ChainContext] = None,
     ):
@@ -761,14 +780,108 @@ class Wallet:
         if isinstance(to, str):
             to = Address.from_primitive(to)
 
+        if amount and not isinstance(amount, Ada) and not isinstance(amount, Lovelace):
+            raise TypeError(
+                "Please provide amount as either `Ada(amount)` or `Lovelace(amount)`."
+            )
+
+        if not isinstance(mints, list):
+            mints = [mints]
+
         if isinstance(utxos, UTxO):
             utxos = [utxos]
 
+        if not isinstance(other_signers, list):
+            other_signers = [other_signers]
+
+        # sort assets by policy_id
+        mints_dict = {}
+        mint_metadata = {}
+        native_scripts = []
+        for token in mints:
+            if isinstance(token.policy, NativeScript):
+                policy_hash = token.policy.hash()
+            elif isinstance(token.policy, TokenPolicy):
+                policy_hash = token.policy.policy.hash()
+
+            policy_id = str(policy_hash)
+
+            if not mints_dict.get(policy_hash):
+                mints_dict[policy_hash] = {}
+                mint_metadata[policy_id] = {}
+
+                if isinstance(token.policy, NativeScript):
+                    native_scripts.append(token.policy)
+                else:
+                    native_scripts.append(token.policy.policy)
+
+            mints_dict[policy_hash][token.name] = token
+            if token.metadata:
+                mint_metadata[policy_id][token.name] = token.metadata
+
+        asset_mints = MultiAsset()
+
+        for policy_hash, tokens in mints_dict.items():
+
+            assets = Asset()
+            for token in tokens.values():
+                assets[AssetName(token.bytes_name)] = int(token.amount)
+
+            asset_mints[policy_hash] = assets
+
+        # create mint metadata
+        mint_metadata = {721: mint_metadata}
+
+        # add message
+        if message:
+            mint_metadata[674] = format_message(message)
+
+        # Place metadata in AuxiliaryData, the format acceptable by a transaction.
+        auxiliary_data = AuxiliaryData(AlonzoMetadata(metadata=Metadata(mint_metadata)))
+
+        # build the transaction
         builder = TransactionBuilder(context)
+
+        # add transaction inputs
+        if utxos:
+            for utxo in utxos:
+                builder.add_input(utxo)
 
         builder.add_input_address(self.address)
 
-        # TBC...
+        # set builder ttl to the min of the included policies
+        builder.ttl = min(
+            [TokenPolicy("", policy).expiration_slot for policy in native_scripts]
+        )
+
+        builder.mint = asset_mints
+        builder.native_scripts = native_scripts
+        builder.auxiliary_data = auxiliary_data
+
+        if not amount:  # sent min amount if none specified
+            amount = Lovelace(min_lovelace(Value(0, asset_mints), context))
+            print("Min value =", amount)
+
+        builder.add_output(TransactionOutput(to, Value(amount.lovelace, asset_mints)))
+
+        if other_signers:
+            signing_keys = [wallet.signing_key for wallet in other_signers] + [
+                self.signing_key
+            ]
+        else:
+            signing_keys = [self.signing_key]
+
+        signed_tx = builder.build_and_sign(signing_keys, change_address=self.address)
+
+        print(signed_tx.to_cbor())
+
+        context.submit_tx(signed_tx.to_cbor())
+
+        if await_confirmation:
+            confirmed = wait_for_confirmation(str(signed_tx.id), self.context)
+            self.query_utxos()
+
+        return str(signed_tx.id)
 
 
 # helpers
