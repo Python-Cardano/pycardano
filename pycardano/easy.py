@@ -444,6 +444,10 @@ class Token:
             except TypeError as e:
                 raise MetadataFormattingException(f"Cannot format metadata: {e}")
 
+    @property
+    def bytes_name(self):
+        return bytes(self.name.encode("utf-8"))
+
 
 @dataclass
 class Wallet:
