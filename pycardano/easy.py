@@ -675,6 +675,14 @@ class Wallet:
         for utxo in self.utxos:
             utxo.creator = get_utxo_creator(utxo, context)
 
+    def get_token_metadata(self, context: Optional[ChainContext] = None):
+
+        context = self._find_context(context)
+
+        for token in self.tokens:
+            token.get_onchain_metadata(context)
+
+
     def send_ada(
         self,
         to: Union[str, Address],
