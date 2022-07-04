@@ -6,8 +6,10 @@ from os import getenv
 from pathlib import Path
 from time import sleep
 from typing import List, Literal, Optional, Union
-from pycardano.address import Address
 
+from blockfrost import ApiError
+
+from pycardano.address import Address
 from pycardano.backend.base import ChainContext
 from pycardano.backend.blockfrost import BlockFrostChainContext
 from pycardano.exception import PyCardanoException
@@ -465,6 +467,25 @@ class Token:
     @property
     def bytes_name(self):
         return bytes(self.name.encode("utf-8"))
+
+    
+    def get_onchain_metadata(self, context: ChainContext):
+
+        if not isinstance(context, BlockFrostChainContext):
+            logger.warn(
+                "Getting onchain metadata is is only possible with Blockfrost Chain Context."
+            )
+            return {}
+
+        try:
+            metadata = context.api.asset(self.policy.id + self.hex_name).onchain_metadata.to_dict()
+        except ApiError as e:
+            logger.error(f"Could not get onchain data, likely this asset has not been minted yet\n Blockfrost Error: {e}")
+            metadata = {}
+
+        return metadata
+            
+        
 
 
 @dataclass
@@ -947,6 +968,17 @@ def list_all_wallets(wallet_path: Union[str, Path] = Path("./priv")):
     wallets = [skey.stem for skey in list(wallet_path.glob("*.skey"))]
 
     return wallets
+
+
+def get_all_policies(policy_path: Union[str, Path] = Path("./priv/policies")):
+
+    
+    if isinstance(policy_path, str):
+        policy_path = Path(policy_path)
+
+    policies = [TokenPolicy(skey.stem) for skey in list(policy_path.glob("*.script"))]
+
+    return policies
 
 
 def confirm_tx(tx_id: Union[str, TransactionId], context: ChainContext):
