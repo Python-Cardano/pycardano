@@ -985,8 +985,6 @@ def confirm_tx(tx_id: Union[str, TransactionId], context: ChainContext):
 
     if isinstance(context, BlockFrostChainContext):
 
-        from blockfrost import ApiError
-
         try:
             transaction_info = context.api.transaction(str(tx_id))
             confirmed = True
