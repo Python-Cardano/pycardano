@@ -906,7 +906,6 @@ class Wallet:
 
             if not mints_dict.get(policy_hash):
                 mints_dict[policy_hash] = {}
-                mint_metadata[policy_id] = {}
 
                 if isinstance(token.policy, NativeScript):
                     native_scripts.append(token.policy)
@@ -914,28 +913,39 @@ class Wallet:
                     native_scripts.append(token.policy.policy)
 
             mints_dict[policy_hash][token.name] = token
-            if token.metadata:
+            if token.metadata and token.amount > 0:
+                if not mint_metadata.get(policy_id):
+                    mint_metadata[policy_id] = {}
                 mint_metadata[policy_id][token.name] = token.metadata
 
-        asset_mints = MultiAsset()
+        mint_multiasset = MultiAsset()
+        all_assets = MultiAsset()
 
         for policy_hash, tokens in mints_dict.items():
 
+            mint_assets = Asset()
             assets = Asset()
             for token in tokens.values():
                 assets[AssetName(token.bytes_name)] = int(token.amount)
 
-            asset_mints[policy_hash] = assets
+                if token.amount > 0:
+                    mint_assets[AssetName(token.bytes_name)] = int(token.amount)
+
+            if mint_assets:
+                mint_multiasset[policy_hash] = mint_assets
+            all_assets[policy_hash] = assets
 
         # create mint metadata
-        mint_metadata = {721: mint_metadata}
+        if mint_metadata:
+            mint_metadata[721] = mint_metadata
 
         # add message
         if message:
             mint_metadata[674] = format_message(message)
 
         # Place metadata in AuxiliaryData, the format acceptable by a transaction.
-        auxiliary_data = AuxiliaryData(AlonzoMetadata(metadata=Metadata(mint_metadata)))
+        if mint_metadata:
+            auxiliary_data = AuxiliaryData(AlonzoMetadata(metadata=Metadata(mint_metadata)))
 
         # build the transaction
         builder = TransactionBuilder(context)
@@ -952,15 +962,19 @@ class Wallet:
             [TokenPolicy("", policy).expiration_slot for policy in native_scripts]
         )
 
-        builder.mint = asset_mints
+        print(mint_multiasset)
+        print(all_assets)
+        builder.mint = all_assets
         builder.native_scripts = native_scripts
-        builder.auxiliary_data = auxiliary_data
+        if mint_metadata:
+            builder.auxiliary_data = auxiliary_data
 
         if not amount:  # sent min amount if none specified
-            amount = Lovelace(min_lovelace(Value(0, asset_mints), context))
+            amount = Lovelace(min_lovelace(Value(0, mint_multiasset), context))
             print("Min value =", amount)
 
-        builder.add_output(TransactionOutput(to, Value(amount.lovelace, asset_mints)))
+        if mint_multiasset:
+            builder.add_output(TransactionOutput(to, Value(amount.lovelace, mint_multiasset)))
 
         if other_signers:
             signing_keys = [wallet.signing_key for wallet in other_signers] + [
