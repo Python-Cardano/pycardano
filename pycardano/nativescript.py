@@ -58,6 +58,7 @@ class NativeScript(ArrayCBORSerializable):
     ) -> Union[
         ScriptPubkey, ScriptAll, ScriptAny, ScriptNofK, InvalidBefore, InvalidHereAfter
     ]:
+        """Parse a standard native script dictionary (potentially parsed from a JSON file)."""
 
         types = {
             p.json_tag: p
@@ -93,6 +94,7 @@ class NativeScript(ArrayCBORSerializable):
             )
 
     def to_dict(self) -> dict:
+        """Export to standard native script dictionary (potentially to dump to a JSON file)."""
 
         script = {}
 
