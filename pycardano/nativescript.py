@@ -59,7 +59,17 @@ class NativeScript(ArrayCBORSerializable):
         ScriptPubkey, ScriptAll, ScriptAny, ScriptNofK, InvalidBefore, InvalidHereAfter
     ]:
 
-        types = {p.json_tag: p for p in [ScriptPubkey, ScriptAll, ScriptAny, ScriptNofK, InvalidBefore, InvalidHereAfter]}
+        types = {
+            p.json_tag: p
+            for p in [
+                ScriptPubkey,
+                ScriptAll,
+                ScriptAny,
+                ScriptNofK,
+                InvalidBefore,
+                InvalidHereAfter,
+            ]
+        }
 
         if isinstance(script, dict):
             native_script = []
