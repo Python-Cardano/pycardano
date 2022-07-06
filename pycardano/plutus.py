@@ -6,7 +6,7 @@ import inspect
 import json
 from dataclasses import dataclass, field, fields
 from enum import Enum
-from typing import ClassVar, List, Optional, Union
+from typing import Any, ClassVar, List, Optional, Union
 
 import cbor2
 from cbor2 import CBORTag
@@ -485,7 +485,7 @@ class Redeemer(ArrayCBORSerializable):
 
     index: int = field(default=0, init=False)
 
-    data: Datum
+    data: Any
 
     ex_units: ExecutionUnits = None
 

@@ -10,6 +10,10 @@ def test_min_lovelace_ada_only(chain_context):
     assert min_lovelace(2000000, chain_context) == chain_context.protocol_param.min_utxo
 
 
+def test_min_lovelace_ada_only_2(chain_context):
+    assert min_lovelace(Value(2000000), chain_context) == chain_context.protocol_param.min_utxo
+
+
 class TestMinLoveLaceMultiAsset:
 
     # Tests copied from: https://github.com/input-output-hk/cardano-ledger/blob/master/doc/explanations/min-utxo-alonzo.rst#example-min-ada-value-calculations-and-current-constants
