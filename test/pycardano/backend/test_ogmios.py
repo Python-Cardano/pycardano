@@ -41,6 +41,9 @@ GENESIS_RESULT = {
     "slotLength": 1,
     "updateQuorum": 2,
     "maxLovelaceSupply": 1000000000000,
+    "protocolParameters": {
+        "minUtxoValue": 1000000,
+    }
 }
 
 UTXOS = [
@@ -108,7 +111,7 @@ class TestOgmiosChainContext:
                 extra_entropy="neutral",
                 protocol_major_version=5,
                 protocol_minor_version=0,
-                min_utxo=None,
+                min_utxo=1000000,
                 min_pool_cost=0,
                 price_mem=0.1,
                 price_step=0.1,

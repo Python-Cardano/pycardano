@@ -24,6 +24,7 @@ making it a light-weight library that is easy and fast to set up in all kinds of
     guides/serialization
     guides/instance_creation
     guides/transaction
+    guides/plutus
 
 
 .. toctree::
