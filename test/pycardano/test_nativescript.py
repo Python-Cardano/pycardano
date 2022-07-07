@@ -7,6 +7,7 @@ from pycardano.key import VerificationKey
 from pycardano.nativescript import (
     InvalidBefore,
     InvalidHereAfter,
+    NativeScript,
     ScriptAll,
     ScriptAny,
     ScriptNofK,
@@ -123,3 +124,75 @@ def test_full_tx():
     script = ScriptAll([before, spk1, spk2])
 
     assert tx.transaction_witness_set.native_scripts[0] == script
+
+
+def test_to_dict():
+
+    vk1 = VerificationKey.from_cbor(
+        "58206443a101bdb948366fc87369336224595d36d8b0eee5602cba8b81a024e58473"
+    )
+    vk2 = VerificationKey.from_cbor(
+        "58206443a101bdb948366fc87369336224595d36d8b0eee5602cba8b81a024e58475"
+    )
+    spk1 = ScriptPubkey(key_hash=vk1.hash())
+    spk2 = ScriptPubkey(key_hash=vk2.hash())
+    before = InvalidHereAfter(123456789)
+    after = InvalidBefore(123456780)
+
+    script_nofk = ScriptNofK(2, [before, after, spk1, spk2])
+
+    script_dict = script_nofk.to_dict()
+
+    assert script_dict == {
+        "type": "atLeast",
+        "required": 2,
+        "scripts": [
+            {"type": "before", "slot": 123456789},
+            {"type": "after", "slot": 123456780},
+            {
+                "type": "sig",
+                "keyHash": "9139e5c0a42f0f2389634c3dd18dc621f5594c5ba825d9a8883c6627",
+            },
+            {
+                "type": "sig",
+                "keyHash": "835600a2be276a18a4bebf0225d728f090f724f4c0acd591d066fa6f",
+            },
+        ],
+    }
+
+    assert NativeScript.from_dict(script_dict) == script_nofk
+
+
+def test_from_dict():
+
+    vk1 = VerificationKey.from_cbor(
+        "58206443a101bdb948366fc87369336224595d36d8b0eee5602cba8b81a024e58473"
+    )
+    vk2 = VerificationKey.from_cbor(
+        "58206443a101bdb948366fc87369336224595d36d8b0eee5602cba8b81a024e58475"
+    )
+    spk1 = ScriptPubkey(key_hash=vk1.hash())
+    spk2 = ScriptPubkey(key_hash=vk2.hash())
+    before = InvalidHereAfter(123456789)
+
+    script_all = ScriptAll([before, spk1, spk2])
+
+    script_all_dict = {
+        "type": "all",
+        "scripts": [
+            {"type": "before", "slot": 123456789},
+            {
+                "type": "sig",
+                "keyHash": "9139e5c0a42f0f2389634c3dd18dc621f5594c5ba825d9a8883c6627",
+            },
+            {
+                "type": "sig",
+                "keyHash": "835600a2be276a18a4bebf0225d728f090f724f4c0acd591d066fa6f",
+            },
+        ],
+    }
+
+    script_from_dict = NativeScript.from_dict(script_all_dict)
+    
+    assert script_from_dict == script_all
+    assert script_from_dict.to_dict() == script_all_dict
