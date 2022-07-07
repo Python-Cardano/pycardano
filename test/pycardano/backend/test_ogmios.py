@@ -21,6 +21,7 @@ PROTOCOL_RESULT = {
     "protocolVersion": {"major": 5, "minor": 0},
     "minPoolCost": 0,
     "coinsPerUtxoWord": 1,
+    "coinsPerUtxoByte": 1,
     "prices": {"memory": "1/10", "steps": "1/10"},
     "maxExecutionUnitsPerTransaction": {"memory": 500000000000, "steps": 500000000000},
     "maxExecutionUnitsPerBlock": {"memory": 500000000000, "steps": 500000000000},
@@ -43,7 +44,7 @@ GENESIS_RESULT = {
     "maxLovelaceSupply": 1000000000000,
     "protocolParameters": {
         "minUtxoValue": 1000000,
-    }
+    },
 }
 
 UTXOS = [
@@ -123,6 +124,7 @@ class TestOgmiosChainContext:
                 collateral_percent=1,
                 max_collateral_inputs=5,
                 coins_per_utxo_word=1,
+                coins_per_utxo_byte=1,
             )
             == self.chain_context.protocol_param
         )

@@ -48,8 +48,12 @@ class TransactionWitnessSet(MapCBORSerializable):
         default=None, metadata={"optional": True, "key": 2}
     )
 
-    plutus_script: List[bytes] = field(
+    plutus_v1_script: List[bytes] = field(
         default=None, metadata={"optional": True, "key": 3}
+    )
+
+    plutus_v2_script: List[bytes] = field(
+        default=None, metadata={"optional": True, "key": 6}
     )
 
     plutus_data: List[Any] = field(

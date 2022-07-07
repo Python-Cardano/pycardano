@@ -3,15 +3,21 @@ from test.pycardano.util import chain_context
 from pycardano.hash import SCRIPT_HASH_SIZE, ScriptDataHash
 from pycardano.plutus import ExecutionUnits, PlutusData, Redeemer, RedeemerTag
 from pycardano.transaction import Value
-from pycardano.utils import min_lovelace, script_data_hash
+from pycardano.utils import min_lovelace_pre_alonzo, script_data_hash
 
 
 def test_min_lovelace_ada_only(chain_context):
-    assert min_lovelace(2000000, chain_context) == chain_context.protocol_param.min_utxo
+    assert (
+        min_lovelace_pre_alonzo(2000000, chain_context)
+        == chain_context.protocol_param.min_utxo
+    )
 
 
 def test_min_lovelace_ada_only_2(chain_context):
-    assert min_lovelace(Value(2000000), chain_context) == chain_context.protocol_param.min_utxo
+    assert (
+        min_lovelace_pre_alonzo(Value(2000000), chain_context)
+        == chain_context.protocol_param.min_utxo
+    )
 
 
 class TestMinLoveLaceMultiAsset:
@@ -22,14 +28,14 @@ class TestMinLoveLaceMultiAsset:
         amount = Value.from_primitive(
             [2000000, {b"1" * SCRIPT_HASH_SIZE: {b"": 1000000}}]
         )
-        assert min_lovelace(amount, chain_context) == 1310316
+        assert min_lovelace_pre_alonzo(amount, chain_context) == 1310316
 
     def test_min_lovelace_multi_asset_2(self, chain_context):
         amount = Value.from_primitive(
             [2000000, {b"1" * SCRIPT_HASH_SIZE: {b"1": 1000000}}]
         )
 
-        assert min_lovelace(amount, chain_context) == 1344798
+        assert min_lovelace_pre_alonzo(amount, chain_context) == 1344798
 
     def test_min_lovelace_multi_asset_3(self, chain_context):
         amount = Value.from_primitive(
@@ -42,7 +48,7 @@ class TestMinLoveLaceMultiAsset:
             ]
         )
 
-        assert min_lovelace(amount, chain_context) == 1448244
+        assert min_lovelace_pre_alonzo(amount, chain_context) == 1448244
 
     def test_min_lovelace_multi_asset_4(self, chain_context):
         amount = Value.from_primitive(
@@ -55,7 +61,7 @@ class TestMinLoveLaceMultiAsset:
             ]
         )
 
-        assert min_lovelace(amount, chain_context) == 1482726
+        assert min_lovelace_pre_alonzo(amount, chain_context) == 1482726
 
     def test_min_lovelace_multi_asset_5(self, chain_context):
         amount = Value.from_primitive(
@@ -68,7 +74,7 @@ class TestMinLoveLaceMultiAsset:
             ]
         )
 
-        assert min_lovelace(amount, chain_context) == 1517208
+        assert min_lovelace_pre_alonzo(amount, chain_context) == 1517208
 
     def test_min_lovelace_multi_asset_6(self, chain_context):
         amount = Value.from_primitive(
@@ -93,14 +99,14 @@ class TestMinLoveLaceMultiAsset:
             ]
         )
 
-        assert min_lovelace(amount, chain_context) == 6896400
+        assert min_lovelace_pre_alonzo(amount, chain_context) == 6896400
 
     def test_min_lovelace_multi_asset_7(self, chain_context):
         amount = Value.from_primitive(
             [2000000, {b"1" * SCRIPT_HASH_SIZE: {b"": 1000000}}]
         )
 
-        assert min_lovelace(amount, chain_context, True) == 1655136
+        assert min_lovelace_pre_alonzo(amount, chain_context, True) == 1655136
 
     def test_min_lovelace_multi_asset_8(self, chain_context):
         amount = Value.from_primitive(
@@ -117,7 +123,7 @@ class TestMinLoveLaceMultiAsset:
             ]
         )
 
-        assert min_lovelace(amount, chain_context, True) == 2172366
+        assert min_lovelace_pre_alonzo(amount, chain_context, True) == 2172366
 
     def test_min_lovelace_multi_asset_9(self, chain_context):
         amount = Value.from_primitive(
@@ -136,7 +142,7 @@ class TestMinLoveLaceMultiAsset:
             ]
         )
 
-        assert min_lovelace(amount, chain_context, True) == 1827546
+        assert min_lovelace_pre_alonzo(amount, chain_context, True) == 1827546
 
 
 def test_script_data_hash():

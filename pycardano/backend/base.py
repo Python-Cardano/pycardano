@@ -11,6 +11,8 @@ from pycardano.transaction import UTxO
 
 __all__ = ["GenesisParameters", "ProtocolParameters", "ChainContext"]
 
+ALONZO_COINS_PER_UTXO_WORD = 34482
+
 
 @dataclass
 class GenesisParameters:
@@ -92,6 +94,8 @@ class ProtocolParameters:
     max_collateral_inputs: int = None
 
     coins_per_utxo_word: int = None
+
+    coins_per_utxo_byte: int = None
 
 
 @typechecked

@@ -3,15 +3,22 @@ import json
 import time
 from typing import Dict, List, Union
 
+import cbor2
 import requests
 import websocket
 
 from pycardano.address import Address
-from pycardano.backend.base import ChainContext, GenesisParameters, ProtocolParameters
+from pycardano.backend.base import (
+    ALONZO_COINS_PER_UTXO_WORD,
+    ChainContext,
+    GenesisParameters,
+    ProtocolParameters,
+)
 from pycardano.exception import TransactionFailedException
 from pycardano.hash import DatumHash, ScriptHash
 from pycardano.network import Network
-from pycardano.plutus import ExecutionUnits
+from pycardano.plutus import ExecutionUnits, PlutusV1Script, PlutusV2Script
+from pycardano.serialization import RawCBOR
 from pycardano.transaction import (
     Asset,
     AssetName,
@@ -57,6 +64,10 @@ class OgmiosChainContext(ChainContext):
         ws.send(request)
         response = ws.recv()
         ws.close()
+        if "result" not in response:
+            raise TransactionFailedException(
+                f"Ogmios ran into an error. Reponse: {response}"
+            )
         return json.loads(response)["result"]
 
     def _check_chain_tip_and_update(self):
@@ -91,9 +102,9 @@ class OgmiosChainContext(ChainContext):
                 monetary_expansion=self._fraction_parser(result["monetaryExpansion"]),
                 treasury_expansion=self._fraction_parser(result["treasuryExpansion"]),
                 decentralization_param=self._fraction_parser(
-                    result["decentralizationParameter"]
+                    result.get("decentralizationParameter", "0/1")
                 ),
-                extra_entropy=result["extraEntropy"],
+                extra_entropy=result.get("extraEntropy", ""),
                 protocol_major_version=result["protocolVersion"]["major"],
                 protocol_minor_version=result["protocolVersion"]["minor"],
                 min_pool_cost=result["minPoolCost"],
@@ -106,7 +117,10 @@ class OgmiosChainContext(ChainContext):
                 max_val_size=result["maxValueSize"],
                 collateral_percent=result["collateralPercentage"],
                 max_collateral_inputs=result["maxCollateralInputs"],
-                coins_per_utxo_word=result["coinsPerUtxoWord"],
+                coins_per_utxo_word=result.get(
+                    "coinsPerUtxoWord", ALONZO_COINS_PER_UTXO_WORD
+                ),
+                coins_per_utxo_byte=result.get("coinsPerUtxoByte", 0),
             )
 
             args = {"query": "genesisConfig"}
@@ -275,15 +289,37 @@ class OgmiosChainContext(ChainContext):
 
             lovelace_amount = output["value"]["coins"]
 
+            script = output.get("script", None)
+            if script:
+                if "plutus:v2" in script:
+                    script = PlutusV2Script(
+                        cbor2.loads(bytes.fromhex(script["plutus:v2"]))
+                    )
+                elif "plutus:v1" in script:
+                    script = PlutusV1Script(
+                        cbor2.loads(bytes.fromhex(script["plutus:v1"]))
+                    )
+                else:
+                    raise ValueError("Unknown plutus script type")
+
             datum_hash = (
-                DatumHash.from_primitive(output["datum"]) if output["datum"] else None
+                DatumHash.from_primitive(output["datumHash"])
+                if output.get("datumHash", None)
+                else None
             )
+
+            datum = None
+
+            if output["datum"] and output["datum"] != output["datumHash"]:
+                datum = RawCBOR(bytes.fromhex(output["datum"]))
 
             if not output["value"]["assets"]:
                 tx_out = TransactionOutput(
                     Address.from_primitive(address),
                     amount=lovelace_amount,
                     datum_hash=datum_hash,
+                    datum=datum,
+                    script=script,
                 )
             else:
                 multi_assets = MultiAsset()
@@ -296,6 +332,8 @@ class OgmiosChainContext(ChainContext):
                     Address.from_primitive(address),
                     amount=Value(lovelace_amount, multi_assets),
                     datum_hash=datum_hash,
+                    datum=datum,
+                    script=script,
                 )
             utxos.append(UTxO(tx_in, tx_out))
 
@@ -331,7 +369,7 @@ class OgmiosChainContext(ChainContext):
             cbor = cbor.hex()
 
         method = "SubmitTx"
-        args = {"bytes": cbor}
+        args = {"submit": cbor}
         result = self._request(method, args)
         if "SubmitFail" in result:
             raise TransactionFailedException(result["SubmitFail"])

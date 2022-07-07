@@ -153,7 +153,7 @@ builder.native_scripts = native_scripts
 builder.auxiliary_data = auxiliary_data
 
 # Calculate the minimum amount of lovelace that need to hold the NFT we are going to mint
-min_val = min_lovelace(Value(0, my_nft), chain_context)
+min_val = min_lovelace_pre_alonzo(Value(0, my_nft), chain_context)
 
 # Send the NFT to our own address
 builder.add_output(TransactionOutput(address, Value(min_val, my_nft)))

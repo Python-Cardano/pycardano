@@ -1,13 +1,23 @@
 version: "3.5"
 
+networks:
+  cluster:
+    ipam:
+      config:
+        - subnet: 172.20.0.0/24
+
 services:
 
   cardano-node:
-    image: inputoutput/cardano-node:${CARDANO_NODE_VERSION:-1.34.1}
+    image: inputoutput/cardano-node:${CARDANO_NODE_VERSION:-1.35.0}
     entrypoint: bash
     environment:
       NETWORK: "${NETWORK:-local-alonzo}"
     command: /code/run_node.sh
+
+    networks:
+      cluster:
+        ipv4_address: 172.20.0.101
 
     volumes:
       - .:/code
@@ -22,11 +32,15 @@ services:
         max-file: "10"
 
   cardano-pool:
-    image: inputoutput/cardano-node:${CARDANO_NODE_VERSION:-1.34.1}
+    image: inputoutput/cardano-node:${CARDANO_NODE_VERSION:-1.35.0}
     entrypoint: bash
     environment:
       NETWORK: "${NETWORK:-local-alonzo}"
     command: /code/run_pool.sh
+
+    networks:
+      cluster:
+        ipv4_address: 172.20.0.102
 
     volumes:
       - .:/code
@@ -38,7 +52,7 @@ services:
         max-file: "10"
 
   ogmios:
-    image: cardanosolutions/ogmios:latest
+    image: cardanosolutions/ogmios:v5.5.0
     environment:
       NETWORK: "${NETWORK:-local-alonzo}"
 

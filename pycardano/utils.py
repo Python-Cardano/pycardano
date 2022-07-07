@@ -8,13 +8,36 @@ import cbor2
 from nacl.encoding import RawEncoder
 from nacl.hash import blake2b
 
+from pycardano.address import Address
 from pycardano.backend.base import ChainContext
-from pycardano.hash import SCRIPT_DATA_HASH_SIZE, SCRIPT_HASH_SIZE, ScriptDataHash
-from pycardano.plutus import COST_MODELS, CostModels, Datum, Redeemer
+from pycardano.hash import (
+    SCRIPT_DATA_HASH_SIZE,
+    SCRIPT_HASH_SIZE,
+    VERIFICATION_KEY_HASH_SIZE,
+    ScriptDataHash,
+    VerificationKeyHash,
+)
+from pycardano.plutus import (
+    COST_MODELS,
+    CostModels,
+    Datum,
+    NativeScript,
+    PlutusV1Script,
+    PlutusV2Script,
+    Redeemer,
+)
 from pycardano.serialization import default_encoder
-from pycardano.transaction import MultiAsset, Value
+from pycardano.transaction import MultiAsset, TransactionOutput, Value
 
-__all__ = ["fee", "max_tx_fee", "bundle_size", "min_lovelace", "script_data_hash"]
+__all__ = [
+    "fee",
+    "max_tx_fee",
+    "bundle_size",
+    "min_lovelace",
+    "min_lovelace_pre_alonzo",
+    "min_lovelace_post_alonzo",
+    "script_data_hash",
+]
 
 
 def fee(
@@ -88,6 +111,32 @@ def bundle_size(multi_asset: MultiAsset) -> int:
 
 
 def min_lovelace(
+    context: ChainContext,
+    output: Optional[TransactionOutput] = None,
+    amount: Optional[Union[int, Value]] = None,
+    has_datum: bool = False,
+) -> int:
+    """Calculate minimum lovelace a transaction output needs to hold.
+
+    More info could be found in
+    `this <https://github.com/input-output-hk/cardano-ledger/blob/master/doc/explanations/min-utxo-alonzo.rst>`_ page.
+
+    Args:
+        context (ChainContext): A chain context.
+        output (TransactionOutput): A transaction output (for post-alonzo transactions).
+        amount (Union[int, Value]): Amount from a transaction output (for pre-alonzo transactions).
+        has_datum (bool): Whether the transaction output contains datum hash (for pre-alonzo transactions).
+
+    Returns:
+        int: Minimum required lovelace amount for this transaction output.
+    """
+    if output:
+        return min_lovelace_post_alonzo(output, context)
+    else:
+        return min_lovelace_pre_alonzo(amount, context, has_datum)
+
+
+def min_lovelace_pre_alonzo(
     amount: Union[int, Value], context: ChainContext, has_datum: bool = False
 ) -> int:
     """Calculate minimum lovelace a transaction output needs to hold.
@@ -112,6 +161,25 @@ def min_lovelace(
     finalized_size = utxo_entry_size + b_size + data_hash_size
 
     return finalized_size * context.protocol_param.coins_per_utxo_word
+
+
+def min_lovelace_post_alonzo(output: TransactionOutput, context: ChainContext) -> int:
+    """Calculate minimum lovelace a transaction output needs to hold post alonzo.
+
+    This implementation is copied from the origianl Haskell implementation:
+    https://github.com/input-output-hk/cardano-ledger/blob/eb053066c1d3bb51fb05978eeeab88afc0b049b2/eras/babbage/impl/src/Cardano/Ledger/Babbage/Rules/Utxo.hs#L242-L265
+
+    Args:
+        output (TransactionOutput): A transaction output.
+        context (ChainContext): A chain context.
+
+    Returns:
+        int: Minimum required lovelace amount for this transaction output.
+    """
+    constant_overhead = 160
+    return (
+        constant_overhead + len(output.to_cbor("bytes"))
+    ) * context.protocol_param.coins_per_utxo_byte
 
 
 def script_data_hash(

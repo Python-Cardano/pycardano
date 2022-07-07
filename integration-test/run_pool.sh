@@ -1,7 +1,7 @@
 #!/bin/bash
 
 echo "$NETWORK"
-if [ "$NETWORK" = "local-alonzo" ]
+if [ "$NETWORK" = "local-alonzo" ] || [ "$NETWORK" = "local-vasil" ]
 then
 
 # Waiting for BFT node to be ready
@@ -52,5 +52,6 @@ done
     --shelley-kes-key /code/keys/pool/kes.skey \
     --shelley-vrf-key /code/keys/pool/vrf.skey \
     --shelley-operational-certificate /code/keys/pool/node.cert \
+    --host-addr 0.0.0.0 \
     --port 3000
 fi

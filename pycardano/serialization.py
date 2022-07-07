@@ -45,6 +45,13 @@ class IndefiniteList:
             return False
 
 
+@dataclass
+class RawCBOR:
+    """A wrapper class for bytes that represents a CBOR value."""
+
+    cbor: bytes
+
+
 Primitive = TypeVar(
     "Primitive",
     bytes,
@@ -81,7 +88,7 @@ def default_encoder(
     encoder: CBOREncoder, value: Union[CBORSerializable, IndefiniteList]
 ):
     """A fallback function that encodes CBORSerializable to CBOR"""
-    assert isinstance(value, (CBORSerializable, IndefiniteList)), (
+    assert isinstance(value, (CBORSerializable, IndefiniteList, RawCBOR)), (
         f"Type of input value is not CBORSerializable, " f"got {type(value)} instead."
     )
     if isinstance(value, IndefiniteList):
@@ -92,6 +99,8 @@ def default_encoder(
         for item in value.items:
             encoder.encode(item)
         encoder.write(b"\xff")
+    elif isinstance(value, RawCBOR):
+        encoder.write(value.cbor)
     else:
         encoder.encode(value.to_validated_primitive())
 

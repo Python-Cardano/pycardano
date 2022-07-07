@@ -30,6 +30,7 @@ from pycardano.nativescript import (
 from pycardano.plutus import (
     ExecutionUnits,
     PlutusData,
+    PlutusV1Script,
     Redeemer,
     RedeemerTag,
     plutus_script_hash,
@@ -439,7 +440,7 @@ def test_add_script_input(chain_context):
     tx_in2 = TransactionInput.from_primitive(
         ["18cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad21431590f7e6643438ef", 1]
     )
-    plutus_script = b"dummy test script"
+    plutus_script = PlutusV1Script(b"dummy test script")
     script_hash = plutus_script_hash(plutus_script)
     script_address = Address(script_hash)
     datum = PlutusData()
@@ -470,17 +471,17 @@ def test_add_script_input(chain_context):
     witness = tx_builder.build_witness_set()
     assert [datum] == witness.plutus_data
     assert [redeemer1, redeemer2] == witness.redeemer
-    assert [plutus_script] == witness.plutus_script
+    assert [plutus_script] == witness.plutus_v1_script
     assert (
-        "a5008282582018cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad2143159"
-        "0f7e6643438ef0082582018cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1"
-        "ad21431590f7e6643438ef01018282581d60f6532850e1bccee9c72a9113ad9"
-        "8bcc5dbb30d2ac960262444f6e5f41a004c4b4082581d60f6532850e1bccee9"
-        "c72a9113ad98bcc5dbb30d2ac960262444f6e5f4821a00e083cfa1581c876f1"
-        "9078b059c928258d848c8cd871864d281eb6776ed7f80b68536a14954657374"
-        "546f6b656e02021a00045df109a1581c876f19078b059c928258d848c8cd871"
-        "864d281eb6776ed7f80b68536a14954657374546f6b656e010b5820c0978261"
-        "d9818d92926eb031d38d141f513a05478d697555f32edf6443ebeb08" == tx_body.to_cbor()
+        "a6008282582018cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad21431590f7e6643438"
+        "ef0082582018cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad21431590f7e6643438ef"
+        "01018282581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f41a00"
+        "4c4b4082581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f4821a"
+        "00e06beba1581c876f19078b059c928258d848c8cd871864d281eb6776ed7f80b68536a149"
+        "54657374546f6b656e02021a000475d509a1581c876f19078b059c928258d848c8cd871864"
+        "d281eb6776ed7f80b68536a14954657374546f6b656e010b5820c0978261d9818d92926eb0"
+        "31d38d141f513a05478d697555f32edf6443ebeb080d818258203131313131313131313131"
+        "31313131313131313131313131313131313131313100" == tx_body.to_cbor()
     )
 
 
@@ -492,7 +493,7 @@ def test_wrong_redeemer_execution_units(chain_context):
     tx_in2 = TransactionInput.from_primitive(
         ["18cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad21431590f7e6643438ef", 1]
     )
-    plutus_script = b"dummy test script"
+    plutus_script = PlutusV1Script(b"dummy test script")
     script_hash = plutus_script_hash(plutus_script)
     script_address = Address(script_hash)
     datum = PlutusData()
@@ -526,7 +527,7 @@ def test_all_redeemer_should_provide_execution_units(chain_context):
     tx_in2 = TransactionInput.from_primitive(
         ["18cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad21431590f7e6643438ef", 1]
     )
-    plutus_script = b"dummy test script"
+    plutus_script = PlutusV1Script(b"dummy test script")
     script_hash = plutus_script_hash(plutus_script)
     script_address = Address(script_hash)
     datum = PlutusData()
@@ -549,7 +550,7 @@ def test_add_minting_script(chain_context):
     tx_in1 = TransactionInput.from_primitive(
         ["18cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad21431590f7e6643438ef", 0]
     )
-    plutus_script = b"dummy test script"
+    plutus_script = PlutusV1Script(b"dummy test script")
     script_hash = plutus_script_hash(plutus_script)
     script_address = Address(script_hash)
     utxo1 = UTxO(tx_in1, TransactionOutput(script_address, 10000000))
@@ -566,22 +567,22 @@ def test_add_minting_script(chain_context):
     tx_builder.add_output(TransactionOutput(receiver, Value(5000000, mint)))
     tx_body = tx_builder.build(change_address=receiver)
     witness = tx_builder.build_witness_set()
-    assert [plutus_script] == witness.plutus_script
+    assert [plutus_script] == witness.plutus_v1_script
     assert (
-        "a5008182582018cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad2143159"
-        "0f7e6643438ef00018282581d60f6532850e1bccee9c72a9113ad98bcc5dbb3"
-        "0d2ac960262444f6e5f4821a004c4b40a1581c876f19078b059c928258d848c"
-        "8cd871864d281eb6776ed7f80b68536a14954657374546f6b656e0182581d60"
-        "f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f41a0048d"
-        "8f3021a0003724d09a1581c876f19078b059c928258d848c8cd871864d281eb"
-        "6776ed7f80b68536a14954657374546f6b656e010b58205fcf68adc7eb6e507"
-        "d15fb07d1c4e39d908bc9dfe642368afcddd881c5d46517" == tx_body.to_cbor()
+        "a6008182582018cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad21431590f7e6643438ef"
+        "00018282581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f4821a00"
+        "4c4b40a1581c876f19078b059c928258d848c8cd871864d281eb6776ed7f80b68536a1495465"
+        "7374546f6b656e0182581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6"
+        "e5f41a0048c10f021a00038a3109a1581c876f19078b059c928258d848c8cd871864d281eb67"
+        "76ed7f80b68536a14954657374546f6b656e010b58205fcf68adc7eb6e507d15fb07d1c4e39d"
+        "908bc9dfe642368afcddd881c5d465170d818258203131313131313131313131313131313131"
+        "31313131313131313131313131313100" == tx_body.to_cbor()
     )
 
 
 def test_add_minting_script_wrong_redeemer_type(chain_context):
     tx_builder = TransactionBuilder(chain_context)
-    plutus_script = b"dummy test script"
+    plutus_script = PlutusV1Script(b"dummy test script")
     redeemer1 = Redeemer(
         RedeemerTag.SPEND, PlutusData(), ExecutionUnits(1000000, 1000000)
     )
@@ -661,7 +662,7 @@ def test_estimate_execution_unit(chain_context):
     tx_in1 = TransactionInput.from_primitive(
         ["18cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad21431590f7e6643438ef", 0]
     )
-    plutus_script = b"dummy test script"
+    plutus_script = PlutusV1Script(b"dummy test script")
     script_hash = plutus_script_hash(plutus_script)
     script_address = Address(script_hash)
     datum = PlutusData()
@@ -681,15 +682,16 @@ def test_estimate_execution_unit(chain_context):
     assert [datum] == witness.plutus_data
     assert [redeemer1] == witness.redeemer
     assert redeemer1.ex_units is not None
-    assert [plutus_script] == witness.plutus_script
+    assert [plutus_script] == witness.plutus_v1_script
     assert (
-        "a5008182582018cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad21431590f7e6643438e"
-        "f00018282581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f41a00"
-        "4c4b4082581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f4821a0"
-        "0491226a1581c876f19078b059c928258d848c8cd871864d281eb6776ed7f80b68536a14954"
-        "657374546f6b656e01021a0003391a09a1581c876f19078b059c928258d848c8cd871864d28"
-        "1eb6776ed7f80b68536a14954657374546f6b656e010b58206b5664c6f79646f2a4c17bdc1e"
-        "cb6f6bf540db5c82dfa0a9d806c435398756fa" == tx_body.to_cbor()
+        "a6008182582018cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad21431590f7e6643438ef"
+        "00018282581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f41a004c"
+        "4b4082581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f4821a0048"
+        "fa42a1581c876f19078b059c928258d848c8cd871864d281eb6776ed7f80b68536a149546573"
+        "74546f6b656e01021a000350fe09a1581c876f19078b059c928258d848c8cd871864d281eb67"
+        "76ed7f80b68536a14954657374546f6b656e010b58206b5664c6f79646f2a4c17bdc1ecb6f6b"
+        "f540db5c82dfa0a9d806c435398756fa0d818258203131313131313131313131313131313131"
+        "31313131313131313131313131313100" == tx_body.to_cbor()
     )
 
 
