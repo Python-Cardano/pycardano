@@ -5,7 +5,7 @@ from __future__ import annotations
 from copy import deepcopy
 from dataclasses import dataclass, field
 from pprint import pformat
-from typing import Any, Callable, List, Union
+from typing import Any, Callable, List, Optional, Union
 
 import cbor2
 from cbor2 import CBORTag
@@ -280,6 +280,15 @@ class _Script(ArrayCBORSerializable):
         else:
             self._TYPE = 2
 
+    @classmethod
+    def from_primitive(cls: _Script, values: List[Primitive]) -> _Script:
+        if values[0] == 0:
+            return cls(NativeScript.from_primitive(values[1]))
+        elif values[0] == 1:
+            return cls(PlutusV1Script(values[1]))
+        else:
+            return cls(PlutusV2Script(values[1]))
+
 
 @dataclass(repr=False)
 class _DatumOption(ArrayCBORSerializable):
@@ -303,10 +312,10 @@ class _DatumOption(ArrayCBORSerializable):
 
     @classmethod
     def from_primitive(cls: _DatumOption, values: List[Primitive]) -> _DatumOption:
-        if values[0] == 1:
+        if values[0] == 0:
             return _DatumOption(DatumHash(values[1]))
         else:
-            return _DatumOption(cbor2.load(values[1].value))
+            return _DatumOption(cbor2.loads(values[1].value))
 
 
 @dataclass(repr=False)
@@ -319,7 +328,7 @@ class _ScriptRef(CBORSerializable):
 
     @classmethod
     def from_primitive(cls: _ScriptRef, value: Primitive) -> _ScriptRef:
-        return cbor2.loads(value.value)
+        return cls(_Script.from_primitive(cbor2.loads(value.value)))
 
 
 @dataclass(repr=False)
@@ -331,6 +340,13 @@ class _TransactionOutputPostAlonzo(MapCBORSerializable):
     datum: _DatumOption = field(default=None, metadata={"key": 2, "optional": True})
 
     script_ref: _ScriptRef = field(default=None, metadata={"key": 3, "optional": True})
+
+    @property
+    def script(self) -> Optional[Union[NativeScript, PlutusV1Script, PlutusV2Script]]:
+        if self.script_ref:
+            return self.script_ref.script.script
+        else:
+            return None
 
 
 @dataclass(repr=False)
@@ -349,11 +365,11 @@ class TransactionOutput(CBORSerializable):
 
     amount: Union[int, Value]
 
-    datum_hash: DatumHash = None
+    datum_hash: Optional[DatumHash] = None
 
-    datum: Datum = None
+    datum: Optional[Datum] = None
 
-    script: Union[NativeScript, PlutusV1Script, PlutusV2Script] = None
+    script: Optional[Union[NativeScript, PlutusV1Script, PlutusV2Script]] = None
 
     def __post_init__(self):
         if isinstance(self.amount, int):
@@ -383,8 +399,14 @@ class TransactionOutput(CBORSerializable):
 
     def to_primitive(self) -> Primitive:
         if self.datum or self.script:
-            datum = _DatumOption(self.datum) if self.datum is not None else None
-            script_ref = _ScriptRef(_Script(self.script))
+            datum = (
+                _DatumOption(self.datum_hash or self.datum)
+                if self.datum is not None or self.datum_hash is not None
+                else None
+            )
+            script_ref = (
+                _ScriptRef(_Script(self.script)) if self.script is not None else None
+            )
             return _TransactionOutputPostAlonzo(
                 self.address, self.amount, datum, script_ref
             ).to_primitive()
@@ -400,18 +422,19 @@ class TransactionOutput(CBORSerializable):
             return cls(output.address, output.amount, datum=output.datum_hash)
         else:
             output = _TransactionOutputPostAlonzo.from_primitive(value)
-            if isinstance(output.datum.datum, DatumHash):
+            datum = output.datum.datum if output.datum else None
+            if isinstance(datum, DatumHash):
                 return cls(
                     output.address,
                     output.amount,
-                    datum_hash=output.datum.datum,
+                    datum_hash=datum,
                     script=output.script,
                 )
             else:
                 return cls(
                     output.address,
                     output.amount,
-                    datum=output.datum.datum,
+                    datum=datum,
                     script=output.script,
                 )
 

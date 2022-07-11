@@ -6,6 +6,8 @@ from pycardano.address import Address
 from pycardano.exception import InvalidDataException, InvalidOperationException
 from pycardano.hash import SCRIPT_HASH_SIZE, ScriptHash, TransactionId
 from pycardano.key import PaymentKeyPair, PaymentSigningKey, VerificationKey
+from pycardano.nativescript import ScriptPubkey
+from pycardano.plutus import PlutusV1Script, PlutusV2Script, datum_hash
 from pycardano.transaction import (
     Asset,
     AssetName,
@@ -14,10 +16,9 @@ from pycardano.transaction import (
     TransactionBody,
     TransactionInput,
     TransactionOutput,
-    TransactionWitnessSet,
     Value,
 )
-from pycardano.witness import VerificationKeyWitness
+from pycardano.witness import TransactionWitnessSet, VerificationKeyWitness
 
 
 def test_transaction_input():
@@ -38,6 +39,80 @@ def test_transaction_output():
     assert (
         output.to_cbor()
         == "82581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f41b000000174876e800"
+    )
+    check_two_way_cbor(output)
+
+
+def test_transaction_output_inline_datum():
+    addr = Address.decode(
+        "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    )
+    datum = 42
+    output = TransactionOutput(addr, 100000000000, datum=datum)
+    assert (
+        output.to_cbor()
+        == "a300581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f4011b000000174876e800028201d81842182a"
+    )
+    check_two_way_cbor(output)
+
+
+def test_transaction_output_datum_hash_inline_plutus_script():
+    addr = Address.decode(
+        "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    )
+    datum = 42
+    script = PlutusV1Script(b"magic script")
+    output = TransactionOutput(
+        addr, 100000000000, datum_hash=datum_hash(datum), script=script
+    )
+    assert (
+        output.to_cbor()
+        == "a400581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f4011b000000174876"
+        "e80002820058209e1199a988ba72ffd6e9c269cadb3b53b5f360ff99f112d9b2ee30c4d74ad88b03d8"
+        "184f82014c6d6167696320736372697074"
+    )
+    check_two_way_cbor(output)
+
+
+def test_transaction_output_inline_plutus_script_v1():
+    addr = Address.decode(
+        "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    )
+    script = PlutusV1Script(b"magic script")
+    output = TransactionOutput(addr, 100000000000, script=script)
+    assert (
+        output.to_cbor()
+        == "a300581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f401"
+        "1b000000174876e80003d8184f82014c6d6167696320736372697074"
+    )
+    check_two_way_cbor(output)
+
+
+def test_transaction_output_inline_plutus_script_v2():
+    addr = Address.decode(
+        "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    )
+    script = PlutusV2Script(b"magic script")
+    output = TransactionOutput(addr, 100000000000, script=script)
+    assert (
+        output.to_cbor()
+        == "a300581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5"
+        "f4011b000000174876e80003d8184f82024c6d6167696320736372697074"
+    )
+    check_two_way_cbor(output)
+
+
+def test_transaction_output_inline_native_script():
+    addr = Address.decode(
+        "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    )
+    script = ScriptPubkey(addr.payment_part)
+    output = TransactionOutput(addr, 100000000000, script=script)
+    assert (
+        output.to_cbor()
+        == "a300581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5"
+        "f4011b000000174876e80003d818582282008200581cf6532850e1bccee9c72a"
+        "9113ad98bcc5dbb30d2ac960262444f6e5f4"
     )
     check_two_way_cbor(output)
 

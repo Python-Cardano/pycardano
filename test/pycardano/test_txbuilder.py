@@ -31,6 +31,7 @@ from pycardano.plutus import (
     ExecutionUnits,
     PlutusData,
     PlutusV1Script,
+    PlutusV2Script,
     Redeemer,
     RedeemerTag,
     plutus_script_hash,
@@ -483,6 +484,252 @@ def test_add_script_input(chain_context):
         "31d38d141f513a05478d697555f32edf6443ebeb080d818258203131313131313131313131"
         "31313131313131313131313131313131313131313100" == tx_body.to_cbor()
     )
+
+
+def test_add_script_input_no_script(chain_context):
+    tx_builder = TransactionBuilder(chain_context)
+    tx_in1 = TransactionInput.from_primitive(
+        ["18cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad21431590f7e6643438ef", 0]
+    )
+    plutus_script = PlutusV1Script(b"dummy test script")
+    script_hash = plutus_script_hash(plutus_script)
+    script_address = Address(script_hash)
+    datum = PlutusData()
+    utxo1 = UTxO(
+        tx_in1,
+        TransactionOutput(
+            script_address, 10000000, datum_hash=datum.hash(), script=plutus_script
+        ),
+    )
+    redeemer = Redeemer(
+        RedeemerTag.SPEND, PlutusData(), ExecutionUnits(1000000, 1000000)
+    )
+    tx_builder.add_script_input(utxo1, datum=datum, redeemer=redeemer)
+    receiver = Address.from_primitive(
+        "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    )
+    tx_builder.add_output(TransactionOutput(receiver, 5000000))
+    tx_body = tx_builder.build(change_address=receiver)
+    witness = tx_builder.build_witness_set()
+    assert [datum] == witness.plutus_data
+    assert [redeemer] == witness.redeemer
+    assert witness.plutus_v1_script is None
+    assert (
+        "a6008182582018cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad21431590f"
+        "7e6643438ef00018282581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2a"
+        "c960262444f6e5f41a004c4b4082581d60f6532850e1bccee9c72a9113ad98bcc"
+        "5dbb30d2ac960262444f6e5f41a0048cc3b021a00037f050b5820032d812ee073"
+        "1af78fe4ec67e4d30d16313c09e6fb675af28f825797e8b5621d0d81825820313"
+        "13131313131313131313131313131313131313131313131313131313131310012"
+        "8182582018cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad21431590f7e66"
+        "43438ef00" == tx_body.to_cbor()
+    )
+
+
+def test_add_script_input_find_script(chain_context):
+    original_utxos = chain_context.utxos(
+        "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    )
+    with patch.object(chain_context, "utxos") as mock_utxos:
+        tx_builder = TransactionBuilder(chain_context)
+        tx_in1 = TransactionInput.from_primitive(
+            ["18cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad21431590f7e6643438ef", 0]
+        )
+        plutus_script = PlutusV1Script(b"dummy test script")
+        script_hash = plutus_script_hash(plutus_script)
+        script_address = Address(script_hash)
+        datum = PlutusData()
+        utxo1 = UTxO(
+            tx_in1, TransactionOutput(script_address, 10000000, datum_hash=datum.hash())
+        )
+
+        existing_script_utxo = UTxO(
+            TransactionInput.from_primitive(
+                [
+                    "41cb004bec7051621b19b46aea28f0657a586a05ce2013152ea9b9f1a5614cc7",
+                    1,
+                ]
+            ),
+            TransactionOutput(script_address, 1234567, script=plutus_script),
+        )
+
+        mock_utxos.return_value = original_utxos + [existing_script_utxo]
+
+        redeemer = Redeemer(
+            RedeemerTag.SPEND, PlutusData(), ExecutionUnits(1000000, 1000000)
+        )
+        tx_builder.add_script_input(utxo1, datum=datum, redeemer=redeemer)
+        receiver = Address.from_primitive(
+            "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+        )
+        tx_builder.add_output(TransactionOutput(receiver, 5000000))
+        tx_body = tx_builder.build(change_address=receiver)
+        witness = tx_builder.build_witness_set()
+        assert [datum] == witness.plutus_data
+        assert [redeemer] == witness.redeemer
+        assert witness.plutus_v1_script is None
+        assert [existing_script_utxo.input] == tx_body.reference_inputs
+        assert (
+            "a6008182582018cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad2143159"
+            "0f7e6643438ef00018282581d60f6532850e1bccee9c72a9113ad98bcc5dbb3"
+            "0d2ac960262444f6e5f41a004c4b4082581d60f6532850e1bccee9c72a9113a"
+            "d98bcc5dbb30d2ac960262444f6e5f41a0048cc3b021a00037f050b5820032d"
+            "812ee0731af78fe4ec67e4d30d16313c09e6fb675af28f825797e8b5621d0d8"
+            "182582031313131313131313131313131313131313131313131313131313131"
+            "3131313100128182582041cb004bec7051621b19b46aea28f0657a586a05ce2"
+            "013152ea9b9f1a5614cc701" == tx_body.to_cbor()
+        )
+
+
+def test_add_script_input_with_script_from_specified_utxo(chain_context):
+    tx_builder = TransactionBuilder(chain_context)
+    tx_in1 = TransactionInput.from_primitive(
+        ["18cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad21431590f7e6643438ef", 0]
+    )
+    plutus_script = PlutusV2Script(b"dummy test script")
+    script_hash = plutus_script_hash(plutus_script)
+    script_address = Address(script_hash)
+    datum = PlutusData()
+    utxo1 = UTxO(
+        tx_in1, TransactionOutput(script_address, 10000000, datum_hash=datum.hash())
+    )
+
+    existing_script_utxo = UTxO(
+        TransactionInput.from_primitive(
+            [
+                "41cb004bec7051621b19b46aea28f0657a586a05ce2013152ea9b9f1a5614cc7",
+                1,
+            ]
+        ),
+        TransactionOutput(script_address, 1234567, script=plutus_script),
+    )
+
+    redeemer = Redeemer(
+        RedeemerTag.SPEND, PlutusData(), ExecutionUnits(1000000, 1000000)
+    )
+    tx_builder.add_script_input(
+        utxo1, script=existing_script_utxo, datum=datum, redeemer=redeemer
+    )
+    receiver = Address.from_primitive(
+        "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    )
+    tx_builder.add_output(TransactionOutput(receiver, 5000000))
+    tx_body = tx_builder.build(change_address=receiver)
+    witness = tx_builder.build_witness_set()
+    assert [datum] == witness.plutus_data
+    assert [redeemer] == witness.redeemer
+    assert witness.plutus_v2_script is None
+    assert [existing_script_utxo.input] == tx_body.reference_inputs
+    assert (
+        "a6008182582018cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad21431590f"
+        "7e6643438ef00018282581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2a"
+        "c960262444f6e5f41a004c4b4082581d60f6532850e1bccee9c72a9113ad98bcc"
+        "5dbb30d2ac960262444f6e5f41a0048cc3b021a00037f050b5820a7d386051637"
+        "cc7cede8248ac54c2a236cbf5f243b0992690f850213908dfdc80d81825820313"
+        "13131313131313131313131313131313131313131313131313131313131310012"
+        "8182582041cb004bec7051621b19b46aea28f0657a586a05ce2013152ea9b9f1a"
+        "5614cc701" == tx_body.to_cbor()
+    )
+
+
+def test_add_minting_script_from_specified_utxo(chain_context):
+    tx_builder = TransactionBuilder(chain_context)
+    plutus_script = PlutusV2Script(b"dummy test script")
+    script_hash = plutus_script_hash(plutus_script)
+    script_address = Address(script_hash)
+
+    existing_script_utxo = UTxO(
+        TransactionInput.from_primitive(
+            [
+                "41cb004bec7051621b19b46aea28f0657a586a05ce2013152ea9b9f1a5614cc7",
+                1,
+            ]
+        ),
+        TransactionOutput(script_address, 1234567, script=plutus_script),
+    )
+
+    mint = MultiAsset.from_primitive({script_hash.payload: {b"TestToken": 1}})
+
+    redeemer = Redeemer(
+        RedeemerTag.MINT, PlutusData(), ExecutionUnits(1000000, 1000000)
+    )
+    tx_builder.add_minting_script(existing_script_utxo, redeemer=redeemer)
+    receiver = Address.from_primitive(
+        "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    )
+    tx_builder.add_input_address(
+        "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    )
+    tx_builder.add_output(TransactionOutput(receiver, 5000000))
+    tx_builder.mint = mint
+    tx_body = tx_builder.build(change_address=receiver)
+    witness = tx_builder.build_witness_set()
+    assert witness.plutus_data is None
+    assert [redeemer] == witness.redeemer
+    assert witness.plutus_v2_script is None
+    assert [existing_script_utxo.input] == tx_body.reference_inputs
+    assert (
+        "a700828258203131313131313131313131313131313131313131313131313131313131313131"
+        "0082582032323232323232323232323232323232323232323232323232323232323232320101"
+        "8282581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f41a004c4b40"
+        "82581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f4821a0057f1f3"
+        "a2581c31313131313131313131313131313131313131313131313131313131a246546f6b656e"
+        "310146546f6b656e3202581c669ce610ef17d3ac9f5663f0748381120376e72b031e002db95a"
+        "3981a14954657374546f6b656e01021a00039b8d09a1581c669ce610ef17d3ac9f5663f07483"
+        "81120376e72b031e002db95a3981a14954657374546f6b656e010b5820504d5986e26eadcddd"
+        "03916366882b80e2aef090468379b67e757853505f7bc20d8182582031313131313131313131"
+        "3131313131313131313131313131313131313131313100128182582041cb004bec7051621b19"
+        "b46aea28f0657a586a05ce2013152ea9b9f1a5614cc701" == tx_body.to_cbor()
+    )
+
+
+def test_collateral_return(chain_context):
+    original_utxos = chain_context.utxos(
+        "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    )
+    with patch.object(chain_context, "utxos") as mock_utxos:
+        tx_builder = TransactionBuilder(chain_context)
+        tx_in1 = TransactionInput.from_primitive(
+            ["18cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad21431590f7e6643438ef", 0]
+        )
+        plutus_script = PlutusV1Script(b"dummy test script")
+        script_hash = plutus_script_hash(plutus_script)
+        script_address = Address(script_hash)
+        datum = PlutusData()
+        utxo1 = UTxO(
+            tx_in1, TransactionOutput(script_address, 10000000, datum_hash=datum.hash())
+        )
+
+        existing_script_utxo = UTxO(
+            TransactionInput.from_primitive(
+                [
+                    "41cb004bec7051621b19b46aea28f0657a586a05ce2013152ea9b9f1a5614cc7",
+                    1,
+                ]
+            ),
+            TransactionOutput(script_address, 1234567, script=plutus_script),
+        )
+
+        original_utxos[0].output.amount.multi_asset = MultiAsset.from_primitive(
+            {b"1" * 28: {b"Token1": 1, b"Token2": 2}}
+        )
+
+        mock_utxos.return_value = original_utxos + [existing_script_utxo]
+
+        redeemer = Redeemer(
+            RedeemerTag.SPEND, PlutusData(), ExecutionUnits(1000000, 1000000)
+        )
+        tx_builder.add_script_input(utxo1, datum=datum, redeemer=redeemer)
+        receiver = Address.from_primitive(
+            "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+        )
+        tx_builder.add_output(TransactionOutput(receiver, 5000000))
+        tx_body = tx_builder.build(change_address=receiver)
+        assert tx_body.collateral_return.address == receiver
+        assert (
+            tx_body.collateral_return.amount + tx_body.total_collateral
+            == original_utxos[0].output.amount
+        )
 
 
 def test_wrong_redeemer_execution_units(chain_context):

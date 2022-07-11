@@ -55,7 +55,13 @@ from pycardano.transaction import (
     Value,
     Withdrawals,
 )
-from pycardano.utils import fee, max_tx_fee, min_lovelace_pre_alonzo, script_data_hash
+from pycardano.utils import (
+    fee,
+    max_tx_fee,
+    min_lovelace_post_alonzo,
+    min_lovelace_pre_alonzo,
+    script_data_hash,
+)
 from pycardano.witness import TransactionWitnessSet, VerificationKeyWitness
 
 __all__ = ["TransactionBuilder"]
@@ -184,7 +190,9 @@ class TransactionBuilder:
     def add_script_input(
         self,
         utxo: UTxO,
-        script: Union[UTxO, NativeScript, PlutusV1Script, PlutusV2Script] = None,
+        script: Optional[
+            Union[UTxO, NativeScript, PlutusV1Script, PlutusV2Script]
+        ] = None,
         datum: Optional[Datum] = None,
         redeemer: Optional[Redeemer] = None,
     ) -> TransactionBuilder:
@@ -192,7 +200,9 @@ class TransactionBuilder:
 
         Args:
             utxo (UTxO): Script UTxO to be added.
-            script (Union[UTxO, PlutusV1Script, PlutusV2Script]): A plutus script.
+            script (Optional[Union[UTxO, NativeScript, PlutusV1Script, PlutusV2Script]]): A plutus script.
+                If not provided, the script will be inferred from the input UTxO (first arg of this method).
+                The script can also be a specific UTxO whose output contains an inline script.
             datum (Optional[Datum]): A plutus datum to unlock the UTxO.
             redeemer (Optional[Redeemer]): A plutus redeemer to unlock the UTxO.
 
@@ -1036,7 +1046,10 @@ class TransactionBuilder:
                 )
             else:
                 return_amount = total_input - collateral_amount
-                min_lovelace_val = min_lovelace_pre_alonzo(return_amount, self.context)
+                min_lovelace_val = min_lovelace_post_alonzo(
+                    TransactionOutput(collateral_return_address, return_amount),
+                    self.context,
+                )
                 if min_lovelace_val > return_amount.coin:
                     raise ValueError(
                         f"Minimum lovelace amount for collateral return {min_lovelace_val} is "
