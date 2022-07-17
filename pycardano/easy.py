@@ -702,6 +702,7 @@ class Wallet:
                 stake_vkey = PaymentVerificationKey.from_signing_key(stake_skey)
 
             logger.info(f"Wallet {self.name} found.")
+
         else:
             key_pair = PaymentKeyPair.generate()
             key_pair.signing_key.save(str(skey_path))
@@ -709,14 +710,14 @@ class Wallet:
             skey = key_pair.signing_key
             vkey = key_pair.verification_key
 
-            if stake:
-                stake_key_pair = StakeKeyPair.generate()
-                stake_key_pair.signing_key.save(str(stake_skey_path))
-                stake_key_pair.verification_key.save(str(stake_vkey_path))
-                stake_skey = stake_key_pair.signing_key
-                stake_vkey = stake_key_pair.verification_key
-
             logger.info(f"New wallet {self.name} created in {self.keys_dir}.")
+
+        if stake and not stake_skey_path.exists():
+            stake_key_pair = StakeKeyPair.generate()
+            stake_key_pair.signing_key.save(str(stake_skey_path))
+            stake_key_pair.verification_key.save(str(stake_vkey_path))
+            stake_skey = stake_key_pair.signing_key
+            stake_vkey = stake_key_pair.verification_key
 
         self.signing_key = skey
         self.verification_key = vkey
