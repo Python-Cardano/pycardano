@@ -601,9 +601,13 @@ class Wallet:
         if not self.context:
             if self.network.lower() == "mainnet":
                 if getenv("BLOCKFROST_ID"):
-                    self.context = BlockFrostChainContext(getenv("BLOCKFROST_ID"), network=Network.MAINNET)
+                    self.context = BlockFrostChainContext(
+                        getenv("BLOCKFROST_ID"), network=Network.MAINNET
+                    )
             elif getenv("BLOCKFROST_ID_TESTNET"):
-                self.context = BlockFrostChainContext(getenv("BLOCKFROST_ID_TESTNET"), network=Network.TESTNET)
+                self.context = BlockFrostChainContext(
+                    getenv("BLOCKFROST_ID_TESTNET"), network=Network.TESTNET
+                )
 
         if self.context:
             self.query_utxos()
@@ -646,14 +650,17 @@ class Wallet:
     @property
     def payment_address(self):
 
-        return Address(payment_part=self.address.payment_part, network=self.address.network)
-
+        return Address(
+            payment_part=self.address.payment_part, network=self.address.network
+        )
 
     @property
     def stake_address(self):
 
         if self.stake_signing_key or self.address.staking_part:
-            return Address(staking_part=self.address.staking_part, network=self.address.network)
+            return Address(
+                staking_part=self.address.staking_part, network=self.address.network
+            )
         else:
             return None
 
@@ -725,7 +732,6 @@ class Wallet:
             )
         else:
             self.address = Address(vkey.hash(), network=Network[self.network.upper()])
-
 
     def _find_context(self, context: Optional[ChainContext] = None):
         """Helper function to ensure that a context is always provided when needed.
@@ -1271,7 +1277,6 @@ class Wallet:
             ]
         else:
             signing_keys = [self.signing_key]
-
 
         signed_tx = builder.build_and_sign(
             signing_keys, change_address=change_address, merge_change=merge_change
