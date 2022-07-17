@@ -21,6 +21,7 @@ from pycardano.key import (
     PaymentSigningKey,
     PaymentVerificationKey,
     SigningKey,
+    StakeKeyPair,
     VerificationKey,
 )
 from pycardano.logging import logger
@@ -565,6 +566,7 @@ class Wallet:
     name: str
     address: Optional[Union[Address, str]] = None
     keys_dir: Optional[Union[str, Path]] = field(repr=False, default=Path("./priv"))
+    use_stake: Optional[bool] = field(repr=False, default=True)
     network: Optional[Literal["mainnet", "testnet"]] = "mainnet"
 
     # generally added later
@@ -586,18 +588,22 @@ class Wallet:
 
         # if not address was provided, get keys
         if not self.address:
-            self._load_or_create_key_pair()
+            self._load_or_create_key_pair(stake=self.use_stake)
         # otherwise derive the network from the address provided
         else:
             self.network = self.address.network.name.lower()
+            self.signing_key = None
+            self.verification_key = None
+            self.stake_signing_key = None
+            self.stake_verification_key = None
 
         # try to automatically create blockfrost context
         if not self.context:
             if self.network.lower() == "mainnet":
                 if getenv("BLOCKFROST_ID"):
-                    self.context = BlockFrostChainContext(getenv("BLOCKFROST_ID"))
+                    self.context = BlockFrostChainContext(getenv("BLOCKFROST_ID"), network=Network.MAINNET)
             elif getenv("BLOCKFROST_ID_TESTNET"):
-                self.context = BlockFrostChainContext(getenv("BLOCKFROST_ID_TESTNET"))
+                self.context = BlockFrostChainContext(getenv("BLOCKFROST_ID_TESTNET"), network=Network.TESTNET)
 
         if self.context:
             self.query_utxos()
@@ -638,20 +644,26 @@ class Wallet:
             self.ada = Ada(0)
 
     @property
+    def payment_address(self):
+
+        return Address(payment_part=self.address.payment_part, network=self.address.network)
+
+
+    @property
     def stake_address(self):
 
-        if isinstance(self.address, str):
-            address = Address.from_primitive(self.address)
+        if self.stake_signing_key or self.address.staking_part:
+            return Address(staking_part=self.address.staking_part, network=self.address.network)
         else:
-            address = self.address
-
-        return Address.from_primitive(
-            bytes.fromhex(f"e{address.network.value}" + str(address.staking_part))
-        )
+            return None
 
     @property
     def verification_key_hash(self):
         return str(self.address.payment_part)
+
+    @property
+    def stake_verification_key_hash(self):
+        return str(self.address.staking_part)
 
     @property
     def tokens(self):
@@ -661,7 +673,7 @@ class Wallet:
     def tokens_dict(self):
         return self._token_dict
 
-    def _load_or_create_key_pair(self):
+    def _load_or_create_key_pair(self, stake=True):
 
         if not self.keys_dir.exists():
             self.keys_dir.mkdir(parents=True, exist_ok=True)
@@ -669,10 +681,17 @@ class Wallet:
 
         skey_path = self.keys_dir / f"{self.name}.skey"
         vkey_path = self.keys_dir / f"{self.name}.vkey"
+        stake_skey_path = self.keys_dir / f"{self.name}.stake.skey"
+        stake_vkey_path = self.keys_dir / f"{self.name}.stake.vkey"
 
         if skey_path.exists():
             skey = PaymentSigningKey.load(str(skey_path))
             vkey = PaymentVerificationKey.from_signing_key(skey)
+
+            if stake and stake_skey_path.exists():
+                stake_skey = PaymentSigningKey.load(str(stake_skey_path))
+                stake_vkey = PaymentVerificationKey.from_signing_key(stake_skey)
+
             logger.info(f"Wallet {self.name} found.")
         else:
             key_pair = PaymentKeyPair.generate()
@@ -680,12 +699,33 @@ class Wallet:
             key_pair.verification_key.save(str(vkey_path))
             skey = key_pair.signing_key
             vkey = key_pair.verification_key
+
+            if stake:
+                stake_key_pair = StakeKeyPair.generate()
+                stake_key_pair.signing_key.save(str(stake_skey_path))
+                stake_key_pair.verification_key.save(str(stake_vkey_path))
+                stake_skey = stake_key_pair.signing_key
+                stake_vkey = stake_key_pair.verification_key
+
             logger.info(f"New wallet {self.name} created in {self.keys_dir}.")
 
         self.signing_key = skey
         self.verification_key = vkey
 
-        self.address = Address(vkey.hash(), network=Network[self.network.upper()])
+        if stake:
+            self.stake_signing_key = stake_skey
+            self.stake_verification_key = stake_vkey
+        else:
+            self.stake_signing_key = None
+            self.stake_verification_key = None
+
+        if stake:
+            self.address = Address(
+                vkey.hash(), stake_vkey.hash(), network=Network[self.network.upper()]
+            )
+        else:
+            self.address = Address(vkey.hash(), network=Network[self.network.upper()])
+
 
     def _find_context(self, context: Optional[ChainContext] = None):
         """Helper function to ensure that a context is always provided when needed.
@@ -739,7 +779,13 @@ class Wallet:
                         Token(my_policies[policy_id], amount=amount, name=asset)
                     )
                 else:
-                    token_list.append(Token(TokenPolicy(name=policy_id[:8], policy=policy_id), amount=amount, name=asset))
+                    token_list.append(
+                        Token(
+                            TokenPolicy(name=policy_id[:8], policy=policy_id),
+                            amount=amount,
+                            name=asset,
+                        )
+                    )
 
         self._token_dict = tokens
         self._token_list = token_list
