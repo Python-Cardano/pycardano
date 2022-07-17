@@ -834,7 +834,7 @@ class Wallet:
         for token in self.tokens:
             token.get_onchain_metadata(context)
 
-    def sign_message(
+    def sign_data(
         self,
         message: str,
         mode: Literal["payment", "stake"] = "payment",
