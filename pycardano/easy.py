@@ -907,6 +907,7 @@ class Wallet:
         amount: Optional[Union[Ada, Lovelace]] = None,
         utxos: Optional[Union[UTxO, List[UTxO]]] = [],
         other_signers: Optional[Union["Wallet", List["Wallet"]]] = [],
+        change_address: Optional[Union["Wallet", Address, str]] = None,
         message: Optional[Union[str, List[str]]] = None,
         await_confirmation: Optional[bool] = False,
         context: Optional[ChainContext] = None,
@@ -932,6 +933,14 @@ class Wallet:
 
         if not isinstance(other_signers, list):
             other_signers = [other_signers]
+
+        if not change_address:
+            change_address = self.address
+        else:
+            if isinstance(change_address, str):
+                change_address = Address.from_primitive(change_address)
+            elif not isinstance(change_address, Address):
+                change_address = change_address.address
 
         # sort assets by policy_id
         all_metadata = {}
@@ -1052,8 +1061,11 @@ class Wallet:
         outputs: Union[Output, List[Output]],
         mints: Optional[Union[Token, List[Token]]] = [],
         signers: Optional[Union["Wallet", List["Wallet"]]] = [],
+        change_address: Optional[Union["Wallet", Address, str]] = None,
+        merge_change: Optional[bool] = True,
         message: Optional[Union[str, List[str]]] = None,
         other_metadata: Optional[dict] = {},
+        submit: Optional[bool] = True,
         await_confirmation: Optional[bool] = False,
         context: Optional[ChainContext] = None,
     ):
@@ -1072,6 +1084,14 @@ class Wallet:
 
         if not isinstance(signers, list):
             signers = [signers]
+
+        if not change_address:
+            change_address = self.address
+        else:
+            if isinstance(change_address, str):
+                change_address = Address.from_primitive(change_address)
+            elif not isinstance(change_address, Address):
+                change_address = change_address.address
 
         all_metadata = {}
 
@@ -1206,9 +1226,15 @@ class Wallet:
         else:
             signing_keys = [self.signing_key]
 
-        signed_tx = builder.build_and_sign(signing_keys, change_address=self.address)
 
-        print(signed_tx)
+        signed_tx = builder.build_and_sign(
+            signing_keys, change_address=change_address, merge_change=merge_change
+        )
+
+        if not submit:
+            return signed_tx.to_cbor()
+
+        # print(signed_tx)
 
         context.submit_tx(signed_tx.to_cbor())
 
