@@ -553,10 +553,10 @@ class Wallet:
     - Automatically load in token polices where wallet is a signer
     - Attach messages to transactions
     - sign messages
-        - generate manual transactions
-        - that can do all of the above at once
-        - custom metadata fields
-        - multi-output transactions
+    - generate manual transactions
+    - that can do all of the above at once
+    - custom metadata fields
+    - multi-output transactions
     TODO:
     - stake wallet
     - withdraw rewards
