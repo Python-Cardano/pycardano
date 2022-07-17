@@ -1094,7 +1094,7 @@ class Wallet:
 
         if not amount:  # sent min amount if none specified
             amount = Lovelace(min_lovelace(Value(0, mint_multiasset), context))
-            print("Min value =", amount)
+            logger.debug("Min value =", amount)
 
         if mint_multiasset:
             builder.add_output(
@@ -1226,7 +1226,6 @@ class Wallet:
 
         # Place metadata in AuxiliaryData, the format acceptable by a transaction.
         if all_metadata:
-            print(all_metadata)
             auxiliary_data = AuxiliaryData(
                 AlonzoMetadata(metadata=Metadata(all_metadata))
             )
@@ -1304,8 +1303,6 @@ class Wallet:
 
         if not submit:
             return signed_tx.to_cbor()
-
-        # print(signed_tx)
 
         context.submit_tx(signed_tx.to_cbor())
 
