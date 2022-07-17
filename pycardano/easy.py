@@ -561,6 +561,8 @@ class Wallet:
     - stake wallet
     - withdraw rewards
     - multi-sig transactions
+    - interaction with native scripts
+    - interaction with plutus scripts
     """
 
     name: str
