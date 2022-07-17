@@ -827,11 +827,24 @@ class Wallet:
         for token in self.tokens:
             token.get_onchain_metadata(context)
 
-    def sign_message(self, message, attach_cose_key=False):
+    def sign_message(
+        self,
+        message: str,
+        mode: Literal["payment", "stake"] = "payment",
+        attach_cose_key=False,
+    ):
+
+        if mode == "payment":
+            signing_key = self.signing_key
+        elif mode == "stake":
+            if self.stake_signing_key:
+                signing_key = self.stake_signing_key
+            else:
+                raise TypeError(f"Wallet {self.name} does not have stake credentials.")
 
         return sign(
             message,
-            self.signing_key,
+            signing_key,
             attach_cose_key=attach_cose_key,
             network=self.address.network,
         )
