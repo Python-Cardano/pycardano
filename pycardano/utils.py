@@ -103,7 +103,7 @@ def min_lovelace(
     Returns:
         int: Minimum required lovelace amount for this transaction output.
     """
-    if isinstance(amount, int):
+    if isinstance(amount, int) or not amount.multi_asset:
         return context.protocol_param.min_utxo
 
     b_size = bundle_size(amount.multi_asset)

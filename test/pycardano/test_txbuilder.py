@@ -1,6 +1,7 @@
 from dataclasses import replace
 from test.pycardano.test_key import SK
 from test.pycardano.util import chain_context
+from unittest.mock import patch
 
 import pytest
 
@@ -924,3 +925,151 @@ def test_tx_builder_merge_change_to_zero_amount_output(chain_context):
     }
 
     assert expected == tx_body.to_primitive()
+
+
+def test_tx_builder_small_utxo_input(chain_context):
+    with patch.object(chain_context, "utxos") as mock_utxos:
+        mock_utxos.return_value = [
+            UTxO(
+                TransactionInput.from_primitive(
+                    [
+                        "41cb004bec7051621b19b46aea28f0657a586a05ce2013152ea9b9f1a5614cc7",
+                        1,
+                    ]
+                ),
+                TransactionOutput.from_primitive(
+                    [
+                        "addr1qytqt3v9ej3kzefxcy8f59h9atf2knracnj5snkgtaea6p4r8g3mu652945v3gldw7v88dn5lrfudx0un540ak9qt2kqhfjl0d",
+                        2991353,
+                    ]
+                ),
+            )
+        ]
+        builder = TransactionBuilder(chain_context)
+        address = Address.from_primitive(
+            "addr1qytqt3v9ej3kzefxcy8f59h9atf2knracnj5snkgtaea6p4r8g3mu652945v3gldw7v88dn5lrfudx0un540ak9qt2kqhfjl0d"
+        )
+        builder.add_input_address(address)
+
+        builder.add_output(
+            TransactionOutput(
+                Address.from_primitive(
+                    "addr1qyady0evsaxqsfmz0z8rvmq62fmuas5w8n4m8z6qcm4wrt3e8dlsen8n464ucw69acfgdxgguscgfl5we3rwts4s57ashysyee"
+                ),
+                Value.from_primitive(
+                    [
+                        1000000,
+                    ]
+                ),
+            )
+        )
+        signed_tx = builder.build(change_address=address)
+
+
+def test_tx_builder_small_utxo_input_2(chain_context):
+    with patch.object(chain_context, "utxos") as mock_utxos:
+        mock_utxos.return_value = [
+            UTxO(
+                TransactionInput.from_primitive(
+                    [
+                        "233a835316f4c27bceafdd190639c9c7b834224a7ab7fce13330495437d977fa",
+                        0,
+                    ]
+                ),
+                TransactionOutput.from_primitive(
+                    [
+                        "addr1q872eujv4xcuckfarjklttdfep7224gjt7wrxkpu8ve3v6g4x2yx743payyucr327fz0dkdwkj9yc8gemtctgmzpjd8qcdw8qr",
+                        5639430,
+                    ]
+                ),
+            ),
+            UTxO(
+                TransactionInput.from_primitive(
+                    [
+                        "233a835316f4c27bceafdd190639c9c7b834224a7ab7fce13330495437d977fa",
+                        1,
+                    ]
+                ),
+                TransactionOutput.from_primitive(
+                    [
+                        "addr1q872eujv4xcuckfarjklttdfep7224gjt7wrxkpu8ve3v6g4x2yx743payyucr327fz0dkdwkj9yc8gemtctgmzpjd8qcdw8qr",
+                        [
+                            1379280,
+                            {
+                                bytes.fromhex(
+                                    "c4d5ae259e40eb7830df9de67b0a6a536b7e3ed645de2a13eedc7ece"
+                                ): {
+                                    b"x your eyes": 1,
+                                }
+                            },
+                        ],
+                    ]
+                ),
+            ),
+        ]
+        builder = TransactionBuilder(chain_context)
+        address = Address.from_primitive(
+            "addr1q872eujv4xcuckfarjklttdfep7224gjt7wrxkpu8ve3v6g4x2yx743payyucr327fz0dkdwkj9yc8gemtctgmzpjd8qcdw8qr"
+        )
+        builder.add_input_address(address)
+
+        builder.add_output(
+            TransactionOutput(
+                Address.from_primitive(
+                    "addr1qxx7lc2kyrjp4qf3gkpezp24ugu35em2f5h05apejzzy73c7yf794gk9yzhngdse36rae52c7a6rv5seku25cd8ntves7f5fe4"
+                ),
+                Value.from_primitive(
+                    [
+                        3000000,
+                        {
+                            bytes.fromhex(
+                                "c4d5ae259e40eb7830df9de67b0a6a536b7e3ed645de2a13eedc7ece"
+                            ): {
+                                b"x your eyes": 1,
+                            }
+                        },
+                    ],
+                ),
+            )
+        )
+        signed_tx = builder.build(change_address=address)
+
+
+def test_tx_builder_merge_change_to_output_3(chain_context):
+    with patch.object(chain_context, "utxos") as mock_utxos:
+        mock_utxos.return_value = [
+            UTxO(
+                TransactionInput.from_primitive(
+                    [
+                        "41cb004bec7051621b19b46aea28f0657a586a05ce2013152ea9b9f1a5614cc7",
+                        1,
+                    ]
+                ),
+                TransactionOutput.from_primitive(
+                    [
+                        "addr1qytqt3v9ej3kzefxcy8f59h9atf2knracnj5snkgtaea6p4r8g3mu652945v3gldw7v88dn5lrfudx0un540ak9qt2kqhfjl0d",
+                        2991353,
+                    ]
+                ),
+            )
+        ]
+        builder = TransactionBuilder(chain_context)
+        address = Address.from_primitive(
+            "addr1qytqt3v9ej3kzefxcy8f59h9atf2knracnj5snkgtaea6p4r8g3mu652945v3gldw7v88dn5lrfudx0un540ak9qt2kqhfjl0d"
+        )
+        builder.add_input_address(address)
+
+        builder.add_output(
+            TransactionOutput(
+                Address.from_primitive(
+                    "addr1qytqt3v9ej3kzefxcy8f59h9atf2knracnj5snkgtaea6p4r8g3mu652945v3gldw7v88dn5lrfudx0un540ak9qt2kqhfjl0d"
+                ),
+                Value.from_primitive(
+                    [
+                        1000000,
+                    ]
+                ),
+            )
+        )
+        tx = builder.build(change_address=address, merge_change=True)
+        assert len(tx.outputs) == 1

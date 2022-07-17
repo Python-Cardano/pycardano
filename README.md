@@ -1,3 +1,9 @@
+<p align="center">
+  <img src="./logo.png" height=200 width=200 />
+</p>
+
+---
+
 ## PyCardano
 
 [![PyPi version](https://badgen.net/pypi/v/pycardano)](https://pypi.python.org/pypi/pycardano/)

@@ -751,6 +751,13 @@ class TransactionBuilder:
             for v in self.withdrawals.values():
                 selected_amount.coin += v
 
+        can_merge_change = False
+        if merge_change:
+            for o in self.outputs:
+                if o.address == change_address:
+                    can_merge_change = True
+                    break
+
         selected_amount.coin -= self._get_total_key_deposit()
 
         requested_amount = Value()
@@ -771,14 +778,17 @@ class TransactionBuilder:
 
         unfulfilled_amount = requested_amount - trimmed_selected_amount
 
-        if change_address is not None:
+        if change_address is not None and not can_merge_change:
             # If change address is provided and remainder is smaller than minimum ADA required in change,
             # we need to select additional UTxOs available from the address
-            unfulfilled_amount.coin = max(
-                0,
-                unfulfilled_amount.coin
-                + min_lovelace(selected_amount - trimmed_selected_amount, self.context),
-            )
+            if unfulfilled_amount.coin < 0:
+                unfulfilled_amount.coin = max(
+                    0,
+                    unfulfilled_amount.coin
+                    + min_lovelace(
+                        selected_amount - trimmed_selected_amount, self.context
+                    ),
+                )
         else:
             unfulfilled_amount.coin = max(0, unfulfilled_amount.coin)
 
@@ -808,6 +818,7 @@ class TransactionBuilder:
                         [TransactionOutput(None, unfulfilled_amount)],
                         self.context,
                         include_max_fee=False,
+                        respect_min_utxo=not can_merge_change,
                     )
                     for s in selected:
                         selected_amount += s.output.amount

@@ -47,7 +47,8 @@ def submit_tx(tx):
 
 def find_collateral(target_address):
     for utxo in chain_context.utxos(str(target_address)):
-        if isinstance(utxo.output.amount, int):
+        # A collateral should contain no multi asset
+        if not utxo.output.amount.multi_asset:
             return utxo
     return None
 

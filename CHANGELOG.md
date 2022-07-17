@@ -5,6 +5,38 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
 
+## [0.5.1] - 2022-07-09
+
+### Added
+
+- Policy json serializer ([#58](https://github.com/cffls/pycardano/pull/58)) 
+
+### Fixed
+
+- Fix min lovelace when the input is Value type
+
+
+## [0.5.0] - 2022-06-15
+
+### Added
+
+- Staking certificates.
+- Add an option to merge change into already existing output. ([#38](https://github.com/cffls/pycardano/pull/38)).
+- Enable UTxO query with Kupo ([#39](https://github.com/cffls/pycardano/pull/39)).
+- Add 'add_minting_script' to txbuilder.
+- Add usage guides for Plutus ([#46](https://github.com/cffls/pycardano/pull/46)).
+- Add message signing and verification (CIP8) ([#45](https://github.com/cffls/pycardano/pull/45)).
+
+### Changed
+
+- `amount` in `TransactionOutput` will be converted to type `Value` even when an `int` is passed in ([#42](https://github.com/cffls/pycardano/pull/42)).
+- Add unknown fields to ArraySerializable if more values are provided.
+
+### Fixed
+
+- Prevent 'Transaction.from_cbor' from dropping data in datum.
+- Add fake fee to fake transaction when fee is 0.
+
 ## [0.4.1] - 2022-05-03
 
 ### Changed

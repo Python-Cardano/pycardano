@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pycardano"
-version = "0.4.1"
+version = "0.5.1"
 classifiers = [
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
@@ -15,7 +15,7 @@ description = "A Cardano library in Python"
 homepage = "https://github.com/cffls/pycardano"
 documentation = "https://pycardano.readthedocs.io/en/latest/"
 keywords = ["python", "cardano", "blockchain", "crypto"]
-authors = ["Jerry <jerry@staking247.com>"]
+authors = ["Jerry <jerrycgh@gmail.com>"]
 readme = "README.md"
 repository = "https://github.com/cffls/pycardano"
 license = "MIT"
@@ -27,6 +27,7 @@ cbor2 = "^5.4.2"
 typeguard = "^2.13.3"
 blockfrost-python = "0.4.4"
 websocket-client = "^1.2.3"
+cose = "^0.9.dev8"
 
 [tool.poetry.dev-dependencies]
 Sphinx = "^4.3.2"
