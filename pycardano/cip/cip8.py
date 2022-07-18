@@ -10,7 +10,7 @@ from cose.keys.keytype import KtyOKP
 from cose.messages import CoseMessage, Sign1Message
 
 from pycardano.address import Address
-from pycardano.key import PaymentVerificationKey, SigningKey, VerificationKey
+from pycardano.key import PaymentVerificationKey, SigningKey, StakeVerificationKey, VerificationKey
 from pycardano.network import Network
 
 
@@ -151,10 +151,17 @@ def verify(
 
     # check that the address attached matches the
     # one of the verification keys used to sign the message
-    addresses_match = (
-        signing_address.payment_part
-        == PaymentVerificationKey.from_primitive(verification_key).hash()
-    )
+
+    if signing_address.payment_part is not None:
+        addresses_match = (
+            signing_address.payment_part
+            == PaymentVerificationKey.from_primitive(verification_key).hash()
+        )
+    else:
+        addresses_match = (
+            signing_address.staking_part
+            == StakeVerificationKey.from_primitive(verification_key).hash()
+        )
 
     verified = signature_verified & addresses_match
 
