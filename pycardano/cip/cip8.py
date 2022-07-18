@@ -157,7 +157,7 @@ def verify(
             signing_address.payment_part
             == PaymentVerificationKey.from_primitive(verification_key).hash()
         )
-    elif signing_address.staking_part is not None:
+    else:
         addresses_match = (
             signing_address.staking_part
             == StakeVerificationKey.from_primitive(verification_key).hash()
