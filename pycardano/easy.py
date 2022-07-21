@@ -565,7 +565,7 @@ class Wallet:
     - that can do all of the above at once
     - custom metadata fields
     - multi-output transactions
-    TODO:
+    - register wallet
     - stake wallet
     - withdraw rewards
     - multi-sig transactions
@@ -690,6 +690,31 @@ class Wallet:
     @property
     def tokens_dict(self):
         return self._token_dict
+
+    @property
+    def stake_info(self):
+        account_info = get_stake_info(self.stake_address, self.context)
+        if not account_info:
+            logger.warn("Stake address is not registered yet.")
+        return account_info
+
+    @property
+    def pool_id(self):
+        account_info = get_stake_info(self.stake_address, self.context)
+        if account_info.get("pool_id"):
+            return account_info.get("pool_id")
+        else:
+            logger.warn("Stake address is not registered yet.")
+            return None
+
+    @property
+    def withdrawable_amount(self):
+        account_info = get_stake_info(self.stake_address, self.context)
+        if account_info.get("withdrawable_amount"):
+            return Lovelace(int(account_info.get("withdrawable_amount")))
+        else:
+            logger.warn("Stake address is not registered yet.")
+            return Lovelace(0)
 
     def _load_or_create_key_pair(self, stake=True):
 
@@ -986,6 +1011,83 @@ class Wallet:
             await_confirmation=await_confirmation,
             context=context,
         )
+
+    def delegate(
+            self,
+            pool_hash: Union[PoolKeyHash, str],
+            register: Optional[bool] = True,
+            amount: Optional[Union[Ada, Lovelace]] = Lovelace(2000000),
+            await_confirmation: Optional[bool] = False,
+            context: Optional[ChainContext] = None,
+    ):
+        # streamline inputs
+        if not self.stake_address:
+            raise ValueError("This wallet does not have staking keys.")
+
+        context = self._find_context(context)
+
+        if isinstance(pool_hash, str):
+            pool_hash = PoolKeyHash(bytes.fromhex(pool_hash))
+
+        # check registration
+        if register:
+            register = not self.stake_info.get("active")
+
+        stake_credential = StakeCredential(self.stake_verification_key.hash())
+        stake_registration = StakeRegistration(stake_credential)
+        stake_delegation = StakeDelegation(stake_credential, pool_keyhash=pool_hash)
+
+        # draft the transaction
+        builder = TransactionBuilder(context)
+        builder.add_input_address(self.address)
+        builder.add_output(TransactionOutput(self.address, amount.lovelace))
+
+        if register:
+            builder.certificates = [stake_registration, stake_delegation]
+        else:
+            builder.certificates = [stake_delegation]
+
+        signed_tx = builder.build_and_sign([self.signing_key, self.stake_signing_key], self.address)
+
+        context.submit_tx(signed_tx.to_cbor())
+
+        if await_confirmation:
+            confirmed = wait_for_confirmation(str(signed_tx.id), self.context)
+            self.query_utxos()
+
+        return str(signed_tx.id)
+
+    def withdraw(
+            self,
+            withdrawal_amount: Optional[Union[Ada, Lovelace]] = None,
+            output_amount: Optional[Union[Ada, Lovelace]] = Lovelace(1000000),
+            await_confirmation: Optional[bool] = False,
+            context: Optional[ChainContext] = None,
+    ):
+        # streamline inputs
+        if not self.stake_address:
+            raise ValueError("This wallet does not have staking keys.")
+
+        context = self._find_context(context)
+
+        if not withdrawal_amount:
+            # automatically detect rewards:
+            withdrawal_amount = self.withdrawable_amount
+
+        builder = TransactionBuilder(context)
+        builder.add_input_address(self.address)
+        builder.add_output(TransactionOutput(self.address, output_amount.lovelace))
+        builder.withdrawals = Withdrawals({self.stake_address.to_primitive(): withdrawal_amount.lovelace})
+
+        signed_tx = builder.build_and_sign([self.signing_key, self.stake_signing_key], self.address)
+
+        context.submit_tx(signed_tx.to_cbor())
+
+        if await_confirmation:
+            confirmed = wait_for_confirmation(str(signed_tx.id), self.context)
+            self.query_utxos()
+
+        return str(signed_tx.id)
 
     def mint_tokens(
             self,
@@ -1372,6 +1474,26 @@ def get_utxo_block_time(utxo: UTxO, context: ChainContext):
     else:
         logger.warn(
             "Fetching UTxO block time is only possible with Blockfrost Chain Context."
+        )
+
+
+def get_stake_info(stake_address: Union[str, Address], context: ChainContext):
+    if isinstance(context, BlockFrostChainContext):
+
+        if isinstance(stake_address, str):
+            stake_address = Address.from_primitive(stake_address)
+
+        if not stake_address.staking_part:
+            raise TypeError(f"Address {stake_address} has no staking part.")
+
+        try:
+            return context.api.accounts(str(stake_address)).to_dict()
+        except ApiError:
+            return {}
+
+    else:
+        logger.warn(
+            "Retrieving stake address information is only possible with Blockfrost Chain Context."
         )
 
 
