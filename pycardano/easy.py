@@ -44,7 +44,6 @@ from pycardano.transaction import (
 from pycardano.txbuilder import TransactionBuilder
 from pycardano.utils import min_lovelace
 
-
 # set logging level to info
 logger.setLevel(logging.INFO)
 
@@ -52,7 +51,7 @@ logger.setLevel(logging.INFO)
 class Amount:
     """Base class for Cardano currency amounts."""
 
-    def __init__(self, amount=0, amount_type="lovelace"):
+    def __init__(self, amount: Union[float, int] = 0, amount_type="lovelace"):
 
         self._amount = amount
         self._amount_type = amount_type
@@ -279,7 +278,7 @@ class TokenPolicy:
         # look for the policy
         if Path(self.policy_dir / f"{self.name}.script").exists():
             with open(
-                Path(self.policy_dir / f"{self.name}.script"), "r"
+                    Path(self.policy_dir / f"{self.name}.script"), "r"
             ) as policy_file:
                 self.policy = NativeScript.from_dict(json.load(policy_file))
 
@@ -338,7 +337,6 @@ class TokenPolicy:
         """
 
         if self.expiration_slot:
-
             seconds_diff = self.expiration_slot - context.last_block_slot
 
             return datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(
@@ -351,16 +349,15 @@ class TokenPolicy:
         """
 
         if self.expiration_slot:
-
             seconds_diff = self.expiration_slot - context.last_block_slot
 
             return seconds_diff < 0
 
     def generate_minting_policy(
-        self,
-        signers: Union["Wallet", Address, List["Wallet"], List[Address]],
-        expiration: Optional[Union[datetime.datetime, int]] = None,
-        context: Optional[ChainContext] = None,
+            self,
+            signers: Union["Wallet", Address, List["Wallet"], List[Address]],
+            expiration: Optional[Union[datetime.datetime, int]] = None,
+            context: Optional[ChainContext] = None,
     ):
 
         script_filepath = Path(self.policy_dir / f"{self.name}.script")
@@ -386,7 +383,7 @@ class TokenPolicy:
             elif isinstance(expiration, datetime.datetime):
                 if expiration.tzinfo:
                     time_until_expiration = expiration - datetime.datetime.now(
-                        datetime.datetime.utc
+                        datetime.timezone.utc
                     )
                 else:
                     time_until_expiration = expiration - datetime.datetime.now()
@@ -396,7 +393,10 @@ class TokenPolicy:
                 must_before_slot = InvalidHereAfter(
                     last_block_slot + int(time_until_expiration.total_seconds())
                 )
+            else:
+                must_before_slot = None
 
+            # noinspection PyTypeChecker
             policy = ScriptAll(pub_keys + [must_before_slot])
 
         else:
@@ -409,7 +409,7 @@ class TokenPolicy:
         self.policy = policy
 
     @staticmethod
-    def _get_pub_key_hash(signer=Union["Wallet", Address]):
+    def _get_pub_key_hash(signer: Union["Wallet", Address]):
 
         if hasattr(signer, "verification_key"):
             return signer.verification_key.hash()
@@ -445,7 +445,7 @@ class Token:
         return self.name
 
     def _check_metadata(
-        self, to_check: Union[dict, list, str], top_level: bool = False
+            self, to_check: Union[dict, list, str], top_level: bool = False
     ):
         """Screen the input metadata for potential issues.
         Used recursively to check inside all dicts and lists of the metadata.
@@ -458,7 +458,8 @@ class Token:
 
                 if len(str(key)) > 64:
                     raise MetadataFormattingException(
-                        f"Metadata key is too long (> 64 characters): {key}\nConsider splitting into an array of shorter strings."
+                        f"Metadata key is too long (> 64 characters): {key}\nConsider splitting into an array of "
+                        f"shorter strings. "
                     )
 
                 if isinstance(value, dict) or isinstance(value, list):
@@ -466,7 +467,8 @@ class Token:
 
                 elif len(str(value)) > 64:
                     raise MetadataFormattingException(
-                        f"Metadata field is too long (> 64 characters): {key}: {value}\nConsider splitting into an array of shorter strings."
+                        f"Metadata field is too long (> 64 characters): {key}: {value}\nConsider splitting into an "
+                        f"array of shorter strings. "
                     )
 
         elif isinstance(to_check, list):
@@ -474,13 +476,15 @@ class Token:
             for item in to_check:
                 if len(str(item)) > 64:
                     raise MetadataFormattingException(
-                        f"Metadata field is too long (> 64 characters): {item}\nConsider splitting into an array of shorter strings."
+                        f"Metadata field is too long (> 64 characters): {item}\nConsider splitting into an array of "
+                        f"shorter strings. "
                     )
 
         elif isinstance(to_check, str):
             if len(to_check) > 64:
                 raise MetadataFormattingException(
-                    f"Metadata field is too long (> 64 characters): {item}\nConsider splitting into an array of shorter strings."
+                    f"Metadata field is too long (> 64 characters): {to_check}\nConsider splitting into an array of "
+                    f"shorter strings. "
                 )
 
         if top_level:
@@ -497,11 +501,11 @@ class Token:
     def policy_id(self):
         return self.policy.policy_id
 
-    def get_onchain_metadata(self, context: ChainContext):
+    def get_on_chain_metadata(self, context: ChainContext):
 
         if not isinstance(context, BlockFrostChainContext):
             logger.warn(
-                "Getting onchain metadata is is only possible with Blockfrost Chain Context."
+                "Getting on-chain metadata is is only possible with Blockfrost Chain Context."
             )
             return {}
 
@@ -511,7 +515,7 @@ class Token:
             ).onchain_metadata.to_dict()
         except ApiError as e:
             logger.error(
-                f"Could not get onchain data, likely this asset has not been minted yet\n Blockfrost Error: {e}"
+                f"Could not get on-chain data, likely this asset has not been minted yet\n Blockfrost Error: {e}"
             )
             metadata = {}
 
@@ -535,7 +539,7 @@ class Output:
                 self.tokens = [self.tokens]
 
         if isinstance(self.address, str):
-            self.address = Address(self.address)
+            self.address = Address.from_primitive(self.address)
 
         elif isinstance(self.address, Wallet):
             self.address = self.address.address
@@ -573,7 +577,7 @@ class Wallet:
     address: Optional[Union[Address, str]] = None
     keys_dir: Optional[Union[str, Path]] = field(repr=False, default=Path("./priv"))
     use_stake: Optional[bool] = field(repr=False, default=True)
-    network: Optional[Literal["mainnet", "testnet"]] = "mainnet"
+    network: Optional[Literal["mainnet", "testnet", Network.MAINNET, Network.TESTNET]] = "mainnet"
 
     # generally added later
     lovelace: Optional[Lovelace] = field(repr=False, default=Lovelace(0))
@@ -597,6 +601,7 @@ class Wallet:
             self._load_or_create_key_pair(stake=self.use_stake)
         # otherwise derive the network from the address provided
         else:
+            # noinspection PyTypeChecker
             self.network = self.address.network.name.lower()
             self.signing_key = None
             self.verification_key = None
@@ -627,7 +632,7 @@ class Wallet:
         try:
             self.utxos = context.utxos(str(self.address))
         except Exception as e:
-            logger.debug(
+            logger.warning(
                 f"Error getting UTxOs. Address has likely not transacted yet. Details: {e}"
             )
             self.utxos = []
@@ -643,12 +648,12 @@ class Wallet:
             # add up all the tokens
             self._get_tokens()
 
-            logger.debug(
+            logger.info(
                 f"Wallet {self.name} has {len(self.utxos)} UTxOs containing a total of {self.ada} ₳."
             )
 
         else:
-            logger.debug(f"Wallet {self.name} has no UTxOs.")
+            logger.info(f"Wallet {self.name} has no UTxOs.")
 
             self.lovelace = Lovelace(0)
             self.ada = Ada(0)
@@ -697,6 +702,9 @@ class Wallet:
         stake_skey_path = self.keys_dir / f"{self.name}.stake.skey"
         stake_vkey_path = self.keys_dir / f"{self.name}.stake.vkey"
 
+        stake_skey = None
+        stake_vkey = None
+
         if skey_path.exists():
             skey = PaymentSigningKey.load(str(skey_path))
             vkey = PaymentVerificationKey.from_signing_key(skey)
@@ -722,16 +730,19 @@ class Wallet:
             stake_key_pair.verification_key.save(str(stake_vkey_path))
             stake_skey = stake_key_pair.signing_key
             stake_vkey = stake_key_pair.verification_key
+        elif not stake:
+            stake_skey_path = None
+            stake_vkey_path = None
 
         self.signing_key = skey
         self.verification_key = vkey
+        self.signing_key_path = skey_path
+        self.verification_key_path = vkey_path
 
-        if stake:
-            self.stake_signing_key = stake_skey
-            self.stake_verification_key = stake_vkey
-        else:
-            self.stake_signing_key = None
-            self.stake_verification_key = None
+        self.stake_signing_key = stake_skey
+        self.stake_verification_key = stake_vkey
+        self.stake_signing_key_path = stake_skey_path
+        self.stake_verification_key_path = stake_vkey_path
 
         if stake:
             self.address = Address(
@@ -742,7 +753,7 @@ class Wallet:
 
     def _find_context(self, context: Optional[ChainContext] = None):
         """Helper function to ensure that a context is always provided when needed.
-        By default will return self.context unless a context variable has been specifically specified.
+        By default, will return `self.context` unless a context variable has been specifically specified.
         """
 
         if not context and not self.context:
@@ -832,13 +843,13 @@ class Wallet:
         context = self._find_context(context)
 
         for token in self.tokens:
-            token.get_onchain_metadata(context)
+            token.get_on_chain_metadata(context)
 
     def sign_data(
-        self,
-        message: str,
-        mode: Literal["payment", "stake"] = "payment",
-        attach_cose_key=False,
+            self,
+            message: str,
+            mode: Literal["payment", "stake"] = "payment",
+            attach_cose_key=False,
     ):
 
         if mode == "payment":
@@ -848,6 +859,8 @@ class Wallet:
                 signing_key = self.stake_signing_key
             else:
                 raise TypeError(f"Wallet {self.name} does not have stake credentials.")
+        else:
+            raise TypeError(f"Data signing mode must be `payment` or `stake`, not {mode}.")
 
         return sign(
             message,
@@ -857,13 +870,13 @@ class Wallet:
         )
 
     def send_ada(
-        self,
-        to: Union[str, Address],
-        amount: Union[Ada, Lovelace],
-        utxos: Optional[Union[UTxO, List[UTxO]]] = [],
-        message: Optional[Union[str, List[str]]] = None,
-        await_confirmation: Optional[bool] = False,
-        context: Optional[ChainContext] = None,
+            self,
+            to: Union[str, Address],
+            amount: Union[Ada, Lovelace],
+            utxos: Optional[Union[UTxO, List[UTxO]]] = None,
+            message: Optional[Union[str, List[str]]] = None,
+            await_confirmation: Optional[bool] = False,
+            context: Optional[ChainContext] = None,
     ):
 
         context = self._find_context(context)
@@ -880,6 +893,8 @@ class Wallet:
         if utxos:
             if isinstance(utxos, UTxO):
                 utxos = [utxos]
+        else:
+            utxos = []
 
         builder = TransactionBuilder(context)
 
@@ -912,12 +927,12 @@ class Wallet:
         return str(signed_tx.id)
 
     def send_utxo(
-        self,
-        to: Union[str, Address],
-        utxos: Union[UTxO, List[UTxO]],
-        message: Optional[Union[str, List[str]]] = None,
-        await_confirmation: Optional[bool] = False,
-        context: Optional[ChainContext] = None,
+            self,
+            to: Union[str, Address],
+            utxos: Union[UTxO, List[UTxO]],
+            message: Optional[Union[str, List[str]]] = None,
+            await_confirmation: Optional[bool] = False,
+            context: Optional[ChainContext] = None,
     ):
 
         # streamline inputs
@@ -957,11 +972,11 @@ class Wallet:
         return str(signed_tx.id)
 
     def empty_wallet(
-        self,
-        to: Union[str, Address],
-        message: Optional[Union[str, List[str]]] = None,
-        await_confirmation: Optional[bool] = False,
-        context: Optional[ChainContext] = None,
+            self,
+            to: Union[str, Address],
+            message: Optional[Union[str, List[str]]] = None,
+            await_confirmation: Optional[bool] = False,
+            context: Optional[ChainContext] = None,
     ):
 
         return self.send_utxo(
@@ -973,16 +988,16 @@ class Wallet:
         )
 
     def mint_tokens(
-        self,
-        to: Union[str, Address],
-        mints: Union[Token, List[Token]],
-        amount: Optional[Union[Ada, Lovelace]] = None,
-        utxos: Optional[Union[UTxO, List[UTxO]]] = [],
-        other_signers: Optional[Union["Wallet", List["Wallet"]]] = [],
-        change_address: Optional[Union["Wallet", Address, str]] = None,
-        message: Optional[Union[str, List[str]]] = None,
-        await_confirmation: Optional[bool] = False,
-        context: Optional[ChainContext] = None,
+            self,
+            to: Union[str, Address],
+            mints: Union[Token, List[Token]],
+            amount: Optional[Union[Ada, Lovelace]] = None,
+            utxos: Optional[Union[UTxO, List[UTxO]]] = None,
+            other_signers: Optional[Union["Wallet", List["Wallet"]]] = None,
+            change_address: Optional[Union["Wallet", Address, str]] = None,
+            message: Optional[Union[str, List[str]]] = None,
+            await_confirmation: Optional[bool] = False,
+            context: Optional[ChainContext] = None,
     ):
         """Under construction."""
 
@@ -1002,9 +1017,13 @@ class Wallet:
 
         if isinstance(utxos, UTxO):
             utxos = [utxos]
+        elif not utxos:
+            utxos = []
 
         if not isinstance(other_signers, list):
             other_signers = [other_signers]
+        elif not other_signers:
+            other_signers = []
 
         if not change_address:
             change_address = self.address
@@ -1024,6 +1043,8 @@ class Wallet:
                 policy_hash = token.policy.hash()
             elif isinstance(token.policy, TokenPolicy):
                 policy_hash = ScriptHash.from_primitive(token.policy_id)
+            else:
+                policy_hash = None
 
             policy_id = str(policy_hash)
 
@@ -1071,6 +1092,8 @@ class Wallet:
             auxiliary_data = AuxiliaryData(
                 AlonzoMetadata(metadata=Metadata(all_metadata))
             )
+        else:
+            auxiliary_data = AuxiliaryData(Metadata())
 
         # build the transaction
         builder = TransactionBuilder(context)
@@ -1119,27 +1142,27 @@ class Wallet:
         return str(signed_tx.id)
 
     def manual(
-        self,
-        inputs: Union[
-            "Wallet",
-            Address,
-            UTxO,
-            str,
-            List["Wallet"],
-            List[Address],
-            List[UTxO],
-            List[str],
-        ],
-        outputs: Union[Output, List[Output]],
-        mints: Optional[Union[Token, List[Token]]] = [],
-        signers: Optional[Union["Wallet", List["Wallet"]]] = [],
-        change_address: Optional[Union["Wallet", Address, str]] = None,
-        merge_change: Optional[bool] = True,
-        message: Optional[Union[str, List[str]]] = None,
-        other_metadata: Optional[dict] = {},
-        submit: Optional[bool] = True,
-        await_confirmation: Optional[bool] = False,
-        context: Optional[ChainContext] = None,
+            self,
+            inputs: Union[
+                "Wallet",
+                Address,
+                UTxO,
+                str,
+                List["Wallet"],
+                List[Address],
+                List[UTxO],
+                List[str],
+            ],
+            outputs: Union[Output, List[Output]],
+            mints: Optional[Union[Token, List[Token]]] = None,
+            signers: Optional[Union["Wallet", List["Wallet"]]] = None,
+            change_address: Optional[Union["Wallet", Address, str]] = None,
+            merge_change: Optional[bool] = True,
+            message: Optional[Union[str, List[str]]] = None,
+            other_metadata=None,
+            submit: Optional[bool] = True,
+            await_confirmation: Optional[bool] = False,
+            context: Optional[ChainContext] = None,
     ):
 
         # streamline inputs
@@ -1153,9 +1176,13 @@ class Wallet:
 
         if not isinstance(mints, list):
             mints = [mints]
+        elif not mints:
+            mints = []
 
         if not isinstance(signers, list):
             signers = [signers]
+        elif not signers:
+            signers = []
 
         if not change_address:
             change_address = self.address
@@ -1164,6 +1191,9 @@ class Wallet:
                 change_address = Address.from_primitive(change_address)
             elif not isinstance(change_address, Address):
                 change_address = change_address.address
+
+        if other_metadata is None:
+            other_metadata = {}
 
         all_metadata = {}
 
@@ -1176,6 +1206,8 @@ class Wallet:
                 policy_hash = token.policy.hash()
             elif isinstance(token.policy, TokenPolicy):
                 policy_hash = ScriptHash.from_primitive(token.policy_id)
+            else:
+                policy_hash = None
 
             policy_id = str(policy_hash)
 
@@ -1229,6 +1261,8 @@ class Wallet:
             auxiliary_data = AuxiliaryData(
                 AlonzoMetadata(metadata=Metadata(all_metadata))
             )
+        else:
+            auxiliary_data = AuxiliaryData(Metadata())
 
         # build the transaction
         builder = TransactionBuilder(context)
@@ -1274,7 +1308,6 @@ class Wallet:
                     asset = Asset()
 
                     for token_name, token_amount in token_info.items():
-
                         asset[AssetName(str.encode(token_name))] = token_amount
 
                     multi_asset[ScriptHash.from_primitive(policy)] = asset
@@ -1315,7 +1348,6 @@ class Wallet:
 
 # helpers
 def get_utxo_creator(utxo: UTxO, context: ChainContext):
-
     if isinstance(context, BlockFrostChainContext):
         utxo_creator = (
             context.api.transaction_utxos(str(utxo.input.transaction_id))
@@ -1332,7 +1364,6 @@ def get_utxo_creator(utxo: UTxO, context: ChainContext):
 
 
 def get_utxo_block_time(utxo: UTxO, context: ChainContext):
-
     if isinstance(context, BlockFrostChainContext):
         block_time = context.api.transaction(str(utxo.input.transaction_id)).block_time
 
@@ -1345,7 +1376,6 @@ def get_utxo_block_time(utxo: UTxO, context: ChainContext):
 
 
 def get_stake_address(address: Union[str, Address]):
-
     if isinstance(address, str):
         address = Address.from_primitive(address)
 
@@ -1355,14 +1385,14 @@ def get_stake_address(address: Union[str, Address]):
 
 
 def format_message(message: Union[str, List[str]]):
-
     if isinstance(message, str):
         message = [message]
 
     for line in message:
         if len(line) > 64:
             raise MetadataFormattingException(
-                f"Message field is too long (> 64 characters): {line}\nConsider splitting into an array of shorter strings."
+                f"Message field is too long (> 64 characters): {line}\nConsider splitting into an array of shorter "
+                f"strings. "
             )
         if not isinstance(line, str):
             raise MetadataFormattingException(
@@ -1384,7 +1414,8 @@ def check_metadata(to_check: Union[dict, list, str], top_level: bool = False):
 
             if len(str(key)) > 64:
                 raise MetadataFormattingException(
-                    f"Metadata key is too long (> 64 characters): {key}\nConsider splitting into an array of shorter strings."
+                    f"Metadata key is too long (> 64 characters): {key}\nConsider splitting into an array of shorter "
+                    f"strings. "
                 )
 
             if isinstance(value, dict) or isinstance(value, list):
@@ -1392,7 +1423,8 @@ def check_metadata(to_check: Union[dict, list, str], top_level: bool = False):
 
             elif len(str(value)) > 64:
                 raise MetadataFormattingException(
-                    f"Metadata field is too long (> 64 characters): {key}: {value}\nConsider splitting into an array of shorter strings."
+                    f"Metadata field is too long (> 64 characters): {key}: {value}\nConsider splitting into an array "
+                    f"of shorter strings. "
                 )
 
     elif isinstance(to_check, list):
@@ -1400,13 +1432,15 @@ def check_metadata(to_check: Union[dict, list, str], top_level: bool = False):
         for item in to_check:
             if len(str(item)) > 64:
                 raise MetadataFormattingException(
-                    f"Metadata field is too long (> 64 characters): {item}\nConsider splitting into an array of shorter strings."
+                    f"Metadata field is too long (> 64 characters): {item}\nConsider splitting into an array of "
+                    f"shorter strings. "
                 )
 
     elif isinstance(to_check, str):
         if len(to_check) > 64:
             raise MetadataFormattingException(
-                f"Metadata field is too long (> 64 characters): {item}\nConsider splitting into an array of shorter strings."
+                f"Metadata field is too long (> 64 characters): {to_check}\nConsider splitting into an array of "
+                f"shorter strings. "
             )
 
     if top_level:
@@ -1417,7 +1451,6 @@ def check_metadata(to_check: Union[dict, list, str], top_level: bool = False):
 
 
 def list_all_wallets(wallet_path: Union[str, Path] = Path("./priv")):
-
     if isinstance(wallet_path, str):
         wallet_path = Path(wallet_path)
 
@@ -1427,7 +1460,6 @@ def list_all_wallets(wallet_path: Union[str, Path] = Path("./priv")):
 
 
 def get_all_policies(policy_path: Union[str, Path] = Path("./priv/policies")):
-
     if isinstance(policy_path, str):
         policy_path = Path(policy_path)
 
@@ -1437,7 +1469,6 @@ def get_all_policies(policy_path: Union[str, Path] = Path("./priv/policies")):
 
 
 def confirm_tx(tx_id: Union[str, TransactionId], context: ChainContext):
-
     if isinstance(context, BlockFrostChainContext):
 
         try:
@@ -1456,9 +1487,8 @@ def confirm_tx(tx_id: Union[str, TransactionId], context: ChainContext):
 
 
 def wait_for_confirmation(
-    tx_id: Union[str, TransactionId], context: ChainContext, delay: Optional[int] = 10
+        tx_id: Union[str, TransactionId], context: ChainContext, delay: Optional[int] = 10
 ):
-
     if not isinstance(context, BlockFrostChainContext):
         logger.warn(
             "Confirming transactions is is only possible with Blockfrost Chain Context."
