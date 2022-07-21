@@ -1246,7 +1246,7 @@ class Wallet:
 
         return str(signed_tx.id)
 
-    def manual(
+    def transact(
             self,
             inputs: Union[
                 "Wallet",
@@ -1261,7 +1261,6 @@ class Wallet:
             outputs: Union[Output, List[Output]],
             mints: Optional[Union[Token, List[Token]]] = None,
             signers: Optional[Union["Wallet", List["Wallet"], SigningKey, List[SigningKey]]] = None,
-            # TODO: Add signing keys as types to signers
             stake_registration: Optional[
                 Union[bool, "Wallet", Address, str, List[Address], List["Wallet"], List[str]]
             ] = None,
