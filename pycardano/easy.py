@@ -13,9 +13,10 @@ from blockfrost import ApiError
 from pycardano.address import Address
 from pycardano.backend.base import ChainContext
 from pycardano.backend.blockfrost import BlockFrostChainContext
+from pycardano.certificate import StakeCredential, StakeDelegation, StakeRegistration
 from pycardano.cip.cip8 import sign
 from pycardano.exception import PyCardanoException
-from pycardano.hash import ScriptHash, TransactionId
+from pycardano.hash import PoolKeyHash, ScriptHash, TransactionId
 from pycardano.key import (
     PaymentKeyPair,
     PaymentSigningKey,
@@ -39,7 +40,7 @@ from pycardano.transaction import (
     MultiAsset,
     TransactionOutput,
     UTxO,
-    Value,
+    Value, Withdrawals,
 )
 from pycardano.txbuilder import TransactionBuilder
 from pycardano.utils import min_lovelace
@@ -568,6 +569,8 @@ class Wallet:
     - register wallet
     - stake wallet
     - withdraw rewards
+    - register, stake, and withdraw in manual transactions
+    TODO:
     - multi-sig transactions
     - interaction with native scripts
     - interaction with plutus scripts
@@ -1257,7 +1260,13 @@ class Wallet:
             ],
             outputs: Union[Output, List[Output]],
             mints: Optional[Union[Token, List[Token]]] = None,
-            signers: Optional[Union["Wallet", List["Wallet"]]] = None,
+            signers: Optional[Union["Wallet", List["Wallet"], SigningKey, List[SigningKey]]] = None,
+            # TODO: Add signing keys as types to signers
+            stake_registration: Optional[
+                Union[bool, "Wallet", Address, str, List[Address], List["Wallet"], List[str]]
+            ] = None,
+            delegations: Optional[Union[str, dict, PoolKeyHash]] = None,
+            withdrawals: Optional[Union[bool, dict]] = None,
             change_address: Optional[Union["Wallet", Address, str]] = None,
             merge_change: Optional[bool] = True,
             message: Optional[Union[str, List[str]]] = None,
@@ -1276,12 +1285,17 @@ class Wallet:
         if not isinstance(outputs, list):
             outputs = [outputs]
 
-        if not isinstance(mints, list):
+        if mints and not isinstance(mints, list):
             mints = [mints]
         elif not mints:
             mints = []
 
-        if not isinstance(signers, list):
+        if stake_registration and not isinstance(stake_registration, list) and not isinstance(stake_registration, bool):
+            stake_registration = [stake_registration]
+        elif not stake_registration:
+            stake_registration = []
+
+        if signers and not isinstance(signers, list):
             signers = [signers]
         elif not signers:
             signers = []
@@ -1366,6 +1380,84 @@ class Wallet:
         else:
             auxiliary_data = AuxiliaryData(Metadata())
 
+        # create stake registrations, delegations
+        certificates = []
+        if stake_registration:  # add registrations
+            if isinstance(stake_registration, bool):
+                # register current wallet
+                stake_credential = StakeCredential(self.stake_verification_key.hash())
+                certificates.append(StakeRegistration(stake_credential))
+                if self.stake_signing_key not in signers:
+                    signers.append(self.stake_signing_key)
+            else:
+                for stake in stake_registration:
+                    if isinstance(stake, str):
+                        stake_hash = Address.from_primitive(stake).staking_part
+                    elif isinstance(stake, self.__class__):
+                        stake_hash = self.stake_verification_key.hash()
+                    else:
+                        stake_hash = stake.staking_part
+                    stake_credential = StakeCredential(stake_hash)
+                    certificates.append(StakeRegistration(stake_credential))
+        if delegations:  # add delegations
+            if isinstance(delegations, str):  # register current wallet
+                pool_hash = PoolKeyHash(bytes.fromhex(delegations))
+                stake_credential = StakeCredential(self.stake_verification_key.hash())
+                certificates.append(StakeDelegation(stake_credential, pool_keyhash=pool_hash))
+                if self.stake_signing_key not in signers:
+                    signers.append(self.stake_signing_key)
+            elif isinstance(delegations, PoolKeyHash): # register current wallet
+                stake_credential = StakeCredential(self.stake_verification_key.hash())
+                certificates.append(StakeDelegation(stake_credential, pool_keyhash=delegations))
+            else:
+                for key, value in delegations:
+                    # get stake hash from key
+                    if isinstance(key, str):
+                        stake_hash = Address.from_primitive(key).staking_part
+                    elif isinstance(key, self.__class__):
+                        stake_hash = self.stake_verification_key.hash()
+                    else:
+                        stake_hash = key.staking_part
+
+                    # get pool hash from value:
+                    if isinstance(value, str):
+                        pool_hash = PoolKeyHash(bytes.fromhex(value))
+                    else:
+                        pool_hash = value
+
+                    stake_credential = StakeCredential(stake_hash)
+                    certificates.append(StakeDelegation(stake_credential, pool_keyhash=pool_hash))
+
+        # withdrawals
+        withdraw = {}
+        if isinstance(withdrawals, bool):  # withdraw current wallet
+            withdraw[self.stake_address.to_primitive()] = self.withdrawable_amount.lovelace
+            if self.stake_signing_key not in signers:
+                signers.append(self.stake_signing_key)
+        elif isinstance(withdrawals, dict):
+            for key, value in withdrawals.items():
+                if isinstance(key, Address):
+                    stake_address = key
+                elif isinstance(key, self.__class__):
+                    stake_address = key.stake_address
+                else:
+                    stake_address = Address.from_primitive(key)
+
+                if isinstance(value, Amount):
+                    withdrawal_amount = value
+                elif isinstance(value, bool) or value == "all":  # withdraw all
+                    account_info = get_stake_info(stake_address, self.context)
+                    if account_info.get("withdrawable_amount"):
+                        withdrawal_amount = Lovelace(int(account_info.get("withdrawable_amount")))
+                    else:
+                        logger.warn(f"Stake address {stake_address} is not registered yet.")
+                        withdrawal_amount = Lovelace(0)
+                else:
+                    withdrawal_amount = Lovelace(0)
+
+                withdraw[stake_address.staking_part.to_primitive()] = withdrawal_amount.as_lovelace().amount
+
+
         # build the transaction
         builder = TransactionBuilder(context)
 
@@ -1425,10 +1517,25 @@ class Wallet:
                 )
             )
 
+        # add registration + delegation certificates
+        if certificates:
+            builder.certificates = certificates
+
+        # add withdrawals
+        if withdraw:
+            builder.withdrawals = Withdrawals(withdraw)
+
         if signers:
-            signing_keys = [wallet.signing_key for wallet in signers] + [
-                self.signing_key
-            ]
+            signing_keys = []
+            for signer in signers:
+                if isinstance(signer, self.__class__):
+                    signing_keys.append(signer.signing_key)
+                else:
+                    signing_keys.append(signer)
+
+            if self.signing_key not in signing_keys:
+                signing_keys.insert(0, self.signing_key)
+
         else:
             signing_keys = [self.signing_key]
 
