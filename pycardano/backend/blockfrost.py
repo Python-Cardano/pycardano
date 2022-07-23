@@ -1,16 +1,21 @@
+import argparse
+import json
 import os
 import tempfile
 import time
 from typing import Dict, List, Union
 
+import cbor2
 from blockfrost import ApiUrls, BlockFrostApi
 
 from pycardano.address import Address
 from pycardano.backend.base import ChainContext, GenesisParameters, ProtocolParameters
 from pycardano.exception import TransactionFailedException
 from pycardano.hash import SCRIPT_HASH_SIZE, DatumHash, ScriptHash
+from pycardano.nativescript import NativeScript
 from pycardano.network import Network
-from pycardano.plutus import ExecutionUnits
+from pycardano.plutus import ExecutionUnits, PlutusV1Script, PlutusV2Script
+from pycardano.serialization import RawCBOR
 from pycardano.transaction import (
     Asset,
     AssetName,
@@ -22,6 +27,13 @@ from pycardano.transaction import (
 )
 
 __all__ = ["BlockFrostChainContext"]
+
+
+def _namespace_to_dict(namespace: argparse.Namespace) -> dict:
+    return {
+        k: _namespace_to_dict(v) if isinstance(v, argparse.Namespace) else v
+        for k, v in vars(namespace).items()
+    }
 
 
 class BlockFrostChainContext(ChainContext):
@@ -108,6 +120,23 @@ class BlockFrostChainContext(ChainContext):
             )
         return self._protocol_param
 
+    def _get_script(
+        self, script_hash: str
+    ) -> Union[PlutusV1Script, PlutusV2Script, NativeScript]:
+        script_type = self.api.script(script_hash).type
+        if script_type == "plutusV1":
+            return PlutusV1Script(
+                cbor2.loads(bytes.fromhex(self.api.script_cbor(script_hash).cbor))
+            )
+        elif script_type == "plutusV2":
+            return PlutusV2Script(
+                cbor2.loads(bytes.fromhex(self.api.script_cbor(script_hash).cbor))
+            )
+        else:
+            return NativeScript.from_dict(
+                self.api.script_json(script_hash, return_type="json")["json"]
+            )
+
     def utxos(self, address: str) -> List[UTxO]:
         results = self.api.address_utxos(address, gather_pages=True)
 
@@ -133,22 +162,31 @@ class BlockFrostChainContext(ChainContext):
                         multi_assets[policy_id] = Asset()
                     multi_assets[policy_id][asset_name] = int(item.quantity)
 
+            amount = Value(lovelace_amount, multi_assets)
+
             datum_hash = (
-                DatumHash.from_primitive(result.data_hash) if result.data_hash else None
+                DatumHash.from_primitive(result.data_hash)
+                if result.data_hash and result.inline_datum is None
+                else None
             )
 
-            if not multi_assets:
-                tx_out = TransactionOutput(
-                    Address.from_primitive(address),
-                    amount=lovelace_amount,
-                    datum_hash=datum_hash,
-                )
-            else:
-                tx_out = TransactionOutput(
-                    Address.from_primitive(address),
-                    amount=Value(lovelace_amount, multi_assets),
-                    datum_hash=datum_hash,
-                )
+            datum = None
+
+            if result.inline_datum is not None:
+                datum = RawCBOR(bytes.fromhex(result.inline_datum))
+
+            script = None
+
+            if result.reference_script_hash:
+                script = self._get_script(result.reference_script_hash)
+
+            tx_out = TransactionOutput(
+                Address.from_primitive(address),
+                amount=amount,
+                datum_hash=datum_hash,
+                datum=datum,
+                script=script,
+            )
             utxos.append(UTxO(tx_in, tx_out))
 
         return utxos
