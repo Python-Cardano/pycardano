@@ -10,7 +10,12 @@ from cose.keys.keytype import KtyOKP
 from cose.messages import CoseMessage, Sign1Message
 
 from pycardano.address import Address
-from pycardano.key import PaymentVerificationKey, SigningKey, StakeVerificationKey, VerificationKey
+from pycardano.key import (
+    PaymentVerificationKey,
+    SigningKey,
+    StakeVerificationKey,
+    VerificationKey,
+)
 from pycardano.network import Network
 
 

@@ -9,10 +9,10 @@ from dataclasses import Field, dataclass, fields
 from datetime import datetime
 from decimal import Decimal
 from inspect import isclass
-from pprint import pformat
 from typing import Any, Callable, ClassVar, List, Type, TypeVar, Union, get_type_hints
 
 from cbor2 import CBOREncoder, CBORSimpleValue, CBORTag, dumps, loads, undefined
+from pprintpp import pformat
 from typeguard import check_type, typechecked
 
 from pycardano.exception import (
@@ -349,7 +349,7 @@ class CBORSerializable:
         return cls.from_primitive(value)
 
     def __repr__(self):
-        return pformat(vars(self))
+        return pformat(vars(self), indent=2)
 
 
 def _restore_dataclass_field(
