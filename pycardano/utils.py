@@ -8,22 +8,16 @@ import cbor2
 from nacl.encoding import RawEncoder
 from nacl.hash import blake2b
 
-from pycardano.address import Address
 from pycardano.backend.base import ChainContext
 from pycardano.hash import (
     SCRIPT_DATA_HASH_SIZE,
     SCRIPT_HASH_SIZE,
-    VERIFICATION_KEY_HASH_SIZE,
     ScriptDataHash,
-    VerificationKeyHash,
 )
 from pycardano.plutus import (
     COST_MODELS,
     CostModels,
     Datum,
-    NativeScript,
-    PlutusV1Script,
-    PlutusV2Script,
     Redeemer,
 )
 from pycardano.serialization import default_encoder

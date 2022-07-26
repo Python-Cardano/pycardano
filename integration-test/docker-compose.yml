@@ -9,7 +9,7 @@ networks:
 services:
 
   cardano-node:
-    image: inputoutput/cardano-node:${CARDANO_NODE_VERSION:-1.35.0}
+    image: inputoutput/cardano-node:${CARDANO_NODE_VERSION:-1.35.2}
     entrypoint: bash
     environment:
       NETWORK: "${NETWORK:-local-alonzo}"
@@ -32,7 +32,7 @@ services:
         max-file: "10"
 
   cardano-pool:
-    image: inputoutput/cardano-node:${CARDANO_NODE_VERSION:-1.35.0}
+    image: inputoutput/cardano-node:${CARDANO_NODE_VERSION:-1.35.2}
     entrypoint: bash
     environment:
       NETWORK: "${NETWORK:-local-alonzo}"
@@ -52,7 +52,7 @@ services:
         max-file: "10"
 
   ogmios:
-    image: cardanosolutions/ogmios:v5.5.0
+    image: cardanosolutions/ogmios:v5.5.2
     environment:
       NETWORK: "${NETWORK:-local-alonzo}"
 

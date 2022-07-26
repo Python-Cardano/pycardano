@@ -432,7 +432,8 @@ class TransactionBuilder:
         if not change.multi_asset:
             if change.coin < min_lovelace_pre_alonzo(change, self.context):
                 raise InsufficientUTxOBalanceException(
-                    f"Not enough ADA left for change: {change.coin} but needs {min_lovelace_pre_alonzo(change, self.context)}"
+                    f"Not enough ADA left for change: {change.coin} but needs "
+                    f"{min_lovelace_pre_alonzo(change, self.context)}"
                 )
             lovelace_change = change.coin
             change_output_arr.append(TransactionOutput(address, lovelace_change))
