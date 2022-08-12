@@ -30,6 +30,7 @@ __all__ = [
     "ArrayCBORSerializable",
     "MapCBORSerializable",
     "DictCBORSerializable",
+    "RawCBOR",
     "list_hook",
 ]
 

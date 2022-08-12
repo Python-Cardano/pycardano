@@ -37,6 +37,7 @@ __all__ = [
     "ExecutionUnits",
     "PlutusV1Script",
     "PlutusV2Script",
+    "RawPlutusData",
     "Redeemer",
     "datum_hash",
     "plutus_script_hash",
@@ -419,7 +420,7 @@ PLUTUS_V2_COST_MODEL = {
     "verifyEd25519Signature-memory-arguments": 10,
     "verifySchnorrSecp256k1Signature-cpu-arguments-intercept": 20000000000,
     "verifySchnorrSecp256k1Signature-cpu-arguments-slope": 0,
-    "verifySchnorrSecp256k1Signature-memory-arguments": 20000000000
+    "verifySchnorrSecp256k1Signature-memory-arguments": 20000000000,
 }
 
 COST_MODELS = CostModels({0: PLUTUS_V1_COST_MODEL})
@@ -620,7 +621,33 @@ class PlutusData(ArrayCBORSerializable):
         return cls.from_dict(obj)
 
 
-Datum = Union[PlutusData, dict, IndefiniteList, int, bytes, RawCBOR]
+@dataclass
+class RawPlutusData(CBORSerializable):
+
+    data: CBORTag
+
+    def to_primitive(self) -> CBORTag:
+        def _dfs(obj):
+            if isinstance(obj, list) and obj:
+                return IndefiniteList([_dfs(item) for item in obj])
+            elif isinstance(obj, dict):
+                return {_dfs(k): _dfs(v) for k, v in obj.items()}
+            elif isinstance(obj, CBORTag) and isinstance(obj.value, list) and obj.value:
+                if obj.tag != 102:
+                    value = IndefiniteList([_dfs(item) for item in obj.value])
+                else:
+                    value = [_dfs(item) for item in obj.value]
+                return CBORTag(tag=obj.tag, value=value)
+            return obj
+
+        return _dfs(self.data)
+
+    @classmethod
+    def from_primitive(cls: RawPlutusData, value: CBORTag) -> RawPlutusData:
+        return cls(value)
+
+
+Datum = Union[PlutusData, dict, IndefiniteList, int, bytes, RawCBOR, RawPlutusData]
 """Plutus Datum type. A Union type that contains all valid datum types."""
 
 
@@ -678,6 +705,8 @@ class Redeemer(ArrayCBORSerializable):
 
     @classmethod
     def from_primitive(cls: Redeemer, values: List[Primitive]) -> Redeemer:
+        if isinstance(values[2], CBORTag) and cls is Redeemer:
+            values[2] = RawPlutusData.from_primitive(values[2])
         redeemer = super(Redeemer, cls).from_primitive(
             [values[0], values[2], values[3]]
         )

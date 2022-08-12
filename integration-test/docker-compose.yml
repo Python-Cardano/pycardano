@@ -9,7 +9,7 @@ networks:
 services:
 
   cardano-node:
-    image: inputoutput/cardano-node:${CARDANO_NODE_VERSION:-1.35.2}
+    image: inputoutput/cardano-node:${CARDANO_NODE_VERSION:-1.35.3}
     entrypoint: bash
     environment:
       NETWORK: "${NETWORK:-local-alonzo}"
@@ -32,7 +32,7 @@ services:
         max-file: "10"
 
   cardano-pool:
-    image: inputoutput/cardano-node:${CARDANO_NODE_VERSION:-1.35.2}
+    image: inputoutput/cardano-node:${CARDANO_NODE_VERSION:-1.35.3}
     entrypoint: bash
     environment:
       NETWORK: "${NETWORK:-local-alonzo}"
