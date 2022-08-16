@@ -7,6 +7,8 @@ from retry import retry
 
 from pycardano import *
 
+TEST_RETRIES = 6
+
 
 @retry(tries=10, delay=4)
 def check_chain_context(chain_context):
@@ -21,7 +23,7 @@ class TestBase:
 
     KUPO_URL = "http://localhost:1442/v1/matches"
 
-    chain_context = OgmiosChainContext(OGMIOS_WS, Network.TESTNET, kupo_url=KUPO_URL)
+    chain_context = OgmiosChainContext(OGMIOS_WS, Network.TESTNET)
 
     check_chain_context(chain_context)
 
@@ -41,9 +43,8 @@ class TestBase:
     payment_key_pair = PaymentKeyPair.generate()
     stake_key_pair = StakeKeyPair.generate()
 
-    @retry(tries=4, delay=1)
+    @retry(tries=TEST_RETRIES, delay=3)
     def assert_output(self, target_address, target_output):
-        time.sleep(1)
         utxos = self.chain_context.utxos(str(target_address))
         found = False
 
@@ -54,7 +55,7 @@ class TestBase:
 
         assert found, f"Cannot find target UTxO in address: {target_address}"
 
-    @retry(tries=4, delay=6, backoff=2, jitter=(1, 3))
+    @retry(tries=TEST_RETRIES, delay=6, backoff=2, jitter=(1, 3))
     def fund(self, source_address, source_key, target_address, amount=5000000):
         builder = TransactionBuilder(self.chain_context)
 

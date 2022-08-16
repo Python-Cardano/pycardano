@@ -193,6 +193,6 @@ def test_from_dict():
     }
 
     script_from_dict = NativeScript.from_dict(script_all_dict)
-    
+
     assert script_from_dict == script_all
     assert script_from_dict.to_dict() == script_all_dict

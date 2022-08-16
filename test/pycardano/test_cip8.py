@@ -48,6 +48,21 @@ def test_verify_message_cose_key_attached():
     )
 
 
+def test_verify_message_stake_address():
+    signed_message = {
+        "signature": "84582aa201276761646472657373581de0219f8e3ffefc82395df0bfcfe4e576f8f824bae0c731be35321c01d7a166686173686564f452507963617264616e6f20697320636f6f6c2e58402f2b75301a20876beba03ec68b30c5fbaebc99cb1d038b679340eb2299c2b75cd9c6c884c198e89f690548ee94a87168f5db34acf024d5788e58d119bcba630d",
+        "key": "a40101032720062158200d8e03b5673bf8dabc567dd6150ebcd56179a91a6c0b245f477033dcab7dc780",
+    }
+
+    verification = verify(signed_message, attach_cose_key=True)
+    assert verification["verified"]
+    assert verification["message"] == "Pycardano is cool."
+    assert (
+        str(verification["signing_address"])
+        == "stake_test1uqselr3llm7gyw2a7zlule89wmu0sf96urrnr034xgwqr4csd30df"
+    )
+
+
 def test_sign_message():
 
     message = "Pycardano is cool."

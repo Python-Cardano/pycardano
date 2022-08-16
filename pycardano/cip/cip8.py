@@ -10,8 +10,15 @@ from cose.keys.keytype import KtyOKP
 from cose.messages import CoseMessage, Sign1Message
 
 from pycardano.address import Address
-from pycardano.key import PaymentVerificationKey, SigningKey, VerificationKey
+from pycardano.key import (
+    PaymentVerificationKey,
+    SigningKey,
+    StakeVerificationKey,
+    VerificationKey,
+)
 from pycardano.network import Network
+
+__all__ = ["sign", "verify"]
 
 
 def sign(
@@ -20,15 +27,17 @@ def sign(
     attach_cose_key: bool = False,
     network: Network = Network.MAINNET,
 ) -> Union[str, dict]:
-    """
-    Sign an arbitrary message with a payment key following CIP-0008.
-        Parameters:
-            message (str): Message to be signed
-            signing_key (pycardano.key.SigningKey): Key which is used to sign the message
-            attach_cose_key (bool): Whether or not to attach the Cose key to the output
-        Returns:
-            signed_message (str, dict): a hex-encoded string containing the signed message and verification key.
-                In the case of attach_cose_key=True, a dict containing the signed message and Cose key.
+    """Sign an arbitrary message with a payment key following CIP-0008.
+
+    Args:
+        message (str): Message to be signed
+        signing_key (SigningKey): Key which is used to sign the message
+        attach_cose_key (bool): Whether or not to attach the Cose key to the output
+        network (Network): Network to use for the address generation
+
+    Returns:
+        Union[str, dict]: A hex-encoded string containing the signed message and verification key.
+        In the case of attach_cose_key=True, a dict containing the signed message and Cose key.
     """
 
     # derive the verification key
@@ -86,18 +95,18 @@ def sign(
 def verify(
     signed_message: Union[str, dict], attach_cose_key: Optional[bool] = None
 ) -> dict:
-    """
-    Verify the signature of a COSESign1 message and decode its contents following CIP-0008.
+    """Verify the signature of a COSESign1 message and decode its contents following CIP-0008.
     Supports messages signed by browser wallets or `Message.sign()`.
-        Parameters:
-            signed_message (str, dict): Message to be verified
-            attach_cose_key (bool, optional): Whether or not the Cose key is included with the signed_message.
-                This method will try to determine this automatically if not specified.
-                Usually if `signed_message` is a dict, this should be true.
-        Returns:
-            verified (dict): a dict containing whether or not the message is verified, the message contents,
-                and an Address which was used to sign the message.
 
+    Args:
+        signed_message (Union[str, dict]): Message to be verified
+        attach_cose_key (Optional[bool]): Whether or not the Cose key is included with the signed_message.
+            This method will try to determine this automatically if not specified.
+            Usually if `signed_message` is a dict, this should be true.
+
+    Returns:
+        dict: A dict containing whether or not the message is verified, the message contents,
+        and an Address which was used to sign the message.
     """
 
     if attach_cose_key is None:
@@ -151,10 +160,17 @@ def verify(
 
     # check that the address attached matches the
     # one of the verification keys used to sign the message
-    addresses_match = (
-        signing_address.payment_part
-        == PaymentVerificationKey.from_primitive(verification_key).hash()
-    )
+
+    if signing_address.payment_part is not None:
+        addresses_match = (
+            signing_address.payment_part
+            == PaymentVerificationKey.from_primitive(verification_key).hash()
+        )
+    else:
+        addresses_match = (
+            signing_address.staking_part
+            == StakeVerificationKey.from_primitive(verification_key).hash()
+        )
 
     verified = signature_verified & addresses_match
 

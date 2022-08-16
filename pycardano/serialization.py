@@ -9,10 +9,10 @@ from dataclasses import Field, dataclass, fields
 from datetime import datetime
 from decimal import Decimal
 from inspect import isclass
-from pprint import pformat
 from typing import Any, Callable, ClassVar, List, Type, TypeVar, Union, get_type_hints
 
 from cbor2 import CBOREncoder, CBORSimpleValue, CBORTag, dumps, loads, undefined
+from pprintpp import pformat
 from typeguard import check_type, typechecked
 
 from pycardano.exception import (
@@ -30,6 +30,7 @@ __all__ = [
     "ArrayCBORSerializable",
     "MapCBORSerializable",
     "DictCBORSerializable",
+    "RawCBOR",
     "list_hook",
 ]
 
@@ -43,6 +44,13 @@ class IndefiniteList:
             return self.items == other.items
         else:
             return False
+
+
+@dataclass
+class RawCBOR:
+    """A wrapper class for bytes that represents a CBOR value."""
+
+    cbor: bytes
 
 
 Primitive = TypeVar(
@@ -81,7 +89,7 @@ def default_encoder(
     encoder: CBOREncoder, value: Union[CBORSerializable, IndefiniteList]
 ):
     """A fallback function that encodes CBORSerializable to CBOR"""
-    assert isinstance(value, (CBORSerializable, IndefiniteList)), (
+    assert isinstance(value, (CBORSerializable, IndefiniteList, RawCBOR)), (
         f"Type of input value is not CBORSerializable, " f"got {type(value)} instead."
     )
     if isinstance(value, IndefiniteList):
@@ -92,6 +100,8 @@ def default_encoder(
         for item in value.items:
             encoder.encode(item)
         encoder.write(b"\xff")
+    elif isinstance(value, RawCBOR):
+        encoder.write(value.cbor)
     else:
         encoder.encode(value.to_validated_primitive())
 
@@ -340,7 +350,7 @@ class CBORSerializable:
         return cls.from_primitive(value)
 
     def __repr__(self):
-        return pformat(vars(self))
+        return pformat(vars(self), indent=2)
 
 
 def _restore_dataclass_field(

@@ -9,6 +9,7 @@ from pycardano.plutus import (
     COST_MODELS,
     ExecutionUnits,
     PlutusData,
+    RawPlutusData,
     Redeemer,
     RedeemerTag,
     plutus_script_hash,
@@ -194,3 +195,23 @@ def test_plutus_script_hash():
         "36c198e1a9d05461945c1f1db2ffb927c2dfc26dd01b59ea93b678b2"
         == plutus_script_hash(plutus_script).payload.hex()
     )
+
+
+def test_raw_plutus_data():
+    raw_plutus_cbor = (
+        "d8799f581c23347b25deab0b28b5baa917944f212cfe833e74dd5712d"
+        "6bcec54de9fd8799fd8799fd8799f581c340ebc5a2d7fdd5ad61c9461"
+        "ab83a04631a1a2dd2e53dc672b57e309ffd8799fd8799fd8799f581cb"
+        "c5acf6c6b031be26da4804068f5852b4f119e246d907066627a9f5fff"
+        "ffffffa140d8799f00a1401a000f2ad0ffffd8799fd8799fd8799f581"
+        "c70e60f3b5ea7153e0acc7a803e4401d44b8ed1bae1c7baaad1a62a72"
+        "ffd8799fd8799fd8799f581c1e78aae7c90cc36d624f7b3bb6d86b526"
+        "96dc84e490f343eba89005fffffffffa140d8799f00a1401a000f2ad0"
+        "ffffd8799fd8799fd8799f581c23347b25deab0b28b5baa917944f212"
+        "cfe833e74dd5712d6bcec54deffd8799fd8799fd8799f581c084be0e3"
+        "85f956227ec1710db40e45fc355c858debea77176aa91d07ffffffffa"
+        "140d8799f00a1401a004c7a20ffffffff"
+    )
+    raw_plutus_data = RawPlutusData.from_cbor(raw_plutus_cbor)
+    assert raw_plutus_data.to_cbor() == raw_plutus_cbor
+    check_two_way_cbor(raw_plutus_data)

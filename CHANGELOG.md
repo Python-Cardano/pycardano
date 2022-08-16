@@ -5,6 +5,17 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
 
+## [0.5.1] - 2022-07-09
+
+### Added
+
+- Policy json serializer ([#58](https://github.com/cffls/pycardano/pull/58)) 
+
+### Fixed
+
+- Fix min lovelace when the input is Value type
+
+
 ## [0.5.0] - 2022-06-15
 
 ### Added
