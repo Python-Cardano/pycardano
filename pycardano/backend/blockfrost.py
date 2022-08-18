@@ -171,12 +171,12 @@ class BlockFrostChainContext(ChainContext):
 
             datum = None
 
-            if result.inline_datum is not None:
+            if hasattr(result, "inline_datum") and result.inline_datum is not None:
                 datum = RawCBOR(bytes.fromhex(result.inline_datum))
 
             script = None
 
-            if result.reference_script_hash:
+            if hasattr(result, "reference_script_hash") and result.reference_script_hash:
                 script = self._get_script(result.reference_script_hash)
 
             tx_out = TransactionOutput(
