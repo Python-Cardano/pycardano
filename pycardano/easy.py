@@ -475,11 +475,7 @@ class Token:
         elif isinstance(to_check, list):
 
             for item in to_check:
-                if len(str(item)) > 64:
-                    raise MetadataFormattingException(
-                        f"Metadata field is too long (> 64 characters): {item}\nConsider splitting into an array of "
-                        f"shorter strings. "
-                    )
+                self._check_metadata(to_check=item)
 
         elif isinstance(to_check, str):
             if len(to_check) > 64:
@@ -623,8 +619,8 @@ class Wallet:
                     getenv("BLOCKFROST_ID_TESTNET"), network=Network.TESTNET
                 )
 
-        if self.context:
-            self.query_utxos()
+        #if self.context:
+        #    self.query_utxos()
 
         logger.info(self.__repr__())
 
@@ -817,11 +813,13 @@ class Wallet:
 
         # Convert asset dictionary into Tokens
         # find all policies in which the wallet is a signer
-        my_policies = {
-            policy.id: policy
-            for policy in get_all_policies(self.keys_dir / "policies")
-            if self.verification_key.hash() in policy.required_signatures
-        }
+        my_policies = {}
+        if self.verification_key:
+            my_policies = {
+                policy.id: policy
+                for policy in get_all_policies(self.keys_dir / "policies")
+                if self.verification_key.hash() in policy.required_signatures
+            }
 
         token_list = []
         for policy_id, assets in tokens.items():
@@ -1236,7 +1234,7 @@ class Wallet:
         else:
             signing_keys = [self.signing_key]
 
-        signed_tx = builder.build_and_sign(signing_keys, change_address=self.address)
+        signed_tx = builder.build_and_sign(signing_keys, change_address=change_address)
 
         context.submit_tx(signed_tx.to_cbor())
 
@@ -1614,7 +1612,7 @@ def get_stake_address(address: Union[str, Address]):
 
 def format_message(message: Union[str, List[str]]):
     if isinstance(message, str):
-        message = [message]
+        message = [message[i:i+64] for i in range(0, len(message), 64)]
 
     for line in message:
         if len(line) > 64:
