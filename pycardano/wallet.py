@@ -68,6 +68,7 @@ class Amount:
 
     @property
     def amount(self):
+        """Encodes the contained amount."""
 
         if self._amount_type == "lovelace":
             return self.lovelace
@@ -232,35 +233,50 @@ class Amount:
 
 
 class Lovelace(Amount):
-    def __init__(self, amount=0):
+    """Stores an amount of Lovelace and automatically handles most currency math."""
+
+    def __init__(self, amount: int = 0):
         super().__init__(amount, "lovelace")
 
     def __repr__(self):
         return f"Lovelace({self.lovelace})"
 
     def as_lovelace(self):
+        """Returns a copy."""
         return Lovelace(self.lovelace)
 
     def as_ada(self):
+        """Converts the Lovelace to an Ada class."""
         return Ada(self.ada)
 
 
 class Ada(Amount):
-    def __init__(self, amount=0):
+    """Stores an amount of Ada and automatically handles most currency math."""
+
+    def __init__(self, amount: Union[int, float] = 0):
         super().__init__(amount, "ada")
 
     def __repr__(self):
         return f"Ada({self.ada})"
 
     def as_lovelace(self):
+        """Converts the Ada to a Lovelace class."""
         return Lovelace(self.lovelace)
 
     def ad_ada(self):
+        """Returns a copy."""
         return Ada(self.ada)
 
 
 @dataclass(unsafe_hash=True)
 class TokenPolicy:
+    """Class for the creation and management of fungible and non-fungible token policies.
+    
+    Args:
+        name (str): The name of the token policy, used for saving and loading keys.
+        policy (Optional[Union[NativeScript, dict, str]]): Direct provide a policy to use.
+        policy_dir (Optional[Union[str, Path]]): The directory to save and load the policy from.
+    """
     name: str
     policy: Optional[Union[NativeScript, dict, str]] = field(repr=False, default=None)
     policy_dir: Optional[Union[str, Path]] = field(
@@ -360,6 +376,15 @@ class TokenPolicy:
             expiration: Optional[Union[datetime.datetime, int]] = None,
             context: Optional[ChainContext] = None,
     ):
+        """Generate a minting policy for the given signers with an optional expiration.
+        Policy is generated with CIP-25 in mind.
+
+        Args:
+            signers (Union[Wallet, Address, List[Wallet], List[Address]]): The signer(s) of the policy.
+            expiration (Optional[Union[datetime.datetime, int]]): The expiration of the policy. 
+                If given as a datetime, it will be roughly converted to a slot.
+            context (Optional[ChainContext]): A context is needed to estimate the expiration slot from a datetime.
+        """
 
         script_filepath = Path(self.policy_dir / f"{self.name}.script")
 
@@ -422,6 +447,16 @@ class TokenPolicy:
 
 @dataclass(unsafe_hash=True)
 class Token:
+    """Class that represents a token with an attached policy and amount.
+
+    Attributes:
+        policy (Union[str, NativeScript]): The policy of the token. 
+            The policy need not necessarily be owned by the user.
+        amount (int): The amount of tokens.
+        name (str): The name of the token. Either the name or the hex name should be provided.
+        hex_name (str): The name of the token as a hex string.
+        metadata (dict): The metadata attached to the token
+    """
     policy: Union[NativeScript, TokenPolicy]
     amount: int
     name: Optional[str] = field(default="")
@@ -499,6 +534,12 @@ class Token:
         return self.policy.policy_id
 
     def get_on_chain_metadata(self, context: ChainContext):
+        """Get the on-chain metadata of the token.
+        
+        Args:
+            context (ChainContext): A chain context is necessary to fetch the on-chain metadata.
+                Only BlockFrost chain context is supported at the moment.
+        """
 
         if not isinstance(context, BlockFrostChainContext):
             logger.warn(
