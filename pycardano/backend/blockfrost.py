@@ -5,7 +5,7 @@ import time
 from typing import Dict, List, Union
 
 import cbor2
-from blockfrost import ApiUrls, BlockFrostApi
+from blockfrost import BlockFrostApi
 
 from pycardano.address import Address
 from pycardano.backend.base import ChainContext, GenesisParameters, ProtocolParameters
