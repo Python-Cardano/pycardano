@@ -12,7 +12,7 @@ from pycardano.backend.base import ChainContext, GenesisParameters, ProtocolPara
 from pycardano.exception import TransactionFailedException
 from pycardano.hash import SCRIPT_HASH_SIZE, DatumHash, ScriptHash
 from pycardano.nativescript import NativeScript
-from pycardano.network import Network, BLOCKFROST_URLS
+from pycardano.network import BLOCKFROST_URLS, Network
 from pycardano.plutus import ExecutionUnits, PlutusV1Script, PlutusV2Script
 from pycardano.serialization import RawCBOR
 from pycardano.transaction import (
@@ -172,7 +172,10 @@ class BlockFrostChainContext(ChainContext):
 
             script = None
 
-            if hasattr(result, "reference_script_hash") and result.reference_script_hash:
+            if (
+                hasattr(result, "reference_script_hash")
+                and result.reference_script_hash
+            ):
                 script = self._get_script(result.reference_script_hash)
 
             tx_out = TransactionOutput(
