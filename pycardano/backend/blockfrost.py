@@ -43,11 +43,15 @@ class BlockFrostChainContext(ChainContext):
         network (Network): Network to use.
     """
 
-    def __init__(self, project_id: str, network: Network = Network.TESTNET):
+    def __init__(
+        self, project_id: str, network: Network = Network.TESTNET, base_url: str = None
+    ):
         self._network = network
         self._project_id = project_id
         self._base_url = (
-            ApiUrls.testnet.value
+            base_url
+            if base_url
+            else ApiUrls.testnet.value
             if self.network == Network.TESTNET
             else ApiUrls.mainnet.value
         )
