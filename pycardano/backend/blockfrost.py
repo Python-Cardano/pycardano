@@ -5,14 +5,14 @@ import time
 from typing import Dict, List, Union
 
 import cbor2
-from blockfrost import BlockFrostApi
+from blockfrost import ApiUrls, BlockFrostApi
 
 from pycardano.address import Address
 from pycardano.backend.base import ChainContext, GenesisParameters, ProtocolParameters
 from pycardano.exception import TransactionFailedException
 from pycardano.hash import SCRIPT_HASH_SIZE, DatumHash, ScriptHash
 from pycardano.nativescript import NativeScript
-from pycardano.network import BLOCKFROST_URLS, Network
+from pycardano.network import Network
 from pycardano.plutus import ExecutionUnits, PlutusV1Script, PlutusV2Script
 from pycardano.serialization import RawCBOR
 from pycardano.transaction import (
@@ -46,7 +46,11 @@ class BlockFrostChainContext(ChainContext):
     def __init__(self, project_id: str, network: Network = Network.TESTNET):
         self._network = network
         self._project_id = project_id
-        self._base_url = BLOCKFROST_URLS[network]
+        self._base_url = (
+            ApiUrls.testnet.value
+            if self.network == Network.TESTNET
+            else ApiUrls.mainnet.value
+        )
         self.api = BlockFrostApi(project_id=self._project_id, base_url=self._base_url)
         self._epoch_info = self.api.epoch_latest()
         self._epoch = None
