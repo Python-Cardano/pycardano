@@ -633,6 +633,8 @@ class Wallet:
     - Generate fully manual transactions that can do any / all of the above
 
     Future additions (TODO list):
+    - Add new preview and devnet functionalities
+    - Add tests and examples
     - Create and sign multi-sig transactions
     - Interaction with native scripts
     - Interaction with plutus scripts
