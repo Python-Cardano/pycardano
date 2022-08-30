@@ -536,12 +536,16 @@ class Token:
     def policy_id(self):
         return self.policy.policy_id
 
-    def get_on_chain_metadata(self, context: ChainContext):
+    def get_on_chain_metadata(self, context: ChainContext) -> dict:
         """Get the on-chain metadata of the token.
 
         Args:
             context (ChainContext): A chain context is necessary to fetch the on-chain metadata.
                 Only BlockFrost chain context is supported at the moment.
+                
+        Returns:
+            dict: The on-chain metadata of the token.
+
         """
 
         if not isinstance(context, BlockFrostChainContext):
@@ -574,6 +578,7 @@ class Output:
             Should generally satisfy the minimum ADA requirement for any attached tokens.
         tokens (Optional[Union[Token, List[Token]]]): Token or list of Tokens to be sent to the address.
             Amount of each token to send should be defined in each Token object.
+            
     """
 
     address: Union["Wallet", Address, str]
@@ -893,6 +898,7 @@ class Wallet:
 
         Args:
             context (Optional[ChainContext]): The context to use for the query. Defaults to the wallet's context.
+            
         """
 
         context = self._find_context(context)
@@ -982,7 +988,7 @@ class Wallet:
         message: str,
         mode: Literal["payment", "stake"] = "payment",
         attach_cose_key=False,
-    ):
+    ) -> Union[str, dict]:
         """Sign a message with the wallet's private payment or stake keys following CIP-8.
         NOTE: CIP-8 is not yet finalized so this could be changed in the future.
 
@@ -991,6 +997,9 @@ class Wallet:
             mode (Optional[Literal["payment", "stake"]]): The keys to use for signing. Defaults to "payment".
             attach_cose_key (bool): Whether to attach the COSE key to the signature. Defaults to False.
                 At the moment, Eternl currently does not attach the COSE key, while Nami does.
+                
+        Returns:
+            Union[str, dict]: The signature. If attach_cose_key is True, the signature is a dictionary with the signature and the COSE key.
         """
 
         if mode == "payment":
@@ -1020,7 +1029,7 @@ class Wallet:
         message: Optional[Union[str, List[str]]] = None,
         await_confirmation: Optional[bool] = False,
         context: Optional[ChainContext] = None,
-    ):
+    ) -> str:
         """Create a simple transaction in which Ada is sent to a single recipient.
 
 
@@ -1032,6 +1041,9 @@ class Wallet:
             message (Optional[Union[str, List[str]]]): Optional message to include in the transaction (CIP-20).
             await_confirmation (Optional[bool]): Whether to wait for the transaction to be confirmed. Defaults to False.
             context (Optional[ChainContext]): The context to use for the query. Defaults to the wallet's context.
+            
+        Returns:
+            str: The transaction ID.
         """
 
         context = self._find_context(context)
@@ -1088,7 +1100,7 @@ class Wallet:
         message: Optional[Union[str, List[str]]] = None,
         await_confirmation: Optional[bool] = False,
         context: Optional[ChainContext] = None,
-    ):
+    ) -> str:
         """Send all of the contents (ADA and tokens) of specified UTxO(s) to a single recipient.
 
         Args:
@@ -1097,6 +1109,9 @@ class Wallet:
             message (Optional[Union[str, List[str]]]): Optional message to include in the transaction (CIP-20).
             await_confirmation (Optional[bool]): Whether to wait for the transaction to be confirmed. Defaults to False.
             context (Optional[ChainContext]): The context to use for the query. Defaults to the wallet's context.
+            
+        Returns:
+            str: The transaction ID.
         """
 
         # streamline inputs
@@ -1141,7 +1156,7 @@ class Wallet:
         message: Optional[Union[str, List[str]]] = None,
         await_confirmation: Optional[bool] = False,
         context: Optional[ChainContext] = None,
-    ):
+    ) -> str:
 
         """Send all of the contents (ADA and tokens) of the wallet to a single recipient.
         The current wallet will be left completely empty
@@ -1151,6 +1166,9 @@ class Wallet:
             message (Optional[Union[str, List[str]]]): Optional message to include in the transaction (CIP-20).
             await_confirmation (Optional[bool]): Whether to wait for the transaction to be confirmed. Defaults to False.
             context (Optional[ChainContext]): The context to use for the query. Defaults to the wallet's context.
+            
+        Returns:
+            str: The transaction ID.
         """
 
         return self.send_utxo(
@@ -1168,7 +1186,7 @@ class Wallet:
         amount: Optional[Union[Ada, Lovelace]] = Lovelace(2000000),
         await_confirmation: Optional[bool] = False,
         context: Optional[ChainContext] = None,
-    ):
+    ) -> str:
         """Delegate the current wallet to a pool.
 
         Args:
@@ -1179,6 +1197,9 @@ class Wallet:
                 Defaults to 2 Ada.
             await_confirmation (Optional[bool]): Whether to wait for the transaction to be confirmed. Defaults to False.
             context (Optional[ChainContext]): The context to use for the query. Defaults to the wallet's context.
+            
+        Returns:
+            str: The transaction ID.
         """
 
         # streamline inputs
@@ -1226,13 +1247,19 @@ class Wallet:
         output_amount: Optional[Union[Ada, Lovelace]] = Lovelace(1000000),
         await_confirmation: Optional[bool] = False,
         context: Optional[ChainContext] = None,
-    ):
+    ) -> str:
         """Withdraw staking rewards.
 
         Args:
             withdrawal_amount (Optional[Union[Ada, Lovelace]]): The amount of Ada to withdraw.
-                Defaults to the entire rewards balance.
-            output_amount
+                If not set, defaults to the entire rewards balance.
+            output_amount (Optional[Union[Ada, Lovelace]]): Amount of ADA to attach to the withdrawal transaction.
+                Defaults to 1 ADA which is generally a safe minimum amount to use.
+            await_confirmation (Optional[bool]): Whether to wait for the transaction to be confirmed. Defaults to False.
+            context (Optional[ChainContext]): The context to use for the query. Defaults to the wallet's context.
+            
+        Returns:
+            str: The transaction ID.
         """
 
         # streamline inputs
@@ -1276,7 +1303,27 @@ class Wallet:
         await_confirmation: Optional[bool] = False,
         context: Optional[ChainContext] = None,
     ):
-        """Under construction."""
+        """Mints (or burns) tokens of a policy owned by a user wallet. To attach metadata, set it in Token class directly.
+        Burn tokens by setting Token class amount to a negative value.
+        
+        Args:
+            to (Union[str, Address]): The address to which to send the newly minted tokens.
+            mints (Union[Token, List[Token]]): The token(s) to mint/burn. Set metadata and quantity directly in the Token class.
+            amount (Optional[Union[Ada, Lovelace]]): The amount of Ada to attach to the transaction.
+                If not set, the minimum amount will be calculated automatically.
+            utxos (Optional[Union[UTxO, List[UTxO]]]): The UTxO(s) to use as inputs.
+                If not set, the wallet will be queried for the latest UTxO set.
+            other_signers (Optional[Union["Wallet", List["Wallet"]]]): The other signers to use for the transaction.
+                e.g. a separate wallet which can sign the token policy
+            change_address (Optional[Union["Wallet", Address, str]]): The address to send any change to.
+                If not set, defaults to the wallet's own address
+            message (Optional[Union[str, List[str]]]): The message to attach to the transaction.
+            await_confirmation (Optional[bool]): Whether to wait for the transaction to be confirmed. Defaults to False.
+            context (Optional[ChainContext]): The context to use for the query. Defaults to the wallet's context.
+            
+        Returns:
+            str: The transaction ID.
+        """
 
         # streamline inputs
         context = self._find_context(context)
@@ -1449,7 +1496,35 @@ class Wallet:
         submit: Optional[bool] = True,
         await_confirmation: Optional[bool] = False,
         context: Optional[ChainContext] = None,
-    ):
+    ) -> str:
+        """
+        Construct fully manual transactions.
+        
+        Args:
+            inputs (Union[Wallet, Address, UTxO, str, List[Wallet], List[Address], List[UTxO], List[str]]): Inputs to the transaction.
+                If wallets or addresses are provided, they will be queried for UTxOs.
+            outputs (Union[Output, List[Output]]): Outputs of the transaction using the Output class.
+                Can specify any number of recipients, ADA amounts, and native tokens.
+            mints (Union[Token, List[Token]]): The token(s) to mint/burn. Set metadata and quantity here.
+            signers (Union[Wallet, List[Wallet], SigningKey, List[SigningKey]]): The wallets or keys with which to sign the transaction.
+            stake_registration (Union[bool, Wallet, Address, str, List[Address], List["Wallet"], List[str]]): Wallets or addresses to register.
+            delegations (Union[str, dict, PoolKeyHash]): The hash of the pool to delegate to.
+                To delegate to multiple wallets, provide a dict of the form {wallet/address: PoolHash}.
+            withdrawals (Union[bool, dict]): Set the rewards to withdraw. Set to True to withdraw all rewards from the current wallet.
+                To withdraw a specific amount from one or more wallets, provide a dict of {wallet/address: Amount}, where Amount is an amount of
+                Lovelace(), Ada(). Use True or "all" to withdraw all available rewards from each specified wallet.
+            change_address (Union["Wallet", Address, str]): The wallet or address to send change to.
+            merge_change (bool): Whether to merge change into any Output whose address matches the change_address. True by default.
+            message (Union[str, List[str]]): A message to include in the transaction.
+            other_metadata (dict): Any other metadata to include in the transaction.
+            submit (bool): Whether to submit the transaction to the network. Defaults to True.
+                If False, return the signed transaction CBOR.
+            await_confirmation (bool): Whether to wait for the transaction to be confirmed. Defaults to False.
+            context (ChainContext): The context to use for the transaction. Defaults to the default context.
+            
+        Returns:
+            str: The transaction ID if submit is True, otherwise the signed transaction CBOR.
+        """
 
         # streamline inputs
         context = self._find_context(context)
@@ -1615,7 +1690,7 @@ class Wallet:
 
         # withdrawals
         withdraw = {}
-        if isinstance(withdrawals, bool):  # withdraw current wallet
+        if withdrawals and isinstance(withdrawals, bool):  # withdraw current wallet
             withdraw[
                 self.stake_address.to_primitive()
             ] = self.withdrawable_amount.lovelace
@@ -1747,8 +1822,18 @@ class Wallet:
         return str(signed_tx.id)
 
 
-# helpers
-def get_utxo_creator(utxo: UTxO, context: ChainContext):
+# Utility and Helper functions
+def get_utxo_creator(utxo: UTxO, context: ChainContext) -> Address:
+    """Fetch the creator of a UTxO.
+    If there are multiple input UTxOs, the creator is the first one.
+    
+    Args: 
+        utxo (UTxO): The UTxO to get the creator of.
+        context (ChainContext): The context to use for the query. For now must be BlockFrost.
+        
+    Returns:
+        Address: The creator of the UTxO.
+    """
     if isinstance(context, BlockFrostChainContext):
         utxo_creator = (
             context.api.transaction_utxos(str(utxo.input.transaction_id))
@@ -1764,7 +1849,17 @@ def get_utxo_creator(utxo: UTxO, context: ChainContext):
         )
 
 
-def get_utxo_block_time(utxo: UTxO, context: ChainContext):
+def get_utxo_block_time(utxo: UTxO, context: ChainContext) -> int:
+    """Get the block time at which a UTxO was created.
+    
+    Args:
+        utxo (UTxO): The UTxO to get the block time of.
+        context (ChainContext): The context to use for the query. For now must be BlockFrost.
+        
+    Returns:
+        int: The block time at which the UTxO was created.
+    
+    """
     if isinstance(context, BlockFrostChainContext):
         block_time = context.api.transaction(str(utxo.input.transaction_id)).block_time
 
@@ -1776,7 +1871,17 @@ def get_utxo_block_time(utxo: UTxO, context: ChainContext):
         )
 
 
-def get_stake_info(stake_address: Union[str, Address], context: ChainContext):
+def get_stake_info(stake_address: Union[str, Address], context: ChainContext) -> dict:
+    """Get the stake info of a stake address from Blockfrost.
+    For more info see: https://docs.blockfrost.io/#tag/Cardano-Accounts/paths/~1accounts~1{stake_address}/get
+    
+    Args: 
+        stake_address (Union[str, Address]): The stake address to get the stake info of.
+        context (ChainContext): The context to use for the query. For now must be BlockFrost.
+        
+    Returns:
+        dict: Info regarding the given stake address.
+    """
     if isinstance(context, BlockFrostChainContext):
 
         if isinstance(stake_address, str):
@@ -1796,7 +1901,15 @@ def get_stake_info(stake_address: Union[str, Address], context: ChainContext):
         )
 
 
-def get_stake_address(address: Union[str, Address]):
+def get_stake_address(address: Union[str, Address]) -> Address:
+    """Get the stake address of any given address.
+    
+    Args:
+        address (Union[str, Address]): The address to get the stake address of.
+        
+    Returns:
+        Address: The stake address of the given address.
+    """
     if isinstance(address, str):
         address = Address.from_primitive(address)
 
@@ -1805,7 +1918,16 @@ def get_stake_address(address: Union[str, Address]):
     )
 
 
-def format_message(message: Union[str, List[str]]):
+def format_message(message: Union[str, List[str]]) -> dict:
+    """Format a metadata message according to CIP-20
+    
+    Args:
+        message (Union[str, List[str]]): The message to format.
+        
+    Returns:
+        dict: The message formatted properly to attach to a transaction.
+    """
+
     if isinstance(message, str):
         message = [message[i : i + 64] for i in range(0, len(message), 64)]
 
@@ -1824,10 +1946,15 @@ def format_message(message: Union[str, List[str]]):
 
 
 def check_metadata(to_check: Union[dict, list, str], top_level: bool = False):
-    """Screen the input metadata for potential issues.
+    """Screen any given input metadata for potential issues.
+    
+    
     Used recursively to check inside all dicts and lists of the metadata.
-    Use top_level=True only for the full metadata dictionary in order to check that
-    it is JSON serializable.
+    
+    Args:
+        to_check (Union[dict, list, str]): The metadata to check.
+        top_level (bool): Whether this is the top level of the metadata.
+            Set to True only for the full metadata dictionary in order to check that it is JSON serializable.
     """
 
     if isinstance(to_check, dict):
@@ -1871,7 +1998,15 @@ def check_metadata(to_check: Union[dict, list, str], top_level: bool = False):
             raise MetadataFormattingException(f"Cannot format metadata: {e}")
 
 
-def list_all_wallets(wallet_path: Union[str, Path] = Path("./priv")):
+def list_all_wallets(wallet_path: Union[str, Path] = Path("./priv")) -> List[str]:
+    """List all PyCardano wallets in the directory specified by wallet_path.
+    
+    Args:
+        wallet_path (Union[str, Path]): The path to the directory to list the wallets in.
+        
+    Returns:
+        List[str]: A list of all names of wallets in the directory.
+    """
     if isinstance(wallet_path, str):
         wallet_path = Path(wallet_path)
 
@@ -1880,7 +2015,15 @@ def list_all_wallets(wallet_path: Union[str, Path] = Path("./priv")):
     return wallets
 
 
-def get_all_policies(policy_path: Union[str, Path] = Path("./priv/policies")):
+def get_all_policies(policy_path: Union[str, Path] = Path("./priv/policies")) -> List[TokenPolicy]:
+    """List all policies in the directory specified by policy_path.
+    
+    Args:
+        policy_path (Union[str, Path]): The path to the directory to list the policies in.
+        
+    Returns:
+        List[TokenPolicy]: A list of all policies in the directory.
+    """
     if isinstance(policy_path, str):
         policy_path = Path(policy_path)
 
@@ -1889,7 +2032,16 @@ def get_all_policies(policy_path: Union[str, Path] = Path("./priv/policies")):
     return policies
 
 
-def confirm_tx(tx_id: Union[str, TransactionId], context: ChainContext):
+def confirm_tx(tx_id: Union[str, TransactionId], context: ChainContext) -> bool:
+    """Confirm that a transaction has been included in a block.
+    
+    Args:
+        tx_id (Union[str, TransactionId]): The transaction id to check.
+        context (ChainContext): The context to use for the query. For now must be BlockFrost.
+        
+    Returns:
+        bool: Whether the transaction has been included in a block.
+    """
     if isinstance(context, BlockFrostChainContext):
 
         try:
@@ -1909,7 +2061,17 @@ def confirm_tx(tx_id: Union[str, TransactionId], context: ChainContext):
 
 def wait_for_confirmation(
     tx_id: Union[str, TransactionId], context: ChainContext, delay: Optional[int] = 10
-):
+) -> bool:
+    """Wait for a transaction to be confirmed, checking every `delay` seconds.
+    
+    Args:
+        tx_id (Union[str, TransactionId]): The transaction id to check.
+        context (ChainContext): The context to use for the query. For now must be BlockFrost.
+        delay (Optional[int]): The number of seconds to wait between checking the context. Defaults to 10.
+        
+    Returns:
+        bool: Whether the transaction has been confirmed.
+    """
     if not isinstance(context, BlockFrostChainContext):
         logger.warn(
             "Confirming transactions is is only possible with Blockfrost Chain Context."
