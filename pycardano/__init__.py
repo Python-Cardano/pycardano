@@ -3,6 +3,7 @@
 from .address import *
 from .backend import *
 from .certificate import *
+from .cip import *
 from .coinselection import *
 from .exception import *
 from .hash import *

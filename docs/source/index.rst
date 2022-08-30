@@ -34,6 +34,7 @@ making it a light-weight library that is easy and fast to set up in all kinds of
    api/pycardano.address
    api/pycardano.backend.base
    api/pycardano.certificate
+   api/pycardano.cip
    api/pycardano.coinselection
    api/pycardano.exception
    api/pycardano.hash

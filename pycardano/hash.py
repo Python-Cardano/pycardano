@@ -10,6 +10,7 @@ __all__ = [
     "TRANSACTION_HASH_SIZE",
     "DATUM_HASH_SIZE",
     "AUXILIARY_DATA_HASH_SIZE",
+    "POOL_KEY_HASH_SIZE",
     "SCRIPT_DATA_HASH_SIZE",
     "ConstrainedBytes",
     "VerificationKeyHash",

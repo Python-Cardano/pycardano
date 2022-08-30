@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if [ "$NETWORK" = "local-alonzo" ]
+if [ "$NETWORK" = "local-alonzo" ] || [ "$NETWORK" = "local-vasil" ]
 then
   chmod 400 /code/tmp_configs/"$NETWORK"/shelley/*.skey
   chmod 400 /code/tmp_configs/"$NETWORK"/shelley/*.vkey
@@ -11,6 +11,7 @@ then
     --shelley-kes-key /code/tmp_configs/"$NETWORK"/shelley/kes.skey \
     --shelley-vrf-key /code/tmp_configs/"$NETWORK"/shelley/vrf.skey \
     --shelley-operational-certificate /code/tmp_configs/"$NETWORK"/shelley/node.cert \
+    --host-addr 0.0.0.0 \
     --port 3000
 else
   cardano-node run \
