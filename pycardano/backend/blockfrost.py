@@ -119,7 +119,8 @@ class BlockFrostChainContext(ChainContext):
                 max_val_size=int(params.max_val_size),
                 collateral_percent=int(params.collateral_percent),
                 max_collateral_inputs=int(params.max_collateral_inputs),
-                coins_per_utxo_word=int(params.coins_per_utxo_word),
+                coins_per_utxo_word=int(params.coins_per_utxo_word) or int(params.coins_per_utxo_size),
+                coins_per_utxo_byte=int(params.coins_per_utxo_size),
             )
         return self._protocol_param
 
