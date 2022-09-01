@@ -52,7 +52,7 @@ services:
         max-file: "10"
 
   ogmios:
-    image: cardanosolutions/ogmios:v5.5.2
+    image: cardanosolutions/ogmios:v5.5.5_1.35.3
     environment:
       NETWORK: "${NETWORK:-local-alonzo}"
 
