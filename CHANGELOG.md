@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.6.1] - 2022-09-03
+
+### Added
+- Add coins_per_utxo_size in blockfrost chain context
+
+### Fixed
+- Fixed `PPViewHashesDontMatch` issue. See details in [issue 81] (https://github.com/cffls/pycardano/issues/81).
+
+
 ## [0.6.0] - 2022-08-28
 
 `v0.6.0` is update for Vasil hard fork.
