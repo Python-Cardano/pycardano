@@ -440,7 +440,7 @@ class TransactionOutput(CBORSerializable):
 
 
 @dataclass(repr=False)
-class UTxO:
+class UTxO(ArrayCBORSerializable):
     input: TransactionInput
 
     output: TransactionOutput
@@ -452,26 +452,6 @@ class UTxO:
         return hash(
             blake2b(self.input.to_cbor("bytes") + self.output.to_cbor("bytes"), 32)
         )
-
-    @classmethod
-    def from_cbor_string(self, cbor_string) -> UTxO:
-
-        decoded = cbor2.loads(bytes.fromhex(cbor_string))
-
-        transaction_input_id = decoded[0][0]
-        transaction_input_index = decoded[0][1]
-        address = Address.from_primitive(decoded[1][0])
-        amount = decoded[1][1]
-
-        input = TransactionInput.from_primitive(
-            [transaction_input_id, transaction_input_index]
-        )
-
-        output = TransactionOutput.from_primitive(
-            [str(address), amount]
-        )
-
-        return UTxO(input=input, output=output)
 
 
 class Withdrawals(DictCBORSerializable):
