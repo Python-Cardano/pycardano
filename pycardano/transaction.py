@@ -440,7 +440,7 @@ class TransactionOutput(CBORSerializable):
 
 
 @dataclass(repr=False)
-class UTxO:
+class UTxO(ArrayCBORSerializable):
     input: TransactionInput
 
     output: TransactionOutput
