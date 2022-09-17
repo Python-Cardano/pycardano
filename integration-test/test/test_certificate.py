@@ -5,11 +5,11 @@ from retry import retry
 
 from pycardano import *
 
-from .base import TestBase
+from .base import TEST_RETRIES, TestBase
 
 
 class TestDelegation(TestBase):
-    @retry(tries=4, delay=6, backoff=2, jitter=(1, 3))
+    @retry(tries=TEST_RETRIES, backoff=1.5, delay=6, jitter=(0, 4))
     def test_stake_delegation(self):
 
         address = Address(

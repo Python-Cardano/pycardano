@@ -4,6 +4,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.6.2] - 2022-09-03
+
+Fix dependencies.
+
+## [0.6.1] - 2022-09-03
+
+### Added
+- Add coins_per_utxo_size in blockfrost chain context
+
+### Fixed
+- Fixed `PPViewHashesDontMatch` issue. See details in [issue 81] (https://github.com/cffls/pycardano/issues/81).
+
+
+## [0.6.0] - 2022-08-28
+
+`v0.6.0` is update for Vasil hard fork.
+
+### Added
+- Support for reference inputs ([CIP31](https://github.com/cardano-foundation/CIPs/tree/master/CIP-0031)).
+- Support for inline datum ([CIP32](https://github.com/cardano-foundation/CIPs/tree/master/CIP-0032)).
+- Support for reference scripts ([CIP33](https://github.com/cardano-foundation/CIPs/tree/master/CIP-0033)).
+- Vasil changes for Ogmios.
+- Vasil changes for blockforst.
+- Add type "RawPlutusData", which is used as the default type for datum deserialized from cbor.
+- `TransactionOutput` now has two new fields, `datum` and `script`, which could be added to the transaction output.
+- Blockfrost chain context now supports custom API url.
+
+## Changed
+- Improved the format of transaction representation.
+- Method `add_script_input` in `TransactionBuilder` no longer requires `script` field to be set.
+If absent, the transaction builder will try to find it from chain context.
+- Similarly, method `add_minting_script` in `TransactionBuilder` no longer requires `script` field to be set.
+If absent, the transaction builder will try to find it from chain context.
 
 ## [0.5.1] - 2022-07-09
 

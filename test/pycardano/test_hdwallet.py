@@ -3,9 +3,11 @@ from pycardano.hdwallet import HDWallet
 from pycardano.key import PaymentVerificationKey
 from pycardano.network import Network
 
+
+# Tests copied from: https://github.com/Emurgo/cardano-serialization-lib/blob/master/rust/src/address.rs
+
 MNEMONIC_12 = "test walk nut penalty hip pave soap entry language right filter choice"
 MNEMONIC_15 = "art forum devote street sure rather head chuckle guard poverty release quote oak craft enemy"
-
 
 def test_mnemonic():
     wrong_mnemonic = "test walk nut penalty hip pave soap entry language right filter"

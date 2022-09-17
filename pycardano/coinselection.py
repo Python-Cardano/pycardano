@@ -13,7 +13,7 @@ from pycardano.exception import (
     UTxOSelectionException,
 )
 from pycardano.transaction import TransactionOutput, UTxO, Value
-from pycardano.utils import max_tx_fee, min_lovelace
+from pycardano.utils import max_tx_fee, min_lovelace_pre_alonzo
 
 __all__ = ["UTxOSelector", "LargestFirstSelector", "RandomImproveMultiAsset"]
 
@@ -103,7 +103,7 @@ class LargestFirstSelector(UTxOSelector):
 
         if respect_min_utxo:
             change = selected_amount - total_requested
-            min_change_amount = min_lovelace(change, context, False)
+            min_change_amount = min_lovelace_pre_alonzo(change, context, False)
 
             if change.coin < min_change_amount:
                 additional, _ = self.select(
@@ -307,7 +307,7 @@ class RandomImproveMultiAsset(UTxOSelector):
 
         if respect_min_utxo:
             change = selected_amount - request_sum
-            min_change_amount = min_lovelace(change, context, False)
+            min_change_amount = min_lovelace_pre_alonzo(change, context, False)
 
             if change.coin < min_change_amount:
                 additional, _ = self.select(

@@ -2,3 +2,4 @@
 .coverage
 cov_html
 docs/build
+dist

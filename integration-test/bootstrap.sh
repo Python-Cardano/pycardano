@@ -20,8 +20,8 @@ NETWORK=$1
 
 echo "Bootstrapping network: $NETWORK"
 
-if [ "$NETWORK" = "local-alonzo" ]; then
-  echo "Updating byron startTime to present in local mode, alonzo era"
+if [ "$NETWORK" = "local-alonzo" ] || [ "$NETWORK" = "local-vasil" ]; then
+  echo "Updating byron startTime to present in local mode, $NETWORK era"
   jq -M ".startTime = ""$(date +%s)" configs/"$NETWORK"/byron-genesis.json > \
     tmp_configs/"$NETWORK"/byron-genesis.json
 fi

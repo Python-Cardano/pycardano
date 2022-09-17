@@ -3,14 +3,17 @@ import tempfile
 import time
 from typing import Dict, List, Union
 
+import cbor2
 from blockfrost import ApiUrls, BlockFrostApi
 
 from pycardano.address import Address
 from pycardano.backend.base import ChainContext, GenesisParameters, ProtocolParameters
 from pycardano.exception import TransactionFailedException
 from pycardano.hash import SCRIPT_HASH_SIZE, DatumHash, ScriptHash
+from pycardano.nativescript import NativeScript
 from pycardano.network import Network
-from pycardano.plutus import ExecutionUnits
+from pycardano.plutus import ExecutionUnits, PlutusV1Script, PlutusV2Script
+from pycardano.serialization import RawCBOR
 from pycardano.transaction import (
     Asset,
     AssetName,
@@ -32,11 +35,15 @@ class BlockFrostChainContext(ChainContext):
         network (Network): Network to use.
     """
 
-    def __init__(self, project_id: str, network: Network = Network.TESTNET):
+    def __init__(
+        self, project_id: str, network: Network = Network.TESTNET, base_url: str = None
+    ):
         self._network = network
         self._project_id = project_id
         self._base_url = (
-            ApiUrls.testnet.value
+            base_url
+            if base_url
+            else ApiUrls.testnet.value
             if self.network == Network.TESTNET
             else ApiUrls.mainnet.value
         )
@@ -104,9 +111,31 @@ class BlockFrostChainContext(ChainContext):
                 max_val_size=int(params.max_val_size),
                 collateral_percent=int(params.collateral_percent),
                 max_collateral_inputs=int(params.max_collateral_inputs),
-                coins_per_utxo_word=int(params.coins_per_utxo_word),
+                coins_per_utxo_word=int(params.coins_per_utxo_word)
+                or int(params.coins_per_utxo_size),
+                coins_per_utxo_byte=int(params.coins_per_utxo_size),
+                cost_models={
+                    k: v.to_dict() for k, v in params.cost_models.to_dict().items()
+                },
             )
         return self._protocol_param
+
+    def _get_script(
+        self, script_hash: str
+    ) -> Union[PlutusV1Script, PlutusV2Script, NativeScript]:
+        script_type = self.api.script(script_hash).type
+        if script_type == "plutusV1":
+            return PlutusV1Script(
+                cbor2.loads(bytes.fromhex(self.api.script_cbor(script_hash).cbor))
+            )
+        elif script_type == "plutusV2":
+            return PlutusV2Script(
+                cbor2.loads(bytes.fromhex(self.api.script_cbor(script_hash).cbor))
+            )
+        else:
+            return NativeScript.from_dict(
+                self.api.script_json(script_hash, return_type="json")["json"]
+            )
 
     def utxos(self, address: str) -> List[UTxO]:
         results = self.api.address_utxos(address, gather_pages=True)
@@ -133,22 +162,34 @@ class BlockFrostChainContext(ChainContext):
                         multi_assets[policy_id] = Asset()
                     multi_assets[policy_id][asset_name] = int(item.quantity)
 
+            amount = Value(lovelace_amount, multi_assets)
+
             datum_hash = (
-                DatumHash.from_primitive(result.data_hash) if result.data_hash else None
+                DatumHash.from_primitive(result.data_hash)
+                if result.data_hash and result.inline_datum is None
+                else None
             )
 
-            if not multi_assets:
-                tx_out = TransactionOutput(
-                    Address.from_primitive(address),
-                    amount=lovelace_amount,
-                    datum_hash=datum_hash,
-                )
-            else:
-                tx_out = TransactionOutput(
-                    Address.from_primitive(address),
-                    amount=Value(lovelace_amount, multi_assets),
-                    datum_hash=datum_hash,
-                )
+            datum = None
+
+            if hasattr(result, "inline_datum") and result.inline_datum is not None:
+                datum = RawCBOR(bytes.fromhex(result.inline_datum))
+
+            script = None
+
+            if (
+                hasattr(result, "reference_script_hash")
+                and result.reference_script_hash
+            ):
+                script = self._get_script(result.reference_script_hash)
+
+            tx_out = TransactionOutput(
+                Address.from_primitive(address),
+                amount=amount,
+                datum_hash=datum_hash,
+                datum=datum,
+                script=script,
+            )
             utxos.append(UTxO(tx_in, tx_out))
 
         return utxos

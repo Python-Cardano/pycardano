@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pycardano"
-version = "0.5.1"
+version = "0.6.2"
 classifiers = [
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
@@ -22,12 +22,13 @@ license = "MIT"
 
 [tool.poetry.dependencies]
 python = "^3.7"
-PyNaCl = "^1.4.0"
-cbor2 = "^5.4.2"
+PyNaCl = "^1.5.0"
+cbor2 = "^5.4.3"
 typeguard = "^2.13.3"
-blockfrost-python = "0.4.4"
-websocket-client = "^1.2.3"
-cose = "^0.9.dev8"
+blockfrost-python = "0.5.1"
+websocket-client = "^1.4.1"
+cose = "0.9.dev8"
+pprintpp = "^0.4.0"
 mnemonic = "^0.20"
 ECPy = "^1.2.5"
 
@@ -52,6 +53,9 @@ build-backend = "poetry.core.masonry.api"
 [tool.pytest.ini_options]
 addopts = "--doctest-modules --ignore=examples --ignore=integration-test --ignore=test/resources/haskell"
 minversion = "6.0"
+markers = [
+    "post_alonzo"
+]
 
 [tool.isort]
 profile = "black"
