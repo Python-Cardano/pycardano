@@ -5,8 +5,10 @@ from __future__ import annotations
 from copy import deepcopy
 from dataclasses import dataclass, field
 from pprint import pformat
-from typing import Any, Callable, List, Union
+from typing import Any, Callable, List, Optional, Union
 
+import cbor2
+from cbor2 import CBORTag
 from nacl.encoding import RawEncoder
 from nacl.hash import blake2b
 from typeguard import typechecked
@@ -25,11 +27,16 @@ from pycardano.hash import (
     VerificationKeyHash,
 )
 from pycardano.metadata import AuxiliaryData
+from pycardano.nativescript import NativeScript
 from pycardano.network import Network
+from pycardano.plutus import Datum, PlutusV1Script, PlutusV2Script
 from pycardano.serialization import (
     ArrayCBORSerializable,
+    CBORSerializable,
     DictCBORSerializable,
     MapCBORSerializable,
+    Primitive,
+    default_encoder,
     list_hook,
 )
 from pycardano.witness import TransactionWitnessSet
@@ -53,6 +60,9 @@ class TransactionInput(ArrayCBORSerializable):
     transaction_id: TransactionId
 
     index: int
+
+    def __hash__(self):
+        return hash(str(self.transaction_id) + str(self.index))
 
 
 class AssetName(ConstrainedBytes):
@@ -256,12 +266,110 @@ class Value(ArrayCBORSerializable):
 
 
 @dataclass(repr=False)
-class TransactionOutput(ArrayCBORSerializable):
+class _Script(ArrayCBORSerializable):
+
+    _TYPE: int = field(init=False, default=0)
+
+    script: Union[NativeScript, PlutusV1Script, PlutusV2Script]
+
+    def __post_init__(self):
+        if isinstance(self.script, NativeScript):
+            self._TYPE = 0
+        elif isinstance(self.script, PlutusV1Script):
+            self._TYPE = 1
+        else:
+            self._TYPE = 2
+
+    @classmethod
+    def from_primitive(cls: _Script, values: List[Primitive]) -> _Script:
+        if values[0] == 0:
+            return cls(NativeScript.from_primitive(values[1]))
+        elif values[0] == 1:
+            return cls(PlutusV1Script(values[1]))
+        else:
+            return cls(PlutusV2Script(values[1]))
+
+
+@dataclass(repr=False)
+class _DatumOption(ArrayCBORSerializable):
+
+    _TYPE: int = field(init=False, default=0)
+
+    datum: Union[DatumHash, Any]
+
+    def __post_init__(self):
+        if isinstance(self.datum, DatumHash):
+            self._TYPE = 0
+        else:
+            self._TYPE = 1
+
+    def to_shallow_primitive(self) -> List[Primitive]:
+        if self._TYPE == 1:
+            data = CBORTag(24, cbor2.dumps(self.datum, default=default_encoder))
+        else:
+            data = self.datum
+        return [self._TYPE, data]
+
+    @classmethod
+    def from_primitive(cls: _DatumOption, values: List[Primitive]) -> _DatumOption:
+        if values[0] == 0:
+            return _DatumOption(DatumHash(values[1]))
+        else:
+            return _DatumOption(cbor2.loads(values[1].value))
+
+
+@dataclass(repr=False)
+class _ScriptRef(CBORSerializable):
+
+    script: _Script
+
+    def to_primitive(self) -> Primitive:
+        return CBORTag(24, cbor2.dumps(self.script, default=default_encoder))
+
+    @classmethod
+    def from_primitive(cls: _ScriptRef, value: Primitive) -> _ScriptRef:
+        return cls(_Script.from_primitive(cbor2.loads(value.value)))
+
+
+@dataclass(repr=False)
+class _TransactionOutputPostAlonzo(MapCBORSerializable):
+    address: Address = field(metadata={"key": 0})
+
+    amount: Union[int, Value] = field(metadata={"key": 1})
+
+    datum: _DatumOption = field(default=None, metadata={"key": 2, "optional": True})
+
+    script_ref: _ScriptRef = field(default=None, metadata={"key": 3, "optional": True})
+
+    @property
+    def script(self) -> Optional[Union[NativeScript, PlutusV1Script, PlutusV2Script]]:
+        if self.script_ref:
+            return self.script_ref.script.script
+        else:
+            return None
+
+
+@dataclass(repr=False)
+class _TransactionOutputLegacy(ArrayCBORSerializable):
     address: Address
 
     amount: Union[int, Value]
 
     datum_hash: DatumHash = field(default=None, metadata={"optional": True})
+
+
+@dataclass(repr=False)
+class TransactionOutput(CBORSerializable):
+
+    address: Address
+
+    amount: Union[int, Value]
+
+    datum_hash: Optional[DatumHash] = None
+
+    datum: Optional[Datum] = None
+
+    script: Optional[Union[NativeScript, PlutusV1Script, PlutusV2Script]] = None
 
     def __post_init__(self):
         if isinstance(self.amount, int):
@@ -289,9 +397,50 @@ class TransactionOutput(ArrayCBORSerializable):
         else:
             return self.amount.coin
 
+    def to_primitive(self) -> Primitive:
+        if self.datum or self.script:
+            datum = (
+                _DatumOption(self.datum_hash or self.datum)
+                if self.datum is not None or self.datum_hash is not None
+                else None
+            )
+            script_ref = (
+                _ScriptRef(_Script(self.script)) if self.script is not None else None
+            )
+            return _TransactionOutputPostAlonzo(
+                self.address, self.amount, datum, script_ref
+            ).to_primitive()
+        else:
+            return _TransactionOutputLegacy(
+                self.address, self.amount, self.datum_hash
+            ).to_primitive()
+
+    @classmethod
+    def from_primitive(cls: TransactionOutput, value: Primitive) -> TransactionOutput:
+        if isinstance(value, list):
+            output = _TransactionOutputLegacy.from_primitive(value)
+            return cls(output.address, output.amount, datum=output.datum_hash)
+        else:
+            output = _TransactionOutputPostAlonzo.from_primitive(value)
+            datum = output.datum.datum if output.datum else None
+            if isinstance(datum, DatumHash):
+                return cls(
+                    output.address,
+                    output.amount,
+                    datum_hash=datum,
+                    script=output.script,
+                )
+            else:
+                return cls(
+                    output.address,
+                    output.amount,
+                    datum=datum,
+                    script=output.script,
+                )
+
 
 @dataclass(repr=False)
-class UTxO:
+class UTxO(ArrayCBORSerializable):
     input: TransactionInput
 
     output: TransactionOutput
@@ -379,6 +528,21 @@ class TransactionBody(MapCBORSerializable):
     )
 
     network_id: Network = field(default=None, metadata={"key": 15, "optional": True})
+
+    collateral_return: TransactionOutput = field(
+        default=None, metadata={"key": 16, "optional": True}
+    )
+
+    total_collateral: int = field(default=None, metadata={"key": 17, "optional": True})
+
+    reference_inputs: List[TransactionInput] = field(
+        default=None,
+        metadata={
+            "key": 18,
+            "object_hook": list_hook(TransactionInput),
+            "optional": True,
+        },
+    )
 
     def hash(self) -> bytes:
         return blake2b(

@@ -72,8 +72,8 @@ class NativeScript(ArrayCBORSerializable):
             ]
         }
 
+        native_script = []
         if isinstance(script, dict):
-            native_script = []
 
             for key, value in script.items():
                 if key == "type":

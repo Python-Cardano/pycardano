@@ -55,7 +55,7 @@ clean-test: ## remove test and coverage artifacts
 	rm -fr .pytest_cache
 
 test: ## runs tests
-	poetry run pytest -n 4
+	poetry run pytest -s -vv -n 4
 
 qa: ## runs static analysis with flake8
 	poetry run flake8 pycardano

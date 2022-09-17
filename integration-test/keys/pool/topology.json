@@ -1,7 +1,7 @@
 {
   "Producers": [
     {
-      "addr": "0.0.0.0",
+      "addr": "172.20.0.101",
       "port": 3000,
       "valency": 1
     }
