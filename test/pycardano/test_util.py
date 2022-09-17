@@ -11,7 +11,10 @@ def test_min_lovelace_ada_only(chain_context):
 
 
 def test_min_lovelace_ada_only_2(chain_context):
-    assert min_lovelace(Value(2000000), chain_context) == chain_context.protocol_param.min_utxo
+    assert (
+        min_lovelace(Value(2000000), chain_context)
+        == chain_context.protocol_param.min_utxo
+    )
 
 
 class TestMinLoveLaceMultiAsset:

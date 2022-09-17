@@ -43,7 +43,7 @@ GENESIS_RESULT = {
     "maxLovelaceSupply": 1000000000000,
     "protocolParameters": {
         "minUtxoValue": 1000000,
-    }
+    },
 }
 
 UTXOS = [
