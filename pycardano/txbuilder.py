@@ -629,6 +629,9 @@ class TransactionBuilder:
         # items at the beginning of next policy to previous policy MultiAssets
         return multi_asset_arr
 
+    def _required_signer_vkey_hashes(self) -> Set[VerificationKeyHash]:
+        return set(self.required_signers) if self.required_signers else set()
+
     def _input_vkey_hashes(self) -> Set[VerificationKeyHash]:
         results = set()
         for i in self.inputs + self.collaterals:
@@ -747,6 +750,7 @@ class TransactionBuilder:
 
     def _build_fake_vkey_witnesses(self) -> List[VerificationKeyWitness]:
         vkey_hashes = self._input_vkey_hashes()
+        vkey_hashes.update(self._required_signer_vkey_hashes())
         vkey_hashes.update(self._native_scripts_vkey_hashes())
         vkey_hashes.update(self._certificate_vkey_hashes())
         vkey_hashes.update(self._withdrawal_vkey_hashes())
