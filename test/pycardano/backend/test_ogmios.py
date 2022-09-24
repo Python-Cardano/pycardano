@@ -125,6 +125,7 @@ class TestOgmiosChainContext:
                 max_collateral_inputs=5,
                 coins_per_utxo_word=1,
                 coins_per_utxo_byte=1,
+                cost_models={},
             )
             == self.chain_context.protocol_param
         )

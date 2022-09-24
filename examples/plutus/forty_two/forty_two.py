@@ -26,7 +26,9 @@ payment_skey = PaymentSigningKey.load(get_env_val("PAYMENT_KEY_PATH"))
 payment_vkey = PaymentVerificationKey.from_signing_key(payment_skey)
 
 chain_context = BlockFrostChainContext(
-    project_id=get_env_val("BLOCKFROST_ID"), network=NETWORK
+    project_id=get_env_val("BLOCKFROST_ID"),
+    network=NETWORK,
+    base_url="https://cardano-preview.blockfrost.io/api",
 )
 
 
@@ -67,7 +69,7 @@ with open("fortytwo.plutus", "r") as f:
     script_hex = f.read()
     forty_two_script = cbor2.loads(bytes.fromhex(script_hex))
 
-script_hash = plutus_script_hash(forty_two_script)
+script_hash = plutus_script_hash(PlutusV1Script(forty_two_script))
 
 script_address = Address(script_hash, network=NETWORK)
 
@@ -94,11 +96,20 @@ taker_address = giver_address
 # Put integer 42 (the secret that unlocks the fund) in the redeemer.
 redeemer = Redeemer(RedeemerTag.SPEND, 42)
 
-utxo_to_spend = chain_context.utxos(str(script_address))[0]
+utxo_to_spend = None
+for utxo in chain_context.utxos(str(script_address)):
+    if utxo.output.datum_hash == datum_hash(datum):
+        utxo_to_spend = utxo
+        break
+
+if utxo_to_spend is None:
+    raise Exception("Can't find utxo to spend! Please try again later.")
 
 builder = TransactionBuilder(chain_context)
 
-builder.add_script_input(utxo_to_spend, forty_two_script, datum, redeemer)
+builder.add_script_input(
+    utxo_to_spend, PlutusV1Script(forty_two_script), datum, redeemer
+)
 
 # Send 5 ADA to taker address. The remaining ADA (~4.7) will be sent as change.
 take_output = TransactionOutput(taker_address, 5000000)

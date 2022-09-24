@@ -45,6 +45,7 @@ class FixedChainContext(ChainContext):
         max_collateral_inputs=3,
         coins_per_utxo_word=34482,
         coins_per_utxo_byte=4310,
+        cost_models={},
     )
 
     _genesis_param = GenesisParameters(

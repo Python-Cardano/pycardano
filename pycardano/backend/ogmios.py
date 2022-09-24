@@ -121,7 +121,13 @@ class OgmiosChainContext(ChainContext):
                     "coinsPerUtxoWord", ALONZO_COINS_PER_UTXO_WORD
                 ),
                 coins_per_utxo_byte=result.get("coinsPerUtxoByte", 0),
+                cost_models=result.get("costModels", {}),
             )
+
+            if "plutus:v1" in param.cost_models:
+                param.cost_models["PlutusV1"] = param.cost_models.pop("plutus:v1")
+            if "plutus:v2" in param.cost_models:
+                param.cost_models["PlutusV2"] = param.cost_models.pop("plutus:v2")
 
             args = {"query": "genesisConfig"}
             result = self._request(method, args)

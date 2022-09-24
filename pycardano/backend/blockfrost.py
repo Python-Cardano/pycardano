@@ -1,4 +1,3 @@
-import argparse
 import os
 import tempfile
 import time
@@ -26,13 +25,6 @@ from pycardano.transaction import (
 )
 
 __all__ = ["BlockFrostChainContext"]
-
-
-def _namespace_to_dict(namespace: argparse.Namespace) -> dict:
-    return {
-        k: _namespace_to_dict(v) if isinstance(v, argparse.Namespace) else v
-        for k, v in vars(namespace).items()
-    }
 
 
 class BlockFrostChainContext(ChainContext):
@@ -119,7 +111,12 @@ class BlockFrostChainContext(ChainContext):
                 max_val_size=int(params.max_val_size),
                 collateral_percent=int(params.collateral_percent),
                 max_collateral_inputs=int(params.max_collateral_inputs),
-                coins_per_utxo_word=int(params.coins_per_utxo_word),
+                coins_per_utxo_word=int(params.coins_per_utxo_word)
+                or int(params.coins_per_utxo_size),
+                coins_per_utxo_byte=int(params.coins_per_utxo_size),
+                cost_models={
+                    k: v.to_dict() for k, v in params.cost_models.to_dict().items()
+                },
             )
         return self._protocol_param
 

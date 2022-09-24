@@ -384,10 +384,16 @@ class TransactionBuilder:
         if self.datums or self.redeemers:
             cost_models = {}
             for s in self.all_scripts:
-                if isinstance(s, PlutusV1Script):
-                    cost_models[0] = PLUTUS_V1_COST_MODEL
+                if isinstance(s, PlutusV1Script) or type(s) == bytes:
+                    cost_models[0] = (
+                        self.context.protocol_param.cost_models.get("PlutusV1")
+                        or PLUTUS_V1_COST_MODEL
+                    )
                 if isinstance(s, PlutusV2Script):
-                    cost_models[1] = PLUTUS_V2_COST_MODEL
+                    cost_models[1] = (
+                        self.context.protocol_param.cost_models.get("PlutusV2")
+                        or PLUTUS_V2_COST_MODEL
+                    )
             return script_data_hash(
                 self.redeemers, list(self.datums.values()), CostModels(cost_models)
             )
@@ -623,6 +629,9 @@ class TransactionBuilder:
         # items at the beginning of next policy to previous policy MultiAssets
         return multi_asset_arr
 
+    def _required_signer_vkey_hashes(self) -> Set[VerificationKeyHash]:
+        return set(self.required_signers) if self.required_signers else set()
+
     def _input_vkey_hashes(self) -> Set[VerificationKeyHash]:
         results = set()
         for i in self.inputs + self.collaterals:
@@ -741,6 +750,7 @@ class TransactionBuilder:
 
     def _build_fake_vkey_witnesses(self) -> List[VerificationKeyWitness]:
         vkey_hashes = self._input_vkey_hashes()
+        vkey_hashes.update(self._required_signer_vkey_hashes())
         vkey_hashes.update(self._native_scripts_vkey_hashes())
         vkey_hashes.update(self._certificate_vkey_hashes())
         vkey_hashes.update(self._withdrawal_vkey_hashes())

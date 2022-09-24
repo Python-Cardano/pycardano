@@ -97,6 +97,10 @@ class ProtocolParameters:
 
     coins_per_utxo_byte: int = None
 
+    cost_models: Dict[str, Dict[str, int]] = None
+    """A dict contains cost models for Plutus. The key will be "PlutusV1", "PlutusV2", etc.
+    The value will be a dict of cost model parameters."""
+
 
 @typechecked
 class ChainContext:

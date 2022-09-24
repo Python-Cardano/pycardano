@@ -240,4 +240,5 @@ Build docs and open the docs in browser:
 <p align="left">
   <a href="https://www.blockery.io/"><img src="https://avatars.githubusercontent.com/u/97766045?s=50&v=4"/></a>
   <a href="https://github.com/KtorZ"><img src="https://avatars.githubusercontent.com/u/5680256?s=50&v=4"/></a>
+  <a href="https://github.com/lacepool"><img src="https://avatars.githubusercontent.com/u/79309785?s=50&v=4"/></a>
 </p>
