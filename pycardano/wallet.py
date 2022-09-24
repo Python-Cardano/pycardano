@@ -452,7 +452,7 @@ class Token:
     """Class that represents a token with an attached policy and amount.
 
     Attributes:
-        policy (Union[str, NativeScript]): The policy of the token.
+        policy (Union[NativeScript, TokenPolicy]): The policy of the token.
             The policy need not necessarily be owned by the user.
         amount (int): The amount of tokens.
         name (str): The name of the token. Either the name or the hex name should be provided.
