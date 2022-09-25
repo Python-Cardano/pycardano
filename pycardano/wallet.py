@@ -264,7 +264,7 @@ class Ada(Amount):
         """Converts the Ada to a Lovelace class."""
         return Lovelace(self.lovelace)
 
-    def ad_ada(self):
+    def as_ada(self):
         """Returns a copy."""
         return Ada(self.ada)
 
