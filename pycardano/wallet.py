@@ -237,6 +237,10 @@ class Lovelace(Amount):
     """Stores an amount of Lovelace and automatically handles most currency math."""
 
     def __init__(self, amount: int = 0):
+        
+        if not isinstance(amount, int):
+            raise TypeError("Lovelace must be an integer.")
+        
         super().__init__(amount, "lovelace")
 
     def __repr__(self):
