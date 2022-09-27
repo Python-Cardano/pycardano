@@ -81,8 +81,3 @@ def test_wallet():
         )
     )
 
-
-def test_token_policy():
-
-    wallet = Wallet(name="payment")
-
