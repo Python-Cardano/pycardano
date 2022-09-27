@@ -738,9 +738,7 @@ class Wallet:
     @property
     def payment_address(self):
 
-        return Address(
-            payment_part=self.address.payment_part, network=self._network
-        )
+        return Address(payment_part=self.address.payment_part, network=self._network)
 
     @property
     def stake_address(self):
@@ -1119,7 +1117,7 @@ class Wallet:
         register: Optional[bool] = True,
         amount: Optional[Union[Ada, Lovelace]] = Lovelace(2000000),
         utxos: Optional[Union[UTxO, List[UTxO]]] = None,
-        **kwargs
+        **kwargs,
     ) -> str:
         """Delegate the current wallet to a pool.
 
@@ -1139,29 +1137,30 @@ class Wallet:
         # streamline inputs
         if not self.stake_address:
             raise ValueError("This wallet does not have staking keys.")
-        
+
         # streamline inputs, use either specific utxos or all wallet utxos
         if utxos:
             if isinstance(utxos, UTxO):
                 inputs = [utxos]
         else:
             inputs = [self]
-            
+
         # check registration, do not register if already registered
         active = self.stake_info.get("active")
         if register:
             register = not active
         elif not active:
-            raise ValueError("Cannot delegate to a pool. This wallet is not yet registered. Try again with register=True.")
-        
+            raise ValueError(
+                "Cannot delegate to a pool. This wallet is not yet registered. Try again with register=True."
+            )
+
         return self.transact(
             inputs=inputs,
-            outputs=[Output(self, amount)],
+            outputs=Output(self, amount),
             stake_registration=register,
             delegations=pool_hash,
             **kwargs,
         )
-        
 
     def withdraw(
         self,
@@ -1190,13 +1189,13 @@ class Wallet:
         if not withdrawal_amount:
             # automatically detect rewards:
             withdrawal_amount = self.withdrawable_amount
-            
+
         if not withdrawal_amount:
             raise ValueError("No rewards to withdraw.")
 
         return self.transact(
             inputs=[self],
-            outputs=[Output(self, output_amount)],
+            outputs=Output(self, output_amount),
             withdrawals={self: withdrawal_amount},
             **kwargs,
         )
@@ -1207,11 +1206,7 @@ class Wallet:
         mints: Union[Token, List[Token]],
         amount: Optional[Union[Ada, Lovelace]] = None,
         utxos: Optional[Union[UTxO, List[UTxO]]] = None,
-        other_signers: Optional[Union["Wallet", List["Wallet"]]] = None,
-        change_address: Optional[Union["Wallet", Address, str]] = None,
-        message: Optional[Union[str, List[str]]] = None,
-        await_confirmation: Optional[bool] = False,
-        context: Optional[ChainContext] = None,
+        **kwargs,
     ):
         """Mints (or burns) tokens of a policy owned by a user wallet. To attach metadata, set it in Token class directly.
         Burn tokens by setting Token class amount to a negative value.
@@ -1223,159 +1218,29 @@ class Wallet:
                 If not set, the minimum amount will be calculated automatically.
             utxos (Optional[Union[UTxO, List[UTxO]]]): The UTxO(s) to use as inputs.
                 If not set, the wallet will be queried for the latest UTxO set.
-            other_signers (Optional[Union["Wallet", List["Wallet"]]]): The other signers to use for the transaction.
-                e.g. a separate wallet which can sign the token policy
-            change_address (Optional[Union["Wallet", Address, str]]): The address to send any change to.
-                If not set, defaults to the wallet's own address
-            message (Optional[Union[str, List[str]]]): The message to attach to the transaction.
-            await_confirmation (Optional[bool]): Whether to wait for the transaction to be confirmed. Defaults to False.
-            context (Optional[ChainContext]): The context to use for the query. Defaults to the wallet's context.
 
         Returns:
             str: The transaction ID.
         """
 
-        # streamline inputs
-        context = self._find_context(context)
-
-        if isinstance(to, str):
-            to = Address.from_primitive(to)
-
-        if amount and not isinstance(amount, Ada) and not isinstance(amount, Lovelace):
+        if amount and not issubclass(amount.__class__, Amount):
             raise TypeError(
                 "Please provide amount as either `Ada(amount)` or `Lovelace(amount)`."
             )
 
-        if not isinstance(mints, list):
-            mints = [mints]
-
-        if isinstance(utxos, UTxO):
-            utxos = [utxos]
-        elif not utxos:
-            utxos = []
-
-        if other_signers is None:
-            other_signers = []
-        elif not isinstance(other_signers, list):
-            other_signers = [other_signers]
-        elif not other_signers:
-            other_signers = []
-
-        if not change_address:
-            change_address = self.address
-        else:
-            if isinstance(change_address, str):
-                change_address = Address.from_primitive(change_address)
-            elif not isinstance(change_address, Address):
-                change_address = change_address.address
-
-        # sort assets by policy_id
-        all_metadata = {}
-        mints_dict = {}
-        mint_metadata = {}
-        native_scripts = []
-        for token in mints:
-            if isinstance(token.policy, NativeScript):
-                policy_hash = token.policy.hash()
-            elif isinstance(token.policy, TokenPolicy):
-                policy_hash = ScriptHash.from_primitive(token.policy_id)
-            else:
-                policy_hash = None
-
-            policy_id = str(policy_hash)
-
-            if not mints_dict.get(policy_hash):
-                mints_dict[policy_hash] = {}
-
-                if isinstance(token.policy, NativeScript):
-                    native_scripts.append(token.policy)
-                else:
-                    native_scripts.append(token.policy.policy)
-
-            mints_dict[policy_hash][token.name] = token
-            if token.metadata and token.amount > 0:
-                if not mint_metadata.get(policy_id):
-                    mint_metadata[policy_id] = {}
-                mint_metadata[policy_id][token.name] = token.metadata
-
-        mint_multiasset = MultiAsset()
-        all_assets = MultiAsset()
-
-        for policy_hash, tokens in mints_dict.items():
-
-            mint_assets = Asset()
-            assets = Asset()
-            for token in tokens.values():
-                assets[AssetName(token.bytes_name)] = int(token.amount)
-
-                if token.amount > 0:
-                    mint_assets[AssetName(token.bytes_name)] = int(token.amount)
-
-            if mint_assets:
-                mint_multiasset[policy_hash] = mint_assets
-            all_assets[policy_hash] = assets
-
-        # create mint metadata
-        if mint_metadata:
-            all_metadata[721] = mint_metadata
-
-        # add message
-        if message:
-            all_metadata[674] = format_message(message)
-
-        # Place metadata in AuxiliaryData, the format acceptable by a transaction.
-        if all_metadata:
-            auxiliary_data = AuxiliaryData(
-                AlonzoMetadata(metadata=Metadata(all_metadata))
-            )
-        else:
-            auxiliary_data = AuxiliaryData(Metadata())
-
-        # build the transaction
-        builder = TransactionBuilder(context)
-
-        # add transaction inputs
+        # streamline inputs, use either specific utxos or all wallet utxos
         if utxos:
-            for utxo in utxos:
-                builder.add_input(utxo)
-
-        builder.add_input_address(self.address)
-
-        # set builder ttl to the min of the included policies
-        builder.ttl = min(
-            [TokenPolicy("", policy).expiration_slot for policy in native_scripts]
-        )
-
-        builder.mint = all_assets
-        builder.native_scripts = native_scripts
-        if all_metadata:
-            builder.auxiliary_data = auxiliary_data
-
-        if not amount:  # sent min amount if none specified
-            amount = Lovelace(min_lovelace(Value(0, mint_multiasset), context))
-            logger.debug("Min value =", amount)
-
-        if mint_multiasset:
-            builder.add_output(
-                TransactionOutput(to, Value(amount.lovelace, mint_multiasset))
-            )
-
-        if other_signers:
-            signing_keys = [wallet.signing_key for wallet in other_signers] + [
-                self.signing_key
-            ]
+            if isinstance(utxos, UTxO):
+                inputs = [utxos]
         else:
-            signing_keys = [self.signing_key]
+            inputs = [self]
 
-        signed_tx = builder.build_and_sign(signing_keys, change_address=change_address)
-
-        context.submit_tx(signed_tx.to_cbor())
-
-        if await_confirmation:
-            confirmed = wait_for_confirmation(str(signed_tx.id), self.context)
-            self.query_utxos()
-
-        return str(signed_tx.id)
+        return self.transact(
+            inputs=inputs,
+            outputs=Output(to, amount, tokens=mints),
+            mints=mints,
+            **kwargs,
+        )
 
     def transact(
         self,
