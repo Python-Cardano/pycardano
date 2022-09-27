@@ -1053,9 +1053,7 @@ class Wallet:
         to: Union[str, Address],
         amount: Union[Ada, Lovelace],
         utxos: Optional[Union[UTxO, List[UTxO]]] = None,
-        message: Optional[Union[str, List[str]]] = None,
-        await_confirmation: Optional[bool] = False,
-        context: Optional[ChainContext] = None,
+        **kwargs,
     ) -> str:
         """Create a simple transaction in which Ada is sent to a single recipient.
 
@@ -1068,121 +1066,39 @@ class Wallet:
             message (Optional[Union[str, List[str]]]): Optional message to include in the transaction (CIP-20).
             await_confirmation (Optional[bool]): Whether to wait for the transaction to be confirmed. Defaults to False.
             context (Optional[ChainContext]): The context to use for the query. Defaults to the wallet's context.
-            
+
         Returns:
             str: The transaction ID.
         """
 
-        context = self._find_context(context)
-
-        # streamline inputs
-        if isinstance(to, str):
-            to = Address.from_primitive(to)
-
-        if not isinstance(amount, Ada) and not isinstance(amount, Lovelace):
-            raise TypeError(
-                "Please provide amount as either `Ada(amount)` or `Lovelace(amount)`."
-            )
-
+        # streamline inputs, use either specific utxos or all wallet utxos
         if utxos:
             if isinstance(utxos, UTxO):
-                utxos = [utxos]
+                inputs = [utxos]
         else:
-            utxos = []
+            inputs = [self]
 
-        builder = TransactionBuilder(context)
-
-        builder.add_input_address(self.address)
-
-        if utxos:
-            for utxo in utxos:
-                builder.add_input(utxo)
-
-        builder.add_output(
-            TransactionOutput(to, Value.from_primitive([amount.as_lovelace().amount]))
-        )
-
-        if message:
-            metadata = {674: format_message(message)}
-            builder.auxiliary_data = AuxiliaryData(
-                AlonzoMetadata(metadata=Metadata(metadata))
-            )
-
-        signed_tx = builder.build_and_sign(
-            [self.signing_key], change_address=self.address
-        )
-
-        context.submit_tx(signed_tx.to_cbor())
-
-        if await_confirmation:
-            confirmed = wait_for_confirmation(str(signed_tx.id), self.context)
-            self.query_utxos()
-
-        return str(signed_tx.id)
+        return self.transact(inputs=inputs, outputs=[Output(to, amount)], **kwargs)
 
     def send_utxo(
-        self,
-        to: Union[str, Address],
-        utxos: Union[UTxO, List[UTxO]],
-        message: Optional[Union[str, List[str]]] = None,
-        await_confirmation: Optional[bool] = False,
-        context: Optional[ChainContext] = None,
+        self, to: Union[str, Address], utxos: Union[UTxO, List[UTxO]], **kwargs
     ) -> str:
         """Send all of the contents (ADA and tokens) of specified UTxO(s) to a single recipient.
 
         Args:
             to (Union[str, Address]): The address to which to send the UTxO contents.
             utxos (Optional[Union[UTxO, List[UTxO]]]): The UTxO(s) to use for the transaction.
-            message (Optional[Union[str, List[str]]]): Optional message to include in the transaction (CIP-20).
-            await_confirmation (Optional[bool]): Whether to wait for the transaction to be confirmed. Defaults to False.
-            context (Optional[ChainContext]): The context to use for the query. Defaults to the wallet's context.
-            
+
         Returns:
             str: The transaction ID.
         """
 
-        # streamline inputs
-        context = self._find_context(context)
-
-        if isinstance(to, str):
-            to = Address.from_primitive(to)
-
-        if isinstance(utxos, UTxO):
-            utxos = [utxos]
-
-        builder = TransactionBuilder(context)
-
-        builder.add_input_address(self.address)
-
-        for utxo in utxos:
-            builder.add_input(utxo)
-
-        if message:
-            metadata = {674: format_message(message)}
-            builder.auxiliary_data = AuxiliaryData(
-                AlonzoMetadata(metadata=Metadata(metadata))
-            )
-
-        signed_tx = builder.build_and_sign(
-            [self.signing_key],
-            change_address=to,
-            merge_change=True,
-        )
-
-        context.submit_tx(signed_tx.to_cbor())
-
-        if await_confirmation:
-            confirmed = wait_for_confirmation(str(signed_tx.id), self.context)
-            self.query_utxos()
-
-        return str(signed_tx.id)
+        return self.transact(inputs=utxos, change_address=to, **kwargs)
 
     def empty_wallet(
         self,
         to: Union[str, Address],
-        message: Optional[Union[str, List[str]]] = None,
-        await_confirmation: Optional[bool] = False,
-        context: Optional[ChainContext] = None,
+        **kwargs,
     ) -> str:
 
         """Send all of the contents (ADA and tokens) of the wallet to a single recipient.
@@ -1190,41 +1106,32 @@ class Wallet:
 
         Args:
             to (Union[str, Address]): The address to which to send the entire contents of the wallet.
-            message (Optional[Union[str, List[str]]]): Optional message to include in the transaction (CIP-20).
-            await_confirmation (Optional[bool]): Whether to wait for the transaction to be confirmed. Defaults to False.
-            context (Optional[ChainContext]): The context to use for the query. Defaults to the wallet's context.
-            
+
         Returns:
             str: The transaction ID.
         """
 
-        return self.send_utxo(
-            to=to,
-            utxos=self.utxos,
-            message=message,
-            await_confirmation=await_confirmation,
-            context=context,
-        )
+        return self.transact(inputs=self.utxos, change_address=to, **kwargs)
 
     def delegate(
         self,
         pool_hash: Union[PoolKeyHash, str],
         register: Optional[bool] = True,
         amount: Optional[Union[Ada, Lovelace]] = Lovelace(2000000),
-        await_confirmation: Optional[bool] = False,
-        context: Optional[ChainContext] = None,
+        utxos: Optional[Union[UTxO, List[UTxO]]] = None,
+        **kwargs
     ) -> str:
         """Delegate the current wallet to a pool.
 
         Args:
             pool_hash (Union[PoolKeyHash, str]): The hash of the pool to which to delegate.
             register (Optional[bool]): Whether to register the pool with the network. Defaults to True.
-                If True, this will skip registration is the wallet is already registered.
+                If True, this will skip registration if the wallet is already registered.
             amount (Optional[Union[Ada, Lovelace]]): The amount of Ada to attach to the delegation transaction.
                 Defaults to 2 Ada.
             await_confirmation (Optional[bool]): Whether to wait for the transaction to be confirmed. Defaults to False.
             context (Optional[ChainContext]): The context to use for the query. Defaults to the wallet's context.
-            
+
         Returns:
             str: The transaction ID.
         """
@@ -1232,41 +1139,29 @@ class Wallet:
         # streamline inputs
         if not self.stake_address:
             raise ValueError("This wallet does not have staking keys.")
-
-        context = self._find_context(context)
-
-        if isinstance(pool_hash, str):
-            pool_hash = PoolKeyHash(bytes.fromhex(pool_hash))
-
-        # check registration
-        if register:
-            register = not self.stake_info.get("active")
-
-        stake_credential = StakeCredential(self.stake_verification_key.hash())
-        stake_registration = StakeRegistration(stake_credential)
-        stake_delegation = StakeDelegation(stake_credential, pool_keyhash=pool_hash)
-
-        # draft the transaction
-        builder = TransactionBuilder(context)
-        builder.add_input_address(self.address)
-        builder.add_output(TransactionOutput(self.address, amount.lovelace))
-
-        if register:
-            builder.certificates = [stake_registration, stake_delegation]
+        
+        # streamline inputs, use either specific utxos or all wallet utxos
+        if utxos:
+            if isinstance(utxos, UTxO):
+                inputs = [utxos]
         else:
-            builder.certificates = [stake_delegation]
-
-        signed_tx = builder.build_and_sign(
-            [self.signing_key, self.stake_signing_key], self.address
+            inputs = [self]
+            
+        # check registration, do not register if already registered
+        active = self.stake_info.get("active")
+        if register:
+            register = not active
+        elif not active:
+            raise ValueError("Cannot delegate to a pool. This wallet is not yet registered. Try again with register=True.")
+        
+        return self.transact(
+            inputs=inputs,
+            outputs=[Output(self, amount)],
+            stake_registration=register,
+            delegations=pool_hash,
+            **kwargs,
         )
-
-        context.submit_tx(signed_tx.to_cbor())
-
-        if await_confirmation:
-            confirmed = wait_for_confirmation(str(signed_tx.id), self.context)
-            self.query_utxos()
-
-        return str(signed_tx.id)
+        
 
     def withdraw(
         self,
@@ -1284,7 +1179,7 @@ class Wallet:
                 Defaults to 1 ADA which is generally a safe minimum amount to use.
             await_confirmation (Optional[bool]): Whether to wait for the transaction to be confirmed. Defaults to False.
             context (Optional[ChainContext]): The context to use for the query. Defaults to the wallet's context.
-            
+
         Returns:
             str: The transaction ID.
         """
@@ -1332,7 +1227,7 @@ class Wallet:
     ):
         """Mints (or burns) tokens of a policy owned by a user wallet. To attach metadata, set it in Token class directly.
         Burn tokens by setting Token class amount to a negative value.
-        
+
         Args:
             to (Union[str, Address]): The address to which to send the newly minted tokens.
             mints (Union[Token, List[Token]]): The token(s) to mint/burn. Set metadata and quantity directly in the Token class.
@@ -1347,7 +1242,7 @@ class Wallet:
             message (Optional[Union[str, List[str]]]): The message to attach to the transaction.
             await_confirmation (Optional[bool]): Whether to wait for the transaction to be confirmed. Defaults to False.
             context (Optional[ChainContext]): The context to use for the query. Defaults to the wallet's context.
-            
+
         Returns:
             str: The transaction ID.
         """
@@ -1371,7 +1266,9 @@ class Wallet:
         elif not utxos:
             utxos = []
 
-        if not isinstance(other_signers, list):
+        if other_signers is None:
+            other_signers = []
+        elif not isinstance(other_signers, list):
             other_signers = [other_signers]
         elif not other_signers:
             other_signers = []
