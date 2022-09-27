@@ -1401,7 +1401,7 @@ class Wallet:
             List[UTxO],
             List[str],
         ],
-        outputs: Union[Output, List[Output]],
+        outputs: Optional[Union[Output, List[Output]]] = None,
         mints: Optional[Union[Token, List[Token]]] = None,
         signers: Optional[
             Union["Wallet", List["Wallet"], SigningKey, List[SigningKey]]
@@ -1423,7 +1423,7 @@ class Wallet:
     ) -> str:
         """
         Construct fully manual transactions.
-        
+
         Args:
             inputs (Union[Wallet, Address, UTxO, str, List[Wallet], List[Address], List[UTxO], List[str]]): Inputs to the transaction.
                 If wallets or addresses are provided, they will be queried for UTxOs.
@@ -1445,7 +1445,7 @@ class Wallet:
                 If False, return the signed transaction CBOR.
             await_confirmation (bool): Whether to wait for the transaction to be confirmed. Defaults to False.
             context (ChainContext): The context to use for the transaction. Defaults to the default context.
-            
+
         Returns:
             str: The transaction ID if submit is True, otherwise the signed transaction CBOR.
         """
@@ -1456,7 +1456,7 @@ class Wallet:
         if not isinstance(inputs, list):
             inputs = [inputs]
 
-        if not isinstance(outputs, list):
+        if outputs and not isinstance(outputs, list):
             outputs = [outputs]
 
         if mints and not isinstance(mints, list):
@@ -1674,39 +1674,40 @@ class Wallet:
             builder.auxiliary_data = auxiliary_data
 
         # format tokens and lovelace of outputs
-        for output in outputs:
-            multi_asset = {}
-            if output.tokens:
-                multi_asset = MultiAsset()
-                output_policies = {}
-                for token in output.tokens:
-                    if not output_policies.get(token.policy_id):
-                        output_policies[token.policy_id] = {}
+        if outputs:
+            for output in outputs:
+                multi_asset = {}
+                if output.tokens:
+                    multi_asset = MultiAsset()
+                    output_policies = {}
+                    for token in output.tokens:
+                        if not output_policies.get(token.policy_id):
+                            output_policies[token.policy_id] = {}
 
-                    if output_policies[token.policy_id].get(token.name):
-                        output_policies[token.policy_id][token.name] += token.amount
-                    else:
-                        output_policies[token.policy_id][token.name] = token.amount
+                        if output_policies[token.policy_id].get(token.name):
+                            output_policies[token.policy_id][token.name] += token.amount
+                        else:
+                            output_policies[token.policy_id][token.name] = token.amount
 
-                for policy, token_info in output_policies.items():
+                    for policy, token_info in output_policies.items():
 
-                    asset = Asset()
+                        asset = Asset()
 
-                    for token_name, token_amount in token_info.items():
-                        asset[AssetName(str.encode(token_name))] = token_amount
+                        for token_name, token_amount in token_info.items():
+                            asset[AssetName(str.encode(token_name))] = token_amount
 
-                    multi_asset[ScriptHash.from_primitive(policy)] = asset
+                        multi_asset[ScriptHash.from_primitive(policy)] = asset
 
-            if not output.amount.lovelace:  # Calculate min lovelace if necessary
-                output.amount = Lovelace(
-                    min_lovelace(Value(0, mint_multiasset), context)
+                if not output.amount.lovelace:  # Calculate min lovelace if necessary
+                    output.amount = Lovelace(
+                        min_lovelace(Value(0, mint_multiasset), context)
+                    )
+
+                builder.add_output(
+                    TransactionOutput(
+                        output.address, Value(output.amount.lovelace, multi_asset)
+                    )
                 )
-
-            builder.add_output(
-                TransactionOutput(
-                    output.address, Value(output.amount.lovelace, multi_asset)
-                )
-            )
 
         # add registration + delegation certificates
         if certificates:
@@ -1750,11 +1751,11 @@ class Wallet:
 def get_utxo_creator(utxo: UTxO, context: ChainContext) -> Address:
     """Fetch the creator of a UTxO.
     If there are multiple input UTxOs, the creator is the first one.
-    
-    Args: 
+
+    Args:
         utxo (UTxO): The UTxO to get the creator of.
         context (ChainContext): The context to use for the query. For now must be BlockFrost.
-        
+
     Returns:
         Address: The creator of the UTxO.
     """
@@ -1775,14 +1776,14 @@ def get_utxo_creator(utxo: UTxO, context: ChainContext) -> Address:
 
 def get_utxo_block_time(utxo: UTxO, context: ChainContext) -> int:
     """Get the block time at which a UTxO was created.
-    
+
     Args:
         utxo (UTxO): The UTxO to get the block time of.
         context (ChainContext): The context to use for the query. For now must be BlockFrost.
-        
+
     Returns:
         int: The block time at which the UTxO was created.
-    
+
     """
     if isinstance(context, BlockFrostChainContext):
         block_time = context.api.transaction(str(utxo.input.transaction_id)).block_time
@@ -1798,11 +1799,11 @@ def get_utxo_block_time(utxo: UTxO, context: ChainContext) -> int:
 def get_stake_info(stake_address: Union[str, Address], context: ChainContext) -> dict:
     """Get the stake info of a stake address from Blockfrost.
     For more info see: https://docs.blockfrost.io/#tag/Cardano-Accounts/paths/~1accounts~1{stake_address}/get
-    
-    Args: 
+
+    Args:
         stake_address (Union[str, Address]): The stake address to get the stake info of.
         context (ChainContext): The context to use for the query. For now must be BlockFrost.
-        
+
     Returns:
         dict: Info regarding the given stake address.
     """
@@ -1827,10 +1828,10 @@ def get_stake_info(stake_address: Union[str, Address], context: ChainContext) ->
 
 def get_stake_address(address: Union[str, Address]) -> Address:
     """Get the stake address of any given address.
-    
+
     Args:
         address (Union[str, Address]): The address to get the stake address of.
-        
+
     Returns:
         Address: The stake address of the given address.
     """
@@ -1844,10 +1845,10 @@ def get_stake_address(address: Union[str, Address]) -> Address:
 
 def format_message(message: Union[str, List[str]]) -> dict:
     """Format a metadata message according to CIP-20
-    
+
     Args:
         message (Union[str, List[str]]): The message to format.
-        
+
     Returns:
         dict: The message formatted properly to attach to a transaction.
     """
@@ -1871,10 +1872,10 @@ def format_message(message: Union[str, List[str]]) -> dict:
 
 def check_metadata(to_check: Union[dict, list, str], top_level: bool = False):
     """Screen any given input metadata for potential issues.
-    
-    
+
+
     Used recursively to check inside all dicts and lists of the metadata.
-    
+
     Args:
         to_check (Union[dict, list, str]): The metadata to check.
         top_level (bool): Whether this is the top level of the metadata.
@@ -1924,10 +1925,10 @@ def check_metadata(to_check: Union[dict, list, str], top_level: bool = False):
 
 def list_all_wallets(wallet_path: Union[str, Path] = Path("./priv")) -> List[str]:
     """List all PyCardano wallets in the directory specified by wallet_path.
-    
+
     Args:
         wallet_path (Union[str, Path]): The path to the directory to list the wallets in.
-        
+
     Returns:
         List[str]: A list of all names of wallets in the directory.
     """
@@ -1939,12 +1940,14 @@ def list_all_wallets(wallet_path: Union[str, Path] = Path("./priv")) -> List[str
     return wallets
 
 
-def get_all_policies(policy_path: Union[str, Path] = Path("./priv/policies")) -> List[TokenPolicy]:
+def get_all_policies(
+    policy_path: Union[str, Path] = Path("./priv/policies")
+) -> List[TokenPolicy]:
     """List all policies in the directory specified by policy_path.
-    
+
     Args:
         policy_path (Union[str, Path]): The path to the directory to list the policies in.
-        
+
     Returns:
         List[TokenPolicy]: A list of all policies in the directory.
     """
@@ -1958,11 +1961,11 @@ def get_all_policies(policy_path: Union[str, Path] = Path("./priv/policies")) ->
 
 def confirm_tx(tx_id: Union[str, TransactionId], context: ChainContext) -> bool:
     """Confirm that a transaction has been included in a block.
-    
+
     Args:
         tx_id (Union[str, TransactionId]): The transaction id to check.
         context (ChainContext): The context to use for the query. For now must be BlockFrost.
-        
+
     Returns:
         bool: Whether the transaction has been included in a block.
     """
@@ -1987,12 +1990,12 @@ def wait_for_confirmation(
     tx_id: Union[str, TransactionId], context: ChainContext, delay: Optional[int] = 10
 ) -> bool:
     """Wait for a transaction to be confirmed, checking every `delay` seconds.
-    
+
     Args:
         tx_id (Union[str, TransactionId]): The transaction id to check.
         context (ChainContext): The context to use for the query. For now must be BlockFrost.
         delay (Optional[int]): The number of seconds to wait between checking the context. Defaults to 10.
-        
+
     Returns:
         bool: Whether the transaction has been confirmed.
     """
