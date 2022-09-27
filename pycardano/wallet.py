@@ -237,10 +237,10 @@ class Lovelace(Amount):
     """Stores an amount of Lovelace and automatically handles most currency math."""
 
     def __init__(self, amount: int = 0):
-        
+
         if not isinstance(amount, int):
             raise TypeError("Lovelace must be an integer.")
-        
+
         super().__init__(amount, "lovelace")
 
     def __repr__(self):
@@ -546,7 +546,7 @@ class Token:
         Args:
             context (ChainContext): A chain context is necessary to fetch the on-chain metadata.
                 Only BlockFrost chain context is supported at the moment.
-                
+
         Returns:
             dict: The on-chain metadata of the token.
 
@@ -582,7 +582,7 @@ class Output:
             Should generally satisfy the minimum ADA requirement for any attached tokens.
         tokens (Optional[Union[Token, List[Token]]]): Token or list of Tokens to be sent to the address.
             Amount of each token to send should be defined in each Token object.
-            
+
     """
 
     address: Union["Wallet", Address, str]
@@ -590,6 +590,15 @@ class Output:
     tokens: Optional[Union[Token, List[Token]]] = field(default_factory=list)
 
     def __post_init__(self):
+
+        if (
+            not isinstance(self.amount, Ada)
+            and not isinstance(self.amount, Lovelace)
+            and not isinstance(self.amount, int)
+        ):
+            raise TypeError(
+                "Please provide amount as either `Ada(amount)` or `Lovelace(amount)`. Otherwise provide lovelace as an integer."
+            )
 
         if isinstance(self.amount, int):
             self.amount = Lovelace(self.amount)
@@ -609,10 +618,9 @@ class Output:
 class Wallet:
     """Create or load a wallet for which you own the keys or will later create them.
     NOTE: BlockFrost Chain Context can be automatically loaded by setting the following environment variables:
-        `BLOCKFROST_ID_0` for testnet
-        `BLOCKFROST_ID_1` for mainnet
-        `BLOCKFROST_ID_2` for preview
-        `BLOCKFROST_ID_3` for devnet
+        `BLOCKFROST_ID_MAINNET` for mainnet
+        `BLOCKFROST_ID_PREPROD` for preprod
+        `BLOCKFROST_ID_PREVIEW` for preview
     Otherwise, a custom Chain Context can be provided when necessary.
 
     Currently you can already:
@@ -652,7 +660,7 @@ class Wallet:
         keys_dir (Optional[Union[str, Path]]): Directory in which to save the keys. Defaults to "./priv".
         use_stake (Optional[bool]): Whether to use a stake address for this wallet. Defaults to True.
         network (Optional[str, Network]): The network to use for the wallet.
-            Can pick from "mainnet", "testnet", "preview", "preprod". Defaults to "mainnet".
+            Can pick from "mainnet", "preview", "preprod". Defaults to "mainnet".
             BlockFrost Chain Context will be automatically loaded for this network if
             the API key is set in the environment variables.
 
@@ -662,11 +670,7 @@ class Wallet:
     address: Optional[Union[Address, str]] = None
     keys_dir: Optional[Union[str, Path]] = field(repr=False, default=Path("./priv"))
     use_stake: Optional[bool] = field(repr=False, default=True)
-    network: Optional[
-        Literal[
-            "mainnet", "testnet", "preview", "preprod", Network.MAINNET, Network.TESTNET
-        ]
-    ] = "mainnet"
+    network: Optional[Literal["mainnet", "preview", "preprod"]] = "mainnet"
 
     # generally added later upon initialization
     lovelace: Optional[Lovelace] = field(repr=False, default=Lovelace(0))
@@ -685,13 +689,26 @@ class Wallet:
         if isinstance(self.keys_dir, str):
             self.keys_dir = Path(self.keys_dir)
 
+        if self.network == "preprod":
+            self._network = Network.TESTNET
+        elif self.network == "preview":
+            self._network = Network.TESTNET
+        else:
+            self._network = Network.MAINNET
+
         # if not address was provided, get keys
         if not self.address:
             self._load_or_create_key_pair(stake=self.use_stake)
         # otherwise derive the network from the address provided
         else:
-            # noinspection PyTypeChecker
-            self.network = self.address.network.name.lower()
+            # check that the given address matches the desired network
+            if self._network:
+                if self.address.network != self._network:
+                    raise ValueError(
+                        f"{self._network} does not match the network of the provided address."
+                    )
+
+            self._network = self.address.network
             self.signing_key = None
             self.verification_key = None
             self.stake_signing_key = None
@@ -699,18 +716,22 @@ class Wallet:
 
         # try to automatically create blockfrost context
         if not self.context:
-            if self.network.lower() == "mainnet":
-                if getenv("BLOCKFROST_ID"):
-                    self.context = BlockFrostChainContext(
-                        getenv("BLOCKFROST_ID"), network=Network.MAINNET
-                    )
-            elif getenv("BLOCKFROST_ID_TESTNET"):
+            if self.network.lower() == "mainnet" and getenv("BLOCKFROST_ID_MAINNET"):
                 self.context = BlockFrostChainContext(
-                    getenv("BLOCKFROST_ID_TESTNET"), network=Network.TESTNET
+                    getenv("BLOCKFROST_ID_MAINNET"), network=Network.MAINNET
                 )
-
-        # if self.context:
-        #    self.query_utxos()
+            elif self.network.lower() == "preprod" and getenv("BLOCKFROST_ID_PREPROD"):
+                self.context = BlockFrostChainContext(
+                    getenv("BLOCKFROST_ID_PREPROD"),
+                    network=Network.TESTNET,
+                    base_url="https://cardano-preprod.blockfrost.io/api",
+                )
+            elif self.network.lower() == "preview" and getenv("BLOCKFROST_ID_PREVIEW"):
+                self.context = BlockFrostChainContext(
+                    getenv("BLOCKFROST_ID_PREVIEW"),
+                    network=Network.TESTNET,
+                    base_url="https://cardano-preview.blockfrost.io/api",
+                )
 
         logger.info(self.__repr__())
 
@@ -718,7 +739,7 @@ class Wallet:
     def payment_address(self):
 
         return Address(
-            payment_part=self.address.payment_part, network=self.address.network
+            payment_part=self.address.payment_part, network=self._network
         )
 
     @property
@@ -726,7 +747,7 @@ class Wallet:
 
         if self.stake_signing_key or self.address.staking_part:
             return Address(
-                staking_part=self.address.staking_part, network=self.address.network
+                staking_part=self.address.staking_part, network=self._network
             )
         else:
             return None
@@ -828,10 +849,10 @@ class Wallet:
 
         if stake:
             self.address = Address(
-                vkey.hash(), stake_vkey.hash(), network=Network[self.network.upper()]
+                vkey.hash(), stake_vkey.hash(), network=self._network
             )
         else:
-            self.address = Address(vkey.hash(), network=Network[self.network.upper()])
+            self.address = Address(vkey.hash(), network=self._network)
 
     def _find_context(self, context: Optional[ChainContext] = None):
         """Helper function to ensure that a context is always provided when needed.
@@ -904,7 +925,7 @@ class Wallet:
 
         Args:
             context (Optional[ChainContext]): The context to use for the query. Defaults to the wallet's context.
-            
+
         """
 
         context = self._find_context(context)
@@ -1003,7 +1024,7 @@ class Wallet:
             mode (Optional[Literal["payment", "stake"]]): The keys to use for signing. Defaults to "payment".
             attach_cose_key (bool): Whether to attach the COSE key to the signature. Defaults to False.
                 At the moment, Eternl currently does not attach the COSE key, while Nami does.
-                
+
         Returns:
             Union[str, dict]: The signature. If attach_cose_key is True, the signature is a dictionary with the signature and the COSE key.
         """
@@ -1024,7 +1045,7 @@ class Wallet:
             message,
             signing_key,
             attach_cose_key=attach_cose_key,
-            network=self.address.network,
+            network=self._network,
         )
 
     def send_ada(
