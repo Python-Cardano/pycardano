@@ -1167,8 +1167,7 @@ class Wallet:
         self,
         withdrawal_amount: Optional[Union[Ada, Lovelace]] = None,
         output_amount: Optional[Union[Ada, Lovelace]] = Lovelace(1000000),
-        await_confirmation: Optional[bool] = False,
-        context: Optional[ChainContext] = None,
+        **kwargs,
     ) -> str:
         """Withdraw staking rewards.
 
@@ -1188,30 +1187,19 @@ class Wallet:
         if not self.stake_address:
             raise ValueError("This wallet does not have staking keys.")
 
-        context = self._find_context(context)
-
         if not withdrawal_amount:
             # automatically detect rewards:
             withdrawal_amount = self.withdrawable_amount
+            
+        if not withdrawal_amount:
+            raise ValueError("No rewards to withdraw.")
 
-        builder = TransactionBuilder(context)
-        builder.add_input_address(self.address)
-        builder.add_output(TransactionOutput(self.address, output_amount.lovelace))
-        builder.withdrawals = Withdrawals(
-            {self.stake_address.to_primitive(): withdrawal_amount.lovelace}
+        return self.transact(
+            inputs=[self],
+            outputs=[Output(self, output_amount)],
+            withdrawals={self: withdrawal_amount},
+            **kwargs,
         )
-
-        signed_tx = builder.build_and_sign(
-            [self.signing_key, self.stake_signing_key], self.address
-        )
-
-        context.submit_tx(signed_tx.to_cbor())
-
-        if await_confirmation:
-            confirmed = wait_for_confirmation(str(signed_tx.id), self.context)
-            self.query_utxos()
-
-        return str(signed_tx.id)
 
     def mint_tokens(
         self,
