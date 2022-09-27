@@ -86,8 +86,3 @@ def test_token_policy():
 
     wallet = Wallet(name="payment")
 
-
-
-def split_string_into_n_chunks(string, n):
-    """Split a string into n chunks."""
-    return [string[i:i + n] for i in range(0, len(string), n)]
