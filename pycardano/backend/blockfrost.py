@@ -7,7 +7,7 @@ import cbor2
 from blockfrost import ApiUrls, BlockFrostApi
 
 from pycardano.address import Address
-from pycardano.backend.base import ChainContext, GenesisParameters, ProtocolParameters
+from pycardano.backend.base import ChainContext, GenesisParameters, ProtocolParameters, ALONZO_COINS_PER_UTXO_WORD
 from pycardano.exception import TransactionFailedException
 from pycardano.hash import SCRIPT_HASH_SIZE, DatumHash, ScriptHash
 from pycardano.nativescript import NativeScript
@@ -112,7 +112,7 @@ class BlockFrostChainContext(ChainContext):
                 collateral_percent=int(params.collateral_percent),
                 max_collateral_inputs=int(params.max_collateral_inputs),
                 coins_per_utxo_word=int(params.coins_per_utxo_word)
-                or int(params.coins_per_utxo_size),
+                or ALONZO_COINS_PER_UTXO_WORD,
                 coins_per_utxo_byte=int(params.coins_per_utxo_size),
                 cost_models={
                     k: v.to_dict() for k, v in params.cost_models.to_dict().items()
