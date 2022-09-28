@@ -119,6 +119,9 @@ tx_id = w.withdraw()
 
 """Fully Manual Transaction"""
 # Let's make a monster transaction with all the bells and whistles
+# Note: All the above examples are based on the following `transact` method
+#       so you can also pass any of the following parameters to the above methods as well as **kwargs
+#       e.g. `change_address`, `signers`, `message`, `await_confirmation`, etc.
 
 my_nft = Token(policy=my_policy, amount=1, name="MY_NFT_1", metadata=metadata)
 your_nft = Token(policy=my_policy, amount=1, name="YOUR_NFT_1", metadata={"Name": "Your NFT"})
