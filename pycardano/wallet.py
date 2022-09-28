@@ -1613,7 +1613,12 @@ class Wallet:
 
                 if not output.amount.lovelace:  # Calculate min lovelace if necessary
                     output.amount = Lovelace(
-                        min_lovelace(Value(0, mint_multiasset), context)
+                        min_lovelace(
+                            context=context,
+                            output=TransactionOutput(
+                                output.address, Value(1000000, mint_multiasset)
+                            )
+                        )
                     )
 
                 builder.add_output(
