@@ -1231,6 +1231,9 @@ class Wallet:
             raise TypeError(
                 "Please provide amount as either `Ada(amount)` or `Lovelace(amount)`."
             )
+            
+        if not amount:
+            amount = Lovelace(0)
 
         # streamline inputs, use either specific utxos or all wallet utxos
         if utxos:
