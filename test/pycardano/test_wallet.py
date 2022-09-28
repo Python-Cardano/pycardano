@@ -8,20 +8,28 @@ import pytest
 
 
 def test_load_wallet():
-    
-    w = Wallet(
-            name="payment",
-            keys_dir=str(pathlib.Path(__file__).parent / "../resources/keys"),
-        )
-    
-    assert w.address == Address.from_primitive("addr1q8xrqjtlfluk9axpmjj5enh0uw0cduwhz7txsqyl36m3uk2g9z3d4kaf0j5l6rxunxt43x28pssehhqds2x05mwld45s399sr7")
-    assert w.payment_address == Address.from_primitive("addr1v8xrqjtlfluk9axpmjj5enh0uw0cduwhz7txsqyl36m3ukgqdsn8w")
-    assert w.stake_address == Address.from_primitive("stake1u9yz3gk6mw5he20apnwfn96cn9rscgvmmsxc9r86dh0k66ghyrkpw")
 
-WALLET = Wallet(
+    w = Wallet(
         name="payment",
         keys_dir=str(pathlib.Path(__file__).parent / "../resources/keys"),
     )
+
+    assert w.address == Address.from_primitive(
+        "addr1q8xrqjtlfluk9axpmjj5enh0uw0cduwhz7txsqyl36m3uk2g9z3d4kaf0j5l6rxunxt43x28pssehhqds2x05mwld45s399sr7"
+    )
+    assert w.payment_address == Address.from_primitive(
+        "addr1v8xrqjtlfluk9axpmjj5enh0uw0cduwhz7txsqyl36m3ukgqdsn8w"
+    )
+    assert w.stake_address == Address.from_primitive(
+        "stake1u9yz3gk6mw5he20apnwfn96cn9rscgvmmsxc9r86dh0k66ghyrkpw"
+    )
+
+
+WALLET = Wallet(
+    name="payment",
+    keys_dir=str(pathlib.Path(__file__).parent / "../resources/keys"),
+)
+
 
 def test_amount():
     """Check that the Ada / Lovelace math works as expected."""
@@ -84,57 +92,52 @@ def test_wallet_sign_data():
         == "addr1q8xrqjtlfluk9axpmjj5enh0uw0cduwhz7txsqyl36m3uk2g9z3d4kaf0j5l6rxunxt43x28pssehhqds2x05mwld45s399sr7"
     )
 
-    assert (
-        WALLET.sign_data("pycardano rocks", mode="payment")
-        == ("84584da301276761646472657373581d61cc30497f4ff962f4c1dca54cceefe39f86f1"
-            "d7179668009f8eb71e590458205797dc2cc919dfec0bb849551ebdf30d96e5cbe0f33f"
-            "734a87fe826db30f7ef9a166686173686564f44f707963617264616e6f20726f636b73"
-            "58402beecd6dba2f7f73d0d72abd5cc43829173a069afa2a29eff72d65049b092bc80c"
-            "571569e8a7c26354cd1d38b5fcdc3d7a3b6955d2211106824ba02c33ba220f"
-        )
+    assert WALLET.sign_data("pycardano rocks", mode="payment") == (
+        "84584da301276761646472657373581d61cc30497f4ff962f4c1dca54cceefe39f86f1"
+        "d7179668009f8eb71e590458205797dc2cc919dfec0bb849551ebdf30d96e5cbe0f33f"
+        "734a87fe826db30f7ef9a166686173686564f44f707963617264616e6f20726f636b73"
+        "58402beecd6dba2f7f73d0d72abd5cc43829173a069afa2a29eff72d65049b092bc80c"
+        "571569e8a7c26354cd1d38b5fcdc3d7a3b6955d2211106824ba02c33ba220f"
     )
 
 
 def test_policy():
-    
+
     policy_dir = pathlib.Path(__file__).parent / "../resources/policy"
-                     
+
     script_filepath = policy_dir / f"testToken.script"
-    
+
     # remove policy file if it exists
     if script_filepath.exists():
         script_filepath.unlink()
-    
+
     policy = TokenPolicy(name="testToken", policy_dir=str(policy_dir))
-    
+
     policy.generate_minting_policy(signers=WALLET)
-        
-    script = ScriptAll([
-        ScriptPubkey(WALLET.verification_key.hash())
-    ])
-    
-    assert policy.policy_id == "6b0cb18696ccd4de1dcd9664c31ed6e98f7a4a1ff647855fef1e0831"
+
+    script = ScriptAll([ScriptPubkey(WALLET.verification_key.hash())])
+
+    assert (
+        policy.policy_id == "6b0cb18696ccd4de1dcd9664c31ed6e98f7a4a1ff647855fef1e0831"
+    )
     assert policy.policy == script
     assert policy.required_signatures == [WALLET.verification_key.hash()]
-    
+
     # cleanup
     if script_filepath.exists():
         script_filepath.unlink()
 
 
 def test_token():
-    
-    script = ScriptAll([
-        ScriptPubkey(WALLET.verification_key.hash())
-    ])
-    
+
+    script = ScriptAll([ScriptPubkey(WALLET.verification_key.hash())])
+
     policy = TokenPolicy(name="testToken", policy=script)
-    
+
     token = Token(policy=policy, name="testToken", amount=1)
     token_hex = Token(policy=policy, hex_name="74657374546f6b656e", amount=1)
-    
+
     assert token == token_hex
     assert token.hex_name == "74657374546f6b656e"
     assert token.bytes_name == b"testToken"
     assert token.policy_id == "6b0cb18696ccd4de1dcd9664c31ed6e98f7a4a1ff647855fef1e0831"
-    

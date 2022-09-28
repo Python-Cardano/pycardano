@@ -294,7 +294,7 @@ class TokenPolicy:
         # streamline inputs
         if isinstance(self.policy_dir, str):
             self.policy_dir = Path(self.policy_dir)
-            
+
         # if native script is directly provide, stop there
         if self.policy:
             if isinstance(self.policy, dict):
@@ -309,8 +309,6 @@ class TokenPolicy:
                     Path(self.policy_dir / f"{self.name}.script"), "r"
                 ) as policy_file:
                     self.policy = NativeScript.from_dict(json.load(policy_file))
-
-
 
     @property
     def policy_id(self):
@@ -1231,7 +1229,7 @@ class Wallet:
             raise TypeError(
                 "Please provide amount as either `Ada(amount)` or `Lovelace(amount)`."
             )
-            
+
         if not amount:
             amount = Lovelace(0)
 
@@ -1275,23 +1273,22 @@ class Wallet:
             raise TypeError(
                 "Please provide amount as either `Ada(amount)` or `Lovelace(amount)`."
             )
-            
+
         if not amount:
             # attach 1 ADA to burn transactions
             amount = Ada(1)
-            
+
         # streamline inputs, use either specific utxos or all wallet utxos
         if utxos:
             if isinstance(utxos, UTxO):
                 inputs = [utxos]
         else:
             inputs = [self]
-            
-        
+
         if not isinstance(tokens, list):
             tokens = [tokens]
-         
-        # set token values to negative   
+
+        # set token values to negative
         for token in tokens:
             token.amount = -abs(token.amount)
 
@@ -1617,7 +1614,7 @@ class Wallet:
                             context=context,
                             output=TransactionOutput(
                                 output.address, Value(1000000, mint_multiasset)
-                            )
+                            ),
                         )
                     )
 
