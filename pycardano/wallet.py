@@ -294,19 +294,23 @@ class TokenPolicy:
         # streamline inputs
         if isinstance(self.policy_dir, str):
             self.policy_dir = Path(self.policy_dir)
+            
+        # if native script is directly provide, stop there
+        if self.policy:
+            if isinstance(self.policy, dict):
+                self.policy = NativeScript.from_dict(self.policy)
+        else:
+            if not self.policy_dir.exists():
+                self.policy_dir.mkdir(parents=True, exist_ok=True)
 
-        if not self.policy_dir.exists():
-            self.policy_dir.mkdir(parents=True, exist_ok=True)
+            # look for the policy
+            if Path(self.policy_dir / f"{self.name}.script").exists():
+                with open(
+                    Path(self.policy_dir / f"{self.name}.script"), "r"
+                ) as policy_file:
+                    self.policy = NativeScript.from_dict(json.load(policy_file))
 
-        # look for the policy
-        if Path(self.policy_dir / f"{self.name}.script").exists():
-            with open(
-                Path(self.policy_dir / f"{self.name}.script"), "r"
-            ) as policy_file:
-                self.policy = NativeScript.from_dict(json.load(policy_file))
 
-        elif isinstance(self.policy, dict):
-            self.policy = NativeScript.from_dict(self.policy)
 
     @property
     def policy_id(self):
