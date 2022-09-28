@@ -638,7 +638,7 @@ class Wallet:
     - Get utxo block times and sort utxos
     - Mint / Burn tokens
     - Automatically load in token polices where wallet is a signer
-    - Automatically create BlockFrost Chain Context
+    - Automatically create BlockFrost Chain Context (mainnet, preprod, and preview)
     - Attach messages to transactions
     - Sign messages
     - Add custom metadata fields
@@ -649,8 +649,8 @@ class Wallet:
     - Generate fully manual transactions that can do any / all of the above
 
     Future additions (TODO list):
-    - Add new preview and devnet functionalities
-    - Add tests and examples
+    - Add tests
+    - Add examples
     - Create and sign multi-sig transactions
     - Interaction with native scripts
     - Interaction with plutus scripts
