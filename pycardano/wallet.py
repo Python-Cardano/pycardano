@@ -1249,6 +1249,59 @@ class Wallet:
             **kwargs,
         )
 
+    def burn_tokens(
+        self,
+        tokens: Union[Token, List[Token]],
+        amount: Optional[Union[Ada, Lovelace]] = None,
+        utxos: Optional[Union[UTxO, List[UTxO]]] = None,
+        **kwargs,
+    ):
+        """Burns tokens of a policy owned by a user wallet.
+        Same as mint_tokens but automatically sets Token class amount to a negative value.
+
+        Args:
+            to (Union[str, Address]): The address to which to send the newly minted tokens.
+            mints (Union[Token, List[Token]]): The token(s) to mint/burn. Set metadata and quantity directly in the Token class.
+            amount (Optional[Union[Ada, Lovelace]]): The amount of Ada to attach to the transaction.
+                If not provided, the minimum amount will be calculated automatically.
+            utxos (Optional[Union[UTxO, List[UTxO]]]): The UTxO(s) to use as inputs.
+                If not set, the wallet will be queried for the latest UTxO set.
+
+        Returns:
+            str: The transaction ID.
+        """
+
+        if amount and not issubclass(amount.__class__, Amount):
+            raise TypeError(
+                "Please provide amount as either `Ada(amount)` or `Lovelace(amount)`."
+            )
+            
+        if not amount:
+            # attach 1 ADA to burn transactions
+            amount = Ada(1)
+            
+        # streamline inputs, use either specific utxos or all wallet utxos
+        if utxos:
+            if isinstance(utxos, UTxO):
+                inputs = [utxos]
+        else:
+            inputs = [self]
+            
+        
+        if not isinstance(tokens, list):
+            tokens = [tokens]
+         
+        # set token values to negative   
+        for token in tokens:
+            token.amount = -abs(token.amount)
+
+        return self.transact(
+            inputs=inputs,
+            outputs=Output(self, amount, tokens=tokens),
+            mints=tokens,
+            **kwargs,
+        )
+
     def transact(
         self,
         inputs: Union[
