@@ -367,13 +367,13 @@ def test_tx_add_change_split_nfts(chain_context):
             # Change output
             [
                 sender_address.to_primitive(),
-                [1344798, {b"1111111111111111111111111111": {b"Token1": 1}}],
+                [1034400, {b"1111111111111111111111111111": {b"Token1": 1}}],
             ],
             # Second change output from split due to change size limit exceed
             # Fourth output as change
             [
                 sender_address.to_primitive(),
-                [2482969, {b"1111111111111111111111111111": {b"Token2": 2}}],
+                [2793367, {b"1111111111111111111111111111": {b"Token2": 2}}],
             ],
         ],
         2: 172233,
@@ -407,7 +407,7 @@ def test_tx_add_change_split_nfts_not_enough_add(chain_context):
     # Add sender address as input
     mint = {policy_id.payload: {b"Token3": 1}}
     tx_builder.add_input_address(sender).add_output(
-        TransactionOutput.from_primitive([sender, 7000000])
+        TransactionOutput.from_primitive([sender, 8000000])
     )
     tx_builder.mint = MultiAsset.from_primitive(mint)
     tx_builder.native_scripts = [script]

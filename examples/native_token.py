@@ -15,7 +15,9 @@ BLOCK_FROST_PROJECT_ID = "your_project_id"
 NETWORK = Network.TESTNET
 
 chain_context = BlockFrostChainContext(
-    project_id=BLOCK_FROST_PROJECT_ID, network=NETWORK
+    project_id=BLOCK_FROST_PROJECT_ID,
+    network=NETWORK,
+    base_url="https://cardano-preprod.blockfrost.io/api",
 )
 
 """Preparation"""
@@ -153,7 +155,9 @@ builder.native_scripts = native_scripts
 builder.auxiliary_data = auxiliary_data
 
 # Calculate the minimum amount of lovelace that need to hold the NFT we are going to mint
-min_val = min_lovelace_pre_alonzo(Value(0, my_nft), chain_context)
+min_val = min_lovelace(
+    chain_context, output=TransactionOutput(address, Value(0, my_nft))
+)
 
 # Send the NFT to our own address
 builder.add_output(TransactionOutput(address, Value(min_val, my_nft)))
