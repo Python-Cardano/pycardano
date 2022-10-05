@@ -359,7 +359,8 @@ class TransactionBuilder:
         scripts = {script_hash(s): s for s in self.all_scripts}
 
         for s in self._reference_scripts:
-            scripts.pop(script_hash(s))
+            if script_hash(s) in scripts:
+                scripts.pop(script_hash(s))
 
         return list(scripts.values())
 
