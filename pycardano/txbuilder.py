@@ -55,13 +55,7 @@ from pycardano.transaction import (
     Value,
     Withdrawals,
 )
-from pycardano.utils import (
-    fee,
-    max_tx_fee,
-    min_lovelace_post_alonzo,
-    min_lovelace_pre_alonzo,
-    script_data_hash,
-)
+from pycardano.utils import fee, max_tx_fee, min_lovelace_post_alonzo, script_data_hash
 from pycardano.witness import TransactionWitnessSet, VerificationKeyWitness
 
 __all__ = ["TransactionBuilder"]
@@ -436,10 +430,12 @@ class TransactionBuilder:
 
         # when there is only ADA left, simply use remaining coin value as change
         if not change.multi_asset:
-            if change.coin < min_lovelace_pre_alonzo(change, self.context):
+            if change.coin < min_lovelace_post_alonzo(
+                TransactionOutput(address, change), self.context
+            ):
                 raise InsufficientUTxOBalanceException(
                     f"Not enough ADA left for change: {change.coin} but needs "
-                    f"{min_lovelace_pre_alonzo(change, self.context)}"
+                    f"{min_lovelace_post_alonzo(TransactionOutput(address, change), self.context)}"
                 )
             lovelace_change = change.coin
             change_output_arr.append(TransactionOutput(address, lovelace_change))
@@ -456,8 +452,8 @@ class TransactionBuilder:
                 # Combine remainder of provided ADA with last MultiAsset for output
                 # There may be rare cases where adding ADA causes size exceeds limit
                 # We will revisit if it becomes an issue
-                if change.coin < min_lovelace_pre_alonzo(
-                    Value(0, multi_asset), self.context
+                if change.coin < min_lovelace_post_alonzo(
+                    TransactionOutput(address, Value(0, multi_asset)), self.context
                 ):
                     raise InsufficientUTxOBalanceException(
                         "Not enough ADA left to cover non-ADA assets in a change address"
@@ -468,8 +464,8 @@ class TransactionBuilder:
                     change_value = Value(change.coin, multi_asset)
                 else:
                     change_value = Value(0, multi_asset)
-                    change_value.coin = min_lovelace_pre_alonzo(
-                        change_value, self.context
+                    change_value.coin = min_lovelace_post_alonzo(
+                        TransactionOutput(address, change_value), self.context
                     )
 
                 change_output_arr.append(TransactionOutput(address, change_value))
@@ -560,7 +556,9 @@ class TransactionBuilder:
         attempt_amount = new_amount + current_amount
 
         # Calculate minimum ada requirements for more precise value size
-        required_lovelace = min_lovelace_pre_alonzo(attempt_amount, self.context)
+        required_lovelace = min_lovelace_post_alonzo(
+            TransactionOutput(output.address, attempt_amount), self.context
+        )
         attempt_amount.coin = required_lovelace
 
         return len(attempt_amount.to_cbor("bytes")) > max_val_size
@@ -617,7 +615,9 @@ class TransactionBuilder:
 
             # Calculate min lovelace required for more precise size
             updated_amount = deepcopy(output.amount)
-            required_lovelace = min_lovelace_pre_alonzo(updated_amount, self.context)
+            required_lovelace = min_lovelace_post_alonzo(
+                TransactionOutput(change_address, updated_amount), self.context
+            )
             updated_amount.coin = required_lovelace
 
             if len(updated_amount.to_cbor("bytes")) > max_val_size:
@@ -628,6 +628,9 @@ class TransactionBuilder:
         # Remove records where MultiAsset is null due to overflow of adding
         # items at the beginning of next policy to previous policy MultiAssets
         return multi_asset_arr
+
+    def _required_signer_vkey_hashes(self) -> Set[VerificationKeyHash]:
+        return set(self.required_signers) if self.required_signers else set()
 
     def _input_vkey_hashes(self) -> Set[VerificationKeyHash]:
         results = set()
@@ -747,6 +750,7 @@ class TransactionBuilder:
 
     def _build_fake_vkey_witnesses(self) -> List[VerificationKeyWitness]:
         vkey_hashes = self._input_vkey_hashes()
+        vkey_hashes.update(self._required_signer_vkey_hashes())
         vkey_hashes.update(self._native_scripts_vkey_hashes())
         vkey_hashes.update(self._certificate_vkey_hashes())
         vkey_hashes.update(self._withdrawal_vkey_hashes())
@@ -899,8 +903,11 @@ class TransactionBuilder:
                 unfulfilled_amount.coin = max(
                     0,
                     unfulfilled_amount.coin
-                    + min_lovelace_pre_alonzo(
-                        selected_amount - trimmed_selected_amount, self.context
+                    + min_lovelace_post_alonzo(
+                        TransactionOutput(
+                            change_address, selected_amount - trimmed_selected_amount
+                        ),
+                        self.context,
                     ),
                 )
         else:

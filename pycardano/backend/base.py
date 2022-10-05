@@ -9,7 +9,12 @@ from pycardano.network import Network
 from pycardano.plutus import ExecutionUnits
 from pycardano.transaction import UTxO
 
-__all__ = ["GenesisParameters", "ProtocolParameters", "ChainContext"]
+__all__ = [
+    "GenesisParameters",
+    "ProtocolParameters",
+    "ChainContext",
+    "ALONZO_COINS_PER_UTXO_WORD",
+]
 
 ALONZO_COINS_PER_UTXO_WORD = 34482
 

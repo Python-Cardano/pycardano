@@ -5,6 +5,7 @@ This module contains algorithms that select UTxOs from a parent list to satisfy 
 import random
 from typing import Iterable, List, Optional, Tuple
 
+from pycardano.address import Address
 from pycardano.backend.base import ChainContext
 from pycardano.exception import (
     InputUTxODepletedException,
@@ -13,9 +14,13 @@ from pycardano.exception import (
     UTxOSelectionException,
 )
 from pycardano.transaction import TransactionOutput, UTxO, Value
-from pycardano.utils import max_tx_fee, min_lovelace_pre_alonzo
+from pycardano.utils import max_tx_fee, min_lovelace_post_alonzo
 
 __all__ = ["UTxOSelector", "LargestFirstSelector", "RandomImproveMultiAsset"]
+
+_FAKE_ADDR = Address.from_primitive(
+    "addr1q8m9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwta8k2v59pcduem5uw253zwke30x9mwes62kfvqnzg38kuh6q966kg7"
+)
 
 
 class UTxOSelector:
@@ -75,9 +80,9 @@ class LargestFirstSelector(UTxOSelector):
         utxos: List[UTxO],
         outputs: List[TransactionOutput],
         context: ChainContext,
-        max_input_count: int = None,
-        include_max_fee: bool = True,
-        respect_min_utxo: bool = True,
+        max_input_count: Optional[int] = None,
+        include_max_fee: Optional[bool] = True,
+        respect_min_utxo: Optional[bool] = True,
     ) -> Tuple[List[UTxO], Value]:
 
         available: List[UTxO] = sorted(utxos, key=lambda utxo: utxo.output.lovelace)
@@ -103,7 +108,9 @@ class LargestFirstSelector(UTxOSelector):
 
         if respect_min_utxo:
             change = selected_amount - total_requested
-            min_change_amount = min_lovelace_pre_alonzo(change, context, False)
+            min_change_amount = min_lovelace_post_alonzo(
+                TransactionOutput(_FAKE_ADDR, change), context
+            )
 
             if change.coin < min_change_amount:
                 additional, _ = self.select(
@@ -307,7 +314,9 @@ class RandomImproveMultiAsset(UTxOSelector):
 
         if respect_min_utxo:
             change = selected_amount - request_sum
-            min_change_amount = min_lovelace_pre_alonzo(change, context, False)
+            min_change_amount = min_lovelace_post_alonzo(
+                TransactionOutput(_FAKE_ADDR, change), context
+            )
 
             if change.coin < min_change_amount:
                 additional, _ = self.select(
