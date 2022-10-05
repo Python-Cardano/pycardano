@@ -395,7 +395,7 @@ class TransactionBuilder:
             return None
 
     def _calc_change(
-        self, fees, inputs, outputs, address, precise_fee=False
+        self, fees, inputs, outputs, address, precise_fee=False, respect_min_utxo=True
     ) -> List[TransactionOutput]:
         requested = Value(fees)
         for o in outputs:
@@ -430,7 +430,7 @@ class TransactionBuilder:
 
         # when there is only ADA left, simply use remaining coin value as change
         if not change.multi_asset:
-            if change.coin < min_lovelace_post_alonzo(
+            if respect_min_utxo and change.coin < min_lovelace_post_alonzo(
                 TransactionOutput(address, change), self.context
             ):
                 raise InsufficientUTxOBalanceException(
@@ -452,7 +452,7 @@ class TransactionBuilder:
                 # Combine remainder of provided ADA with last MultiAsset for output
                 # There may be rare cases where adding ADA causes size exceeds limit
                 # We will revisit if it becomes an issue
-                if change.coin < min_lovelace_post_alonzo(
+                if respect_min_utxo and change.coin < min_lovelace_post_alonzo(
                     TransactionOutput(address, Value(0, multi_asset)), self.context
                 ):
                     raise InsufficientUTxOBalanceException(
@@ -507,7 +507,12 @@ class TransactionBuilder:
             # Set fee to max
             self.fee = self._estimate_fee()
             changes = self._calc_change(
-                self.fee, self.inputs, self.outputs, change_address, precise_fee=True
+                self.fee,
+                self.inputs,
+                self.outputs,
+                change_address,
+                precise_fee=True,
+                respect_min_utxo=not merge_change,
             )
 
             _merge_changes(changes)
@@ -518,7 +523,12 @@ class TransactionBuilder:
         if change_address:
             self._outputs = original_outputs
             changes = self._calc_change(
-                self.fee, self.inputs, self.outputs, change_address, precise_fee=True
+                self.fee,
+                self.inputs,
+                self.outputs,
+                change_address,
+                precise_fee=True,
+                respect_min_utxo=not merge_change,
             )
 
             _merge_changes(changes)

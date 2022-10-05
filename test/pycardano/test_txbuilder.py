@@ -1175,6 +1175,33 @@ def test_tx_builder_merge_change_to_zero_amount_output(chain_context):
     assert expected == tx_body.to_primitive()
 
 
+def test_tx_builder_merge_change_smaller_than_min_utxo(chain_context):
+    tx_builder = TransactionBuilder(chain_context)
+    sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    sender_address = Address.from_primitive(sender)
+
+    input_amount = 10000000
+
+    tx_in1 = TransactionInput.from_primitive([b"1" * 32, 3])
+    tx_out1 = TransactionOutput.from_primitive([sender, input_amount])
+    utxo1 = UTxO(tx_in1, tx_out1)
+
+    tx_builder.add_input(utxo1)
+    tx_builder.add_output(TransactionOutput.from_primitive([sender, 9800000]))
+
+    tx_body = tx_builder.build(change_address=sender_address, merge_change=True)
+
+    expected = {
+        0: [[b"11111111111111111111111111111111", 3]],
+        1: [
+            [sender_address.to_primitive(), 9836215],
+        ],
+        2: 163785,
+    }
+
+    assert expected == tx_body.to_primitive()
+
+
 def test_tx_builder_small_utxo_input(chain_context):
     with patch.object(chain_context, "utxos") as mock_utxos:
         mock_utxos.return_value = [
