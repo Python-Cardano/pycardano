@@ -474,38 +474,26 @@ class HDWallet:
     @property
     def root_xprivate_key(self):
         return self._root_xprivate_key
-        # return None if not self._root_xprivate_key else self._root_xprivate_key.hex()
 
     @property
     def root_public_key(self):
         return self._root_public_key
-        # return None if not self._root_public_key else self._root_public_key.hex()
 
     @property
     def root_chain_code(self):
         return self._root_chain_code
-        # return None if not self._root_chain_code else self._root_chain_code.hex()
 
     @property
     def xprivate_key(self):
         return self._xprivate_key
-        # return None if not self._xprivate_key else self._xprivate_key.hex()
 
     @property
     def public_key(self):
         return self._public_key
-        # return None if not self._public_key else self._public_key.hex()
 
     @property
     def chain_code(self):
         return self._chain_code
-        # return None if not self._chain_code else self._chain_code.hex()
-
-    # def to_extended_signing_key(self) -> BIP32ED25519PrivateKey:
-    #     """
-    #     Generate a extended signing key to sign transactions
-    #     """
-    #     return BIP32ED25519PrivateKey(self._xprivate_key, self._chain_code)
 
     @staticmethod
     def generate_mnemonic(language: str = "english", strength: int = 256) -> str:
