@@ -10,7 +10,7 @@ from nacl.hash import blake2b
 from nacl.public import PrivateKey
 from nacl.signing import SigningKey as NACLSigningKey
 
-from pycardano.crypto.bip32 import BIP32ED25519PrivateKey
+from pycardano.crypto.bip32 import BIP32ED25519PrivateKey, HDWallet
 from pycardano.exception import InvalidKeyTypeException
 from pycardano.hash import VERIFICATION_KEY_HASH_SIZE, VerificationKeyHash
 from pycardano.serialization import CBORSerializable
@@ -183,6 +183,19 @@ class ExtendedSigningKey(Key):
             self.payload[64:],
             self.key_type.replace("Signing", "Verification"),
             self.description.replace("Signing", "Verification"),
+        )
+
+    @classmethod
+    def from_hdwallet(cls, hdwallet: HDWallet) -> ExtendedSigningKey:
+        if hdwallet.xprivate_key is None or hdwallet.chain_code is None:
+            raise InvalidKeyTypeException(
+                "The hdwallet doesn't contain extended private key or chain code info."
+            )
+
+        return Key(
+            payload=hdwallet.xprivate_key + hdwallet.public_key + hdwallet.chain_code,
+            type="PaymentExtendedSigningKeyShelley_ed25519_bip32",
+            description="Payment Signing Key",
         )
 
 
