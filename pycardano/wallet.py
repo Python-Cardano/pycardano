@@ -1237,6 +1237,8 @@ class Wallet:
         if utxos:
             if isinstance(utxos, UTxO):
                 inputs = [utxos]
+            else:
+                inputs = utxos
         else:
             inputs = [self]
 
@@ -1282,6 +1284,8 @@ class Wallet:
         if utxos:
             if isinstance(utxos, UTxO):
                 inputs = [utxos]
+            else:
+                inputs = utxos
         else:
             inputs = [self]
 
