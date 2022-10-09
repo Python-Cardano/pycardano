@@ -582,12 +582,6 @@ class Token:
 
         """
 
-        if not isinstance(context, BlockFrostChainContext):
-            logger.warn(
-                "Getting on-chain metadata is is only possible with Blockfrost Chain Context."
-            )
-            return {}
-
         try:
             metadata = context.api.asset(
                 self.policy.id + self.hex_name
@@ -1747,23 +1741,17 @@ def get_stake_info(stake_address: Union[str, Address], context: ChainContext) ->
     Returns:
         dict: Info regarding the given stake address.
     """
-    if isinstance(context, BlockFrostChainContext):
 
-        if isinstance(stake_address, str):
-            stake_address = Address.from_primitive(stake_address)
+    if isinstance(stake_address, str):
+        stake_address = Address.from_primitive(stake_address)
 
-        if not stake_address.staking_part:
-            raise TypeError(f"Address {stake_address} has no staking part.")
+    if not stake_address.staking_part:
+        raise TypeError(f"Address {stake_address} has no staking part.")
 
-        try:
-            return context.api.accounts(str(stake_address)).to_dict()
-        except ApiError:
-            return {}
-
-    else:
-        logger.warn(
-            "Retrieving stake address information is only possible with Blockfrost Chain Context."
-        )
+    try:
+        return context.api.accounts(str(stake_address)).to_dict()
+    except ApiError:
+        return {}
 
 
 def get_stake_address(address: Union[str, Address]) -> Address:
@@ -1936,11 +1924,6 @@ def wait_for_confirmation(
     Returns:
         bool: Whether the transaction has been confirmed.
     """
-    if not isinstance(context, BlockFrostChainContext):
-        logger.warn(
-            "Confirming transactions is is only possible with Blockfrost Chain Context."
-        )
-        return
 
     confirmed = False
     while not confirmed:
