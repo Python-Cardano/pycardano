@@ -15,21 +15,23 @@ Note: If you plan to use Blockfrost as your chain context, you can set the follo
 
 from datetime import datetime
 from multiprocessing import pool
+
 from pycardano import *
-from pycardano.wallet import Output, Wallet, Ada, TokenPolicy, Token
+from pycardano.wallet import Ada, Output, Token, TokenPolicy, Wallet
 
 """Create a new wallet"""
 # Make sure to provide a name so you can easily load it later
 # this will save the keys to ./keys/my_wallet.*
 # payment and staking keys will be automatically generated, or loaded a wallet of the given name already exists
-w = Wallet(name="my_wallet")   # set the parameter `network` to mainnet, preprod, or preview
+w = Wallet(
+    name="my_wallet"
+)  # set the parameter `network` to mainnet, preprod, or preview
 
 
-
-w.query_utxos()  # query the wallet for its balance
+w.sync()  # query the wallet for its balance
 
 w.utxos  # list of wallets UTXOs
-w.ada    # view total amount of ADA
+w.ada  # view total amount of ADA
 w.lovelace  # view total amount of lovelace
 w.tokens  # get a list of all tokens in the wallet
 
@@ -43,7 +45,9 @@ tx_id = w.send_ada(receiver, Ada(2))  # send 2 ADA to the receiver
 
 """Sending an entire UTxO"""
 # useful if you have to send a refund, for example
-tx_id = w.send_utxo(receiver, w.utxos[0])  # send the first UTXO in the wallet to the receiver
+tx_id = w.send_utxo(
+    receiver, w.utxos[0]
+)  # send the first UTXO in the wallet to the receiver
 
 
 """Empty an entire wallet"""
@@ -53,7 +57,9 @@ tx_id = w.empty_wallet(receiver)
 
 """Sign data"""
 # can sign a message with either the payment or stake keys
-signed_message = w.sign_data("Hello world!", mode="payment")  # default mode is "payment"
+signed_message = w.sign_data(
+    "Hello world!", mode="payment"
+)  # default mode is "payment"
 
 
 """Mint a token"""
@@ -64,7 +70,7 @@ my_policy = TokenPolicy(name="my_policy")  # give it a descriptive name
 # generate a locking policy with expiration
 # note: the actual policy locking time might be slightly off from the datetime provided
 # this will save a file to ./policy/my_policy.policy
-my_policy.generate_minting_policy(signers=w, expiration=datetime(2025, 5, 12, 12, 0, 0)) 
+my_policy.generate_minting_policy(signers=w, expiration=datetime(2025, 5, 12, 12, 0, 0))
 
 # create a token with metadata
 metadata = {
@@ -97,7 +103,7 @@ tx_id = w.burn_tokens(my_nft)
 # Method 2
 # this method might be relevant in case you want to mint and burn multiple tokens in one transaction
 # set amount to negative integer to burn
-my_nft = Token(policy=my_policy, amount=-1, name="MY_NFT_1")  
+my_nft = Token(policy=my_policy, amount=-1, name="MY_NFT_1")
 
 # then use the mint_tokens method
 tx_id = w.mint_tokens(
@@ -115,7 +121,7 @@ tx_id = w.delegate(pool_hash)
 
 """Withdraw staking rewards"""
 # withdraws all rewards by default, otherwise set `withdraw_amount` to a specific quantity
-tx_id = w.withdraw()  
+tx_id = w.withdraw()
 
 """Fully Manual Transaction"""
 # Let's make a monster transaction with all the bells and whistles
@@ -124,24 +130,29 @@ tx_id = w.withdraw()
 #       e.g. `change_address`, `signers`, `message`, `await_confirmation`, etc.
 
 my_nft = Token(policy=my_policy, amount=1, name="MY_NFT_1", metadata=metadata)
-your_nft = Token(policy=my_policy, amount=1, name="YOUR_NFT_1", metadata={"Name": "Your NFT"})
+your_nft = Token(
+    policy=my_policy, amount=1, name="YOUR_NFT_1", metadata={"Name": "Your NFT"}
+)
 
 
 tx_id = w.transact(
-    inputs=w,                                 # use all UTXOs in the wallet, can also specify unique UTxOs or addresses
+    inputs=w,  # use all UTXOs in the wallet, can also specify unique UTxOs or addresses
     outputs=[
-        Output(w, Ada(0), [my_nft]),          # mint an NFT to myself, setting Ada(0) will automatically calculate the minimum amount of ADA needed
+        Output(
+            w, Ada(0), [my_nft]
+        ),  # mint an NFT to myself, setting Ada(0) will automatically calculate the minimum amount of ADA needed
         Output(receiver, Ada(10), [my_nft]),  # send 10 ADA and an NFT to the receiver
     ],
-    mints=[my_nft, your_nft],                 # must list all mints/burns here, even if they are sent to yourself
+    mints=[
+        my_nft,
+        your_nft,
+    ],  # must list all mints/burns here, even if they are sent to yourself
     # signers = [w, other_w],                 # if you want to sign with multiple wallets or keys, specify them here
-    delegations=pool_hash,                    # delegate to a pool
-    withdrawals=Ada(2),                       # withdraw 2 ADA
+    delegations=pool_hash,  # delegate to a pool
+    withdrawals=Ada(2),  # withdraw 2 ADA
     # change_address=w,                       # specify a change address, will default to itself if not specified
-    message="I love PyCardano",               # attach a message to the transaction metadata [CIP-0020]
-    other_metadata={                          # attach any other metadata
-        "247": {"random": "metadata"}
-    },
+    message="I love PyCardano",  # attach a message to the transaction metadata [CIP-0020]
+    other_metadata={"247": {"random": "metadata"}},  # attach any other metadata
     # submit=True                             # set to False to return the transaction body as CBOR
-    await_confirmation=True,                  # set to True to block the code and periodically check until the transaction is confirmed
+    await_confirmation=True,  # set to True to block the code and periodically check until the transaction is confirmed
 )
