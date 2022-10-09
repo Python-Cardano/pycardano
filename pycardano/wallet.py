@@ -948,7 +948,7 @@ class Wallet:
         self._token_dict = tokens
         self._token_list = token_list
 
-    def query_utxos(self, context: Optional[ChainContext] = None):
+    def sync(self, context: Optional[ChainContext] = None):
         """Query the blockchain for all UTxOs associated with this wallet.
 
         Args:
