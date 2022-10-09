@@ -1688,8 +1688,8 @@ class Wallet:
         context.submit_tx(signed_tx.to_cbor())
 
         if await_confirmation:
-            confirmed = wait_for_confirmation(str(signed_tx.id), self.context)
-            self.query_utxos()
+            _ = wait_for_confirmation(str(signed_tx.id), self.context)
+            self.sync()
 
         return str(signed_tx.id)
 
