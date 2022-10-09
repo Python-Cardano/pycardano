@@ -1192,7 +1192,7 @@ class Wallet:
             **kwargs,
         )
 
-    def withdraw(
+    def withdraw_rewards(
         self,
         withdrawal_amount: Optional[Union[Ada, Lovelace]] = None,
         output_amount: Optional[Union[Ada, Lovelace]] = Lovelace(1000000),
