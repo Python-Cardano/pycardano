@@ -47,8 +47,6 @@ from pycardano.transaction import (
 from pycardano.txbuilder import TransactionBuilder
 from pycardano.utils import min_lovelace
 
-# set logging level to info
-logger.setLevel(logging.INFO)
 
 # function wrappers
 def blockfrost_only(func):
