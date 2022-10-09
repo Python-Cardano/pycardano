@@ -1893,16 +1893,14 @@ def confirm_tx(tx_id: Union[str, TransactionId], context: ChainContext) -> bool:
     Returns:
         bool: Whether the transaction has been included in a block.
     """
-    if isinstance(context, BlockFrostChainContext):
 
-        try:
-            transaction_info = context.api.transaction(str(tx_id))
-            confirmed = True
-        except ApiError:
-            confirmed = False
-            transaction_info = {}
+    try:
+        _ = context.api.transaction(str(tx_id))
+        confirmed = True
+    except ApiError:
+        confirmed = False
 
-        return confirmed
+    return confirmed
 
 
 @blockfrost_only
