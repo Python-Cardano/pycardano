@@ -473,17 +473,6 @@ def test_add_script_input(chain_context):
     assert [datum] == witness.plutus_data
     assert [redeemer1, redeemer2] == witness.redeemer
     assert [plutus_script] == witness.plutus_v1_script
-    assert (
-        "a6008282582018cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad21431590f7e6643438"
-        "ef0082582018cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad21431590f7e6643438ef"
-        "01018282581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f41a00"
-        "4c4b4082581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f4821a"
-        "00e06beba1581c876f19078b059c928258d848c8cd871864d281eb6776ed7f80b68536a149"
-        "54657374546f6b656e02021a000475d509a1581c876f19078b059c928258d848c8cd871864"
-        "d281eb6776ed7f80b68536a14954657374546f6b656e010b5820c0978261d9818d92926eb0"
-        "31d38d141f513a05478d697555f32edf6443ebeb080d818258203131313131313131313131"
-        "31313131313131313131313131313131313131313100" == tx_body.to_cbor()
-    )
 
 
 def test_add_script_input_no_script(chain_context):
@@ -514,16 +503,6 @@ def test_add_script_input_no_script(chain_context):
     assert [datum] == witness.plutus_data
     assert [redeemer] == witness.redeemer
     assert witness.plutus_v1_script is None
-    assert (
-        "a6008182582018cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad21431590f"
-        "7e6643438ef00018282581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2a"
-        "c960262444f6e5f41a004c4b4082581d60f6532850e1bccee9c72a9113ad98bcc"
-        "5dbb30d2ac960262444f6e5f41a0048cc3b021a00037f050b5820032d812ee073"
-        "1af78fe4ec67e4d30d16313c09e6fb675af28f825797e8b5621d0d81825820313"
-        "13131313131313131313131313131313131313131313131313131313131310012"
-        "8182582018cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad21431590f7e66"
-        "43438ef00" == tx_body.to_cbor()
-    )
 
 
 def test_add_script_input_find_script(chain_context):
@@ -569,16 +548,6 @@ def test_add_script_input_find_script(chain_context):
         assert [redeemer] == witness.redeemer
         assert witness.plutus_v1_script is None
         assert [existing_script_utxo.input] == tx_body.reference_inputs
-        assert (
-            "a6008182582018cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad2143159"
-            "0f7e6643438ef00018282581d60f6532850e1bccee9c72a9113ad98bcc5dbb3"
-            "0d2ac960262444f6e5f41a004c4b4082581d60f6532850e1bccee9c72a9113a"
-            "d98bcc5dbb30d2ac960262444f6e5f41a0048cc3b021a00037f050b5820032d"
-            "812ee0731af78fe4ec67e4d30d16313c09e6fb675af28f825797e8b5621d0d8"
-            "182582031313131313131313131313131313131313131313131313131313131"
-            "3131313100128182582041cb004bec7051621b19b46aea28f0657a586a05ce2"
-            "013152ea9b9f1a5614cc701" == tx_body.to_cbor()
-        )
 
 
 def test_add_script_input_with_script_from_specified_utxo(chain_context):
@@ -620,15 +589,6 @@ def test_add_script_input_with_script_from_specified_utxo(chain_context):
     assert [redeemer] == witness.redeemer
     assert witness.plutus_v2_script is None
     assert [existing_script_utxo.input] == tx_body.reference_inputs
-    assert (
-        "a6008182582018cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad21431590f7e6643438"
-        "ef00018282581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f41a"
-        "004c4b4082581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f41a"
-        "0048cc3b021a00037f050b58203dde0555ddcbc6ae54f5b3c72c0d1f84dfcd22fa758f64bd"
-        "2122885c4c5f8ed20d81825820313131313131313131313131313131313131313131313131"
-        "313131313131313100128182582041cb004bec7051621b19b46aea28f0657a586a05ce2013"
-        "152ea9b9f1a5614cc701" == tx_body.to_cbor()
-    )
 
 
 def test_add_minting_script_from_specified_utxo(chain_context):
@@ -667,19 +627,6 @@ def test_add_minting_script_from_specified_utxo(chain_context):
     assert [redeemer] == witness.redeemer
     assert witness.plutus_v2_script is None
     assert [existing_script_utxo.input] == tx_body.reference_inputs
-    assert (
-        "a700828258203131313131313131313131313131313131313131313131313131313131313131"
-        "0082582032323232323232323232323232323232323232323232323232323232323232320101"
-        "8282581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f41a004c4b40"
-        "82581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f4821a0057f1f3"
-        "a2581c31313131313131313131313131313131313131313131313131313131a246546f6b656e"
-        "310146546f6b656e3202581c669ce610ef17d3ac9f5663f0748381120376e72b031e002db95a"
-        "3981a14954657374546f6b656e01021a00039b8d09a1581c669ce610ef17d3ac9f5663f07483"
-        "81120376e72b031e002db95a3981a14954657374546f6b656e010b5820cb8b108226416e0c75"
-        "46b09bdee0726dfcd07827a0a6c9c98dac7f02d7d3382f0d8182582031313131313131313131"
-        "3131313131313131313131313131313131313131313100128182582041cb004bec7051621b19"
-        "b46aea28f0657a586a05ce2013152ea9b9f1a5614cc701" == tx_body.to_cbor()
-    )
 
 
 def test_collateral_return(chain_context):
@@ -814,16 +761,6 @@ def test_add_minting_script(chain_context):
     tx_body = tx_builder.build(change_address=receiver)
     witness = tx_builder.build_witness_set()
     assert [plutus_script] == witness.plutus_v1_script
-    assert (
-        "a6008182582018cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad21431590f7e6643438ef"
-        "00018282581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f4821a00"
-        "4c4b40a1581c876f19078b059c928258d848c8cd871864d281eb6776ed7f80b68536a1495465"
-        "7374546f6b656e0182581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6"
-        "e5f41a0048c10f021a00038a3109a1581c876f19078b059c928258d848c8cd871864d281eb67"
-        "76ed7f80b68536a14954657374546f6b656e010b58205fcf68adc7eb6e507d15fb07d1c4e39d"
-        "908bc9dfe642368afcddd881c5d465170d818258203131313131313131313131313131313131"
-        "31313131313131313131313131313100" == tx_body.to_cbor()
-    )
 
 
 def test_add_minting_script_wrong_redeemer_type(chain_context):
@@ -929,16 +866,6 @@ def test_estimate_execution_unit(chain_context):
     assert [redeemer1] == witness.redeemer
     assert redeemer1.ex_units is not None
     assert [plutus_script] == witness.plutus_v1_script
-    assert (
-        "a6008182582018cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad21431590f7e6643438ef"
-        "00018282581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f41a004c"
-        "4b4082581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f4821a0048"
-        "fa42a1581c876f19078b059c928258d848c8cd871864d281eb6776ed7f80b68536a149546573"
-        "74546f6b656e01021a000350fe09a1581c876f19078b059c928258d848c8cd871864d281eb67"
-        "76ed7f80b68536a14954657374546f6b656e010b58206b5664c6f79646f2a4c17bdc1ecb6f6b"
-        "f540db5c82dfa0a9d806c435398756fa0d818258203131313131313131313131313131313131"
-        "31313131313131313131313131313100" == tx_body.to_cbor()
-    )
 
 
 def test_tx_builder_exact_fee_no_change(chain_context):

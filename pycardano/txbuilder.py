@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from copy import copy, deepcopy
+from copy import deepcopy
 from dataclasses import dataclass, field, fields
 from typing import Dict, List, Optional, Set, Tuple, Union
 
@@ -865,7 +865,9 @@ class TransactionBuilder:
         Returns:
             TransactionBody: A transaction body.
         """
-        self._update_execution_units()
+        self._update_execution_units(
+            change_address, merge_change, collateral_change_address
+        )
         self._ensure_no_input_exclusion_conflict()
         selected_utxos = []
         selected_amount = Value()
@@ -1020,7 +1022,7 @@ class TransactionBuilder:
         ):
             return
 
-        if not collateral_return_address or self._should_estimate_execution_units:
+        if not collateral_return_address:
             return
 
         collateral_amount = (
@@ -1045,15 +1047,15 @@ class TransactionBuilder:
                         cur_total += candidate.output.amount
 
             sorted_inputs = sorted(
-                self.inputs.copy(), key=lambda i: i.output.amount, reverse=True
+                self.inputs.copy(),
+                key=lambda i: (len(i.output.to_cbor()), -i.output.amount.coin),
             )
             _add_collateral_input(tmp_val, sorted_inputs)
 
             if tmp_val.coin < collateral_amount:
                 sorted_inputs = sorted(
                     self.context.utxos(str(collateral_return_address)),
-                    key=lambda i: i.output.amount,
-                    reverse=True,
+                    key=lambda i: (len(i.output.to_cbor()), -i.output.amount.coin),
                 )
                 _add_collateral_input(tmp_val, sorted_inputs)
 
@@ -1062,33 +1064,38 @@ class TransactionBuilder:
         for utxo in self.collaterals:
             total_input += utxo.output.amount
 
-        # TODO: Remove this check when we are in Vasil era
-        if total_input.multi_asset:
-            if collateral_amount > total_input.coin:
+        if collateral_amount > total_input.coin:
+            raise ValueError(
+                f"Minimum collateral amount {collateral_amount} is greater than total "
+                f"provided collateral inputs {total_input}"
+            )
+        else:
+            return_amount = total_input - collateral_amount
+            min_lovelace_val = min_lovelace_post_alonzo(
+                TransactionOutput(collateral_return_address, return_amount),
+                self.context,
+            )
+            if min_lovelace_val > return_amount.coin:
                 raise ValueError(
-                    f"Minimum collateral amount {collateral_amount} is greater than total "
-                    f"provided collateral inputs {total_input}"
+                    f"Minimum lovelace amount for collateral return {min_lovelace_val} is "
+                    f"greater than collateral change {return_amount.coin}. Please provide more collateral inputs."
                 )
             else:
-                return_amount = total_input - collateral_amount
-                min_lovelace_val = min_lovelace_post_alonzo(
-                    TransactionOutput(collateral_return_address, return_amount),
-                    self.context,
+                self._collateral_return = TransactionOutput(
+                    collateral_return_address, total_input - collateral_amount
                 )
-                if min_lovelace_val > return_amount.coin:
-                    raise ValueError(
-                        f"Minimum lovelace amount for collateral return {min_lovelace_val} is "
-                        f"greater than collateral change {return_amount.coin}. Please provide more collateral inputs."
-                    )
-                else:
-                    self._collateral_return = TransactionOutput(
-                        collateral_return_address, total_input - collateral_amount
-                    )
-                    self._total_collateral = collateral_amount
+                self._total_collateral = collateral_amount
 
-    def _update_execution_units(self):
+    def _update_execution_units(
+        self,
+        change_address: Optional[Address] = None,
+        merge_change: bool = False,
+        collateral_change_address: Optional[Address] = None,
+    ):
         if self._should_estimate_execution_units:
-            estimated_execution_units = self._estimate_execution_units()
+            estimated_execution_units = self._estimate_execution_units(
+                change_address, merge_change, collateral_change_address
+            )
             for r in self.redeemers:
                 key = f"{r.tag.name.lower()}:{r.index}"
                 if key not in estimated_execution_units:
@@ -1107,15 +1114,19 @@ class TransactionBuilder:
     def _estimate_execution_units(
         self,
         change_address: Optional[Address] = None,
+        merge_change: bool = False,
+        collateral_change_address: Optional[Address] = None,
     ):
-        # Create a shallow copy of current builder, so we won't mess up current builder's internal states
+        # Create a deep copy of current builder, so we won't mess up current builder's internal states
         tmp_builder = TransactionBuilder(self.context)
         for f in fields(self):
             if f.name not in ("context",):
-                setattr(tmp_builder, f.name, copy(getattr(self, f.name)))
+                setattr(tmp_builder, f.name, deepcopy(getattr(self, f.name)))
         tmp_builder._should_estimate_execution_units = False
         self._should_estimate_execution_units = False
-        tx_body = tmp_builder.build(change_address)
+        tx_body = tmp_builder.build(
+            change_address, merge_change, collateral_change_address
+        )
         witness_set = tmp_builder._build_fake_witness_set()
         tx = Transaction(
             tx_body, witness_set, auxiliary_data=tmp_builder.auxiliary_data
@@ -1128,6 +1139,7 @@ class TransactionBuilder:
         signing_keys: List[Union[SigningKey, ExtendedSigningKey]],
         change_address: Optional[Address] = None,
         merge_change: Optional[bool] = False,
+        collateral_change_address: Optional[Address] = None,
     ) -> Transaction:
         """Build a transaction body from all constraints set through the builder and sign the transaction with
         provided signing keys.
@@ -1139,12 +1151,17 @@ class TransactionBuilder:
                 transaction body will likely be unbalanced (sum of inputs is greater than the sum of outputs).
             merge_change (Optional[bool]): If the change address match one of the transaction output, the change amount
                 will be directly added to that transaction output, instead of being added as a separate output.
+            collateral_change_address (Optional[Address]): Address to which collateral changes will be returned.
 
         Returns:
             Transaction: A signed transaction.
         """
 
-        tx_body = self.build(change_address=change_address, merge_change=merge_change)
+        tx_body = self.build(
+            change_address=change_address,
+            merge_change=merge_change,
+            collateral_change_address=collateral_change_address,
+        )
         witness_set = self.build_witness_set()
         witness_set.vkey_witnesses = []
 
