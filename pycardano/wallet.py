@@ -64,22 +64,25 @@ def blockfrost_only(func):
             )
 
     return wrapper
+
+
+@dataclass(frozen=True)
 class Amount:
     """Base class for Cardano currency amounts."""
 
-    def __init__(self, amount: Union[float, int] = 0, amount_type="lovelace"):
+    _amount: Union[float, int]
+    _amount_type: str = "lovelace"
 
-        self._amount = amount
-        self._amount_type = amount_type
+    def __post_init__(self):
 
         if self._amount_type == "lovelace":
-            self.lovelace = int(self._amount)
-            self.ada = self._amount / 1000000
+            self._lovelace = int(self._amount)
+            self._ada = self._amount / 1000000
         else:
-            self.lovelace = int(self._amount * 1000000)
-            self.ada = self._amount
+            self._lovelace = int(self._amount * 1000000)
+            self._ada = self._amount
 
-        self._amount_dict = {"lovelace": self.lovelace, "ada": self.ada}
+        self._amount_dict = {"lovelace": self._lovelace, "ada": self._ada}
 
     @property
     def amount(self):
@@ -89,6 +92,16 @@ class Amount:
             return self.lovelace
         else:
             return self.ada
+
+    @property
+    def lovelace(self):
+        """Returns the lovelace amount"""
+        return self._lovelace
+
+    @property
+    def ada(self):
+        """Returns the ada amount"""
+        return self._ada
 
     def __eq__(self, other):
         if isinstance(other, (int, float)):
