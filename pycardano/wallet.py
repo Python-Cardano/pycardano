@@ -1719,10 +1719,9 @@ def get_utxo_block_time(utxo: UTxO, context: ChainContext) -> int:
         int: The block time at which the UTxO was created.
 
     """
-    if isinstance(context, BlockFrostChainContext):
-        block_time = context.api.transaction(str(utxo.input.transaction_id)).block_time
+    block_time = context.api.transaction(str(utxo.input.transaction_id)).block_time
 
-        return block_time
+    return block_time
 
 
 @blockfrost_only
