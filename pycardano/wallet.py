@@ -1,7 +1,5 @@
-from dataclasses import dataclass, field
 import datetime
 import json
-import logging
 import operator
 from dataclasses import dataclass, field
 from functools import wraps
@@ -620,7 +618,8 @@ class Output:
             and not isinstance(self.amount, int)
         ):
             raise TypeError(
-                "Please provide amount as either `Ada(amount)` or `Lovelace(amount)`. Otherwise provide lovelace as an integer."
+                "Please provide amount as either `Ada(amount)` or `Lovelace(amount)`.",
+                "Otherwise provide lovelace as an integer.",
             )
 
         if isinstance(self.amount, int):
@@ -679,7 +678,8 @@ class Wallet:
         name (str): The name of the wallet. This is required and keys will be
             automatically generated and saved with this name. If the wallet already exists in keys_dir,
             it will be loaded automatically.
-        address (Optional[Union[Address, str]]): Optionally provide an address to use a wallet without signing capabilities.
+        address (Optional[Union[Address, str]]): Optionally provide an address to use as a wallet
+            without signing capabilities.
         keys_dir (Optional[Union[str, Path]]): Directory in which to save the keys. Defaults to "./priv".
         use_stake (Optional[bool]): Whether to use a stake address for this wallet. Defaults to True.
         network (Optional[str, Network]): The network to use for the wallet.
@@ -1047,7 +1047,8 @@ class Wallet:
                 At the moment, Eternl currently does not attach the COSE key, while Nami does.
 
         Returns:
-            Union[str, dict]: The signature. If attach_cose_key is True, the signature is a dictionary with the signature and the COSE key.
+            Union[str, dict]: The signature. If attach_cose_key is True,
+                the signature is a dictionary with the signature and the COSE key.
         """
 
         if mode == "payment":
@@ -1231,12 +1232,15 @@ class Wallet:
         utxos: Optional[Union[UTxO, List[UTxO]]] = None,
         **kwargs,
     ):
-        """Mints (or burns) tokens of a policy owned by a user wallet. To attach metadata, set it in Token class directly.
-        Burn tokens by setting Token class amount to a negative value.
+        """Mints (or burns) tokens of a policy owned by a user wallet. To attach metadata,
+        set it in Token class directly.
+
+        Burn tokens by setting Token class amount to a negative value or using burn_tokens directly.
 
         Args:
             to (Union[str, Address]): The address to which to send the newly minted tokens.
-            mints (Union[Token, List[Token]]): The token(s) to mint/burn. Set metadata and quantity directly in the Token class.
+            mints (Union[Token, List[Token]]): The token(s) to mint/burn.
+                Set metadata and quantity directly in the Token class.
             amount (Optional[Union[Ada, Lovelace]]): The amount of Ada to attach to the transaction.
                 If not set, the minimum amount will be calculated automatically.
             utxos (Optional[Union[UTxO, List[UTxO]]]): The UTxO(s) to use as inputs.
@@ -1282,7 +1286,8 @@ class Wallet:
 
         Args:
             to (Union[str, Address]): The address to which to send the newly minted tokens.
-            mints (Union[Token, List[Token]]): The token(s) to mint/burn. Set metadata and quantity directly in the Token class.
+            mints (Union[Token, List[Token]]): The token(s) to mint/burn.
+                Set metadata and quantity directly in the Token class.
             amount (Optional[Union[Ada, Lovelace]]): The amount of Ada to attach to the transaction.
                 If not provided, the minimum amount will be calculated automatically.
             utxos (Optional[Union[UTxO, List[UTxO]]]): The UTxO(s) to use as inputs.
@@ -1360,20 +1365,24 @@ class Wallet:
         Construct fully manual transactions.
 
         Args:
-            inputs (Union[Wallet, Address, UTxO, str, List[Wallet], List[Address], List[UTxO], List[str]]): Inputs to the transaction.
-                If wallets or addresses are provided, they will be queried for UTxOs.
+            inputs (Union[Wallet, Address, UTxO, str, List[Wallet], List[Address], List[UTxO], List[str]]):
+                Inputs to the transaction. If wallets or addresses are provided, they will be queried for UTxOs.
             outputs (Union[Output, List[Output]]): Outputs of the transaction using the Output class.
                 Can specify any number of recipients, ADA amounts, and native tokens.
             mints (Union[Token, List[Token]]): The token(s) to mint/burn. Set metadata and quantity here.
-            signers (Union[Wallet, List[Wallet], SigningKey, List[SigningKey]]): The wallets or keys with which to sign the transaction.
-            stake_registration (Union[bool, Wallet, Address, str, List[Address], List["Wallet"], List[str]]): Wallets or addresses to register.
+            signers (Union[Wallet, List[Wallet], SigningKey, List[SigningKey]]): The wallets
+                or keys with which to sign the transaction.
+            stake_registration (Union[bool, Wallet, Address, str, List[Address], List["Wallet"], List[str]]):
+                Wallets or addresses to register.
             delegations (Union[str, dict, PoolKeyHash]): The hash of the pool to delegate to.
                 To delegate to multiple wallets, provide a dict of the form {wallet/address: PoolHash}.
-            withdrawals (Union[bool, dict]): Set the rewards to withdraw. Set to True to withdraw all rewards from the current wallet.
-                To withdraw a specific amount from one or more wallets, provide a dict of {wallet/address: Amount}, where Amount is an amount of
-                Lovelace(), Ada(). Use True or "all" to withdraw all available rewards from each specified wallet.
+            withdrawals (Union[bool, dict]): Set the rewards to withdraw. Set to True to withdraw
+                all rewards from the current wallet. To withdraw a specific amount from one or more wallets,
+                provide a dict of {wallet/address: Amount}, where Amount is an amount of Lovelace(), Ada().
+                Use True or "all" to withdraw all available rewards from each specified wallet.
             change_address (Union["Wallet", Address, str]): The wallet or address to send change to.
-            merge_change (bool): Whether to merge change into any Output whose address matches the change_address. True by default.
+            merge_change (bool): Whether to merge change into any Output whose address matches the change_address.
+                True by default.
             message (Union[str, List[str]]): A message to include in the transaction.
             other_metadata (dict): Any other metadata to include in the transaction.
             submit (bool): Whether to submit the transaction to the network. Defaults to True.
