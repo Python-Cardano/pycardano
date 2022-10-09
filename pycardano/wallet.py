@@ -1700,14 +1700,11 @@ def get_utxo_creator(utxo: UTxO, context: ChainContext) -> Address:
     Returns:
         Address: The creator of the UTxO.
     """
-    if isinstance(context, BlockFrostChainContext):
-        utxo_creator = (
-            context.api.transaction_utxos(str(utxo.input.transaction_id))
-            .inputs[0]
-            .address
-        )
+    utxo_creator = (
+        context.api.transaction_utxos(str(utxo.input.transaction_id)).inputs[0].address
+    )
 
-        return utxo_creator
+    return utxo_creator
 
 
 @blockfrost_only
