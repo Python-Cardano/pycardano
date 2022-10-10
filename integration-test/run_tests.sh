@@ -25,7 +25,7 @@ export EXTENDED_PAYMENT_KEY="$ROOT"/keys/extended.skey
 export POOL_ID=$(cat "$ROOT"/keys/pool/pool.id)
 
 # Wait for stake pool to start producing blocks
-sleep 20
+sleep 10
 
 # Cleanup
 docker-compose down --volumes --remove-orphans
@@ -48,9 +48,9 @@ export EXTENDED_PAYMENT_KEY="$ROOT"/keys/extended.skey
 export POOL_ID=$(cat "$ROOT"/keys/pool/pool.id)
 
 # Wait for stake pool to start producing blocks
-sleep 120
+sleep 30
 
-poetry run pytest -s -vv -n 4 "$ROOT"/test
+poetry run pytest -s -vv -n 2 "$ROOT"/test
 
 # Cleanup
 docker-compose down --volumes --remove-orphans
