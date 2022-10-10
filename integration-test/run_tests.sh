@@ -25,7 +25,7 @@ export EXTENDED_PAYMENT_KEY="$ROOT"/keys/extended.skey
 export POOL_ID=$(cat "$ROOT"/keys/pool/pool.id)
 
 # Wait for stake pool to start producing blocks
-sleep 60
+sleep 120
 
 poetry run pytest -s -vv -n 4 "$ROOT"/test
 
