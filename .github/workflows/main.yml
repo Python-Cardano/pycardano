@@ -59,3 +59,15 @@ jobs:
       - name: Run integration tests
         run: |
           cd integration-test && ./run_tests.sh
+
+      - name: Dump docker logs
+        if: failure()
+        run: |
+          cd integration-test && docker-compose logs --no-color > integration-test.log
+
+      - name: Upload integration-test.log
+        if: failure()
+        uses: actions/upload-artifact@v2
+        with:
+          name: integration-test.log
+          path: integration-test/integration-test.log
