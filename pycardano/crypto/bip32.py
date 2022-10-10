@@ -16,6 +16,8 @@ from typing import Optional
 from mnemonic import Mnemonic
 from nacl import bindings
 
+__all__ = ["BIP32ED25519PrivateKey", "BIP32ED25519PublicKey", "HDWallet"]
+
 
 class BIP32ED25519PrivateKey:
     def __init__(self, private_key: bytes, chain_code: bytes):
