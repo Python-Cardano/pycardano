@@ -41,9 +41,9 @@ could be beneficial for faster R&D iterations.
 - [X] Plutus script
 - [X] Staking certificates
 - [X] Reward withdraw
-- [ ] Mnemonic 
+- [X] Mnemonic 
+- [X] HD Wallet
 - [ ] Byron Address
-- [ ] HD Wallet
 - [ ] Pool certificate
 - [ ] Protocol proposal update
 
