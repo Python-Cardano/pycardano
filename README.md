@@ -242,4 +242,5 @@ Build docs and open the docs in browser:
   <a href="https://github.com/KtorZ"><img src="https://avatars.githubusercontent.com/u/5680256?s=50&v=4"/></a>
   <a href="https://github.com/lacepool"><img src="https://avatars.githubusercontent.com/u/79309785?s=50&v=4"/></a>
   <a href="https://github.com/muppetADA"><img width="50" src="https://avatars.githubusercontent.com/u/115075316?s=50&v=4"/></a>
+  <a href="https://github.com/CardanoDur"><img width="50" src="https://avatars.githubusercontent.com/u/1000466?s=50&v=4"/></a>
 </p>
