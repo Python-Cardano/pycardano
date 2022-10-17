@@ -267,28 +267,26 @@ class HDWallet:
             )
 
         derived_hdwallet = self._copy_hdwallet()
-
         for index in path.lstrip("m/").split("/"):
             if index.endswith("'"):
-                derived_hdwallet = self.derive_from_index(
-                    derived_hdwallet, int(index[:-1]), private=private, hardened=True
+                derived_hdwallet = derived_hdwallet.derive(
+                    int(index[:-1]), private=private, hardened=True
                 )
             else:
-                derived_hdwallet = self.derive_from_index(
-                    derived_hdwallet, int(index), private=private, hardened=False
+                derived_hdwallet = derived_hdwallet.derive(
+                    int(index), private=private, hardened=False
                 )
 
         return derived_hdwallet
 
-    def derive_from_index(
+    def derive(
         self,
-        parent_wallet: HDWallet,
         index: int,
         private: bool = True,
         hardened: bool = False,
     ) -> HDWallet:
         """
-        Derive keys from index.
+        Returns a new HDWallet derived from given index.
 
         Args:
             index: Derivation index.
@@ -301,12 +299,12 @@ class HDWallet:
         Examples:
             >>> mnemonic_words = "test walk nut penalty hip pave soap entry language right filter choice"
             >>> hdwallet = HDWallet.from_mnemonic(mnemonic_words)
-            >>> hdwallet_l1 = hdwallet.derive_from_index(parent_wallet=hdwallet, index=1852, hardened=True)
-            >>> hdwallet_l2 = hdwallet.derive_from_index(parent_wallet=hdwallet_l1, index=1815, hardened=True)
-            >>> hdwallet_l3 = hdwallet.derive_from_index(parent_wallet=hdwallet_l2, index=0, hardened=True)
-            >>> hdwallet_l4 = hdwallet.derive_from_index(parent_wallet=hdwallet_l3, index=0)
-            >>> hdwallet_l5 = hdwallet.derive_from_index(parent_wallet=hdwallet_l4, index=0)
-            >>> hdwallet_l5.public_key.hex()
+            >>> hdwallet = hdwallet.derive(index=1852, hardened=True)
+            >>> hdwallet = hdwallet.derive(index=1815, hardened=True)
+            >>> hdwallet = hdwallet.derive(index=0, hardened=True)
+            >>> hdwallet = hdwallet.derive(index=0)
+            >>> hdwallet = hdwallet.derive(index=0)
+            >>> hdwallet.public_key.hex()
             '73fea80d424276ad0978d4fe5310e8bc2d485f5f6bb3bf87612989f112ad5a7d'
         """
 
@@ -322,19 +320,19 @@ class HDWallet:
         # derive private child key
         if private:
             node = (
-                parent_wallet._xprivate_key[:32],
-                parent_wallet._xprivate_key[32:],
-                parent_wallet._public_key,
-                parent_wallet._chain_code,
-                parent_wallet._path,
+                self._xprivate_key[:32],
+                self._xprivate_key[32:],
+                self._public_key,
+                self._chain_code,
+                self._path,
             )
             derived_hdwallet = self._derive_private_child_key_by_index(node, index)
         # derive public child key
         else:
             node = (
-                parent_wallet._public_key,
-                parent_wallet._chain_code,
-                parent_wallet._path,
+                self._public_key,
+                self._chain_code,
+                self._path,
             )
             derived_hdwallet = self._derive_public_child_key_by_index(node, index)
 
@@ -419,7 +417,12 @@ class HDWallet:
         path += "/" + str(index)
 
         derived_hdwallet = HDWallet(
-            xprivate_key=kL + kR, public_key=A, chain_code=c, path=path
+            xprivate_key=kL + kR,
+            public_key=A,
+            chain_code=c,
+            path=path,
+            root_xprivate_key=self.root_xprivate_key,
+            root_public_key=self.root_public_key,
         )
 
         return derived_hdwallet

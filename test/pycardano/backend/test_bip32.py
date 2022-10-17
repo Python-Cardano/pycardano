@@ -54,21 +54,13 @@ def test_payment_address_12_reward():
 
 
 def test_payment_address_12_reward2():
-    hdwallet = HDWallet.from_mnemonic(MNEMONIC_12)
-    hdwalletl_l1 = hdwallet.derive_from_index(
-        hdwallet, 1852, private=True, hardened=True
-    )
-    hdwalletl_l2 = hdwallet.derive_from_index(
-        hdwalletl_l1, 1815, private=True, hardened=True
-    )
-    hdwalletl_l3 = hdwallet.derive_from_index(
-        hdwalletl_l2, 0, private=True, hardened=True
-    )
-    hdwalletl_l4 = hdwallet.derive_from_index(
-        hdwalletl_l3, 2, private=False, hardened=False
-    )
-    hdwallet_stake = hdwallet.derive_from_index(
-        hdwalletl_l4, 0, private=False, hardened=False
+    hdwallet_stake = (
+        HDWallet.from_mnemonic(MNEMONIC_12)
+        .derive(1852, hardened=True)
+        .derive(1815, hardened=True)
+        .derive(0, hardened=True)
+        .derive(2)
+        .derive(0)
     )
     stake_public_key = hdwallet_stake.public_key
     stake_vk = PaymentVerificationKey.from_primitive(stake_public_key)
