@@ -1,4 +1,4 @@
-.PHONY: clean clean-test clean-pyc clean-build format test help docs
+.PHONY: clean clean-test clean-pyc clean-build format test test-single help docs
 .DEFAULT_GOAL := help
 
 define BROWSER_PYSCRIPT
@@ -56,6 +56,9 @@ clean-test: ## remove test and coverage artifacts
 
 test: ## runs tests
 	poetry run pytest -s -vv -n 4
+
+test-single: ## runs tests with "single" markers
+	poetry run pytest -s -vv -m single
 
 qa: ## runs static analysis with flake8
 	poetry run flake8 pycardano
