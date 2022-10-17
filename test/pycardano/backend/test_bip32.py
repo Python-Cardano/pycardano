@@ -59,8 +59,8 @@ def test_payment_address_12_reward2():
         .derive(1852, hardened=True)
         .derive(1815, hardened=True)
         .derive(0, hardened=True)
-        .derive(2)
-        .derive(0)
+        .derive(2, private=False)
+        .derive(0, private=False)
     )
     stake_public_key = hdwallet_stake.public_key
     stake_vk = PaymentVerificationKey.from_primitive(stake_public_key)

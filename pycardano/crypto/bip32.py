@@ -475,7 +475,13 @@ class HDWallet:
         # compute path
         path += "/" + str(index)
 
-        derived_hdwallet = HDWallet(public_key=A, chain_code=c, path=path)
+        derived_hdwallet = HDWallet(
+            public_key=A,
+            chain_code=c,
+            path=path,
+            root_xprivate_key=self.root_xprivate_key,
+            root_public_key=self.root_public_key,
+        )
 
         return derived_hdwallet
 
