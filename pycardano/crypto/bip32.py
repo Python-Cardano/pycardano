@@ -109,6 +109,9 @@ class HDWallet:
 
         Args:
             seed: Master key of 96 bytes from seed hex string.
+            entropy: Entropy hex string, default to ``None``.
+            passphrase: Mnemonic passphrase or password, default to ``None``.
+            mnemonic: Mnemonic words, default to ``None``.
 
         Returns:
             HDWallet -- Hierarchical Deterministic Wallet instance.
@@ -168,7 +171,7 @@ class HDWallet:
         return cls.from_seed(
             seed=hexlify(seed).decode(),
             mnemonic=mnemonic,
-            entropy=entropy,
+            entropy=unhexlify(entropy).decode("utf-8"),
             passphrase=passphrase,
         )
 
