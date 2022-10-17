@@ -3,3 +3,7 @@
 cov_html
 docs/build
 dist
+
+# IDE
+.idea
+.code
