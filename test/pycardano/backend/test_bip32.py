@@ -1,3 +1,5 @@
+import pytest
+
 from pycardano.address import Address
 from pycardano.crypto.bip32 import HDWallet
 from pycardano.key import PaymentVerificationKey
@@ -22,6 +24,12 @@ def test_mnemonic():
 def test_mnemonic_generation():
     mnemonic_words = HDWallet.generate_mnemonic(strength=128)
     assert HDWallet.is_mnemonic(mnemonic_words)
+
+
+def test_from_mnemonic_invalid_mnemonic():
+    wrong_mnemonic = "test walk nut penalty hip pave soap entry language right filter"
+    with pytest.raises(ValueError):
+        HDWallet.from_mnemonic(wrong_mnemonic)
 
 
 def test_payment_address_12_reward():
@@ -164,6 +172,11 @@ def test_payment_address_12_reward_from_entropy():
     )
 
 
+def test_from_entropy_invalid_input():
+    with pytest.raises(ValueError):
+        HDWallet.from_entropy("*(#_")
+
+
 def test_is_entropy():
     is_entropy = HDWallet.is_entropy(MNEMONIC_12_ENTROPY)
     assert is_entropy
@@ -173,3 +186,8 @@ def test_is_entropy_wrong_input():
     wrong_entropy = "df9ed25ed146bf43336a5d7cf73959"
     is_entropy = HDWallet.is_entropy(wrong_entropy)
     assert not is_entropy
+
+
+def test_is_entropy_value_error():
+    is_entropy = HDWallet.is_entropy("*(#_")
+    assert is_entropy is False
