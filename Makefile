@@ -1,4 +1,4 @@
-.PHONY: clean clean-test clean-pyc clean-build format test test-single help docs
+.PHONY: cov cov-html clean clean-test clean-pyc clean-build qa format test test-single help docs
 .DEFAULT_GOAL := help
 
 define BROWSER_PYSCRIPT
