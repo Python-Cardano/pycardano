@@ -423,6 +423,7 @@ class HDWallet:
             path=path,
             root_xprivate_key=self.root_xprivate_key,
             root_public_key=self.root_public_key,
+            root_chain_code=self.root_chain_code,
         )
 
         return derived_hdwallet
@@ -481,6 +482,7 @@ class HDWallet:
             path=path,
             root_xprivate_key=self.root_xprivate_key,
             root_public_key=self.root_public_key,
+            root_chain_code=self.root_chain_code,
         )
 
         return derived_hdwallet
