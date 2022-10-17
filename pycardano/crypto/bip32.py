@@ -171,7 +171,7 @@ class HDWallet:
         return cls.from_seed(
             seed=hexlify(seed).decode(),
             mnemonic=mnemonic,
-            entropy=unhexlify(entropy).decode("utf-8"),
+            entropy=hexlify(entropy).decode("utf-8"),
             passphrase=passphrase,
         )
 
