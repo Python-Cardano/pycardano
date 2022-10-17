@@ -1,5 +1,3 @@
-import pytest
-
 from pycardano.address import Address
 from pycardano.crypto.bip32 import HDWallet
 from pycardano.key import PaymentVerificationKey
@@ -10,6 +8,8 @@ from pycardano.network import Network
 MNEMONIC_12 = "test walk nut penalty hip pave soap entry language right filter choice"
 MNEMONIC_15 = "art forum devote street sure rather head chuckle guard poverty release quote oak craft enemy"
 MNEMONIC_24 = "excess behave track soul table wear ocean cash stay nature item turtle palm soccer lunch horror start stumble month panic right must lock dress"
+
+MNEMONIC_12_ENTROPY = "df9ed25ed146bf43336a5d7cf7395994"
 
 
 def test_mnemonic():
@@ -109,6 +109,20 @@ def test_payment_address_24_base():
     assert (
         Address(spend_vk.hash(), stake_vk.hash(), network=Network.MAINNET).encode()
         == "addr1qyy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmn8k8ttq8f3gag0h89aepvx3xf69g0l9pf80tqv7cve0l33sdn8p3d"
+    )
+
+
+def test_payment_address_12_reward_from_entropy():
+    hdwallet = HDWallet.from_entropy(MNEMONIC_12_ENTROPY)
+    hdwallet_stake = hdwallet.derive_from_path("m/1852'/1815'/0'/2/0")
+    stake_public_key = hdwallet_stake.public_key
+    stake_vk = PaymentVerificationKey.from_primitive(stake_public_key)
+
+    assert (
+        Address(
+            payment_part=None, staking_part=stake_vk.hash(), network=Network.TESTNET
+        ).encode()
+        == "stake_test1uqevw2xnsc0pvn9t9r9c7qryfqfeerchgrlm3ea2nefr9hqp8n5xl"
     )
 
 
