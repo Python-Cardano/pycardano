@@ -16,6 +16,8 @@ from typing import Optional
 from mnemonic import Mnemonic
 from nacl import bindings
 
+from pycardano.logging import logger
+
 __all__ = ["BIP32ED25519PrivateKey", "BIP32ED25519PublicKey", "HDWallet"]
 
 
@@ -581,7 +583,7 @@ class HDWallet:
             else:
                 return Mnemonic(language=language).check(mnemonic=mnemonic)
         except ValueError:
-            print(
+            logger.warning(
                 "The input mnemonic words are not valid. Words should be in string format seperated by space."
             )
 
@@ -600,4 +602,5 @@ class HDWallet:
         try:
             return len(unhexlify(entropy)) in [16, 20, 24, 28, 32]
         except ValueError:
-            print("The input entropy is not valid.")
+            logger.warning("The input entropy is not valid.")
+            return False
