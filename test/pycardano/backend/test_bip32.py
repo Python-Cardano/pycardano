@@ -1,3 +1,5 @@
+import pytest
+
 from pycardano.address import Address
 from pycardano.crypto.bip32 import HDWallet
 from pycardano.key import PaymentVerificationKey
@@ -108,3 +110,9 @@ def test_payment_address_24_base():
         Address(spend_vk.hash(), stake_vk.hash(), network=Network.MAINNET).encode()
         == "addr1qyy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmn8k8ttq8f3gag0h89aepvx3xf69g0l9pf80tqv7cve0l33sdn8p3d"
     )
+
+
+def test_is_entropy():
+    entropy = "df9ed25ed146bf43336a5d7cf7395994"
+    is_entropy = HDWallet.is_entropy(entropy)
+    assert is_entropy

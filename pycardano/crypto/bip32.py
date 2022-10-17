@@ -155,18 +155,8 @@ class HDWallet:
             raise ValueError("Invalid mnemonic words.")
 
         mnemonic = unicodedata.normalize("NFKD", mnemonic)
-        passphrase = str(passphrase) if passphrase else ""
         entropy = Mnemonic(language="english").to_entropy(words=mnemonic)
-
-        seed = bytearray(
-            hashlib.pbkdf2_hmac(
-                "sha512",
-                password=passphrase.encode(),
-                salt=entropy,
-                iterations=4096,
-                dklen=96,
-            )
-        )
+        seed = cls._generate_seed(passphrase, entropy)
 
         return cls.from_seed(
             seed=hexlify(seed).decode(),
@@ -176,7 +166,7 @@ class HDWallet:
         )
 
     @classmethod
-    def from_entropy(cls, entropy: str, passphrase: str = None) -> HDWallet:
+    def from_entropy(cls, entropy: str, passphrase: str = "") -> HDWallet:
         """
         Create master key and HDWallet from Mnemonic words.
 
@@ -191,12 +181,20 @@ class HDWallet:
         if not cls.is_entropy(entropy):
             raise ValueError("Invalid entropy")
 
-        seed = bytearray(
+        seed = cls._generate_seed(passphrase, bytearray.fromhex(entropy))
+        return cls.from_seed(seed=hexlify(seed).decode(), entropy=entropy)
+
+    @classmethod
+    def _generate_seed(cls, passphrase: str, entropy: bytearray) -> bytearray:
+        return bytearray(
             hashlib.pbkdf2_hmac(
-                "sha512", password=passphrase, salt=entropy, iterations=4096, dklen=96
+                "sha512",
+                password=passphrase.encode(),
+                salt=entropy,
+                iterations=4096,
+                dklen=96,
             )
         )
-        return cls.from_seed(seed=hexlify(seed).decode(), entropy=entropy)
 
     @classmethod
     def _tweak_bits(cls, seed: bytearray) -> bytes:
