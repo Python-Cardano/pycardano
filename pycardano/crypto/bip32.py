@@ -569,15 +569,13 @@ class HDWallet:
             )
         try:
             mnemonic = unicodedata.normalize("NFKD", mnemonic)
-            if language is None:
-                for _language in SUPPORTED_MNEMONIC_LANGS:
-                    valid = False
-                    if Mnemonic(language=_language).check(mnemonic=mnemonic) is True:
-                        valid = True
-                        break
-                return valid
-            else:
+            if language:
                 return Mnemonic(language=language).check(mnemonic=mnemonic)
+
+            for _language in SUPPORTED_MNEMONIC_LANGS:
+                if Mnemonic(language=_language).check(mnemonic=mnemonic) is True:
+                    return True
+            return False
         except ValueError:
             logger.warning(
                 "The input mnemonic words are not valid. Words should be in string format seperated by space."
