@@ -21,6 +21,18 @@ from pycardano.logging import logger
 __all__ = ["BIP32ED25519PrivateKey", "BIP32ED25519PublicKey", "HDWallet"]
 
 
+SUPPORTED_MNEMONIC_LANGS = {
+    "english",
+    "french",
+    "italian",
+    "japanese",
+    "chinese_simplified",
+    "chinese_traditional",
+    "korean",
+    "spanish",
+}
+
+
 class BIP32ED25519PrivateKey:
     def __init__(self, private_key: bytes, chain_code: bytes):
         self.private_key = private_key
@@ -524,16 +536,7 @@ class HDWallet:
             mnemonic (str): mnemonic words.
         """
 
-        if language and language not in [
-            "english",
-            "french",
-            "italian",
-            "japanese",
-            "chinese_simplified",
-            "chinese_traditional",
-            "korean",
-            "spanish",
-        ]:
+        if language and language not in SUPPORTED_MNEMONIC_LANGS:
             raise ValueError(
                 "invalid language, use only this options english, french, "
                 "italian, spanish, chinese_simplified, chinese_traditional, japanese or korean languages."
@@ -559,16 +562,7 @@ class HDWallet:
             bool. Whether the input mnemonic words is valid.
         """
 
-        if language and language not in [
-            "english",
-            "french",
-            "italian",
-            "japanese",
-            "chinese_simplified",
-            "chinese_traditional",
-            "korean",
-            "spanish",
-        ]:
+        if language and language not in SUPPORTED_MNEMONIC_LANGS:
             raise ValueError(
                 "invalid language, use only this options english, french, "
                 "italian, spanish, chinese_simplified, chinese_traditional, japanese or korean languages."
@@ -576,16 +570,7 @@ class HDWallet:
         try:
             mnemonic = unicodedata.normalize("NFKD", mnemonic)
             if language is None:
-                for _language in [
-                    "english",
-                    "french",
-                    "italian",
-                    "chinese_simplified",
-                    "chinese_traditional",
-                    "japanese",
-                    "korean",
-                    "spanish",
-                ]:
+                for _language in SUPPORTED_MNEMONIC_LANGS:
                     valid = False
                     if Mnemonic(language=_language).check(mnemonic=mnemonic) is True:
                         valid = True
