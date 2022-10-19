@@ -16,9 +16,24 @@ MNEMONIC_15_ENTROPY = "0ccb74f36b7da1649a8144675522d4d8097c6412"
 MNEMONIC_24_ENTROPY = "4e828f9a67ddcff0e6391ad4f26ddb7579f59ba14b6dd4baf63dcfdb9d2420da"
 
 
-def test_mnemonic():
+def test_is_mnemonic():
+    assert HDWallet.is_mnemonic(MNEMONIC_12)
+    assert HDWallet.is_mnemonic(MNEMONIC_15)
+    assert HDWallet.is_mnemonic(MNEMONIC_24)
+
+
+def test_is_mnemonic_language_explicitly_specified():
+    assert HDWallet.is_mnemonic(MNEMONIC_12, "english")
+
+
+def test_is_mnemonic_incorrect_mnemonic():
     wrong_mnemonic = "test walk nut penalty hip pave soap entry language right filter"
     assert not HDWallet.is_mnemonic(wrong_mnemonic)
+
+
+def test_is_mnemonic_unsupported_language():
+    with pytest.raises(ValueError):
+        HDWallet.is_mnemonic(MNEMONIC_12, language="unsupported language")
 
 
 def test_mnemonic_generation():
@@ -26,10 +41,27 @@ def test_mnemonic_generation():
     assert HDWallet.is_mnemonic(mnemonic_words)
 
 
+def test_generate_mnemonic_unsupported_lang():
+    with pytest.raises(ValueError):
+        HDWallet.generate_mnemonic(language="unsupported language")
+
+
+def test_generate_mnemonic_unsupported_strength():
+    with pytest.raises(ValueError):
+        HDWallet.generate_mnemonic(strength=64)
+
+
 def test_from_mnemonic_invalid_mnemonic():
     wrong_mnemonic = "test walk nut penalty hip pave soap entry language right filter"
     with pytest.raises(ValueError):
         HDWallet.from_mnemonic(wrong_mnemonic)
+
+
+def test_derive_from_path_incorrect_path():
+    root_missing_path = "1852'/1815'/0'/2/0"
+    with pytest.raises(ValueError):
+        hdwallet = HDWallet.from_mnemonic(MNEMONIC_12)
+        hdwallet.derive_from_path(root_missing_path)
 
 
 def test_payment_address_12_reward():
@@ -51,6 +83,13 @@ def test_payment_address_12_reward():
         ).encode()
         == "stake1uyevw2xnsc0pvn9t9r9c7qryfqfeerchgrlm3ea2nefr9hqxdekzz"
     )
+
+
+def test_payment_address_12_reward2_incorrect_index_value():
+    wrong_index_type = "1815"
+    with pytest.raises(ValueError):
+        HDWallet.from_mnemonic(MNEMONIC_12)\
+            .derive(wrong_index_type, hardened=True)
 
 
 def test_payment_address_12_reward2():
@@ -77,6 +116,33 @@ def test_payment_address_12_reward2():
             payment_part=None, staking_part=stake_vk.hash(), network=Network.MAINNET
         ).encode()
         == "stake1uyevw2xnsc0pvn9t9r9c7qryfqfeerchgrlm3ea2nefr9hqxdekzz"
+    )
+
+
+def test_payment_address_12_reward2_full_private_derivation():
+    hdwallet_stake = (
+        HDWallet.from_mnemonic(MNEMONIC_12)
+        .derive(1852, hardened=True)
+        .derive(1815, hardened=True)
+        .derive(0, hardened=True)
+        .derive(2)
+        .derive(0)
+    )
+    stake_public_key = hdwallet_stake.public_key
+    stake_vk = PaymentVerificationKey.from_primitive(stake_public_key)
+
+    assert (
+            Address(
+                payment_part=None, staking_part=stake_vk.hash(), network=Network.TESTNET
+            ).encode()
+            == "stake_test1uqevw2xnsc0pvn9t9r9c7qryfqfeerchgrlm3ea2nefr9hqp8n5xl"
+    )
+
+    assert (
+            Address(
+                payment_part=None, staking_part=stake_vk.hash(), network=Network.MAINNET
+            ).encode()
+            == "stake1uyevw2xnsc0pvn9t9r9c7qryfqfeerchgrlm3ea2nefr9hqxdekzz"
     )
 
 
