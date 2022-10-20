@@ -284,6 +284,44 @@ def test_payment_address_24_base():
     )
 
 
+def test_payment_address_24_enterprise():
+    hdwallet = HDWallet.from_mnemonic(MNEMONIC_24)
+    hdwallet_spend = hdwallet.derive_from_path("m/1852'/1815'/0'/0/0")
+    spend_public_key = hdwallet_spend.public_key
+    spend_vk = PaymentVerificationKey.from_primitive(spend_public_key)
+
+    assert (
+        Address(spend_vk.hash(), network=Network.TESTNET).encode()
+        == "addr_test1vqy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnqtjtf68"
+    )
+
+    assert (
+        Address(spend_vk.hash(), network=Network.MAINNET).encode()
+        == "addr1vyy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnqs6l44z"
+    )
+
+
+def test_payment_address_24_pointer():
+    hdwallet = HDWallet.from_mnemonic(MNEMONIC_24)
+    hdwallet_spend = hdwallet.derive_from_path("m/1852'/1815'/0'/0/0")
+    spend_public_key = hdwallet_spend.public_key
+    spend_vk = PaymentVerificationKey.from_primitive(spend_public_key)
+
+    assert (
+        Address(
+            spend_vk.hash(), PointerAddress(1, 2, 3), network=Network.TESTNET
+        ).encode()
+        == "addr_test1gqy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnqpqgps5mee0p"
+    )
+
+    assert (
+        Address(
+            spend_vk.hash(), PointerAddress(24157, 177, 42), network=Network.MAINNET
+        ).encode()
+        == "addr1gyy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnyph3wczvf2dqflgt"
+    )
+
+
 def test_payment_address_12_reward_from_entropy():
     hdwallet = HDWallet.from_entropy(MNEMONIC_12_ENTROPY)
     hdwallet_stake = hdwallet.derive_from_path("m/1852'/1815'/0'/2/0")
