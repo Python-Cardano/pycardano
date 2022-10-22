@@ -311,11 +311,11 @@ class HDWallet:
         Examples:
             >>> mnemonic_words = "test walk nut penalty hip pave soap entry language right filter choice"
             >>> hdwallet = HDWallet.from_mnemonic(mnemonic_words)
-            >>> hdwallet = hdwallet.derive(index=1852, hardened=True)
-            >>> hdwallet = hdwallet.derive(index=1815, hardened=True)
-            >>> hdwallet = hdwallet.derive(index=0, hardened=True)
-            >>> hdwallet = hdwallet.derive(index=0)
-            >>> hdwallet = hdwallet.derive(index=0)
+            >>> hdwallet = hdwallet.derive(1852, hardened=True)
+            >>> hdwallet = hdwallet.derive(1815, hardened=True)
+            >>> hdwallet = hdwallet.derive(0, hardened=True)
+            >>> hdwallet = hdwallet.derive(0)
+            >>> hdwallet = hdwallet.derive(0)
             >>> hdwallet.public_key.hex()
             '73fea80d424276ad0978d4fe5310e8bc2d485f5f6bb3bf87612989f112ad5a7d'
         """
