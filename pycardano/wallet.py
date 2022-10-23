@@ -175,8 +175,6 @@ class Amount:
     def __radd__(self, other):
         if isinstance(other, (int, float)):
             return self.__class__(self.amount + other)
-        elif isinstance(other, Amount):
-            return self.__class__(self.amount + other[self._amount_type])
         else:
             raise TypeError("Must compute with a number or another Cardano amount")
 
@@ -190,9 +188,7 @@ class Amount:
 
     def __rsub__(self, other):
         if isinstance(other, (int, float)):
-            return self.__class__(self.amount - other)
-        elif isinstance(other, Amount):
-            return self.__class__(self.amount - other[self._amount_type])
+            return self.__class__(other - self.amount)
         else:
             raise TypeError("Must compute with a number or another Cardano amount")
 
@@ -207,8 +203,6 @@ class Amount:
     def __rmul__(self, other):
         if isinstance(other, (int, float)):
             return self.__class__(self.amount * other)
-        elif isinstance(other, Amount):
-            return self.__class__(self.amount * other[self._amount_type])
         else:
             raise TypeError("Must compute with a number or another Cardano amount")
 
@@ -230,25 +224,18 @@ class Amount:
 
     def __rtruediv__(self, other):
         if isinstance(other, (int, float)):
-            return self.__class__(self.amount / other)
-        elif isinstance(other, Amount):
-            return self.__class__(self.amount / other[self._amount_type])
+            return self.__class__(other / self.amount)
         else:
             raise TypeError("Must compute with a number or another Cardano amount")
 
     def __rfloordiv__(self, other):
         if isinstance(other, (int, float)):
-            return self.__class__(self.amount // other)
-        elif isinstance(other, Amount):
-            return self.__class__(self.amount // other[self._amount_type])
+            return self.__class__(other // self.amount)
         else:
             raise TypeError("Must compute with a number or another Cardano amount")
 
     def __neg__(self):
         return self.__class__(-self.amount)
-
-    def __pos__(self):
-        return self.__class__(+self.amount)
 
     def __abs__(self):
         return self.__class__(abs(self.amount))
