@@ -760,11 +760,11 @@ class Wallet:
 
     @property
     def verification_key_hash(self):
-        return str(self.address.payment_part)
+        return self.address.payment_part
 
     @property
     def stake_verification_key_hash(self):
-        return str(self.address.staking_part)
+        return self.address.staking_part
 
     @property
     def tokens(self):
