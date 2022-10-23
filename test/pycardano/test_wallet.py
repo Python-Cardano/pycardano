@@ -1,13 +1,24 @@
 import datetime
 import pathlib
+from test.pycardano.util import (
+    FixedBlockFrostChainContext,
+    blockfrost_context,
+    chain_context,
+)
 from unittest.mock import patch
 
 import pytest
 
 from pycardano.address import Address
 from pycardano.nativescript import ScriptAll, ScriptPubkey
-from pycardano.wallet import Ada, Lovelace, Token, TokenPolicy, Wallet
-from test.pycardano.util import chain_context
+from pycardano.wallet import (
+    Ada,
+    Lovelace,
+    MetadataFormattingException,
+    Token,
+    TokenPolicy,
+    Wallet,
+)
 
 
 def test_load_wallet():
@@ -247,7 +258,7 @@ def test_policy(chain_context):
     their_policy = TokenPolicy(
         name="notOurs",
         policy="6b0cb18696ccd4de1dcd9664c31ed6e98f7a4a1ff647855fef1e0831",
-        policy_dir = third_policy_dir
+        policy_dir=third_policy_dir,
     )
     assert their_policy.policy_id == policy.policy_id
     assert their_policy.id == policy.id
@@ -307,23 +318,19 @@ def test_policy(chain_context):
         assert exp_policy.get_expiration_timestamp(
             context=chain_context
         ) == datetime.datetime(2022, 1, 1, 0, 10, 0, tzinfo=datetime.timezone.utc)
-        
+
     # without timezone (UTC)
     if exp_filepath.exists():
         exp_filepath.unlink()
-        
+
     exp_policy = TokenPolicy(name="expiring", policy_dir=str(policy_dir))
     with patch(
         "pycardano.wallet.get_now",
-        return_value=datetime.datetime(
-            2022, 1, 1, 0, 0, 0
-        ),
+        return_value=datetime.datetime(2022, 1, 1, 0, 0, 0),
     ):
         exp_policy.generate_minting_policy(
             signers=WALLET,
-            expiration=datetime.datetime(
-                2022, 1, 1, 0, 10, 0
-            ),
+            expiration=datetime.datetime(2022, 1, 1, 0, 10, 0),
             context=chain_context,
         )
         assert exp_policy.get_expiration_timestamp(
@@ -333,22 +340,22 @@ def test_policy(chain_context):
     # test address as signer
     if exp_filepath.exists():
         exp_filepath.unlink()
-        
+
     address_signer = TokenPolicy(name="expiring", policy_dir=str(policy_dir))
     address_signer.generate_minting_policy(signers=WALLET.address)
-        
+
     # with bad expiration date
     if exp_filepath.exists():
         exp_filepath.unlink()
-        
+
     exp_policy = TokenPolicy(name="expiring", policy_dir=str(policy_dir))
     with pytest.raises(TypeError):
         exp_policy.generate_minting_policy(signers=WALLET, expiration=2000.5)
-        
+
     # test bad signer
     if exp_filepath.exists():
         exp_filepath.unlink()
-        
+
     bad_signer = TokenPolicy(name="expiring", policy_dir=str(policy_dir))
     with pytest.raises(TypeError):
         bad_signer.generate_minting_policy(signers="addr1q")
@@ -368,7 +375,7 @@ def test_policy(chain_context):
 
     if second_policy_dir.exists():
         second_policy_dir.rmdir()
-        
+
     if third_policy_dir.exists():
         second_policy_dir.rmdir()
 
@@ -386,3 +393,42 @@ def test_token():
     assert token.hex_name == "74657374546f6b656e"
     assert token.bytes_name == b"testToken"
     assert token.policy_id == "6b0cb18696ccd4de1dcd9664c31ed6e98f7a4a1ff647855fef1e0831"
+    assert str(token) == "testToken"
+
+    # test token errors
+    with pytest.raises(TypeError):
+        Token(policy=policy, name="badToken", amount="1")
+
+
+def test_metadata():
+
+    script = ScriptAll([ScriptPubkey(WALLET.verification_key.hash())])
+
+    policy = TokenPolicy(name="testToken", policy=script)
+
+    metadata = {
+        "key_1": "value_1",
+        "key_2": ["value_2_1", "value_2_2"],
+        "key_3": {"key_3_1": "value_3_1"},
+    }
+
+    _ = Token(policy=policy, name="testToken", amount=1, metadata=metadata)
+
+    # test bad metadata
+
+    long_key = {"a" * 100: "so_long"}
+    long_value = {"so_long": "a" * 100}
+    long_string = "a" * 100
+    unserializable = {"unserializable": lambda x: x}
+
+    with pytest.raises(MetadataFormattingException):
+        _ = Token(policy=policy, name="testToken", amount=1, metadata=long_key)
+
+    with pytest.raises(MetadataFormattingException):
+        _ = Token(policy=policy, name="testToken", amount=1, metadata=long_value)
+
+    with pytest.raises(MetadataFormattingException):
+        _ = Token(policy=policy, name="testToken", amount=1, metadata=long_string)
+
+    with pytest.raises(MetadataFormattingException):
+        _ = Token(policy=policy, name="testToken", amount=1, metadata=unserializable)
