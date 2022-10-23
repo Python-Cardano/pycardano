@@ -375,7 +375,7 @@ class TokenPolicy:
         if self.expiration_slot:
             seconds_diff = self.expiration_slot - context.last_block_slot
 
-            return datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(
+            return get_now(datetime.timezone.utc) + datetime.timedelta(
                 seconds=seconds_diff
             )
 
@@ -427,11 +427,11 @@ class TokenPolicy:
                 must_before_slot = InvalidHereAfter(expiration)
             elif isinstance(expiration, datetime.datetime):
                 if expiration.tzinfo:
-                    time_until_expiration = expiration - datetime.datetime.now(
-                        datetime.timezone.utc
+                    time_until_expiration = expiration - get_now(
+                        expiration.tzinfo
                     )
                 else:
-                    time_until_expiration = expiration - datetime.datetime.now()
+                    time_until_expiration = expiration - get_now()
 
                 last_block_slot = context.last_block_slot
 
@@ -439,7 +439,7 @@ class TokenPolicy:
                     last_block_slot + int(time_until_expiration.total_seconds())
                 )
             else:
-                must_before_slot = None
+                raise TypeError("Expiration must be a datetime or int")
 
             # noinspection PyTypeChecker
             policy = ScriptAll(pub_keys + [must_before_slot])
@@ -1926,6 +1926,17 @@ def wait_for_confirmation(
 
     return confirmed
 
+
+def get_now(tz_info: Optional[datetime.tzinfo] = None) -> datetime.datetime:
+    """Get the current time.
+
+    Args:
+        tz_info (Optional[datetime.tzinfo]): The timezone to get the time in. Defaults to None.
+
+    Returns:
+        datetime.datetime: The current time.
+    """
+    return datetime.datetime.now(tz_info)
 
 # Exceptions
 class MetadataFormattingException(PyCardanoException):
