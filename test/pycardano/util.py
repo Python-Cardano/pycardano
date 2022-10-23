@@ -92,6 +92,11 @@ class FixedChainContext(ChainContext):
     def slot(self) -> int:
         """Current slot number"""
         return 2000
+    
+    @property
+    def last_block_slot(self) -> int:
+        """Slot number of last block"""
+        return 2000
 
     def utxos(self, address: str) -> List[UTxO]:
         """Get all UTxOs associated with an address.
