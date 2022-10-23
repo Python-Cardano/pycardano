@@ -427,9 +427,7 @@ class TokenPolicy:
                 must_before_slot = InvalidHereAfter(expiration)
             elif isinstance(expiration, datetime.datetime):
                 if expiration.tzinfo:
-                    time_until_expiration = expiration - get_now(
-                        expiration.tzinfo
-                    )
+                    time_until_expiration = expiration - get_now(expiration.tzinfo)
                 else:
                     time_until_expiration = expiration - get_now()
 
@@ -1348,6 +1346,7 @@ class Wallet:
         merge_change: Optional[bool] = True,
         message: Optional[Union[str, List[str]]] = None,
         other_metadata=None,
+        sign: Optional[bool] = False,
         submit: Optional[bool] = True,
         await_confirmation: Optional[bool] = False,
         context: Optional[ChainContext] = None,
@@ -1657,6 +1656,11 @@ class Wallet:
         if withdraw:
             builder.withdrawals = Withdrawals(withdraw)
 
+        if not sign:
+            return builder.build(
+                change_address=change_address, merge_change=merge_change
+            )
+
         if signers:
             signing_keys = []
             for signer in signers:
@@ -1937,6 +1941,7 @@ def get_now(tz_info: Optional[datetime.tzinfo] = None) -> datetime.datetime:
         datetime.datetime: The current time.
     """
     return datetime.datetime.now(tz_info)
+
 
 # Exceptions
 class MetadataFormattingException(PyCardanoException):
