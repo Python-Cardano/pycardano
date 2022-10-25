@@ -329,26 +329,22 @@ class HDWallet:
         if hardened:
             index += 2**31
 
-        # derive private child key
         if private:
-            node = (
+            private_node = (
                 self._xprivate_key[:32],
                 self._xprivate_key[32:],
                 self._public_key,
                 self._chain_code,
                 self._path,
             )
-            derived_hdwallet = self._derive_private_child_key_by_index(node, index)
-        # derive public child key
-        else:
-            node = (
-                self._public_key,
-                self._chain_code,
-                self._path,
-            )
-            derived_hdwallet = self._derive_public_child_key_by_index(node, index)
+            return self._derive_private_child_key_by_index(private_node, index)
 
-        return derived_hdwallet
+        public_node = (
+            self._public_key,
+            self._chain_code,
+            self._path,
+        )
+        return self._derive_public_child_key_by_index(public_node, index)
 
     def _derive_private_child_key_by_index(
         self, private_pnode: Tuple[bytes, bytes, bytes, bytes, str], index: int
