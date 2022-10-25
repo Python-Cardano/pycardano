@@ -571,11 +571,11 @@ class HDWallet:
             for _language in SUPPORTED_MNEMONIC_LANGS:
                 if Mnemonic(language=_language).check(mnemonic=mnemonic) is True:
                     return True
-            return False
         except ValueError:
             logger.warning(
                 "The input mnemonic words are not valid. Words should be in string format seperated by space."
             )
+        return False
 
     @staticmethod
     def is_entropy(entropy: str) -> bool:
