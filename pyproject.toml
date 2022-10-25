@@ -64,3 +64,26 @@ profile = "black"
 [tool.mypy]
 ignore_missing_imports = true
 python_version = 3.7
+exclude = [
+    '^pycardano/backend/base.py$',
+    '^pycardano/backend/blockfrost.py$',
+    '^pycardano/backend/ogmios.py$',
+    '^pycardano/cip/cip8.py$',
+    '^pycardano/crypto/bech32.py$',
+    '^pycardano/address.py$',
+    '^pycardano/certificate.py$',
+    '^pycardano/coinselection.py$',
+    '^pycardano/exception.py$',
+    '^pycardano/hash.py$',
+    '^pycardano/key.py$',
+    '^pycardano/logging.py$',
+    '^pycardano/metadata.py$',
+    '^pycardano/nativescript.py$',
+    '^pycardano/network.py$',
+    '^pycardano/plutus.py$',
+    '^pycardano/serialization.py$',
+    '^pycardano/transaction.py$',
+    '^pycardano/txbuilder.py$',
+    '^pycardano/utils.py$',
+    '^pycardano/witness.py$',
+]
