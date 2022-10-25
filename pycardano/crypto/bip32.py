@@ -11,7 +11,7 @@ import hashlib
 import hmac
 import unicodedata
 from binascii import hexlify, unhexlify
-from typing import Optional
+from typing import Optional, Tuple
 
 from mnemonic import Mnemonic
 from nacl import bindings
@@ -351,7 +351,7 @@ class HDWallet:
         return derived_hdwallet
 
     def _derive_private_child_key_by_index(
-        self, private_pnode: (bytes, bytes, bytes, bytes, str), index: int
+        self, private_pnode: Tuple[bytes, bytes, bytes, bytes, str], index: int
     ) -> HDWallet:
         """
         Derive private child keys from parent node.
@@ -391,10 +391,6 @@ class HDWallet:
             HDWallet with child node derived.
 
         """
-
-        if not private_pnode:
-            return None
-
         # unpack argument
         (kLP, kRP, AP, cP, path) = private_pnode
         assert 0 <= index < 2**32
@@ -441,7 +437,7 @@ class HDWallet:
         return derived_hdwallet
 
     def _derive_public_child_key_by_index(
-        self, public_pnode: (bytes, bytes, str), index: int
+        self, public_pnode: Tuple[bytes, bytes, str], index: int
     ) -> HDWallet:
         """
         Derive public child keys from parent node.
@@ -453,10 +449,6 @@ class HDWallet:
         Returns:
             HDWallet with child node derived.
         """
-
-        if not public_pnode:
-            return None
-
         # unpack argument
         (AP, cP, path) = public_pnode
         assert 0 <= index < 2**32
