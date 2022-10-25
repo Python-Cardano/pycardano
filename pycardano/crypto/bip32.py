@@ -130,8 +130,8 @@ class HDWallet:
             HDWallet -- Hierarchical Deterministic Wallet instance.
         """
 
-        seed = bytearray(bytes.fromhex(seed))
-        seed_modified = cls._tweak_bits(seed)
+        seed_converted = bytearray(bytes.fromhex(seed))
+        seed_modified = cls._tweak_bits(seed_converted)
 
         kL, c = seed_modified[:32], seed_modified[64:]
 
