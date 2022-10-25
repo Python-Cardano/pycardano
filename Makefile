@@ -60,8 +60,9 @@ test: ## runs tests
 test-single: ## runs tests with "single" markers
 	poetry run pytest -s -vv -m single
 
-qa: ## runs static analysis with flake8
+qa: ## runs static analyses
 	poetry run flake8 pycardano
+	poetry run mypy --install-types --non-interactive pycardano
 
 format: ## runs code style and formatter
 	poetry run isort .

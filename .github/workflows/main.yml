@@ -28,9 +28,9 @@ jobs:
       - name: Install dependencies
         run: |
           poetry install
-      - name: Lint with flake8
+      - name: Run static analyses
         run: |
-          poetry run flake8 pycardano
+          make qa
       - name: Run unit tests
         run: |
           poetry run pytest --doctest-modules --ignore=examples --cov=pycardano --cov-config=.coveragerc --cov-report=xml
