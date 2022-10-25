@@ -60,3 +60,7 @@ markers = [
 
 [tool.isort]
 profile = "black"
+
+[tool.mypy]
+ignore_missing_imports = true
+python_version = 3.7
