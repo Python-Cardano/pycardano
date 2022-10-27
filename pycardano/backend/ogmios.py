@@ -1,7 +1,8 @@
 import calendar
 import json
 import time
-from typing import Dict, List, Union
+from enum import Enum
+from typing import Any, Dict, List, Union
 
 import cbor2
 import requests
@@ -32,6 +33,15 @@ from pycardano.transaction import (
 __all__ = ["OgmiosChainContext"]
 
 
+JSON = Dict[str, Any]
+
+
+class OgmiosQueryType(str, Enum):
+    Query = "Query"
+    SubmitTx = "SubmitTx"
+    EvaluateTx = "EvaluateTx"
+
+
 class OgmiosChainContext(ChainContext):
     def __init__(
         self,
@@ -48,7 +58,7 @@ class OgmiosChainContext(ChainContext):
         self._genesis_param = None
         self._protocol_param = None
 
-    def _request(self, method: str, args: dict) -> Union[dict, int]:
+    def _request(self, method: OgmiosQueryType, args: JSON) -> Any:
         ws = websocket.WebSocket()
         ws.connect(self._ws_url)
         request = json.dumps(
@@ -56,7 +66,7 @@ class OgmiosChainContext(ChainContext):
                 "type": "jsonwsp/request",
                 "version": "1.0",
                 "servicename": self._service_name,
-                "methodname": method,
+                "methodname": method.value,
                 "args": args,
             },
             separators=(",", ":"),
@@ -86,10 +96,9 @@ class OgmiosChainContext(ChainContext):
     @property
     def protocol_param(self) -> ProtocolParameters:
         """Get current protocol parameters"""
-        method = "Query"
         args = {"query": "currentProtocolParameters"}
         if not self._protocol_param or self._check_chain_tip_and_update():
-            result = self._request(method, args)
+            result = self._request(OgmiosQueryType.Query, args)
             param = ProtocolParameters(
                 min_fee_constant=result["minFeeConstant"],
                 min_fee_coefficient=result["minFeeCoefficient"],
@@ -130,7 +139,7 @@ class OgmiosChainContext(ChainContext):
                 param.cost_models["PlutusV2"] = param.cost_models.pop("plutus:v2")
 
             args = {"query": "genesisConfig"}
-            result = self._request(method, args)
+            result = self._request(OgmiosQueryType.Query, args)
             param.min_utxo = result["protocolParameters"]["minUtxoValue"]
 
             self._protocol_param = param
@@ -139,10 +148,9 @@ class OgmiosChainContext(ChainContext):
     @property
     def genesis_param(self) -> GenesisParameters:
         """Get chain genesis parameters"""
-        method = "Query"
         args = {"query": "genesisConfig"}
         if not self._genesis_param or self._check_chain_tip_and_update():
-            result = self._request(method, args)
+            result = self._request(OgmiosQueryType.Query, args)
             system_start_unix = int(
                 calendar.timegm(
                     time.strptime(
@@ -174,16 +182,14 @@ class OgmiosChainContext(ChainContext):
     @property
     def epoch(self) -> int:
         """Current epoch number"""
-        method = "Query"
         args = {"query": "currentEpoch"}
-        return self._request(method, args)
+        return self._request(OgmiosQueryType.Query, args)
 
     @property
     def last_block_slot(self) -> int:
         """Slot number of last block"""
-        method = "Query"
         args = {"query": "chainTip"}
-        return self._request(method, args)["slot"]
+        return self._request(OgmiosQueryType.Query, args)["slot"]
 
     def _extract_asset_info(self, asset_hash: str):
         policy_hex, asset_name_hex = asset_hash.split(".")
@@ -200,9 +206,8 @@ class OgmiosChainContext(ChainContext):
             index (int): transaction index.
         """
 
-        method = "Query"
         args = {"query": {"utxo": [{"txId": tx_id, "index": index}]}}
-        results = self._request(method, args)
+        results = self._request(OgmiosQueryType.Query, args)
 
         if results:
             return True
@@ -282,9 +287,8 @@ class OgmiosChainContext(ChainContext):
             List[UTxO]: A list of UTxOs.
         """
 
-        method = "Query"
         args = {"query": {"utxo": [address]}}
-        results = self._request(method, args)
+        results = self._request(OgmiosQueryType.Query, args)
 
         utxos = []
 
@@ -374,9 +378,8 @@ class OgmiosChainContext(ChainContext):
         if isinstance(cbor, bytes):
             cbor = cbor.hex()
 
-        method = "SubmitTx"
         args = {"submit": cbor}
-        result = self._request(method, args)
+        result = self._request(OgmiosQueryType.SubmitTx, args)
         if "SubmitFail" in result:
             raise TransactionFailedException(result["SubmitFail"])
 
@@ -395,9 +398,8 @@ class OgmiosChainContext(ChainContext):
         if isinstance(cbor, bytes):
             cbor = cbor.hex()
 
-        method = "EvaluateTx"
         args = {"evaluate": cbor}
-        result = self._request(method, args)
+        result = self._request(OgmiosQueryType.EvaluateTx, args)
         if "EvaluationResult" not in result:
             raise TransactionFailedException(result)
         else:
