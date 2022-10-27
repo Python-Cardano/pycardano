@@ -2,7 +2,7 @@ import calendar
 import json
 import time
 from enum import Enum
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Optional, Union
 
 import cbor2
 import requests
@@ -43,6 +43,14 @@ class OgmiosQueryType(str, Enum):
 
 
 class OgmiosChainContext(ChainContext):
+    _ws_url: str
+    _network: Network
+    _service_name: str
+    _kupo_url: Optional[str]
+    _last_known_block_slot: int
+    _genesis_param: Optional[GenesisParameters]
+    _protocol_param: Optional[ProtocolParameters]
+
     def __init__(
         self,
         ws_url: str,
