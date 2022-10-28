@@ -233,6 +233,9 @@ class OgmiosChainContext(ChainContext):
         Returns:
             List[UTxO]: A list of UTxOs.
         """
+        if self._kupo_url is None:
+            raise AssertionError("kupo_url object attribute has not been assigned properly.")
+
         address_url = self._kupo_url + "/" + address
         results = requests.get(address_url).json()
 
