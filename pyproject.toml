@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pycardano"
-version = "0.6.2"
+version = "0.7.0"
 classifiers = [
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
@@ -25,23 +25,26 @@ python = "^3.7"
 PyNaCl = "^1.5.0"
 cbor2 = "^5.4.3"
 typeguard = "^2.13.3"
-blockfrost-python = "0.5.1"
+blockfrost-python = "0.5.2"
 websocket-client = "^1.4.1"
 cose = "0.9.dev8"
 pprintpp = "^0.4.0"
+mnemonic = "^0.20"
+ECPy = "^1.2.5"
 
 [tool.poetry.dev-dependencies]
 Sphinx = "^4.3.2"
 sphinx-rtd-theme = "^1.0.0"
-pytest = "^7.1.1"
-pytest-cov = "^3.0.0"
-flake8 = "^4.0.1"
+pytest = "^7.2.0"
+pytest-cov = "^4.0.0"
+flake8 = "^5.0.4"
 isort = "^5.10.1"
 black = "^22.3.0"
 sphinx-copybutton = "^0.5.0"
 retry = "^0.9.2"
 Flask = "^2.0.3"
-pytest-xdist = "^2.5.0"
+pytest-xdist = "^3.0.2"
+mypy = "^0.982"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
@@ -57,3 +60,30 @@ markers = [
 
 [tool.isort]
 profile = "black"
+
+[tool.mypy]
+ignore_missing_imports = true
+python_version = 3.7
+exclude = [
+    '^pycardano/backend/base.py$',
+    '^pycardano/backend/blockfrost.py$',
+    '^pycardano/backend/ogmios.py$',
+    '^pycardano/cip/cip8.py$',
+    '^pycardano/crypto/bech32.py$',
+    '^pycardano/address.py$',
+    '^pycardano/certificate.py$',
+    '^pycardano/coinselection.py$',
+    '^pycardano/exception.py$',
+    '^pycardano/hash.py$',
+    '^pycardano/key.py$',
+    '^pycardano/logging.py$',
+    '^pycardano/metadata.py$',
+    '^pycardano/nativescript.py$',
+    '^pycardano/network.py$',
+    '^pycardano/plutus.py$',
+    '^pycardano/serialization.py$',
+    '^pycardano/transaction.py$',
+    '^pycardano/txbuilder.py$',
+    '^pycardano/utils.py$',
+    '^pycardano/witness.py$',
+]

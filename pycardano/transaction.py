@@ -371,6 +371,8 @@ class TransactionOutput(CBORSerializable):
 
     script: Optional[Union[NativeScript, PlutusV1Script, PlutusV2Script]] = None
 
+    post_alonzo: Optional[bool] = False
+
     def __post_init__(self):
         if isinstance(self.amount, int):
             self.amount = Value(self.amount)
@@ -398,7 +400,7 @@ class TransactionOutput(CBORSerializable):
             return self.amount.coin
 
     def to_primitive(self) -> Primitive:
-        if self.datum or self.script:
+        if self.datum or self.script or self.post_alonzo:
             datum = (
                 _DatumOption(self.datum_hash or self.datum)
                 if self.datum is not None or self.datum_hash is not None

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from copy import copy, deepcopy
+from copy import deepcopy
 from dataclasses import dataclass, field, fields
 from typing import Dict, List, Optional, Set, Tuple, Union
 
@@ -55,13 +55,7 @@ from pycardano.transaction import (
     Value,
     Withdrawals,
 )
-from pycardano.utils import (
-    fee,
-    max_tx_fee,
-    min_lovelace_post_alonzo,
-    min_lovelace_pre_alonzo,
-    script_data_hash,
-)
+from pycardano.utils import fee, max_tx_fee, min_lovelace_post_alonzo, script_data_hash
 from pycardano.witness import TransactionWitnessSet, VerificationKeyWitness
 
 __all__ = ["TransactionBuilder"]
@@ -365,7 +359,8 @@ class TransactionBuilder:
         scripts = {script_hash(s): s for s in self.all_scripts}
 
         for s in self._reference_scripts:
-            scripts.pop(script_hash(s))
+            if script_hash(s) in scripts:
+                scripts.pop(script_hash(s))
 
         return list(scripts.values())
 
@@ -401,7 +396,7 @@ class TransactionBuilder:
             return None
 
     def _calc_change(
-        self, fees, inputs, outputs, address, precise_fee=False
+        self, fees, inputs, outputs, address, precise_fee=False, respect_min_utxo=True
     ) -> List[TransactionOutput]:
         requested = Value(fees)
         for o in outputs:
@@ -436,10 +431,12 @@ class TransactionBuilder:
 
         # when there is only ADA left, simply use remaining coin value as change
         if not change.multi_asset:
-            if change.coin < min_lovelace_pre_alonzo(change, self.context):
+            if respect_min_utxo and change.coin < min_lovelace_post_alonzo(
+                TransactionOutput(address, change), self.context
+            ):
                 raise InsufficientUTxOBalanceException(
                     f"Not enough ADA left for change: {change.coin} but needs "
-                    f"{min_lovelace_pre_alonzo(change, self.context)}"
+                    f"{min_lovelace_post_alonzo(TransactionOutput(address, change), self.context)}"
                 )
             lovelace_change = change.coin
             change_output_arr.append(TransactionOutput(address, lovelace_change))
@@ -456,8 +453,8 @@ class TransactionBuilder:
                 # Combine remainder of provided ADA with last MultiAsset for output
                 # There may be rare cases where adding ADA causes size exceeds limit
                 # We will revisit if it becomes an issue
-                if change.coin < min_lovelace_pre_alonzo(
-                    Value(0, multi_asset), self.context
+                if respect_min_utxo and change.coin < min_lovelace_post_alonzo(
+                    TransactionOutput(address, Value(0, multi_asset)), self.context
                 ):
                     raise InsufficientUTxOBalanceException(
                         "Not enough ADA left to cover non-ADA assets in a change address"
@@ -468,8 +465,8 @@ class TransactionBuilder:
                     change_value = Value(change.coin, multi_asset)
                 else:
                     change_value = Value(0, multi_asset)
-                    change_value.coin = min_lovelace_pre_alonzo(
-                        change_value, self.context
+                    change_value.coin = min_lovelace_post_alonzo(
+                        TransactionOutput(address, change_value), self.context
                     )
 
                 change_output_arr.append(TransactionOutput(address, change_value))
@@ -511,7 +508,12 @@ class TransactionBuilder:
             # Set fee to max
             self.fee = self._estimate_fee()
             changes = self._calc_change(
-                self.fee, self.inputs, self.outputs, change_address, precise_fee=True
+                self.fee,
+                self.inputs,
+                self.outputs,
+                change_address,
+                precise_fee=True,
+                respect_min_utxo=not merge_change,
             )
 
             _merge_changes(changes)
@@ -522,7 +524,12 @@ class TransactionBuilder:
         if change_address:
             self._outputs = original_outputs
             changes = self._calc_change(
-                self.fee, self.inputs, self.outputs, change_address, precise_fee=True
+                self.fee,
+                self.inputs,
+                self.outputs,
+                change_address,
+                precise_fee=True,
+                respect_min_utxo=not merge_change,
             )
 
             _merge_changes(changes)
@@ -560,7 +567,9 @@ class TransactionBuilder:
         attempt_amount = new_amount + current_amount
 
         # Calculate minimum ada requirements for more precise value size
-        required_lovelace = min_lovelace_pre_alonzo(attempt_amount, self.context)
+        required_lovelace = min_lovelace_post_alonzo(
+            TransactionOutput(output.address, attempt_amount), self.context
+        )
         attempt_amount.coin = required_lovelace
 
         return len(attempt_amount.to_cbor("bytes")) > max_val_size
@@ -617,7 +626,9 @@ class TransactionBuilder:
 
             # Calculate min lovelace required for more precise size
             updated_amount = deepcopy(output.amount)
-            required_lovelace = min_lovelace_pre_alonzo(updated_amount, self.context)
+            required_lovelace = min_lovelace_post_alonzo(
+                TransactionOutput(change_address, updated_amount), self.context
+            )
             updated_amount.coin = required_lovelace
 
             if len(updated_amount.to_cbor("bytes")) > max_val_size:
@@ -854,7 +865,9 @@ class TransactionBuilder:
         Returns:
             TransactionBody: A transaction body.
         """
-        self._update_execution_units()
+        self._update_execution_units(
+            change_address, merge_change, collateral_change_address
+        )
         self._ensure_no_input_exclusion_conflict()
         selected_utxos = []
         selected_amount = Value()
@@ -903,8 +916,11 @@ class TransactionBuilder:
                 unfulfilled_amount.coin = max(
                     0,
                     unfulfilled_amount.coin
-                    + min_lovelace_pre_alonzo(
-                        selected_amount - trimmed_selected_amount, self.context
+                    + min_lovelace_post_alonzo(
+                        TransactionOutput(
+                            change_address, selected_amount - trimmed_selected_amount
+                        ),
+                        self.context,
                     ),
                 )
         else:
@@ -1006,7 +1022,7 @@ class TransactionBuilder:
         ):
             return
 
-        if not collateral_return_address or self._should_estimate_execution_units:
+        if not collateral_return_address:
             return
 
         collateral_amount = (
@@ -1031,15 +1047,15 @@ class TransactionBuilder:
                         cur_total += candidate.output.amount
 
             sorted_inputs = sorted(
-                self.inputs.copy(), key=lambda i: i.output.amount, reverse=True
+                self.inputs.copy(),
+                key=lambda i: (len(i.output.to_cbor()), -i.output.amount.coin),
             )
             _add_collateral_input(tmp_val, sorted_inputs)
 
             if tmp_val.coin < collateral_amount:
                 sorted_inputs = sorted(
                     self.context.utxos(str(collateral_return_address)),
-                    key=lambda i: i.output.amount,
-                    reverse=True,
+                    key=lambda i: (len(i.output.to_cbor()), -i.output.amount.coin),
                 )
                 _add_collateral_input(tmp_val, sorted_inputs)
 
@@ -1048,33 +1064,38 @@ class TransactionBuilder:
         for utxo in self.collaterals:
             total_input += utxo.output.amount
 
-        # TODO: Remove this check when we are in Vasil era
-        if total_input.multi_asset:
-            if collateral_amount > total_input.coin:
+        if collateral_amount > total_input.coin:
+            raise ValueError(
+                f"Minimum collateral amount {collateral_amount} is greater than total "
+                f"provided collateral inputs {total_input}"
+            )
+        else:
+            return_amount = total_input - collateral_amount
+            min_lovelace_val = min_lovelace_post_alonzo(
+                TransactionOutput(collateral_return_address, return_amount),
+                self.context,
+            )
+            if min_lovelace_val > return_amount.coin:
                 raise ValueError(
-                    f"Minimum collateral amount {collateral_amount} is greater than total "
-                    f"provided collateral inputs {total_input}"
+                    f"Minimum lovelace amount for collateral return {min_lovelace_val} is "
+                    f"greater than collateral change {return_amount.coin}. Please provide more collateral inputs."
                 )
             else:
-                return_amount = total_input - collateral_amount
-                min_lovelace_val = min_lovelace_post_alonzo(
-                    TransactionOutput(collateral_return_address, return_amount),
-                    self.context,
+                self._collateral_return = TransactionOutput(
+                    collateral_return_address, total_input - collateral_amount
                 )
-                if min_lovelace_val > return_amount.coin:
-                    raise ValueError(
-                        f"Minimum lovelace amount for collateral return {min_lovelace_val} is "
-                        f"greater than collateral change {return_amount.coin}. Please provide more collateral inputs."
-                    )
-                else:
-                    self._collateral_return = TransactionOutput(
-                        collateral_return_address, total_input - collateral_amount
-                    )
-                    self._total_collateral = collateral_amount
+                self._total_collateral = collateral_amount
 
-    def _update_execution_units(self):
+    def _update_execution_units(
+        self,
+        change_address: Optional[Address] = None,
+        merge_change: bool = False,
+        collateral_change_address: Optional[Address] = None,
+    ):
         if self._should_estimate_execution_units:
-            estimated_execution_units = self._estimate_execution_units()
+            estimated_execution_units = self._estimate_execution_units(
+                change_address, merge_change, collateral_change_address
+            )
             for r in self.redeemers:
                 key = f"{r.tag.name.lower()}:{r.index}"
                 if key not in estimated_execution_units:
@@ -1093,15 +1114,19 @@ class TransactionBuilder:
     def _estimate_execution_units(
         self,
         change_address: Optional[Address] = None,
+        merge_change: bool = False,
+        collateral_change_address: Optional[Address] = None,
     ):
-        # Create a shallow copy of current builder, so we won't mess up current builder's internal states
+        # Create a deep copy of current builder, so we won't mess up current builder's internal states
         tmp_builder = TransactionBuilder(self.context)
         for f in fields(self):
             if f.name not in ("context",):
-                setattr(tmp_builder, f.name, copy(getattr(self, f.name)))
+                setattr(tmp_builder, f.name, deepcopy(getattr(self, f.name)))
         tmp_builder._should_estimate_execution_units = False
         self._should_estimate_execution_units = False
-        tx_body = tmp_builder.build(change_address)
+        tx_body = tmp_builder.build(
+            change_address, merge_change, collateral_change_address
+        )
         witness_set = tmp_builder._build_fake_witness_set()
         tx = Transaction(
             tx_body, witness_set, auxiliary_data=tmp_builder.auxiliary_data
@@ -1114,6 +1139,7 @@ class TransactionBuilder:
         signing_keys: List[Union[SigningKey, ExtendedSigningKey]],
         change_address: Optional[Address] = None,
         merge_change: Optional[bool] = False,
+        collateral_change_address: Optional[Address] = None,
     ) -> Transaction:
         """Build a transaction body from all constraints set through the builder and sign the transaction with
         provided signing keys.
@@ -1125,12 +1151,17 @@ class TransactionBuilder:
                 transaction body will likely be unbalanced (sum of inputs is greater than the sum of outputs).
             merge_change (Optional[bool]): If the change address match one of the transaction output, the change amount
                 will be directly added to that transaction output, instead of being added as a separate output.
+            collateral_change_address (Optional[Address]): Address to which collateral changes will be returned.
 
         Returns:
             Transaction: A signed transaction.
         """
 
-        tx_body = self.build(change_address=change_address, merge_change=merge_change)
+        tx_body = self.build(
+            change_address=change_address,
+            merge_change=merge_change,
+            collateral_change_address=collateral_change_address,
+        )
         witness_set = self.build_witness_set()
         witness_set.vkey_witnesses = []
 

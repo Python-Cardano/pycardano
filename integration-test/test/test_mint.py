@@ -322,7 +322,7 @@ class TestMint(TestBase):
 
         # Calculate the minimum amount of lovelace that need to hold the NFT we are going to mint
         min_val = min_lovelace(
-            output=TransactionOutput(address, Value(1000000, my_nft)),
+            output=TransactionOutput(address, Value(0, my_nft)),
             context=self.chain_context,
         )
 

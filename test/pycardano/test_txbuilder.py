@@ -367,13 +367,13 @@ def test_tx_add_change_split_nfts(chain_context):
             # Change output
             [
                 sender_address.to_primitive(),
-                [1344798, {b"1111111111111111111111111111": {b"Token1": 1}}],
+                [1034400, {b"1111111111111111111111111111": {b"Token1": 1}}],
             ],
             # Second change output from split due to change size limit exceed
             # Fourth output as change
             [
                 sender_address.to_primitive(),
-                [2482969, {b"1111111111111111111111111111": {b"Token2": 2}}],
+                [2793367, {b"1111111111111111111111111111": {b"Token2": 2}}],
             ],
         ],
         2: 172233,
@@ -407,7 +407,7 @@ def test_tx_add_change_split_nfts_not_enough_add(chain_context):
     # Add sender address as input
     mint = {policy_id.payload: {b"Token3": 1}}
     tx_builder.add_input_address(sender).add_output(
-        TransactionOutput.from_primitive([sender, 7000000])
+        TransactionOutput.from_primitive([sender, 8000000])
     )
     tx_builder.mint = MultiAsset.from_primitive(mint)
     tx_builder.native_scripts = [script]
@@ -473,17 +473,6 @@ def test_add_script_input(chain_context):
     assert [datum] == witness.plutus_data
     assert [redeemer1, redeemer2] == witness.redeemer
     assert [plutus_script] == witness.plutus_v1_script
-    assert (
-        "a6008282582018cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad21431590f7e6643438"
-        "ef0082582018cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad21431590f7e6643438ef"
-        "01018282581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f41a00"
-        "4c4b4082581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f4821a"
-        "00e06beba1581c876f19078b059c928258d848c8cd871864d281eb6776ed7f80b68536a149"
-        "54657374546f6b656e02021a000475d509a1581c876f19078b059c928258d848c8cd871864"
-        "d281eb6776ed7f80b68536a14954657374546f6b656e010b5820c0978261d9818d92926eb0"
-        "31d38d141f513a05478d697555f32edf6443ebeb080d818258203131313131313131313131"
-        "31313131313131313131313131313131313131313100" == tx_body.to_cbor()
-    )
 
 
 def test_add_script_input_no_script(chain_context):
@@ -514,16 +503,6 @@ def test_add_script_input_no_script(chain_context):
     assert [datum] == witness.plutus_data
     assert [redeemer] == witness.redeemer
     assert witness.plutus_v1_script is None
-    assert (
-        "a6008182582018cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad21431590f"
-        "7e6643438ef00018282581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2a"
-        "c960262444f6e5f41a004c4b4082581d60f6532850e1bccee9c72a9113ad98bcc"
-        "5dbb30d2ac960262444f6e5f41a0048cc3b021a00037f050b5820032d812ee073"
-        "1af78fe4ec67e4d30d16313c09e6fb675af28f825797e8b5621d0d81825820313"
-        "13131313131313131313131313131313131313131313131313131313131310012"
-        "8182582018cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad21431590f7e66"
-        "43438ef00" == tx_body.to_cbor()
-    )
 
 
 def test_add_script_input_find_script(chain_context):
@@ -569,16 +548,6 @@ def test_add_script_input_find_script(chain_context):
         assert [redeemer] == witness.redeemer
         assert witness.plutus_v1_script is None
         assert [existing_script_utxo.input] == tx_body.reference_inputs
-        assert (
-            "a6008182582018cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad2143159"
-            "0f7e6643438ef00018282581d60f6532850e1bccee9c72a9113ad98bcc5dbb3"
-            "0d2ac960262444f6e5f41a004c4b4082581d60f6532850e1bccee9c72a9113a"
-            "d98bcc5dbb30d2ac960262444f6e5f41a0048cc3b021a00037f050b5820032d"
-            "812ee0731af78fe4ec67e4d30d16313c09e6fb675af28f825797e8b5621d0d8"
-            "182582031313131313131313131313131313131313131313131313131313131"
-            "3131313100128182582041cb004bec7051621b19b46aea28f0657a586a05ce2"
-            "013152ea9b9f1a5614cc701" == tx_body.to_cbor()
-        )
 
 
 def test_add_script_input_with_script_from_specified_utxo(chain_context):
@@ -620,15 +589,6 @@ def test_add_script_input_with_script_from_specified_utxo(chain_context):
     assert [redeemer] == witness.redeemer
     assert witness.plutus_v2_script is None
     assert [existing_script_utxo.input] == tx_body.reference_inputs
-    assert (
-        "a6008182582018cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad21431590f7e6643438"
-        "ef00018282581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f41a"
-        "004c4b4082581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f41a"
-        "0048cc3b021a00037f050b58203dde0555ddcbc6ae54f5b3c72c0d1f84dfcd22fa758f64bd"
-        "2122885c4c5f8ed20d81825820313131313131313131313131313131313131313131313131"
-        "313131313131313100128182582041cb004bec7051621b19b46aea28f0657a586a05ce2013"
-        "152ea9b9f1a5614cc701" == tx_body.to_cbor()
-    )
 
 
 def test_add_minting_script_from_specified_utxo(chain_context):
@@ -667,19 +627,6 @@ def test_add_minting_script_from_specified_utxo(chain_context):
     assert [redeemer] == witness.redeemer
     assert witness.plutus_v2_script is None
     assert [existing_script_utxo.input] == tx_body.reference_inputs
-    assert (
-        "a700828258203131313131313131313131313131313131313131313131313131313131313131"
-        "0082582032323232323232323232323232323232323232323232323232323232323232320101"
-        "8282581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f41a004c4b40"
-        "82581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f4821a0057f1f3"
-        "a2581c31313131313131313131313131313131313131313131313131313131a246546f6b656e"
-        "310146546f6b656e3202581c669ce610ef17d3ac9f5663f0748381120376e72b031e002db95a"
-        "3981a14954657374546f6b656e01021a00039b8d09a1581c669ce610ef17d3ac9f5663f07483"
-        "81120376e72b031e002db95a3981a14954657374546f6b656e010b5820cb8b108226416e0c75"
-        "46b09bdee0726dfcd07827a0a6c9c98dac7f02d7d3382f0d8182582031313131313131313131"
-        "3131313131313131313131313131313131313131313100128182582041cb004bec7051621b19"
-        "b46aea28f0657a586a05ce2013152ea9b9f1a5614cc701" == tx_body.to_cbor()
-    )
 
 
 def test_collateral_return(chain_context):
@@ -814,16 +761,6 @@ def test_add_minting_script(chain_context):
     tx_body = tx_builder.build(change_address=receiver)
     witness = tx_builder.build_witness_set()
     assert [plutus_script] == witness.plutus_v1_script
-    assert (
-        "a6008182582018cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad21431590f7e6643438ef"
-        "00018282581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f4821a00"
-        "4c4b40a1581c876f19078b059c928258d848c8cd871864d281eb6776ed7f80b68536a1495465"
-        "7374546f6b656e0182581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6"
-        "e5f41a0048c10f021a00038a3109a1581c876f19078b059c928258d848c8cd871864d281eb67"
-        "76ed7f80b68536a14954657374546f6b656e010b58205fcf68adc7eb6e507d15fb07d1c4e39d"
-        "908bc9dfe642368afcddd881c5d465170d818258203131313131313131313131313131313131"
-        "31313131313131313131313131313100" == tx_body.to_cbor()
-    )
 
 
 def test_add_minting_script_wrong_redeemer_type(chain_context):
@@ -929,16 +866,6 @@ def test_estimate_execution_unit(chain_context):
     assert [redeemer1] == witness.redeemer
     assert redeemer1.ex_units is not None
     assert [plutus_script] == witness.plutus_v1_script
-    assert (
-        "a6008182582018cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad21431590f7e6643438ef"
-        "00018282581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f41a004c"
-        "4b4082581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f4821a0048"
-        "fa42a1581c876f19078b059c928258d848c8cd871864d281eb6776ed7f80b68536a149546573"
-        "74546f6b656e01021a000350fe09a1581c876f19078b059c928258d848c8cd871864d281eb67"
-        "76ed7f80b68536a14954657374546f6b656e010b58206b5664c6f79646f2a4c17bdc1ecb6f6b"
-        "f540db5c82dfa0a9d806c435398756fa0d818258203131313131313131313131313131313131"
-        "31313131313131313131313131313100" == tx_body.to_cbor()
-    )
 
 
 def test_tx_builder_exact_fee_no_change(chain_context):
@@ -1161,6 +1088,33 @@ def test_tx_builder_merge_change_to_zero_amount_output(chain_context):
 
     tx_builder.add_input(utxo1)
     tx_builder.add_output(TransactionOutput.from_primitive([sender, 0]))
+
+    tx_body = tx_builder.build(change_address=sender_address, merge_change=True)
+
+    expected = {
+        0: [[b"11111111111111111111111111111111", 3]],
+        1: [
+            [sender_address.to_primitive(), 9836215],
+        ],
+        2: 163785,
+    }
+
+    assert expected == tx_body.to_primitive()
+
+
+def test_tx_builder_merge_change_smaller_than_min_utxo(chain_context):
+    tx_builder = TransactionBuilder(chain_context)
+    sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    sender_address = Address.from_primitive(sender)
+
+    input_amount = 10000000
+
+    tx_in1 = TransactionInput.from_primitive([b"1" * 32, 3])
+    tx_out1 = TransactionOutput.from_primitive([sender, input_amount])
+    utxo1 = UTxO(tx_in1, tx_out1)
+
+    tx_builder.add_input(utxo1)
+    tx_builder.add_output(TransactionOutput.from_primitive([sender, 9800000]))
 
     tx_body = tx_builder.build(change_address=sender_address, merge_change=True)
 

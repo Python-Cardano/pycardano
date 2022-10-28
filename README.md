@@ -41,9 +41,9 @@ could be beneficial for faster R&D iterations.
 - [X] Plutus script
 - [X] Staking certificates
 - [X] Reward withdraw
-- [ ] Mnemonic 
+- [X] Mnemonic 
+- [X] HD Wallet
 - [ ] Byron Address
-- [ ] HD Wallet
 - [ ] Pool certificate
 - [ ] Protocol proposal update
 
@@ -241,4 +241,6 @@ Build docs and open the docs in browser:
   <a href="https://www.blockery.io/"><img src="https://avatars.githubusercontent.com/u/97766045?s=50&v=4"/></a>
   <a href="https://github.com/KtorZ"><img src="https://avatars.githubusercontent.com/u/5680256?s=50&v=4"/></a>
   <a href="https://github.com/lacepool"><img src="https://avatars.githubusercontent.com/u/79309785?s=50&v=4"/></a>
+  <a href="https://github.com/muppetADA"><img width="50" src="https://avatars.githubusercontent.com/u/115075316?s=50&v=4"/></a>
+  <a href="https://github.com/CardanoDur"><img width="50" src="https://avatars.githubusercontent.com/u/1000466?s=50&v=4"/></a>
 </p>

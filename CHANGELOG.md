@@ -4,6 +4,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.7.0] - 2022-10-16
+
+### Added
+
+- Support HDWallets and mnemonic phrases. (#85)
+
+### Fixed
+
+- Fix key error when there are duplicates in reference scripts.
+- If merging change into existing outputs is enabled, do not enforce min_utxo on changes.
+- Make script estimation more accurate.
+
+## [0.6.3] - 2022-10-02
+
+### Added
+
+- Support cbor serializable for UTxO. (#84)
+
+### Fixed
+
+- Add required signers as part of fee estimation.
+- Fix insufficient min_utxo amount when using Blockfrost context.
+
+### Changed
+
+- Change the default calculation of `min_lovelace` to Vasil era. This is a backward compatible change,
+and it will reduce the amount of `min_lovelace` required for transactions.
+
+
 ## [0.6.2] - 2022-09-03
 
 Fix dependencies.
