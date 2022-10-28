@@ -32,9 +32,6 @@ jobs:
       - name: Install dependencies
         run: |
           poetry install
-      - name: Run static analyses
-        run: |
-          make qa
       - name: Run unit tests
         run: |
           poetry run pytest --doctest-modules --ignore=examples --cov=pycardano --cov-config=.coveragerc --cov-report=xml
@@ -42,6 +39,9 @@ jobs:
         uses: codecov/codecov-action@v3
         with:
           fail_ci_if_error: true
+      - name: Run static analyses
+        run: |
+          make qa
 
   continuous-integration:
     runs-on: ${{ matrix.os }}

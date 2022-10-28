@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from enum import Enum
+from typing import Type
 
 from pycardano.serialization import CBORSerializable
 
@@ -21,5 +22,5 @@ class Network(CBORSerializable, Enum):
         return self.value
 
     @classmethod
-    def from_primitive(cls, value: int) -> Network:
+    def from_primitive(cls: Type[Network], value: int) -> Network:
         return cls(value)

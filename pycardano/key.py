@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+from typing import Type
 
 from nacl.encoding import RawEncoder
 from nacl.hash import blake2b
@@ -61,7 +62,7 @@ class Key(CBORSerializable):
         return self.payload
 
     @classmethod
-    def from_primitive(cls, value: bytes) -> Key:
+    def from_primitive(cls: Type["Key"], value: bytes) -> Key:
         return cls(value)
 
     def to_json(self) -> str:
