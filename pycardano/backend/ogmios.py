@@ -2,7 +2,7 @@ import calendar
 import json
 import time
 from enum import Enum
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, Tuple
 
 import cbor2
 import requests
@@ -199,12 +199,12 @@ class OgmiosChainContext(ChainContext):
         args = {"query": "chainTip"}
         return self._request(OgmiosQueryType.Query, args)["slot"]
 
-    def _extract_asset_info(self, asset_hash: str):
+    def _extract_asset_info(self, asset_hash: str) -> Tuple[str, ScriptHash, AssetName]:
         policy_hex, asset_name_hex = asset_hash.split(".")
         policy = ScriptHash.from_primitive(policy_hex)
-        asset_name_hex = AssetName.from_primitive(asset_name_hex)
+        asset_name = AssetName.from_primitive(asset_name_hex)
 
-        return policy_hex, policy, asset_name_hex
+        return policy_hex, policy, asset_name
 
     def _check_utxo_unspent(self, tx_id: str, index: int) -> bool:
         """Check whether an UTxO is unspent with Ogmios.
