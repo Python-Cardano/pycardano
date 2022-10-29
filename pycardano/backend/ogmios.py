@@ -102,7 +102,7 @@ class OgmiosChainContext(ChainContext):
 
     def _query_chain_tip(self) -> JSON:
         args = {"query": "chainTip"}
-        return self._request(OgmiosQueryType.Query, args)["slot"]
+        return self._request(OgmiosQueryType.Query, args)
 
     def _check_chain_tip_and_update(self):
         slot = self.last_block_slot
