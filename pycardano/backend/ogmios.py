@@ -88,6 +88,10 @@ class OgmiosChainContext(ChainContext):
             )
         return json.loads(response)["result"]
 
+    def _query_current_protocol_params(self) -> JSON:
+        args = {"query": "currentProtocolParameters"}
+        return self._request(OgmiosQueryType.Query, args)
+
     def _check_chain_tip_and_update(self):
         slot = self.last_block_slot
         if self._last_known_block_slot != slot:
@@ -104,9 +108,8 @@ class OgmiosChainContext(ChainContext):
     @property
     def protocol_param(self) -> ProtocolParameters:
         """Get current protocol parameters"""
-        args = {"query": "currentProtocolParameters"}
         if not self._protocol_param or self._check_chain_tip_and_update():
-            result = self._request(OgmiosQueryType.Query, args)
+            result = self._query_current_protocol_params()
             param = ProtocolParameters(
                 min_fee_constant=result["minFeeConstant"],
                 min_fee_coefficient=result["minFeeCoefficient"],
