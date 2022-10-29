@@ -2,7 +2,7 @@ import calendar
 import json
 import time
 from enum import Enum
-from typing import Any, Dict, List, Optional, Union, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import cbor2
 import requests
@@ -242,7 +242,9 @@ class OgmiosChainContext(ChainContext):
             List[UTxO]: A list of UTxOs.
         """
         if self._kupo_url is None:
-            raise AssertionError("kupo_url object attribute has not been assigned properly.")
+            raise AssertionError(
+                "kupo_url object attribute has not been assigned properly."
+            )
 
         address_url = self._kupo_url + "/" + address
         results = requests.get(address_url).json()

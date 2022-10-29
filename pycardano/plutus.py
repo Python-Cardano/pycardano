@@ -6,7 +6,7 @@ import inspect
 import json
 from dataclasses import dataclass, field, fields
 from enum import Enum
-from typing import Any, ClassVar, List, Optional, Union, Type
+from typing import Any, ClassVar, List, Optional, Type, Union
 
 import cbor2
 from cbor2 import CBORTag

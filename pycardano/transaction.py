@@ -5,7 +5,7 @@ from __future__ import annotations
 from copy import deepcopy
 from dataclasses import dataclass, field
 from pprint import pformat
-from typing import Any, Callable, List, Optional, Union, Type
+from typing import Any, Callable, List, Optional, Type, Union
 
 import cbor2
 from cbor2 import CBORTag
@@ -311,7 +311,9 @@ class _DatumOption(ArrayCBORSerializable):
         return [self._TYPE, data]
 
     @classmethod
-    def from_primitive(cls: Type[_DatumOption], values: List[Primitive]) -> _DatumOption:
+    def from_primitive(
+        cls: Type[_DatumOption], values: List[Primitive]
+    ) -> _DatumOption:
         if values[0] == 0:
             return _DatumOption(DatumHash(values[1]))
         else:
@@ -418,7 +420,9 @@ class TransactionOutput(CBORSerializable):
             ).to_primitive()
 
     @classmethod
-    def from_primitive(cls: Type[TransactionOutput], value: Primitive) -> TransactionOutput:
+    def from_primitive(
+        cls: Type[TransactionOutput], value: Primitive
+    ) -> TransactionOutput:
         if isinstance(value, list):
             output = _TransactionOutputLegacy.from_primitive(value)
             return cls(output.address, output.amount, datum=output.datum_hash)
