@@ -96,6 +96,10 @@ class OgmiosChainContext(ChainContext):
         args = {"query": "genesisConfig"}
         return self._request(OgmiosQueryType.Query, args)
 
+    def _query_current_epoch(self) -> int:
+        args = {"query": "currentEpoch"}
+        return self._request(OgmiosQueryType.Query, args)
+
     def _check_chain_tip_and_update(self):
         slot = self.last_block_slot
         if self._last_known_block_slot != slot:
@@ -195,8 +199,7 @@ class OgmiosChainContext(ChainContext):
     @property
     def epoch(self) -> int:
         """Current epoch number"""
-        args = {"query": "currentEpoch"}
-        return self._request(OgmiosQueryType.Query, args)
+        return self._query_current_epoch()
 
     @property
     def last_block_slot(self) -> int:
