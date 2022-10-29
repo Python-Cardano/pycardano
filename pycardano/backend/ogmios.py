@@ -100,6 +100,10 @@ class OgmiosChainContext(ChainContext):
         args = {"query": "currentEpoch"}
         return self._request(OgmiosQueryType.Query, args)
 
+    def _query_chain_tip(self) -> JSON:
+        args = {"query": "chainTip"}
+        return self._request(OgmiosQueryType.Query, args)["slot"]
+
     def _check_chain_tip_and_update(self):
         slot = self.last_block_slot
         if self._last_known_block_slot != slot:
@@ -204,8 +208,8 @@ class OgmiosChainContext(ChainContext):
     @property
     def last_block_slot(self) -> int:
         """Slot number of last block"""
-        args = {"query": "chainTip"}
-        return self._request(OgmiosQueryType.Query, args)["slot"]
+        result = self._query_chain_tip()
+        return result["slot"]
 
     def _extract_asset_info(self, asset_hash: str) -> Tuple[str, ScriptHash, AssetName]:
         policy_hex, asset_name_hex = asset_hash.split(".")
