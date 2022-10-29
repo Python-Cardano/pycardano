@@ -92,6 +92,10 @@ class OgmiosChainContext(ChainContext):
         args = {"query": "currentProtocolParameters"}
         return self._request(OgmiosQueryType.Query, args)
 
+    def _query_genesis_config(self) -> JSON:
+        args = {"query": "genesisConfig"}
+        return self._request(OgmiosQueryType.Query, args)
+
     def _check_chain_tip_and_update(self):
         slot = self.last_block_slot
         if self._last_known_block_slot != slot:
@@ -149,8 +153,7 @@ class OgmiosChainContext(ChainContext):
             if "plutus:v2" in param.cost_models:
                 param.cost_models["PlutusV2"] = param.cost_models.pop("plutus:v2")
 
-            args = {"query": "genesisConfig"}
-            result = self._request(OgmiosQueryType.Query, args)
+            result = self._query_genesis_config()
             param.min_utxo = result["protocolParameters"]["minUtxoValue"]
 
             self._protocol_param = param
@@ -159,9 +162,8 @@ class OgmiosChainContext(ChainContext):
     @property
     def genesis_param(self) -> GenesisParameters:
         """Get chain genesis parameters"""
-        args = {"query": "genesisConfig"}
         if not self._genesis_param or self._check_chain_tip_and_update():
-            result = self._request(OgmiosQueryType.Query, args)
+            result = self._query_genesis_config()
             system_start_unix = int(
                 calendar.timegm(
                     time.strptime(
