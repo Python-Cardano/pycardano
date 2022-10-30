@@ -1346,7 +1346,7 @@ class Wallet:
         merge_change: Optional[bool] = True,
         message: Optional[Union[str, List[str]]] = None,
         other_metadata=None,
-        sign: Optional[bool] = False,
+        build_only: Optional[bool] = False,
         submit: Optional[bool] = True,
         await_confirmation: Optional[bool] = False,
         context: Optional[ChainContext] = None,
@@ -1375,6 +1375,7 @@ class Wallet:
                 True by default.
             message (Union[str, List[str]]): A message to include in the transaction.
             other_metadata (dict): Any other metadata to include in the transaction.
+            build_only (bool): Whether to only build the transaction and not submit it. Returns a built transaction.
             submit (bool): Whether to submit the transaction to the network. Defaults to True.
                 If False, return the signed transaction CBOR.
             await_confirmation (bool): Whether to wait for the transaction to be confirmed. Defaults to False.
@@ -1382,6 +1383,8 @@ class Wallet:
 
         Returns:
             str: The transaction ID if submit is True, otherwise the signed transaction CBOR.
+            OR 
+            pycardano.transaction.TransactionBody: A built but unsigned transaction body, if build_only is True.
         """
 
         # streamline inputs
@@ -1657,7 +1660,7 @@ class Wallet:
         if withdraw:
             builder.withdrawals = Withdrawals(withdraw)
 
-        if not sign:
+        if build_only:
             return builder.build(
                 change_address=change_address, merge_change=merge_change
             )
