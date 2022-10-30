@@ -9,7 +9,7 @@ Specifications and references could be found in:
 from __future__ import annotations
 
 from enum import Enum
-from typing import Union
+from typing import Union, Type
 
 from pycardano.crypto.bech32 import decode, encode
 from pycardano.exception import (
@@ -160,7 +160,7 @@ class PointerAddress(CBORSerializable):
         return self.encode()
 
     @classmethod
-    def from_primitive(cls, value: bytes) -> PointerAddress:
+    def from_primitive(cls: Type[PointerAddress], value: bytes) -> PointerAddress:
         return cls.decode(value)
 
     def __eq__(self, other):
@@ -339,7 +339,7 @@ class Address(CBORSerializable):
         return bytes(self)
 
     @classmethod
-    def from_primitive(cls, value: Union[bytes, str]) -> Address:
+    def from_primitive(cls: Type[Address], value: Union[bytes, str]) -> Address:
         if isinstance(value, str):
             value = bytes(decode(value))
         header = value[0]

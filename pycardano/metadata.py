@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, ClassVar, List, Union
+from typing import Any, ClassVar, List, Union, Type
 
 from cbor2 import CBORTag
 from nacl.encoding import RawEncoder
@@ -91,7 +91,7 @@ class AlonzoMetadata(MapCBORSerializable):
         return CBORTag(AlonzoMetadata.TAG, super(AlonzoMetadata, self).to_primitive())
 
     @classmethod
-    def from_primitive(cls: AlonzoMetadata, value: CBORTag) -> AlonzoMetadata:
+    def from_primitive(cls: Type[AlonzoMetadata], value: CBORTag) -> AlonzoMetadata:
         if not hasattr(value, "tag"):
             raise DeserializeException(
                 f"{value} does not match the data schema of AlonzoMetadata."
@@ -111,7 +111,7 @@ class AuxiliaryData(CBORSerializable):
         return self.data.to_primitive()
 
     @classmethod
-    def from_primitive(cls: AuxiliaryData, value: Primitive) -> AuxiliaryData:
+    def from_primitive(cls: Type[AuxiliaryData], value: Primitive) -> AuxiliaryData:
         for t in [AlonzoMetadata, ShellayMarryMetadata, Metadata]:
             # The schema of metadata in different eras are mutually exclusive, so we can try deserializing
             # them one by one without worrying about mismatch.

@@ -67,7 +67,6 @@ python_version = 3.7
 exclude = [
     '^pycardano/backend/base.py$',
     '^pycardano/backend/blockfrost.py$',
-    '^pycardano/backend/ogmios.py$',
     '^pycardano/cip/cip8.py$',
     '^pycardano/crypto/bech32.py$',
     '^pycardano/address.py$',
