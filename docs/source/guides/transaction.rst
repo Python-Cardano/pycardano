@@ -145,7 +145,7 @@ Step 6
 Add additional transaction information as needed:
 
     >>> builder.ttl = 3600
-    >>> builder.reference_inputs = [{"option1": "my_input1", "option2" : "my_input2"}]
+    >>> builder.reference_inputs.add(tx_in)
 
 Step 7
 
