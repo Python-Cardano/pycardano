@@ -6,7 +6,7 @@ import inspect
 import json
 from dataclasses import dataclass, field, fields
 from enum import Enum
-from typing import Any, ClassVar, List, Optional, Union
+from typing import Any, ClassVar, List, Optional, Union, Type
 
 import cbor2
 from cbor2 import CBORTag
@@ -66,7 +66,7 @@ class CostModels(DictCBORSerializable):
         return result
 
     @classmethod
-    def from_primitive(cls: CostModels, value: dict) -> CostModels:
+    def from_primitive(cls: Type[CostModels], value: dict) -> CostModels:
         raise DeserializeException(
             "Deserialization of cost model is impossible, because some information is lost "
             "during serialization."
@@ -480,7 +480,7 @@ class PlutusData(ArrayCBORSerializable):
             return CBORTag(102, [self.CONSTR_ID, primitives])
 
     @classmethod
-    def from_primitive(cls: PlutusData, value: CBORTag) -> PlutusData:
+    def from_primitive(cls: Type[PlutusData], value: CBORTag) -> PlutusData:
         if not isinstance(value, CBORTag):
             raise DeserializeException(
                 f"Unexpected type: {CBORTag}. Got {type(value)} instead."
@@ -643,7 +643,7 @@ class RawPlutusData(CBORSerializable):
         return _dfs(self.data)
 
     @classmethod
-    def from_primitive(cls: RawPlutusData, value: CBORTag) -> RawPlutusData:
+    def from_primitive(cls: Type[RawPlutusData], value: CBORTag) -> RawPlutusData:
         return cls(value)
 
 
@@ -675,7 +675,7 @@ class RedeemerTag(CBORSerializable, Enum):
         return self.value
 
     @classmethod
-    def from_primitive(cls, value: int) -> RedeemerTag:
+    def from_primitive(cls: Type[RedeemerTag], value: int) -> RedeemerTag:
         return cls(value)
 
 
@@ -704,7 +704,7 @@ class Redeemer(ArrayCBORSerializable):
     ex_units: ExecutionUnits = None
 
     @classmethod
-    def from_primitive(cls: Redeemer, values: List[Primitive]) -> Redeemer:
+    def from_primitive(cls: Type[Redeemer], values: List[Primitive]) -> Redeemer:
         if isinstance(values[2], CBORTag) and cls is Redeemer:
             values[2] = RawPlutusData.from_primitive(values[2])
         redeemer = super(Redeemer, cls).from_primitive(

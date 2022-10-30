@@ -1,7 +1,7 @@
 [run]
 branch = True
 omit =
-    pycardano/crypto/*
+    pycardano/crypto/bech32.py
 
 [report]
 # Regexes for lines to exclude from consideration

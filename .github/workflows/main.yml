@@ -2,7 +2,7 @@ name: Build
 
 on:
   push:
-    branches: ["main"]
+    branches: "**"
   pull_request:
     branches: ["main"]
     types: [opened, reopened, edited, synchronize]
@@ -14,7 +14,11 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
-        python-version: [3.7, 3.8, 3.9, '3.10']
+        python-version: [3.7, 3.8, 3.9, '3.10', '3.11']
+        exclude:
+          # excludes python 3.11 on macOS
+          - os: macos-latest
+            python-version: '3.11'
 
     steps:
       - uses: actions/checkout@v3
@@ -28,16 +32,16 @@ jobs:
       - name: Install dependencies
         run: |
           poetry install
-      - name: Lint with flake8
-        run: |
-          poetry run flake8 pycardano
       - name: Run unit tests
         run: |
           poetry run pytest --doctest-modules --ignore=examples --cov=pycardano --cov-config=.coveragerc --cov-report=xml
       - name: "Upload coverage to Codecov"
-        uses: codecov/codecov-action@v2
+        uses: codecov/codecov-action@v3
         with:
           fail_ci_if_error: true
+      - name: Run static analyses
+        run: |
+          make qa
 
   continuous-integration:
     runs-on: ${{ matrix.os }}
@@ -59,3 +63,15 @@ jobs:
       - name: Run integration tests
         run: |
           cd integration-test && ./run_tests.sh
+
+      - name: Dump docker logs
+        if: failure()
+        run: |
+          cd integration-test && docker-compose logs --no-color > integration-test.log
+
+      - name: Upload integration-test.log
+        if: failure()
+        uses: actions/upload-artifact@v2
+        with:
+          name: integration-test.log
+          path: integration-test/integration-test.log
