@@ -142,6 +142,13 @@ Specify output amount::
 
 Step 6
 
+Add additional Plutus transaction properties as needed:
+
+    >>> builder.ttl = 3600
+    >>> builder.reference_inputs = [{"option1": "my_input1", "option2" : "my_input2"}]
+
+Step 7
+
 Create a signed transaction using transaction builder. Unlike building a raw transaction, where we need to manually
 sign a transaction and build a transaction witness set, transaction builder can build and sign a transaction directly
 with its `build_and_sign` method. The code below tells the builder to build a transaction and sign the transaction
