@@ -1442,10 +1442,11 @@ class Wallet:
             if not mints_dict.get(policy_hash):
                 mints_dict[policy_hash] = {}
 
-                if isinstance(token.policy, NativeScript):
-                    native_scripts.append(token.policy)
-                else:
-                    native_scripts.append(token.policy.policy)
+                if token.policy.policy not in native_scripts:
+                    if isinstance(token.policy, NativeScript):
+                        native_scripts.append(token.policy)
+                    else:
+                        native_scripts.append(token.policy.policy)
 
             mints_dict[policy_hash][token.name] = token
             if token.metadata and token.amount > 0:
