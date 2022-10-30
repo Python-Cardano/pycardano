@@ -142,7 +142,7 @@ Specify output amount::
 
 Step 6
 
-Add additional Plutus transaction properties as needed:
+Add additional transaction information as needed:
 
     >>> builder.ttl = 3600
     >>> builder.reference_inputs = [{"option1": "my_input1", "option2" : "my_input2"}]
