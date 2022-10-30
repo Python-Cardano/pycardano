@@ -54,7 +54,7 @@ def blockfrost_only(func):
         if isinstance(kwargs.get("context"), BlockFrostChainContext) or isinstance(
             args[1], BlockFrostChainContext
         ):
-            func(*args, **kwargs)
+            return func(*args, **kwargs)
         else:
             raise TypeError(
                 f"Function {func.__name__} is only available for context of type BlockFrostChainContext."
