@@ -104,6 +104,14 @@ class OgmiosChainContext(ChainContext):
         args = {"query": "chainTip"}
         return self._request(OgmiosQueryType.Query, args)
 
+    def _query_utxos_by_address(self, address: str) -> List[List[JSON]]:
+        args = {"query": {"utxo": [address]}}
+        return self._request(OgmiosQueryType.Query, args)
+
+    def _query_utxos_by_tx_id(self, tx_id: str, index: int) -> List[List[JSON]]:
+        args = {"query": {"utxo": [{"txId": tx_id, "index": index}]}}
+        return self._request(OgmiosQueryType.Query, args)
+
     def _check_chain_tip_and_update(self):
         slot = self.last_block_slot
         if self._last_known_block_slot != slot:
@@ -211,28 +219,21 @@ class OgmiosChainContext(ChainContext):
         result = self._query_chain_tip()
         return result["slot"]
 
-    def _extract_asset_info(self, asset_hash: str) -> Tuple[str, ScriptHash, AssetName]:
-        policy_hex, asset_name_hex = asset_hash.split(".")
-        policy = ScriptHash.from_primitive(policy_hex)
-        asset_name = AssetName.from_primitive(asset_name_hex)
-
-        return policy_hex, policy, asset_name
-
-    def _check_utxo_unspent(self, tx_id: str, index: int) -> bool:
-        """Check whether an UTxO is unspent with Ogmios.
+    def utxos(self, address: str) -> List[UTxO]:
+        """Get all UTxOs associated with an address.
 
         Args:
-            tx_id (str): transaction id.
-            index (int): transaction index.
+            address (str): An address encoded with bech32.
+
+        Returns:
+            List[UTxO]: A list of UTxOs.
         """
-
-        args = {"query": {"utxo": [{"txId": tx_id, "index": index}]}}
-        results = self._request(OgmiosQueryType.Query, args)
-
-        if results:
-            return True
+        if self._kupo_url:
+            utxos = self._utxos_kupo(address)
         else:
-            return False
+            utxos = self._utxos_ogmios(address)
+
+        return utxos
 
     def _utxos_kupo(self, address: str) -> List[UTxO]:
         """Get all UTxOs associated with an address with Kupo.
@@ -302,6 +303,23 @@ class OgmiosChainContext(ChainContext):
 
         return utxos
 
+    def _check_utxo_unspent(self, tx_id: str, index: int) -> bool:
+        """Check whether an UTxO is unspent with Ogmios.
+
+        Args:
+            tx_id (str): transaction id.
+            index (int): transaction index.
+        """
+        results = self._query_utxos_by_tx_id(tx_id, index)
+        return len(results) > 0
+
+    def _extract_asset_info(self, asset_hash: str) -> Tuple[str, ScriptHash, AssetName]:
+        policy_hex, asset_name_hex = asset_hash.split(".")
+        policy = ScriptHash.from_primitive(policy_hex)
+        asset_name = AssetName.from_primitive(asset_name_hex)
+
+        return policy_hex, policy, asset_name
+
     def _utxos_ogmios(self, address: str) -> List[UTxO]:
         """Get all UTxOs associated with an address with Ogmios.
 
@@ -311,12 +329,9 @@ class OgmiosChainContext(ChainContext):
         Returns:
             List[UTxO]: A list of UTxOs.
         """
-
-        args = {"query": {"utxo": [address]}}
-        results = self._request(OgmiosQueryType.Query, args)
+        results = self._query_utxos_by_address(address)
 
         utxos = []
-
         for result in results:
             in_ref = result[0]
             output = result[1]
@@ -371,22 +386,6 @@ class OgmiosChainContext(ChainContext):
                     script=script,
                 )
             utxos.append(UTxO(tx_in, tx_out))
-
-        return utxos
-
-    def utxos(self, address: str) -> List[UTxO]:
-        """Get all UTxOs associated with an address.
-
-        Args:
-            address (str): An address encoded with bech32.
-
-        Returns:
-            List[UTxO]: A list of UTxOs.
-        """
-        if self._kupo_url:
-            utxos = self._utxos_kupo(address)
-        else:
-            utxos = self._utxos_ogmios(address)
 
         return utxos
 
