@@ -1,10 +1,11 @@
 import os
 import tempfile
 import time
-from typing import Dict, List, Union
+from typing import Dict, List, Optional, Union
 
 import cbor2
 from blockfrost import ApiUrls, BlockFrostApi
+from blockfrost.utils import Namespace
 
 from pycardano.address import Address
 from pycardano.backend.base import (
@@ -39,6 +40,12 @@ class BlockFrostChainContext(ChainContext):
         project_id (str): A BlockFrost project ID obtained from https://blockfrost.io.
         network (Network): Network to use.
     """
+
+    api: BlockFrostApi
+    _epoch_info: Namespace
+    _epoch: Optional[int] = None
+    _genesis_param: Optional[GenesisParameters] = None
+    _protocol_param: Optional[ProtocolParameters] = None
 
     def __init__(
         self, project_id: str, network: Network = Network.TESTNET, base_url: str = None
