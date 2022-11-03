@@ -161,7 +161,7 @@ class BlockFrostChainContext(ChainContext):
                 [result.tx_hash, result.output_index]
             )
             amount = result.amount
-            lovelace_amount = None
+            lovelace_amount = 0
             multi_assets = MultiAsset()
             for item in amount:
                 if item.unit == "lovelace":
