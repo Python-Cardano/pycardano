@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import ClassVar, List, Union, Type
+from typing import ClassVar, List, Type, Union
 
 from nacl.encoding import RawEncoder
 from nacl.hash import blake2b
