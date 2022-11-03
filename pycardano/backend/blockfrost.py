@@ -115,6 +115,7 @@ class BlockFrostChainContext(ChainContext):
                 protocol_major_version=int(params.protocol_major_ver),
                 protocol_minor_version=int(params.protocol_minor_ver),
                 min_utxo=int(params.min_utxo),
+                min_pool_cost=int(params.min_pool_cost),
                 price_mem=float(params.price_mem),
                 price_step=float(params.price_step),
                 max_tx_ex_mem=int(params.max_tx_ex_mem),
