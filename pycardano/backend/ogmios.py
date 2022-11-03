@@ -29,11 +29,9 @@ from pycardano.transaction import (
     UTxO,
     Value,
 )
+from pycardano.types import JSON
 
 __all__ = ["OgmiosChainContext"]
-
-
-JSON = Dict[str, Any]
 
 
 class OgmiosQueryType(str, Enum):
