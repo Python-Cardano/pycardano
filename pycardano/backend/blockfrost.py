@@ -79,7 +79,8 @@ class BlockFrostChainContext(ChainContext):
     @property
     def epoch(self) -> int:
         if not self._epoch or self._check_epoch_and_update():
-            self._epoch = self.api.epoch_latest().epoch
+            new_epoch: int = self.api.epoch_latest().epoch
+            self._epoch = new_epoch
         return self._epoch
 
     @property
