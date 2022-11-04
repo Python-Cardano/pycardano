@@ -9,7 +9,7 @@ Specifications and references could be found in:
 from __future__ import annotations
 
 from enum import Enum
-from typing import Union, Type
+from typing import Type, Union
 
 from pycardano.crypto.bech32 import decode, encode
 from pycardano.exception import (
