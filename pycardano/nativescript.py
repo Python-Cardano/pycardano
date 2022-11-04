@@ -77,11 +77,11 @@ class NativeScript(ArrayCBORSerializable):
         }
         script_type = script_json["type"]
         target_class = types[script_type]
-        script_primitive = cls._script_dict_to_primitive(script_json)
+        script_primitive = cls._script_json_to_primitive(script_json)
         return super(NativeScript, target_class).from_primitive(script_primitive[1:])
 
     @classmethod
-    def _script_dict_to_primitive(
+    def _script_json_to_primitive(
         cls: Type[NativeScript], script_json: JSON
     ) -> List[Primitive]:
         """Serialize a standard JSON native script into a primitive array"""
@@ -105,17 +105,17 @@ class NativeScript(ArrayCBORSerializable):
             if key == "type":
                 continue
             elif key == "scripts":
-                native_script.append(cls._script_list_to_primitive(value))
+                native_script.append(cls._script_jsons_to_primitive(value))
             else:
                 native_script.append(value)
         return native_script
 
     @classmethod
-    def _script_list_to_primitive(
+    def _script_jsons_to_primitive(
         cls: Type[NativeScript], script_jsons: List[JSON]
     ) -> List[List[Primitive]]:
         """Parse a list of JSON scripts into a list of primitive arrays"""
-        native_script = [cls._script_dict_to_primitive(i) for i in script_jsons]
+        native_script = [cls._script_json_to_primitive(i) for i in script_jsons]
         return native_script
 
     def to_dict(self) -> dict:
