@@ -19,7 +19,7 @@ __all__ = [
 ALONZO_COINS_PER_UTXO_WORD = 34482
 
 
-@dataclass
+@dataclass(frozen=True)
 class GenesisParameters:
     """Cardano genesis parameters"""
 
@@ -44,7 +44,7 @@ class GenesisParameters:
     security_param: int
 
 
-@dataclass
+@dataclass(frozen=True)
 class ProtocolParameters:
     """Cardano protocol parameters"""
 
