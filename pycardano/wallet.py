@@ -1266,6 +1266,7 @@ class Wallet:
     def burn_tokens(
         self,
         tokens: Union[Token, List[Token]],
+        change_address: Union[Address, str] = None,
         amount: Optional[Union[Ada, Lovelace]] = None,
         utxos: Optional[Union[UTxO, List[UTxO]]] = None,
         **kwargs,
@@ -1274,9 +1275,9 @@ class Wallet:
         Same as mint_tokens but automatically sets Token class amount to a negative value.
 
         Args:
-            to (Union[str, Address]): The address to which to send the newly minted tokens.
-            mints (Union[Token, List[Token]]): The token(s) to mint/burn.
+            tokens (Union[Token, List[Token]]): The token(s) to burn.
                 Set metadata and quantity directly in the Token class.
+            change_address (Union[str, Address]): The address to which to send the change.
             amount (Optional[Union[Ada, Lovelace]]): The amount of Ada to attach to the transaction.
                 If not provided, the minimum amount will be calculated automatically.
             utxos (Optional[Union[UTxO, List[UTxO]]]): The UTxO(s) to use as inputs.
@@ -1313,7 +1314,7 @@ class Wallet:
 
         return self.transact(
             inputs=inputs,
-            outputs=Output(self, amount, tokens=tokens),
+            outputs=Output(change_address, amount, tokens=tokens),
             mints=tokens,
             **kwargs,
         )
