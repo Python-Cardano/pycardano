@@ -1,10 +1,8 @@
 from retry import retry
-import pytest
 
 from .base import TEST_RETRIES, TestBase
 
 
-@pytest.mark.single
 class TestProtocolParam(TestBase):
     @retry(tries=TEST_RETRIES, backoff=1.5, delay=6, jitter=(0, 4))
     def test_protocol_param_cost_models(self):
