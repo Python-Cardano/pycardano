@@ -2,7 +2,7 @@ import calendar
 import json
 import time
 from enum import Enum
-from typing import Any, Dict, List, Optional, Union, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import cbor2
 import requests
@@ -234,7 +234,9 @@ class OgmiosChainContext(ChainContext):
             List[UTxO]: A list of UTxOs.
         """
         if self._kupo_url is None:
-            raise AssertionError("kupo_url object attribute has not been assigned properly.")
+            raise AssertionError(
+                "kupo_url object attribute has not been assigned properly."
+            )
 
         kupo_utxo_url = self._kupo_url + "/matches/" + address
         results = requests.get(kupo_utxo_url).json()
@@ -279,9 +281,8 @@ class OgmiosChainContext(ChainContext):
                 if datum_hash:
                     kupo_datum_url = self._kupo_url + "/datums/" + result["datum_hash"]
                     datum_result = requests.get(kupo_datum_url).json()
-                    if datum_result and datum_result['datum'] != datum_hash:
-                        #datum = RawCBOR(bytes.fromhex(datum_result["datum"]))
-                        datum = cbor2.loads(bytes.fromhex(datum_result["datum"]))
+                    if datum_result and datum_result["datum"] != datum_hash:
+                        datum = RawCBOR(bytes.fromhex(datum_result["datum"]))
                         datum_hash = None
 
                 if not result["value"]["assets"]:
