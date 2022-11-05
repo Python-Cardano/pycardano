@@ -11,6 +11,7 @@ from pycardano.wallet import (
     Ada,
     Lovelace,
     MetadataFormattingException,
+    Output,
     Token,
     TokenPolicy,
     Wallet,
@@ -449,3 +450,29 @@ def test_metadata():
 
     with pytest.raises(MetadataFormattingException):
         _ = Token(policy=policy, name="testToken", amount=1, metadata=unserializable)
+
+    # TODO: add tests for onchain metadata
+
+
+def test_outputs():
+
+    output1 = Output(address=WALLET, amount=5000000)
+    output2 = Output(address=WALLET, amount=Lovelace(5000000))
+    output3 = Output(address=WALLET, amount=Ada(5))
+    output4 = Output(address=WALLET.address, amount=Ada(5))
+    output5 = Output(address=str(WALLET.address), amount=Ada(5))
+
+    assert output1 == output2 == output3 == output4 == output5
+
+    # test outputs with tokens
+    script = ScriptAll([ScriptPubkey(WALLET.verification_key.hash())])
+
+    policy = TokenPolicy(name="testToken", script=script)
+
+    tokens = [
+        Token(policy=policy, name="testToken", amount=1),
+        Token(policy=policy, name="testToken2", amount=1, metadata={"key": "value"}),
+    ]
+
+    output_token1 = Output(address=WALLET, amount=Ada(5), tokens=tokens[0])
+    output_token2 = Output(address=WALLET, amount=Ada(0), tokens=tokens)
