@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 import pytest
 
-from pycardano.address import Address
+from pycardano.address import Address, VerificationKeyHash
 from pycardano.nativescript import ScriptAll, ScriptPubkey
 from pycardano.wallet import (
     Ada,
@@ -490,3 +490,39 @@ def test_outputs():
 
     output_token1 = Output(address=WALLET, amount=Ada(5), tokens=tokens[0])
     output_token2 = Output(address=WALLET, amount=Ada(0), tokens=tokens)
+
+
+def test_wallet_init():
+
+    keys_dir = str(pathlib.Path(__file__).parent / "../resources/keys")
+
+    wallet = Wallet(
+        name="payment",
+        keys_dir=keys_dir,
+        context="null",
+    )
+
+    not_my_wallet = Wallet(
+        name="theirs",
+        address="addr1q8xrqjtlfluk9axpmjj5enh0uw0cduwhz7txsqyl36m3uk2g9z3d4kaf0j5l6rxunxt43x28pssehhqds2x05mwld45s399sr7",
+    )
+
+    # try different networks
+    wallet_preprod = Wallet(name="payment", network="preprod", keys_dir=keys_dir)
+    wallet_preview = Wallet(name="payment", network="preview", keys_dir=keys_dir)
+    wallet_testnet = Wallet(name="payment", network="testnet", keys_dir=keys_dir)
+
+    assert wallet_preprod.address == wallet_preview.address
+
+    with pytest.raises(ValueError):
+        Wallet(
+            name="bad",
+            address="addr1q8xrqjtlfluk9axpmjj5enh0uw0cduwhz7txsqyl36m3uk2g9z3d4kaf0j5l6rxunxt43x28pssehhqds2x05mwld45s399sr7",
+            network="preprod",
+            keys_dir=keys_dir,
+        )
+
+    print(wallet.verification_key_hash)
+    print(wallet.stake_verification_key_hash)
+    assert wallet.verification_key_hash == VerificationKeyHash.from_primitive("cc30497f4ff962f4c1dca54cceefe39f86f1d7179668009f8eb71e59")
+    assert wallet.stake_verification_key_hash == VerificationKeyHash.from_primitive("4828a2dadba97ca9fd0cdc99975899470c219bdc0d828cfa6ddf6d69")
