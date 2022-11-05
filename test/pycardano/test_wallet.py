@@ -213,7 +213,9 @@ def test_policy(chain_context):
     if script_filepath.exists():
         script_filepath.unlink()
 
-    policy = TokenPolicy(name="testToken", policy_dir=str(policy_dir))
+    policy = TokenPolicy(name="testToken", policy_dir=policy_dir)
+
+    assert policy.policy_dir.exists()
 
     policy.generate_minting_policy(signers=WALLET)
 
@@ -222,7 +224,7 @@ def test_policy(chain_context):
     assert (
         policy.policy_id == "6b0cb18696ccd4de1dcd9664c31ed6e98f7a4a1ff647855fef1e0831"
     )
-    assert policy.policy == script
+
     assert policy.script == script
     assert policy.required_signatures == [WALLET.verification_key.hash()]
 
@@ -244,24 +246,24 @@ def test_policy(chain_context):
         second_script_filepath.unlink()
 
     from_dict = TokenPolicy(
-        name="testTokenDict", policy=policy_dict, policy_dir=str(second_policy_dir)
+        name="testTokenDict", script=policy_dict, policy_dir=str(second_policy_dir)
     )
 
-    assert policy.policy == from_dict.policy
+    assert policy.script == from_dict.script
 
     # test a policy for a token for which we don't have the private key
     third_policy_dir = pathlib.Path(__file__).parent / "../resources/policy_three"
     their_policy = TokenPolicy(
         name="notOurs",
-        policy="6b0cb18696ccd4de1dcd9664c31ed6e98f7a4a1ff647855fef1e0831",
+        policy_id="6b0cb18696ccd4de1dcd9664c31ed6e98f7a4a1ff647855fef1e0831",
         policy_dir=third_policy_dir,
     )
     assert their_policy.policy_id == policy.policy_id
-    assert their_policy.id == policy.id
 
     # try loading an already existing policy
     reloaded_policy = TokenPolicy(name="testToken", policy_dir=str(policy_dir))
-    assert reloaded_policy.policy == policy.policy
+    print(reloaded_policy.policy_id, policy.policy_id)
+    assert reloaded_policy.script == policy.script
 
     # try to generate a policy with a name that already exists
     with pytest.raises(FileExistsError):
@@ -282,8 +284,27 @@ def test_policy(chain_context):
         exp_filepath.unlink()
 
     exp_policy = TokenPolicy(name="expiring", policy_dir=str(policy_dir))
-    exp_policy.generate_minting_policy(signers=WALLET, expiration=2600)
+    exp_policy.generate_minting_policy(signers=[WALLET], expiration=2600)
     assert exp_policy.expiration_slot == 2600
+    assert policy.required_signatures == [WALLET.verification_key.hash()]
+
+    # test a policy with no provided script
+    with pytest.raises(TypeError):
+        their_policy.expiration_slot
+
+    with pytest.raises(TypeError):
+        their_policy.get_expiration_timestamp()
+
+    with pytest.raises(TypeError):
+        their_policy.is_expired()
+
+    with pytest.raises(TypeError):
+        their_policy.required_signatures
+
+    # test a policy with no expiration slot
+    with pytest.raises(TypeError):
+        policy.expiration_slot
+
     with patch(
         "pycardano.wallet.get_now", return_value=datetime.datetime(2022, 1, 1, 0, 0, 0)
     ):
@@ -373,14 +394,14 @@ def test_policy(chain_context):
         second_policy_dir.rmdir()
 
     if third_policy_dir.exists():
-        second_policy_dir.rmdir()
+        third_policy_dir.rmdir()
 
 
 def test_token():
 
     script = ScriptAll([ScriptPubkey(WALLET.verification_key.hash())])
 
-    policy = TokenPolicy(name="testToken", policy=script)
+    policy = TokenPolicy(name="testToken", script=script)
 
     token = Token(policy=policy, name="testToken", amount=1)
     token_hex = Token(policy=policy, hex_name="74657374546f6b656e", amount=1)
@@ -400,7 +421,7 @@ def test_metadata():
 
     script = ScriptAll([ScriptPubkey(WALLET.verification_key.hash())])
 
-    policy = TokenPolicy(name="testToken", policy=script)
+    policy = TokenPolicy(name="testToken", script=script)
 
     metadata = {
         "key_1": "value_1",
