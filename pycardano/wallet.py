@@ -592,16 +592,6 @@ class Output:
 
     def __post_init__(self):
 
-        if (
-            not isinstance(self.amount, Ada)
-            and not isinstance(self.amount, Lovelace)
-            and not isinstance(self.amount, int)
-        ):
-            raise TypeError(
-                "Please provide amount as either `Ada(amount)` or `Lovelace(amount)`.",
-                "Otherwise provide lovelace as an integer.",
-            )
-
         if isinstance(self.amount, int):
             self.amount = Lovelace(self.amount)
 
