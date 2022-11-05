@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from dataclasses import dataclass, field, fields
-from typing import Dict, List, Optional, Set, Tuple, Union
+from typing import Dict, List, Optional, Set, Tuple, Union, Callable
 
 from pycardano.address import Address, AddressType
 from pycardano.backend.base import ChainContext
@@ -143,16 +143,36 @@ class TransactionBuilder:
 
     _should_estimate_execution_units: bool = field(init=False, default=None)
 
-    def add_input(self, utxo: UTxO) -> TransactionBuilder:
-        """Add a specific UTxO to transaction's inputs.
+    def apply(self, callback: Callable[[], None]) -> TransactionBuilder:
+        """Apply the provided callback function to the transaction.
 
         Args:
-            utxo (UTxO): UTxO to be added.
+            callback (Callable[[], None]): A callback function. The callback
+            should not return a value, as nothing will be done with it.
 
         Returns:
             TransactionBuilder: Current transaction builder.
         """
-        self.inputs.append(utxo)
+        if callable(callback):
+            callback()
+        else:
+            raise ValueError("Not a callable.")
+        return self
+
+    def add_input(self, utxo: Union[UTxO, List[UTxO]]) -> TransactionBuilder:
+        """Add a specific UTxO or a list of UTxOs to the transaction's inputs.
+
+        Args:
+            utxo (Union[UTxO, List[UTxO]]): UTxO or list of UTxOs to be added to the transaction.
+
+        Returns:
+            TransactionBuilder: Current transaction builder.
+        """
+        if isinstance(utxo, list):
+            for o in utxo:
+                self.inputs.append(o)
+        else:
+            self.inputs.append(utxo)
         return self
 
     def _consolidate_redeemer(self, redeemer):
