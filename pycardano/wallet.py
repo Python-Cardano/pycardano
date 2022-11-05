@@ -695,11 +695,10 @@ class Wallet:
         # otherwise derive the network from the address provided
         else:
             # check that the given address matches the desired network
-            if self._network:
-                if self.address.network != self._network:
-                    raise ValueError(
-                        f"{self._network} does not match the network of the provided address."
-                    )
+            if self.address.network != self._network:
+                raise ValueError(
+                    f"{self._network} does not match the network of the provided address."
+                )
 
             self._network = self.address.network
             self.signing_key = None
