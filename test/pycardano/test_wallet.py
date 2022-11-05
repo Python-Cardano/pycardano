@@ -35,7 +35,7 @@ def test_load_wallet():
     assert w.stake_address == Address.from_primitive(
         "stake1u9yz3gk6mw5he20apnwfn96cn9rscgvmmsxc9r86dh0k66ghyrkpw"
     )
-    
+
     # check that no stake address is loaded when use_stake is False
     w = Wallet(
         name="payment",
@@ -43,11 +43,11 @@ def test_load_wallet():
         context="null",
         use_stake=False,
     )
-    
+
     assert w.payment_address == Address.from_primitive(
         "addr1v8xrqjtlfluk9axpmjj5enh0uw0cduwhz7txsqyl36m3ukgqdsn8w"
     )
-    
+
     assert w.stake_address is None
 
 
@@ -524,5 +524,9 @@ def test_wallet_init():
 
     print(wallet.verification_key_hash)
     print(wallet.stake_verification_key_hash)
-    assert wallet.verification_key_hash == VerificationKeyHash.from_primitive("cc30497f4ff962f4c1dca54cceefe39f86f1d7179668009f8eb71e59")
-    assert wallet.stake_verification_key_hash == VerificationKeyHash.from_primitive("4828a2dadba97ca9fd0cdc99975899470c219bdc0d828cfa6ddf6d69")
+    assert wallet.verification_key_hash == VerificationKeyHash.from_primitive(
+        "cc30497f4ff962f4c1dca54cceefe39f86f1d7179668009f8eb71e59"
+    )
+    assert wallet.stake_verification_key_hash == VerificationKeyHash.from_primitive(
+        "4828a2dadba97ca9fd0cdc99975899470c219bdc0d828cfa6ddf6d69"
+    )
