@@ -73,7 +73,7 @@ services:
         max-file: "10"
 
   kupo:
-    image: cardanosolutions/kupo
+    image: cardanosolutions/kupo:v2.1.0
     environment:
       NETWORK: "${NETWORK:-local}"
 
