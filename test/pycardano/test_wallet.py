@@ -35,6 +35,20 @@ def test_load_wallet():
     assert w.stake_address == Address.from_primitive(
         "stake1u9yz3gk6mw5he20apnwfn96cn9rscgvmmsxc9r86dh0k66ghyrkpw"
     )
+    
+    # check that no stake address is loaded when use_stake is False
+    w = Wallet(
+        name="payment",
+        keys_dir=str(pathlib.Path(__file__).parent / "../resources/keys"),
+        context="null",
+        use_stake=False,
+    )
+    
+    assert w.payment_address == Address.from_primitive(
+        "addr1v8xrqjtlfluk9axpmjj5enh0uw0cduwhz7txsqyl36m3ukgqdsn8w"
+    )
+    
+    assert w.stake_address is None
 
 
 WALLET = Wallet(
