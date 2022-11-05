@@ -90,47 +90,54 @@ def launch():
     tmp_wallet = wallet.Wallet(name="tmp_royalty_wallet", network=NETWORK)
     policy_wallet = wallet.Wallet(name=POLICY_WALLET_NAME, network=NETWORK)
     policy = wallet.TokenPolicy(name=POLICY_NAME)
-    
-    logger.info(f"Generating a 777 royalty NFT with {ROYALTY_PERCENT}/1 ({float(ROYALTY_PERCENT)*100}%) to address {ROYALTY_ADDRESS}")
+
+    logger.info(
+        f"Generating a 777 royalty NFT with {ROYALTY_PERCENT}/1 ({float(ROYALTY_PERCENT)*100}%) to address {ROYALTY_ADDRESS}"
+    )
     logger.info("Metadata:")
     logger.info(pformat(royalty_metadata))
     time.sleep(2)
 
-    logger.info(f"If this looks right, please send exactly {CODED_AMOUNT.ada} ADA to\n {tmp_wallet.address}")
+    logger.info(
+        f"If this looks right, please send exactly {CODED_AMOUNT.ada} ADA to\n {tmp_wallet.address}"
+    )
     time.sleep(2)
 
     while not DONE:
-        
+
         loop_start_time = dt.datetime.now(dt.timezone.utc)
         logger.info(f"Starting loop {loop_start_time}")
-        
+
         tmp_wallet.sync()
         tmp_wallet.get_utxo_creators()
-        
+
         for utxo in tmp_wallet.utxos:
-            
+
             # check whether or not to mint
             can_mint = False
             if wallet.Lovelace(utxo.output.amount.coin) == CODED_AMOUNT:
-                logger.info(f"Coded amount of {CODED_AMOUNT.ada} ADA recieved: can mint 777 token!")
+                logger.info(
+                    f"Coded amount of {CODED_AMOUNT.ada} ADA recieved: can mint 777 token!"
+                )
                 can_mint = True
             else:
-                logger.info(f"Please send exactly {CODED_AMOUNT.ada} ADA to\n {tmp_wallet.address}")
-                
-            if can_mint:
-                
-                ORIGINAL_SENDER = utxo.creator
-                logger.info(f"Original sender of {CODED_AMOUNT.ada} ADA is {ORIGINAL_SENDER}")
-                
-                token = wallet.Token(
-                    policy=policy,
-                    amount=1,
-                    name="",
-                    metadata=royalty_metadata
+                logger.info(
+                    f"Please send exactly {CODED_AMOUNT.ada} ADA to\n {tmp_wallet.address}"
                 )
-                
+
+            if can_mint:
+
+                ORIGINAL_SENDER = utxo.creator
+                logger.info(
+                    f"Original sender of {CODED_AMOUNT.ada} ADA is {ORIGINAL_SENDER}"
+                )
+
+                token = wallet.Token(
+                    policy=policy, amount=1, name="", metadata=royalty_metadata
+                )
+
                 logger.info("Minting token, please wait for confirmation...")
-                
+
                 mint_tx = tmp_wallet.mint_tokens(
                     to=tmp_wallet,
                     mints=token,
@@ -138,37 +145,51 @@ def launch():
                     signers=[tmp_wallet, policy_wallet],
                     await_confirmation=True,
                 )
-                
-                
+
                 logger.info(f"Mint successful: Tx ID {mint_tx}")
-                logger.info("DO NOT STOP SCRIPT YET! Please wait so we can burn the token.")
-                    
+                logger.info(
+                    "DO NOT STOP SCRIPT YET! Please wait so we can burn the token."
+                )
+
                 continue
-                    
+
             # check if we can burn the token
             can_burn = False
             utxo_tokens = utxo.output.amount.multi_asset
-            
+
             if utxo_tokens:
-                if len(utxo_tokens) == 1 and str(list(utxo_tokens.keys())[0]) == policy.id:
-                        logger.info(f"No name token found: can burn 777 token!")
-                        logger.info(f"Will send change to original sender: {ORIGINAL_SENDER}")
-                        can_burn = True
-                    
+                if (
+                    len(utxo_tokens) == 1
+                    and str(list(utxo_tokens.keys())[0]) == policy.id
+                ):
+                    logger.info(f"No name token found: can burn 777 token!")
+                    logger.info(
+                        f"Will send change to original sender: {ORIGINAL_SENDER}"
+                    )
+                    can_burn = True
+
             if can_burn:
-                
+
                 # get original sender
-                utxo_info = tmp_wallet.context.api.transaction_utxos(str(utxo.input.transaction_id))
+                utxo_info = tmp_wallet.context.api.transaction_utxos(
+                    str(utxo.input.transaction_id)
+                )
                 input_utxo = utxo_info.inputs[0].tx_hash
-                ORIGINAL_SENDER = tmp_wallet.context.api.transaction_utxos(str(input_utxo)).inputs[0].address
-                         
+                ORIGINAL_SENDER = (
+                    tmp_wallet.context.api.transaction_utxos(str(input_utxo))
+                    .inputs[0]
+                    .address
+                )
+
                 token = wallet.Token(
                     policy=policy,
                     amount=-1,
-                    name="", 
+                    name="",
                 )
-                
-                logger.info("Burning the royalty token. Please wait for confirmation...")
+
+                logger.info(
+                    "Burning the royalty token. Please wait for confirmation..."
+                )
                 burn_tx = tmp_wallet.mint_tokens(
                     to=ORIGINAL_SENDER,
                     mints=token,
@@ -177,19 +198,18 @@ def launch():
                     change_address=ORIGINAL_SENDER,
                     await_confirmation=True,
                 )
-                
+
                 logger.info(f"Burn successful! Tx ID: {burn_tx}")
-                    
+
                 DONE = True
-                
+
                 continue
-            
+
         time.sleep(5)
-        
-    
+
     logger.info("Your royalties are ready!")
     logger.info(f"https://cardanoscan.io/tokenPolicy/{policy.id}")
-                
+
 
 if __name__ == "__main__":
 
