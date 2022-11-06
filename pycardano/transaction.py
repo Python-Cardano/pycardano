@@ -29,7 +29,7 @@ from pycardano.hash import (
 from pycardano.metadata import AuxiliaryData
 from pycardano.nativescript import NativeScript
 from pycardano.network import Network
-from pycardano.plutus import Datum, PlutusV1Script, PlutusV2Script
+from pycardano.plutus import Datum, PlutusV1Script, PlutusV2Script, RawPlutusData
 from pycardano.serialization import (
     ArrayCBORSerializable,
     CBORSerializable,
@@ -317,7 +317,11 @@ class _DatumOption(ArrayCBORSerializable):
         if values[0] == 0:
             return _DatumOption(DatumHash(values[1]))
         else:
-            return _DatumOption(cbor2.loads(values[1].value))
+            v = cbor2.loads(values[1].value)
+            if isinstance(v, CBORTag):
+                return _DatumOption(RawPlutusData.from_primitive(v))
+            else:
+                return _DatumOption(v)
 
 
 @dataclass(repr=False)
