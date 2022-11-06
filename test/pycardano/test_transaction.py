@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-
 from test.pycardano.util import check_two_way_cbor
 
 import pytest
@@ -432,7 +431,9 @@ def test_inline_datum_serdes():
         b: bytes
 
     output = TransactionOutput(
-        Address.from_primitive("addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"),
+        Address.from_primitive(
+            "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+        ),
         1000000,
         datum=TestDatum(1, b"test"),
     )
