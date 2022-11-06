@@ -260,8 +260,8 @@ class OgmiosChainContext(ChainContext):
                 "kupo_url object attribute has not been assigned properly."
             )
 
-        address_url = self._kupo_url + "/" + address
-        results = requests.get(address_url).json()
+        kupo_utxo_url = self._kupo_url + "/matches/" + address
+        results = requests.get(kupo_utxo_url).json()
 
         utxos = []
 
@@ -278,17 +278,42 @@ class OgmiosChainContext(ChainContext):
 
                 lovelace_amount = result["value"]["coins"]
 
+                script = None
+                script_hash = result.get("script_hash", None)
+                if script_hash:
+                    kupo_script_url = self._kupo_url + "/scripts/" + script_hash
+                    script = requests.get(kupo_script_url).json()
+                    if script["language"] == "plutus:v2":
+                        script = PlutusV2Script(
+                            cbor2.loads(bytes.fromhex(script["script"]))
+                        )
+                    elif script["language"] == "plutus:v1":
+                        script = PlutusV1Script(
+                            cbor2.loads(bytes.fromhex(script["script"]))
+                        )
+                    else:
+                        raise ValueError("Unknown plutus script type")
+
+                datum = None
                 datum_hash = (
                     DatumHash.from_primitive(result["datum_hash"])
                     if result["datum_hash"]
                     else None
                 )
+                if datum_hash:
+                    kupo_datum_url = self._kupo_url + "/datums/" + result["datum_hash"]
+                    datum_result = requests.get(kupo_datum_url).json()
+                    if datum_result and datum_result["datum"] != datum_hash:
+                        datum = RawCBOR(bytes.fromhex(datum_result["datum"]))
+                        datum_hash = None
 
                 if not result["value"]["assets"]:
                     tx_out = TransactionOutput(
                         Address.from_primitive(address),
                         amount=lovelace_amount,
                         datum_hash=datum_hash,
+                        datum=datum,
+                        script=script,
                     )
                 else:
                     multi_assets = MultiAsset()
@@ -305,6 +330,8 @@ class OgmiosChainContext(ChainContext):
                         Address.from_primitive(address),
                         amount=Value(lovelace_amount, multi_assets),
                         datum_hash=datum_hash,
+                        datum=datum,
+                        script=script,
                     )
                 utxos.append(UTxO(tx_in, tx_out))
             else:
