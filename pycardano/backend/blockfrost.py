@@ -29,7 +29,7 @@ from pycardano.transaction import (
     UTxO,
     Value,
 )
-from pycardano.types import JSON
+from pycardano.types import JsonDict
 
 __all__ = ["BlockFrostChainContext"]
 
@@ -148,9 +148,9 @@ class BlockFrostChainContext(ChainContext):
                 cbor2.loads(bytes.fromhex(self.api.script_cbor(script_hash).cbor))
             )
         else:
-            script_json: JSON = self.api.script_json(script_hash, return_type="json")[
-                "json"
-            ]
+            script_json: JsonDict = self.api.script_json(
+                script_hash, return_type="json"
+            )["json"]
             return NativeScript.from_dict(script_json)
 
     def utxos(self, address: str) -> List[UTxO]:

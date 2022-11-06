@@ -29,7 +29,7 @@ from pycardano.transaction import (
     UTxO,
     Value,
 )
-from pycardano.types import JSON
+from pycardano.types import JsonDict
 
 __all__ = ["OgmiosChainContext"]
 
@@ -64,7 +64,7 @@ class OgmiosChainContext(ChainContext):
         self._genesis_param = None
         self._protocol_param = None
 
-    def _request(self, method: OgmiosQueryType, args: JSON) -> Any:
+    def _request(self, method: OgmiosQueryType, args: JsonDict) -> Any:
         ws = websocket.WebSocket()
         ws.connect(self._ws_url)
         request = json.dumps(
@@ -86,11 +86,11 @@ class OgmiosChainContext(ChainContext):
             )
         return json.loads(response)["result"]
 
-    def _query_current_protocol_params(self) -> JSON:
+    def _query_current_protocol_params(self) -> JsonDict:
         args = {"query": "currentProtocolParameters"}
         return self._request(OgmiosQueryType.Query, args)
 
-    def _query_genesis_config(self) -> JSON:
+    def _query_genesis_config(self) -> JsonDict:
         args = {"query": "genesisConfig"}
         return self._request(OgmiosQueryType.Query, args)
 
@@ -98,15 +98,15 @@ class OgmiosChainContext(ChainContext):
         args = {"query": "currentEpoch"}
         return self._request(OgmiosQueryType.Query, args)
 
-    def _query_chain_tip(self) -> JSON:
+    def _query_chain_tip(self) -> JsonDict:
         args = {"query": "chainTip"}
         return self._request(OgmiosQueryType.Query, args)
 
-    def _query_utxos_by_address(self, address: str) -> List[List[JSON]]:
+    def _query_utxos_by_address(self, address: str) -> List[List[JsonDict]]:
         args = {"query": {"utxo": [address]}}
         return self._request(OgmiosQueryType.Query, args)
 
-    def _query_utxos_by_tx_id(self, tx_id: str, index: int) -> List[List[JSON]]:
+    def _query_utxos_by_tx_id(self, tx_id: str, index: int) -> List[List[JsonDict]]:
         args = {"query": {"utxo": [{"txId": tx_id, "index": index}]}}
         return self._request(OgmiosQueryType.Query, args)
 
@@ -173,7 +173,7 @@ class OgmiosChainContext(ChainContext):
         result = self._query_genesis_config()
         return result["protocolParameters"]["minUtxoValue"]
 
-    def _parse_cost_models(self, ogmios_result: JSON) -> Dict[str, Dict[str, int]]:
+    def _parse_cost_models(self, ogmios_result: JsonDict) -> Dict[str, Dict[str, int]]:
         ogmios_cost_models = ogmios_result.get("costModels", {})
 
         cost_models = {}

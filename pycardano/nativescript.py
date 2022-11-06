@@ -11,7 +11,7 @@ from nacl.hash import blake2b
 from pycardano.exception import DeserializeException
 from pycardano.hash import SCRIPT_HASH_SIZE, ScriptHash, VerificationKeyHash
 from pycardano.serialization import ArrayCBORSerializable, Primitive, list_hook
-from pycardano.types import JSON
+from pycardano.types import JsonDict
 
 __all__ = [
     "NativeScript",
@@ -58,7 +58,7 @@ class NativeScript(ArrayCBORSerializable):
 
     @classmethod
     def from_dict(
-        cls: Type[NativeScript], script_json: JSON
+        cls: Type[NativeScript], script_json: JsonDict
     ) -> Union[
         ScriptPubkey, ScriptAll, ScriptAny, ScriptNofK, InvalidBefore, InvalidHereAfter
     ]:
@@ -82,7 +82,7 @@ class NativeScript(ArrayCBORSerializable):
 
     @classmethod
     def _script_json_to_primitive(
-        cls: Type[NativeScript], script_json: JSON
+        cls: Type[NativeScript], script_json: JsonDict
     ) -> List[Primitive]:
         """Serialize a standard JSON native script into a primitive array"""
 
@@ -112,7 +112,7 @@ class NativeScript(ArrayCBORSerializable):
 
     @classmethod
     def _script_jsons_to_primitive(
-        cls: Type[NativeScript], script_jsons: List[JSON]
+        cls: Type[NativeScript], script_jsons: List[JsonDict]
     ) -> List[List[Primitive]]:
         """Parse a list of JSON scripts into a list of primitive arrays"""
         native_script = [cls._script_json_to_primitive(i) for i in script_jsons]
