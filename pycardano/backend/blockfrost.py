@@ -1,10 +1,11 @@
 import os
 import tempfile
 import time
-from typing import Dict, List, Union
+from typing import Dict, List, Optional, Union
 
 import cbor2
 from blockfrost import ApiUrls, BlockFrostApi
+from blockfrost.utils import Namespace
 
 from pycardano.address import Address
 from pycardano.backend.base import (
@@ -28,6 +29,7 @@ from pycardano.transaction import (
     UTxO,
     Value,
 )
+from pycardano.types import JsonDict
 
 __all__ = ["BlockFrostChainContext"]
 
@@ -39,6 +41,12 @@ class BlockFrostChainContext(ChainContext):
         project_id (str): A BlockFrost project ID obtained from https://blockfrost.io.
         network (Network): Network to use.
     """
+
+    api: BlockFrostApi
+    _epoch_info: Namespace
+    _epoch: Optional[int] = None
+    _genesis_param: Optional[GenesisParameters] = None
+    _protocol_param: Optional[ProtocolParameters] = None
 
     def __init__(
         self, project_id: str, network: Network = Network.TESTNET, base_url: str = None
@@ -72,7 +80,8 @@ class BlockFrostChainContext(ChainContext):
     @property
     def epoch(self) -> int:
         if not self._epoch or self._check_epoch_and_update():
-            self._epoch = self.api.epoch_latest().epoch
+            new_epoch: int = self.api.epoch_latest().epoch
+            self._epoch = new_epoch
         return self._epoch
 
     @property
@@ -107,6 +116,7 @@ class BlockFrostChainContext(ChainContext):
                 protocol_major_version=int(params.protocol_major_ver),
                 protocol_minor_version=int(params.protocol_minor_ver),
                 min_utxo=int(params.min_utxo),
+                min_pool_cost=int(params.min_pool_cost),
                 price_mem=float(params.price_mem),
                 price_step=float(params.price_step),
                 max_tx_ex_mem=int(params.max_tx_ex_mem),
@@ -138,9 +148,10 @@ class BlockFrostChainContext(ChainContext):
                 cbor2.loads(bytes.fromhex(self.api.script_cbor(script_hash).cbor))
             )
         else:
-            return NativeScript.from_dict(
-                self.api.script_json(script_hash, return_type="json")["json"]
-            )
+            script_json: JsonDict = self.api.script_json(
+                script_hash, return_type="json"
+            )["json"]
+            return NativeScript.from_dict(script_json)
 
     def utxos(self, address: str) -> List[UTxO]:
         results = self.api.address_utxos(address, gather_pages=True)
@@ -152,7 +163,7 @@ class BlockFrostChainContext(ChainContext):
                 [result.tx_hash, result.output_index]
             )
             amount = result.amount
-            lovelace_amount = None
+            lovelace_amount = 0
             multi_assets = MultiAsset()
             for item in amount:
                 if item.unit == "lovelace":
