@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from dataclasses import dataclass, field, fields
-from typing import Dict, List, Optional, Set, Tuple, Union, Callable
+from typing import Dict, List, Optional, Set, Tuple, Union, Callable, no_type_check
 
 from pycardano.address import Address, AddressType
 from pycardano.backend.base import ChainContext
@@ -143,36 +143,50 @@ class TransactionBuilder:
 
     _should_estimate_execution_units: bool = field(init=False, default=None)
 
-    def apply(self, callback: Callable[[], None]) -> TransactionBuilder:
+    @no_type_check
+    def apply(
+        self,
+        callback: Callable[[TransactionBuilder], None],
+        *args, **kwargs
+    ) -> TransactionBuilder:
         """Apply the provided callback function to the transaction.
 
         Args:
-            callback (Callable[[], None]): A callback function. The callback
-            should not return a value, as nothing will be done with it.
+            callback (Callable[TransactionBuilder], None]): A callback function.
+            The first parameter of the callback has to be the TransactionBuilder object itself.
+            Furthermore, the callback should not return a value as nothing will be done with it.
 
         Returns:
             TransactionBuilder: Current transaction builder.
         """
         if callable(callback):
-            callback()
+            callback(self, *args, **kwargs)
         else:
             raise ValueError("Not a callable.")
         return self
 
-    def add_input(self, utxo: Union[UTxO, List[UTxO]]) -> TransactionBuilder:
-        """Add a specific UTxO or a list of UTxOs to the transaction's inputs.
+    def add_input(self, utxo: UTxO) -> TransactionBuilder:
+        """Add a specific UTxO to the transaction's inputs.
 
         Args:
-            utxo (Union[UTxO, List[UTxO]]): UTxO or list of UTxOs to be added to the transaction.
+            utxo (UTxO): UTxO to be added to the transaction.
 
         Returns:
             TransactionBuilder: Current transaction builder.
         """
-        if isinstance(utxo, list):
-            for o in utxo:
-                self.inputs.append(o)
-        else:
-            self.inputs.append(utxo)
+        self.inputs.append(utxo)
+        return self
+
+    def add_inputs(self, utxos: List[UTxO]) -> TransactionBuilder:
+        """Add a list of UTxOs to the transaction's inputs.
+
+        Args:
+            utxos (List[UTxO]): List of UTxOs to be added to the transaction.
+
+        Returns:
+            TransactionBuilder: Current transaction builder.
+        """
+        self.inputs.extend(utxos)
         return self
 
     def _consolidate_redeemer(self, redeemer):
@@ -210,7 +224,7 @@ class TransactionBuilder:
         datum: Optional[Datum] = None,
         redeemer: Optional[Redeemer] = None,
     ) -> TransactionBuilder:
-        """Add a script UTxO to transaction's inputs.
+        """Add a script UTxO to the transaction's inputs.
 
         Args:
             utxo (UTxO): Script UTxO to be added.
@@ -267,7 +281,7 @@ class TransactionBuilder:
         script: Union[UTxO, NativeScript, PlutusV1Script, PlutusV2Script],
         redeemer: Optional[Redeemer] = None,
     ) -> TransactionBuilder:
-        """Add a minting script along with its datum and redeemer to this transaction.
+        """Add a minting script along with its redeemer to the transaction.
 
         Args:
             script (Union[UTxO, PlutusV1Script, PlutusV2Script]): A plutus script.
@@ -293,13 +307,13 @@ class TransactionBuilder:
         return self
 
     def add_input_address(self, address: Union[Address, str]) -> TransactionBuilder:
-        """Add an address to transaction's input address.
-        Unlike :meth:`add_input`, which deterministically adds a UTxO to the transaction's inputs, `add_input_address`
-        will not immediately select any UTxO when called. Instead, it will delegate UTxO selection to
-        :class:`UTxOSelector`s of the builder when :meth:`build` is called.
+        """Address to select UTxOs from to add to the transaction's inputs.
+        Unlike :meth:`add_input(s)`, which deterministically adds UTxO(s) to the transaction's inputs,
+        `add_input_address` will not immediately select any UTxO when called. Instead, it will delegate
+        UTxO selection to :class:`UTxOSelector`s of the builder when :meth:`build` is called.
 
         Args:
-            address (Union[Address, str]): Address to be added.
+            address (Union[Address, str]): Address from which UTxOs will be selected.
 
         Returns:
             TransactionBuilder: The current transaction builder.
@@ -328,6 +342,24 @@ class TransactionBuilder:
         self.outputs.append(tx_out)
         if add_datum_to_witness:
             self.datums[datum_hash(datum)] = datum
+        return self
+
+    def add_outputs(self, tx_out: TransactionOutput, *tx_outs) -> TransactionBuilder:
+        """Add multiple transaction outputs.
+
+        Args:
+            tx_out (TransactionOutput): The transaction output to be added.
+            *tx_outs (TransactionOutput): Optionally add more transaction outputs.
+
+        Returns:
+            TransactionBuilder: Current transaction builder.
+        """
+        self.outputs.append(tx_out)
+        if not all(isinstance(o, TransactionOutput) for o in tx_outs):
+            raise InvalidArgumentException(
+                "Not all provided arguments are of type \"TransactionOutput\"."
+            )
+        self.outputs.extend(tx_outs)
         return self
 
     @property
@@ -1162,7 +1194,7 @@ class TransactionBuilder:
         collateral_change_address: Optional[Address] = None,
     ) -> Transaction:
         """Build a transaction body from all constraints set through the builder and sign the transaction with
-        provided signing keys.
+        the provided signing keys.
 
         Args:
             signing_keys (List[Union[SigningKey, ExtendedSigningKey]]): A list of signing keys that will be used to
