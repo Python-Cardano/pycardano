@@ -76,7 +76,6 @@ exclude = [
     '^pycardano/logging.py$',
     '^pycardano/metadata.py$',
     '^pycardano/nativescript.py$',
-    '^pycardano/network.py$',
     '^pycardano/plutus.py$',
     '^pycardano/serialization.py$',
     '^pycardano/transaction.py$',
