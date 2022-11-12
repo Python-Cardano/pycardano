@@ -49,7 +49,7 @@ class BlockFrostChainContext(ChainContext):
     _protocol_param: Optional[ProtocolParameters] = None
 
     def __init__(
-        self, project_id: str, network: Network = Network.TESTNET, base_url: str = None
+        self, project_id: str, network: Network = Network.TESTNET, base_url: str = ""
     ):
         self._network = network
         self._project_id = project_id
