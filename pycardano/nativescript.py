@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import ClassVar, List, Type, Union
+from typing import ClassVar, List, Type, Union, cast
 
 from nacl.encoding import RawEncoder
 from nacl.hash import blake2b
@@ -35,7 +35,13 @@ class NativeScript(ArrayCBORSerializable):
     ) -> Union[
         ScriptPubkey, ScriptAll, ScriptAny, ScriptNofK, InvalidBefore, InvalidHereAfter
     ]:
-        if not isinstance(value, (list, tuple,)):
+        if not isinstance(
+            value,
+            (
+                list,
+                tuple,
+            ),
+        ):
             raise DeserializeException(
                 f"A list or a tuple is required for deserialization: {str(value)}"
             )
@@ -55,10 +61,9 @@ class NativeScript(ArrayCBORSerializable):
             raise DeserializeException(f"Unknown script type indicator: {script_type}")
 
     def hash(self) -> ScriptHash:
+        cbor_bytes = cast(bytes, self.to_cbor("bytes"))
         return ScriptHash(
-            blake2b(
-                bytes(1) + self.to_cbor("bytes"), SCRIPT_HASH_SIZE, encoder=RawEncoder
-            )
+            blake2b(bytes(1) + cbor_bytes, SCRIPT_HASH_SIZE, encoder=RawEncoder)
         )
 
     @classmethod

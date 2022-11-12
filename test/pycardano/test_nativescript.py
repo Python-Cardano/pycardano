@@ -2,7 +2,7 @@ from test.pycardano.util import check_two_way_cbor
 
 import pytest
 
-from pycardano.exception import InvalidArgumentException
+from pycardano.exception import DeserializeException, InvalidArgumentException
 from pycardano.key import VerificationKey
 from pycardano.nativescript import (
     InvalidBefore,
@@ -14,7 +14,6 @@ from pycardano.nativescript import (
     ScriptPubkey,
 )
 from pycardano.transaction import Transaction
-from pycardano.exception import DeserializeException
 
 """The following ground truths of script hashes (policy ID) are generated from cardano-cli."""
 
