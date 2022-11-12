@@ -35,6 +35,11 @@ class NativeScript(ArrayCBORSerializable):
     ) -> Union[
         ScriptPubkey, ScriptAll, ScriptAny, ScriptNofK, InvalidBefore, InvalidHereAfter
     ]:
+        if not isinstance(value, (list, tuple,)):
+            raise DeserializeException(
+                f"A list or a tuple is required for deserialization: {str(value)}"
+            )
+
         script_type = value[0]
         for t in [
             ScriptPubkey,
@@ -118,22 +123,18 @@ class NativeScript(ArrayCBORSerializable):
         native_script = [cls._script_json_to_primitive(i) for i in script_jsons]
         return native_script
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> JsonDict:
         """Export to standard native script dictionary (potentially to dump to a JSON file)."""
-
-        script = {}
-
+        script: JsonDict = {}
         for value in self.__dict__.values():
             script["type"] = self.json_tag
 
             if isinstance(value, list):
                 script["scripts"] = [i.to_dict() for i in value]
-
+            elif isinstance(value, int):
+                script[self.json_field] = value
             else:
-                if isinstance(value, int):
-                    script[self.json_field] = value
-                else:
-                    script[self.json_field] = str(value)
+                script[self.json_field] = str(value)
 
         return script
 

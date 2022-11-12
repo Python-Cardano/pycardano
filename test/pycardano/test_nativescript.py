@@ -14,6 +14,7 @@ from pycardano.nativescript import (
     ScriptPubkey,
 )
 from pycardano.transaction import Transaction
+from pycardano.exception import DeserializeException
 
 """The following ground truths of script hashes (policy ID) are generated from cardano-cli."""
 
@@ -161,6 +162,11 @@ def test_to_dict():
     }
 
     assert NativeScript.from_dict(script_dict) == script_nofk
+
+
+def test_from_primitive_invalid_primitive_input():
+    with pytest.raises(DeserializeException):
+        NativeScript.from_primitive(1)
 
 
 def test_from_dict():
