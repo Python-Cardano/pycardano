@@ -210,7 +210,7 @@ class InvalidBefore(NativeScript):
     json_field: ClassVar[str] = "slot"
     _TYPE: int = field(default=4, init=False)
 
-    before: int = None
+    before: int
 
 
 @dataclass
@@ -219,4 +219,4 @@ class InvalidHereAfter(NativeScript):
     json_field: ClassVar[str] = "slot"
     _TYPE: int = field(default=5, init=False)
 
-    after: int = None
+    after: int
