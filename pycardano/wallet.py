@@ -47,22 +47,6 @@ from pycardano.txbuilder import TransactionBuilder
 from pycardano.utils import min_lovelace
 
 
-# function wrappers
-def blockfrost_only(func):
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        if isinstance(kwargs.get("context"), BlockFrostChainContext) or isinstance(
-            args[1], BlockFrostChainContext
-        ):
-            return func(*args, **kwargs)
-        else:
-            raise TypeError(
-                f"Function {func.__name__} is only available for context of type BlockFrostChainContext."
-            )
-
-    return wrapper
-
-
 @dataclass(frozen=True)
 class Amount:
     """Base class for Cardano currency amounts."""
@@ -546,8 +530,7 @@ class Token:
     def policy_id(self):
         return self.policy.policy_id
 
-    @blockfrost_only
-    def get_on_chain_metadata(self, context: ChainContext) -> dict:
+    def get_on_chain_metadata(self, context: BlockFrostChainContext) -> dict:
         """Get the on-chain metadata of the token.
 
         Args:
@@ -560,9 +543,10 @@ class Token:
         """
 
         try:
-            metadata = context.api.asset(
-                self.policy.policy_id + self.hex_name
-            ).onchain_metadata.to_dict()
+            token_info = context.api.asset(
+                self.policy_id + self.hex_name
+            )
+            metadata = token_info.onchain_metadata.to_dict()
         except ApiError as e:
             logger.error(
                 f"Could not get on-chain data, likely this asset has not been minted yet\n Blockfrost Error: {e}"
@@ -1681,8 +1665,7 @@ class Wallet:
 
 
 # Utility and Helper functions
-@blockfrost_only
-def get_utxo_creator(utxo: UTxO, context: ChainContext) -> Address:
+def get_utxo_creator(utxo: UTxO, context: BlockFrostChainContext) -> Address:
     """Fetch the creator of a UTxO.
     If there are multiple input UTxOs, the creator is the first one.
 
@@ -1700,8 +1683,7 @@ def get_utxo_creator(utxo: UTxO, context: ChainContext) -> Address:
     return utxo_creator
 
 
-@blockfrost_only
-def get_utxo_block_time(utxo: UTxO, context: ChainContext) -> int:
+def get_utxo_block_time(utxo: UTxO, context: BlockFrostChainContext) -> int:
     """Get the block time at which a UTxO was created.
 
     Args:
@@ -1717,8 +1699,9 @@ def get_utxo_block_time(utxo: UTxO, context: ChainContext) -> int:
     return block_time
 
 
-@blockfrost_only
-def get_stake_info(stake_address: Union[str, Address], context: ChainContext) -> dict:
+def get_stake_info(
+    stake_address: Union[str, Address], context: BlockFrostChainContext
+) -> dict:
     """Get the stake info of a stake address from Blockfrost.
     For more info see: https://docs.blockfrost.io/#tag/Cardano-Accounts/paths/~1accounts~1{stake_address}/get
 
@@ -1875,8 +1858,9 @@ def get_all_policies(
     return policies
 
 
-@blockfrost_only
-def confirm_tx(tx_id: Union[str, TransactionId], context: ChainContext) -> bool:
+def confirm_tx(
+    tx_id: Union[str, TransactionId], context: BlockFrostChainContext
+) -> bool:
     """Confirm that a transaction has been included in a block.
 
     Args:
@@ -1896,9 +1880,10 @@ def confirm_tx(tx_id: Union[str, TransactionId], context: ChainContext) -> bool:
     return confirmed
 
 
-@blockfrost_only
 def wait_for_confirmation(
-    tx_id: Union[str, TransactionId], context: ChainContext, delay: Optional[int] = 10
+    tx_id: Union[str, TransactionId],
+    context: BlockFrostChainContext,
+    delay: Optional[int] = 10,
 ) -> bool:
     """Wait for a transaction to be confirmed, checking every `delay` seconds.
 
