@@ -1,16 +1,18 @@
 import datetime
 import pathlib
-from unittest.mock import patch, Mock
+from test.pycardano.util import (
+    blockfrost_patch,
+    chain_context,
+    mock_blockfrost_api_error,
+)
+from unittest.mock import patch
 
-from blockfrost import BlockFrostApi, ApiError
-from blockfrost.utils import convert_json_to_object
 import pytest
-from requests import Response
+from blockfrost import BlockFrostApi
+from blockfrost.utils import convert_json_to_object
 
-
-from test.pycardano.util import chain_context, blockfrost_patch, mock_blockfrost_api_error
-from pycardano.backend.blockfrost import BlockFrostChainContext
 from pycardano.address import Address, VerificationKeyHash
+from pycardano.backend.blockfrost import BlockFrostChainContext
 from pycardano.nativescript import ScriptAll, ScriptPubkey
 from pycardano.wallet import (
     Ada,
@@ -61,6 +63,7 @@ WALLET = Wallet(
     keys_dir=str(pathlib.Path(__file__).parent / "../resources/keys"),
     context="null",
 )
+
 
 def test_amount():
     """Check that the Ada / Lovelace math works as expected."""
@@ -493,20 +496,19 @@ def test_metadata():
             )
 
             assert onchain_meta == convert_json_to_object(metadata).to_dict()
-         
+
     # test for no onchain metadata
     with blockfrost_patch:
-        
+
         with patch.object(BlockFrostApi, "asset") as mock_asset:
-            
+
             mock_asset.side_effect = mock_blockfrost_api_error()
-            
+
             onchain_meta = test_token.get_on_chain_metadata(
                 context=BlockFrostChainContext("")
             )
-            
+
             assert onchain_meta == {}
-            
 
 
 def test_outputs():
