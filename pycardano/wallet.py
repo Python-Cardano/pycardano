@@ -542,9 +542,7 @@ class Token:
         """
 
         try:
-            token_info = context.api.asset(
-                self.policy_id + self.hex_name
-            )
+            token_info = context.api.asset(self.policy_id + self.hex_name)
             metadata = token_info.onchain_metadata.to_dict()
         except ApiError as e:
             logger.error(
