@@ -5,7 +5,8 @@ from dataclasses import dataclass, field
 from os import getenv
 from pathlib import Path
 from time import sleep
-from typing import List, Literal, Optional, Union
+from typing import List, Optional, Sequence, Union
+from typing_extensions import Literal
 
 from blockfrost import ApiError
 
@@ -280,7 +281,7 @@ class TokenPolicy:
     """
 
     name: str
-    policy_id: Optional[str] = (None,)
+    policy_id: Optional[str] = None
     script: Optional[Union[NativeScript, dict]] = field(repr=False, default=None)
     policy_dir: Optional[Union[str, Path]] = field(
         repr=False, default=Path("./priv/policies")
@@ -369,7 +370,13 @@ class TokenPolicy:
 
     def generate_minting_policy(
         self,
-        signers: Union["Wallet", Address, List["Wallet"], List[Address]],
+        signers: Union[
+            "Wallet",
+            Address,
+            List["Wallet"],
+            List[Address],
+            List[Union["Wallet", Address]],
+        ],
         expiration: Optional[Union[datetime.datetime, int]] = None,
         context: Optional[ChainContext] = None,
     ):
@@ -383,7 +390,10 @@ class TokenPolicy:
             context (Optional[ChainContext]): A context is needed to estimate the expiration slot from a datetime.
         """
 
-        script_filepath = Path(self.policy_dir / f"{self.name}.script")
+        if not self.script or not self.policy_dir:
+            raise TypeError("The script of this policy is not set.")
+
+        script_filepath = Path(self.policy_dir) / f"{self.name}.script"
 
         if script_filepath.exists() or self.script:
             raise FileExistsError(f"Policy named {self.name} already exists")
@@ -409,7 +419,12 @@ class TokenPolicy:
                 else:
                     time_until_expiration = expiration - get_now()
 
-                last_block_slot = context.last_block_slot
+                if context:
+                    last_block_slot = context.last_block_slot
+                else:
+                    raise AttributeError(
+                        "If input expiration is provided as a datetime, please also provide a context."
+                    )
 
                 must_before_slot = InvalidHereAfter(
                     last_block_slot + int(time_until_expiration.total_seconds())
@@ -433,8 +448,11 @@ class TokenPolicy:
     @staticmethod
     def _get_pub_key_hash(signer: Union["Wallet", Address]):
 
-        if hasattr(signer, "verification_key"):
-            return signer.verification_key.hash()
+        if isinstance(signer, Wallet):
+            if signer.verification_key:
+                return signer.verification_key.hash()
+            else:
+                TypeError("Singing wallet does not have associated keys.")
         elif isinstance(signer, Address):
             return str(signer.payment_part)
         else:
@@ -569,7 +587,7 @@ class Output:
 
     address: Union["Wallet", Address, str]
     amount: Union[Lovelace, Ada, int]
-    tokens: Optional[Union[Token, List[Token]]] = field(default_factory=list)
+    tokens: Optional[Union[Token, List[Token]]] = None
 
     def __post_init__(self):
 
@@ -1299,11 +1317,11 @@ class Wallet:
         outputs: Optional[Union[Output, List[Output]]] = None,
         mints: Optional[Union[Token, List[Token]]] = None,
         signers: Optional[
-            Union["Wallet", List["Wallet"], SigningKey, List[SigningKey]]
+            Union["Wallet", List["Wallet"], SigningKey, List[SigningKey], Sequence["Wallet", SigningKey]]
         ] = None,
         stake_registration: Optional[
             Union[
-                bool, "Wallet", Address, str, List[Address], List["Wallet"], List[str]
+                bool, "Wallet", Address, str, List[Address], List["Wallet"], List[str], Sequence[Address, "Wallet", str]
             ]
         ] = None,
         delegations: Optional[Union[str, dict, PoolKeyHash]] = None,
