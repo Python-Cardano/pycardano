@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, ClassVar, List, Union, Type
+from typing import Any, ClassVar, List, Type, Union
 
 from cbor2 import CBORTag
 from nacl.encoding import RawEncoder

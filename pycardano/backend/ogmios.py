@@ -2,7 +2,7 @@ import calendar
 import json
 import time
 from enum import Enum
-from typing import Any, Dict, List, Optional, Union, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import cbor2
 import requests
@@ -29,11 +29,9 @@ from pycardano.transaction import (
     UTxO,
     Value,
 )
+from pycardano.types import JsonDict
 
 __all__ = ["OgmiosChainContext"]
-
-
-JSON = Dict[str, Any]
 
 
 class OgmiosQueryType(str, Enum):
@@ -66,7 +64,7 @@ class OgmiosChainContext(ChainContext):
         self._genesis_param = None
         self._protocol_param = None
 
-    def _request(self, method: OgmiosQueryType, args: JSON) -> Any:
+    def _request(self, method: OgmiosQueryType, args: JsonDict) -> Any:
         ws = websocket.WebSocket()
         ws.connect(self._ws_url)
         request = json.dumps(
@@ -88,7 +86,31 @@ class OgmiosChainContext(ChainContext):
             )
         return json.loads(response)["result"]
 
-    def _check_chain_tip_and_update(self):
+    def _query_current_protocol_params(self) -> JsonDict:
+        args = {"query": "currentProtocolParameters"}
+        return self._request(OgmiosQueryType.Query, args)
+
+    def _query_genesis_config(self) -> JsonDict:
+        args = {"query": "genesisConfig"}
+        return self._request(OgmiosQueryType.Query, args)
+
+    def _query_current_epoch(self) -> int:
+        args = {"query": "currentEpoch"}
+        return self._request(OgmiosQueryType.Query, args)
+
+    def _query_chain_tip(self) -> JsonDict:
+        args = {"query": "chainTip"}
+        return self._request(OgmiosQueryType.Query, args)
+
+    def _query_utxos_by_address(self, address: str) -> List[List[JsonDict]]:
+        args = {"query": {"utxo": [address]}}
+        return self._request(OgmiosQueryType.Query, args)
+
+    def _query_utxos_by_tx_id(self, tx_id: str, index: int) -> List[List[JsonDict]]:
+        args = {"query": {"utxo": [{"txId": tx_id, "index": index}]}}
+        return self._request(OgmiosQueryType.Query, args)
+
+    def _is_chain_tip_updated(self):
         slot = self.last_block_slot
         if self._last_known_block_slot != slot:
             self._last_known_block_slot = slot
@@ -104,83 +126,91 @@ class OgmiosChainContext(ChainContext):
     @property
     def protocol_param(self) -> ProtocolParameters:
         """Get current protocol parameters"""
-        args = {"query": "currentProtocolParameters"}
-        if not self._protocol_param or self._check_chain_tip_and_update():
-            result = self._request(OgmiosQueryType.Query, args)
-            param = ProtocolParameters(
-                min_fee_constant=result["minFeeConstant"],
-                min_fee_coefficient=result["minFeeCoefficient"],
-                max_block_size=result["maxBlockBodySize"],
-                max_tx_size=result["maxTxSize"],
-                max_block_header_size=result["maxBlockHeaderSize"],
-                key_deposit=result["stakeKeyDeposit"],
-                pool_deposit=result["poolDeposit"],
-                pool_influence=self._fraction_parser(result["poolInfluence"]),
-                monetary_expansion=self._fraction_parser(result["monetaryExpansion"]),
-                treasury_expansion=self._fraction_parser(result["treasuryExpansion"]),
-                decentralization_param=self._fraction_parser(
-                    result.get("decentralizationParameter", "0/1")
-                ),
-                extra_entropy=result.get("extraEntropy", ""),
-                protocol_major_version=result["protocolVersion"]["major"],
-                protocol_minor_version=result["protocolVersion"]["minor"],
-                min_pool_cost=result["minPoolCost"],
-                price_mem=self._fraction_parser(result["prices"]["memory"]),
-                price_step=self._fraction_parser(result["prices"]["steps"]),
-                max_tx_ex_mem=result["maxExecutionUnitsPerTransaction"]["memory"],
-                max_tx_ex_steps=result["maxExecutionUnitsPerTransaction"]["steps"],
-                max_block_ex_mem=result["maxExecutionUnitsPerBlock"]["memory"],
-                max_block_ex_steps=result["maxExecutionUnitsPerBlock"]["steps"],
-                max_val_size=result["maxValueSize"],
-                collateral_percent=result["collateralPercentage"],
-                max_collateral_inputs=result["maxCollateralInputs"],
-                coins_per_utxo_word=result.get(
-                    "coinsPerUtxoWord", ALONZO_COINS_PER_UTXO_WORD
-                ),
-                coins_per_utxo_byte=result.get("coinsPerUtxoByte", 0),
-                cost_models=result.get("costModels", {}),
-            )
-
-            if "plutus:v1" in param.cost_models:
-                param.cost_models["PlutusV1"] = param.cost_models.pop("plutus:v1")
-            if "plutus:v2" in param.cost_models:
-                param.cost_models["PlutusV2"] = param.cost_models.pop("plutus:v2")
-
-            args = {"query": "genesisConfig"}
-            result = self._request(OgmiosQueryType.Query, args)
-            param.min_utxo = result["protocolParameters"]["minUtxoValue"]
-
-            self._protocol_param = param
+        if not self._protocol_param or self._is_chain_tip_updated():
+            self._protocol_param = self._fetch_protocol_param()
         return self._protocol_param
+
+    def _fetch_protocol_param(self) -> ProtocolParameters:
+        result = self._query_current_protocol_params()
+        param = ProtocolParameters(
+            min_fee_constant=result["minFeeConstant"],
+            min_fee_coefficient=result["minFeeCoefficient"],
+            max_block_size=result["maxBlockBodySize"],
+            max_tx_size=result["maxTxSize"],
+            max_block_header_size=result["maxBlockHeaderSize"],
+            key_deposit=result["stakeKeyDeposit"],
+            pool_deposit=result["poolDeposit"],
+            pool_influence=self._fraction_parser(result["poolInfluence"]),
+            monetary_expansion=self._fraction_parser(result["monetaryExpansion"]),
+            treasury_expansion=self._fraction_parser(result["treasuryExpansion"]),
+            decentralization_param=self._fraction_parser(
+                result.get("decentralizationParameter", "0/1")
+            ),
+            extra_entropy=result.get("extraEntropy", ""),
+            protocol_major_version=result["protocolVersion"]["major"],
+            protocol_minor_version=result["protocolVersion"]["minor"],
+            min_utxo=self._get_min_utxo(),
+            min_pool_cost=result["minPoolCost"],
+            price_mem=self._fraction_parser(result["prices"]["memory"]),
+            price_step=self._fraction_parser(result["prices"]["steps"]),
+            max_tx_ex_mem=result["maxExecutionUnitsPerTransaction"]["memory"],
+            max_tx_ex_steps=result["maxExecutionUnitsPerTransaction"]["steps"],
+            max_block_ex_mem=result["maxExecutionUnitsPerBlock"]["memory"],
+            max_block_ex_steps=result["maxExecutionUnitsPerBlock"]["steps"],
+            max_val_size=result["maxValueSize"],
+            collateral_percent=result["collateralPercentage"],
+            max_collateral_inputs=result["maxCollateralInputs"],
+            coins_per_utxo_word=result.get(
+                "coinsPerUtxoWord", ALONZO_COINS_PER_UTXO_WORD
+            ),
+            coins_per_utxo_byte=result.get("coinsPerUtxoByte", 0),
+            cost_models=self._parse_cost_models(result),
+        )
+
+        return param
+
+    def _get_min_utxo(self) -> int:
+        result = self._query_genesis_config()
+        return result["protocolParameters"]["minUtxoValue"]
+
+    def _parse_cost_models(self, ogmios_result: JsonDict) -> Dict[str, Dict[str, int]]:
+        ogmios_cost_models = ogmios_result.get("costModels", {})
+
+        cost_models = {}
+        if "plutus:v1" in ogmios_cost_models:
+            cost_models["PlutusV1"] = ogmios_cost_models["plutus:v1"].copy()
+        if "plutus:v2" in ogmios_cost_models:
+            cost_models["PlutusV2"] = ogmios_cost_models["plutus:v2"].copy()
+        return cost_models
 
     @property
     def genesis_param(self) -> GenesisParameters:
         """Get chain genesis parameters"""
-        args = {"query": "genesisConfig"}
-        if not self._genesis_param or self._check_chain_tip_and_update():
-            result = self._request(OgmiosQueryType.Query, args)
-            system_start_unix = int(
-                calendar.timegm(
-                    time.strptime(
-                        result["systemStart"].split(".")[0], "%Y-%m-%dT%H:%M:%S"
-                    ),
-                )
-            )
-            self._genesis_param = GenesisParameters(
-                active_slots_coefficient=self._fraction_parser(
-                    result["activeSlotsCoefficient"]
-                ),
-                update_quorum=result["updateQuorum"],
-                max_lovelace_supply=result["maxLovelaceSupply"],
-                network_magic=result["networkMagic"],
-                epoch_length=result["epochLength"],
-                system_start=system_start_unix,
-                slots_per_kes_period=result["slotsPerKesPeriod"],
-                slot_length=result["slotLength"],
-                max_kes_evolutions=result["maxKesEvolutions"],
-                security_param=result["securityParameter"],
-            )
+        if not self._genesis_param or self._is_chain_tip_updated():
+            self._genesis_param = self._fetch_genesis_param()
         return self._genesis_param
+
+    def _fetch_genesis_param(self) -> GenesisParameters:
+        result = self._query_genesis_config()
+        system_start_unix = int(
+            calendar.timegm(
+                time.strptime(result["systemStart"].split(".")[0], "%Y-%m-%dT%H:%M:%S"),
+            )
+        )
+        return GenesisParameters(
+            active_slots_coefficient=self._fraction_parser(
+                result["activeSlotsCoefficient"]
+            ),
+            update_quorum=result["updateQuorum"],
+            max_lovelace_supply=result["maxLovelaceSupply"],
+            network_magic=result["networkMagic"],
+            epoch_length=result["epochLength"],
+            system_start=system_start_unix,
+            slots_per_kes_period=result["slotsPerKesPeriod"],
+            slot_length=result["slotLength"],
+            max_kes_evolutions=result["maxKesEvolutions"],
+            security_param=result["securityParameter"],
+        )
 
     @property
     def network(self) -> Network:
@@ -190,37 +220,29 @@ class OgmiosChainContext(ChainContext):
     @property
     def epoch(self) -> int:
         """Current epoch number"""
-        args = {"query": "currentEpoch"}
-        return self._request(OgmiosQueryType.Query, args)
+        return self._query_current_epoch()
 
     @property
     def last_block_slot(self) -> int:
         """Slot number of last block"""
-        args = {"query": "chainTip"}
-        return self._request(OgmiosQueryType.Query, args)["slot"]
+        result = self._query_chain_tip()
+        return result["slot"]
 
-    def _extract_asset_info(self, asset_hash: str) -> Tuple[str, ScriptHash, AssetName]:
-        policy_hex, asset_name_hex = asset_hash.split(".")
-        policy = ScriptHash.from_primitive(policy_hex)
-        asset_name = AssetName.from_primitive(asset_name_hex)
-
-        return policy_hex, policy, asset_name
-
-    def _check_utxo_unspent(self, tx_id: str, index: int) -> bool:
-        """Check whether an UTxO is unspent with Ogmios.
+    def utxos(self, address: str) -> List[UTxO]:
+        """Get all UTxOs associated with an address.
 
         Args:
-            tx_id (str): transaction id.
-            index (int): transaction index.
+            address (str): An address encoded with bech32.
+
+        Returns:
+            List[UTxO]: A list of UTxOs.
         """
-
-        args = {"query": {"utxo": [{"txId": tx_id, "index": index}]}}
-        results = self._request(OgmiosQueryType.Query, args)
-
-        if results:
-            return True
+        if self._kupo_url:
+            utxos = self._utxos_kupo(address)
         else:
-            return False
+            utxos = self._utxos_ogmios(address)
+
+        return utxos
 
     def _utxos_kupo(self, address: str) -> List[UTxO]:
         """Get all UTxOs associated with an address with Kupo.
@@ -234,10 +256,12 @@ class OgmiosChainContext(ChainContext):
             List[UTxO]: A list of UTxOs.
         """
         if self._kupo_url is None:
-            raise AssertionError("kupo_url object attribute has not been assigned properly.")
+            raise AssertionError(
+                "kupo_url object attribute has not been assigned properly."
+            )
 
-        address_url = self._kupo_url + "/" + address
-        results = requests.get(address_url).json()
+        kupo_utxo_url = self._kupo_url + "/matches/" + address
+        results = requests.get(kupo_utxo_url).json()
 
         utxos = []
 
@@ -254,17 +278,42 @@ class OgmiosChainContext(ChainContext):
 
                 lovelace_amount = result["value"]["coins"]
 
+                script = None
+                script_hash = result.get("script_hash", None)
+                if script_hash:
+                    kupo_script_url = self._kupo_url + "/scripts/" + script_hash
+                    script = requests.get(kupo_script_url).json()
+                    if script["language"] == "plutus:v2":
+                        script = PlutusV2Script(
+                            cbor2.loads(bytes.fromhex(script["script"]))
+                        )
+                    elif script["language"] == "plutus:v1":
+                        script = PlutusV1Script(
+                            cbor2.loads(bytes.fromhex(script["script"]))
+                        )
+                    else:
+                        raise ValueError("Unknown plutus script type")
+
+                datum = None
                 datum_hash = (
                     DatumHash.from_primitive(result["datum_hash"])
                     if result["datum_hash"]
                     else None
                 )
+                if datum_hash:
+                    kupo_datum_url = self._kupo_url + "/datums/" + result["datum_hash"]
+                    datum_result = requests.get(kupo_datum_url).json()
+                    if datum_result and datum_result["datum"] != datum_hash:
+                        datum = RawCBOR(bytes.fromhex(datum_result["datum"]))
+                        datum_hash = None
 
                 if not result["value"]["assets"]:
                     tx_out = TransactionOutput(
                         Address.from_primitive(address),
                         amount=lovelace_amount,
                         datum_hash=datum_hash,
+                        datum=datum,
+                        script=script,
                     )
                 else:
                     multi_assets = MultiAsset()
@@ -281,12 +330,31 @@ class OgmiosChainContext(ChainContext):
                         Address.from_primitive(address),
                         amount=Value(lovelace_amount, multi_assets),
                         datum_hash=datum_hash,
+                        datum=datum,
+                        script=script,
                     )
                 utxos.append(UTxO(tx_in, tx_out))
             else:
                 continue
 
         return utxos
+
+    def _check_utxo_unspent(self, tx_id: str, index: int) -> bool:
+        """Check whether an UTxO is unspent with Ogmios.
+
+        Args:
+            tx_id (str): transaction id.
+            index (int): transaction index.
+        """
+        results = self._query_utxos_by_tx_id(tx_id, index)
+        return len(results) > 0
+
+    def _extract_asset_info(self, asset_hash: str) -> Tuple[str, ScriptHash, AssetName]:
+        policy_hex, asset_name_hex = asset_hash.split(".")
+        policy = ScriptHash.from_primitive(policy_hex)
+        asset_name = AssetName.from_primitive(asset_name_hex)
+
+        return policy_hex, policy, asset_name
 
     def _utxos_ogmios(self, address: str) -> List[UTxO]:
         """Get all UTxOs associated with an address with Ogmios.
@@ -297,12 +365,9 @@ class OgmiosChainContext(ChainContext):
         Returns:
             List[UTxO]: A list of UTxOs.
         """
-
-        args = {"query": {"utxo": [address]}}
-        results = self._request(OgmiosQueryType.Query, args)
+        results = self._query_utxos_by_address(address)
 
         utxos = []
-
         for result in results:
             in_ref = result[0]
             output = result[1]
@@ -357,22 +422,6 @@ class OgmiosChainContext(ChainContext):
                     script=script,
                 )
             utxos.append(UTxO(tx_in, tx_out))
-
-        return utxos
-
-    def utxos(self, address: str) -> List[UTxO]:
-        """Get all UTxOs associated with an address.
-
-        Args:
-            address (str): An address encoded with bech32.
-
-        Returns:
-            List[UTxO]: A list of UTxOs.
-        """
-        if self._kupo_url:
-            utxos = self._utxos_kupo(address)
-        else:
-            utxos = self._utxos_ogmios(address)
 
         return utxos
 

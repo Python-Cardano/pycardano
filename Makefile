@@ -63,6 +63,7 @@ test-single: ## runs tests with "single" markers
 qa: ## runs static analyses
 	poetry run flake8 pycardano
 	poetry run mypy --install-types --non-interactive pycardano
+	poetry run black --check .
 
 format: ## runs code style and formatter
 	poetry run isort .

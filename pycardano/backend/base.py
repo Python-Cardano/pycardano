@@ -19,90 +19,90 @@ __all__ = [
 ALONZO_COINS_PER_UTXO_WORD = 34482
 
 
-@dataclass
+@dataclass(frozen=True)
 class GenesisParameters:
     """Cardano genesis parameters"""
 
-    active_slots_coefficient: float = None
+    active_slots_coefficient: float
 
-    update_quorum: int = None
+    update_quorum: int
 
-    max_lovelace_supply: int = None
+    max_lovelace_supply: int
 
-    network_magic: int = None
+    network_magic: int
 
-    epoch_length: int = None
+    epoch_length: int
 
-    system_start: int = None
+    system_start: int
 
-    slots_per_kes_period: int = None
+    slots_per_kes_period: int
 
-    slot_length: int = None
+    slot_length: int
 
-    max_kes_evolutions: int = None
+    max_kes_evolutions: int
 
-    security_param: int = None
+    security_param: int
 
 
-@dataclass
+@dataclass(frozen=True)
 class ProtocolParameters:
     """Cardano protocol parameters"""
 
-    min_fee_constant: int = None
+    min_fee_constant: int
 
-    min_fee_coefficient: int = None
+    min_fee_coefficient: int
 
-    max_block_size: int = None
+    max_block_size: int
 
-    max_tx_size: int = None
+    max_tx_size: int
 
-    max_block_header_size: int = None
+    max_block_header_size: int
 
-    key_deposit: int = None
+    key_deposit: int
 
-    pool_deposit: int = None
+    pool_deposit: int
 
-    pool_influence: float = None
+    pool_influence: float
 
-    monetary_expansion: float = None
+    monetary_expansion: float
 
-    treasury_expansion: float = None
+    treasury_expansion: float
 
-    decentralization_param: float = None
+    decentralization_param: float
 
-    extra_entropy: str = None
+    extra_entropy: str
 
-    protocol_major_version: int = None
+    protocol_major_version: int
 
-    protocol_minor_version: int = None
+    protocol_minor_version: int
 
-    min_utxo: int = None
+    min_utxo: int
 
-    min_pool_cost: int = None
+    min_pool_cost: int
 
-    price_mem: float = None
+    price_mem: float
 
-    price_step: float = None
+    price_step: float
 
-    max_tx_ex_mem: int = None
+    max_tx_ex_mem: int
 
-    max_tx_ex_steps: int = None
+    max_tx_ex_steps: int
 
-    max_block_ex_mem: int = None
+    max_block_ex_mem: int
 
-    max_block_ex_steps: int = None
+    max_block_ex_steps: int
 
-    max_val_size: int = None
+    max_val_size: int
 
-    collateral_percent: int = None
+    collateral_percent: int
 
-    max_collateral_inputs: int = None
+    max_collateral_inputs: int
 
-    coins_per_utxo_word: int = None
+    coins_per_utxo_word: int
 
-    coins_per_utxo_byte: int = None
+    coins_per_utxo_byte: int
 
-    cost_models: Dict[str, Dict[str, int]] = None
+    cost_models: Dict[str, Dict[str, int]]
     """A dict contains cost models for Plutus. The key will be "PlutusV1", "PlutusV2", etc.
     The value will be a dict of cost model parameters."""
 

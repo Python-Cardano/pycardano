@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import ClassVar, List, Union, Type
+from typing import ClassVar, List, Type, Union
 
 from nacl.encoding import RawEncoder
 from nacl.hash import blake2b
@@ -11,6 +11,7 @@ from nacl.hash import blake2b
 from pycardano.exception import DeserializeException
 from pycardano.hash import SCRIPT_HASH_SIZE, ScriptHash, VerificationKeyHash
 from pycardano.serialization import ArrayCBORSerializable, Primitive, list_hook
+from pycardano.types import JsonDict
 
 __all__ = [
     "NativeScript",
@@ -25,6 +26,9 @@ __all__ = [
 
 @dataclass
 class NativeScript(ArrayCBORSerializable):
+    json_tag: ClassVar[str]
+    json_field: ClassVar[str]
+
     @classmethod
     def from_primitive(
         cls: Type[NativeScript], value: Primitive
@@ -54,7 +58,7 @@ class NativeScript(ArrayCBORSerializable):
 
     @classmethod
     def from_dict(
-        cls: NativeScript, script: dict, top_level: bool = True
+        cls: Type[NativeScript], script_json: JsonDict
     ) -> Union[
         ScriptPubkey, ScriptAll, ScriptAny, ScriptNofK, InvalidBefore, InvalidHereAfter
     ]:
@@ -71,27 +75,48 @@ class NativeScript(ArrayCBORSerializable):
                 InvalidHereAfter,
             ]
         }
+        script_type = script_json["type"]
+        target_class = types[script_type]
+        script_primitive = cls._script_json_to_primitive(script_json)
+        return super(NativeScript, target_class).from_primitive(script_primitive[1:])
 
-        native_script = []
-        if isinstance(script, dict):
+    @classmethod
+    def _script_json_to_primitive(
+        cls: Type[NativeScript], script_json: JsonDict
+    ) -> List[Primitive]:
+        """Serialize a standard JSON native script into a primitive array"""
 
-            for key, value in script.items():
-                if key == "type":
-                    native_script.insert(0, list(types.keys()).index(value))
-                elif key == "scripts":
-                    native_script.append(cls.from_dict(value, top_level=False))
-                else:
-                    native_script.append(value)
+        types = {
+            p.json_tag: p
+            for p in [
+                ScriptPubkey,
+                ScriptAll,
+                ScriptAny,
+                ScriptNofK,
+                InvalidBefore,
+                InvalidHereAfter,
+            ]
+        }
 
-        elif isinstance(script, list):  # list
-            native_script = [cls.from_dict(i, top_level=False) for i in script]
+        script_type: str = script_json["type"]
+        native_script = [types[script_type]._TYPE]
 
-        if not top_level:
-            return native_script
-        else:
-            return super(NativeScript, types[script["type"]]).from_primitive(
-                native_script[1:]
-            )
+        for key, value in script_json.items():
+            if key == "type":
+                continue
+            elif key == "scripts":
+                native_script.append(cls._script_jsons_to_primitive(value))
+            else:
+                native_script.append(value)
+        return native_script
+
+    @classmethod
+    def _script_jsons_to_primitive(
+        cls: Type[NativeScript], script_jsons: List[JsonDict]
+    ) -> List[List[Primitive]]:
+        """Parse a list of JSON scripts into a list of primitive arrays"""
+        native_script = [cls._script_json_to_primitive(i) for i in script_jsons]
+        return native_script
 
     def to_dict(self) -> dict:
         """Export to standard native script dictionary (potentially to dump to a JSON file)."""
