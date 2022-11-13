@@ -46,7 +46,7 @@ class NativeScript(ArrayCBORSerializable):
                 f"A list or a tuple is required for deserialization: {str(value)}"
             )
 
-        script_type = value[0]
+        script_type: int = value[0]
         for t in [
             ScriptPubkey,
             ScriptAll,
@@ -55,7 +55,7 @@ class NativeScript(ArrayCBORSerializable):
             InvalidBefore,
             InvalidHereAfter,
         ]:
-            if t._TYPE == script_type:
+            if t._TYPE == script_type:  # type: ignore
                 return super(NativeScript, t).from_primitive(value[1:])
         else:
             raise DeserializeException(f"Unknown script type indicator: {script_type}")
@@ -75,7 +75,7 @@ class NativeScript(ArrayCBORSerializable):
         """Parse a standard native script dictionary (potentially parsed from a JSON file)."""
 
         types = {
-            p.json_tag: p
+            p.json_tag: p  # type: ignore
             for p in [
                 ScriptPubkey,
                 ScriptAll,
@@ -97,7 +97,7 @@ class NativeScript(ArrayCBORSerializable):
         """Serialize a standard JSON native script into a primitive array"""
 
         types = {
-            p.json_tag: p
+            p.json_tag: p  # type: ignore
             for p in [
                 ScriptPubkey,
                 ScriptAll,
@@ -109,7 +109,7 @@ class NativeScript(ArrayCBORSerializable):
         }
 
         script_type: str = script_json["type"]
-        native_script = [types[script_type]._TYPE]
+        native_script: List[Primitive] = [types[script_type]._TYPE]  # type: ignore
 
         for key, value in script_json.items():
             if key == "type":
