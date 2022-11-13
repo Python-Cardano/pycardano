@@ -47,16 +47,18 @@ class NativeScript(ArrayCBORSerializable):
             )
 
         script_type: int = value[0]
-        for t in [
-            ScriptPubkey,
-            ScriptAll,
-            ScriptAny,
-            ScriptNofK,
-            InvalidBefore,
-            InvalidHereAfter,
-        ]:
-            if t._TYPE == script_type:  # type: ignore
-                return super(NativeScript, t).from_primitive(value[1:])  # type: ignore
+        if script_type == ScriptPubkey._TYPE:
+            return super(NativeScript, ScriptPubkey).from_primitive(value[1:])
+        elif script_type == ScriptAll._TYPE:
+            return super(NativeScript, ScriptAll).from_primitive(value[1:])
+        elif script_type == ScriptAny._TYPE:
+            return super(NativeScript, ScriptAny).from_primitive(value[1:])
+        elif script_type == ScriptNofK._TYPE:
+            return super(NativeScript, ScriptNofK).from_primitive(value[1:])
+        elif script_type == InvalidBefore._TYPE:
+            return super(NativeScript, InvalidBefore).from_primitive(value[1:])
+        elif script_type == InvalidHereAfter._TYPE:
+            return super(NativeScript, InvalidHereAfter).from_primitive(value[1:])
         else:
             raise DeserializeException(f"Unknown script type indicator: {script_type}")
 
@@ -73,43 +75,16 @@ class NativeScript(ArrayCBORSerializable):
         ScriptPubkey, ScriptAll, ScriptAny, ScriptNofK, InvalidBefore, InvalidHereAfter
     ]:
         """Parse a standard native script dictionary (potentially parsed from a JSON file)."""
-
-        types = {
-            p.json_tag: p  # type: ignore
-            for p in [
-                ScriptPubkey,
-                ScriptAll,
-                ScriptAny,
-                ScriptNofK,
-                InvalidBefore,
-                InvalidHereAfter,
-            ]
-        }
-        script_type = script_json["type"]
-        target_class = types[script_type]
         script_primitive = cls._script_json_to_primitive(script_json)
-        return super(NativeScript, target_class).from_primitive(script_primitive[1:])  # type: ignore
+        return cls.from_primitive(script_primitive)
 
     @classmethod
     def _script_json_to_primitive(
         cls: Type[NativeScript], script_json: JsonDict
     ) -> List[Primitive]:
         """Serialize a standard JSON native script into a primitive array"""
-
-        types = {
-            p.json_tag: p  # type: ignore
-            for p in [
-                ScriptPubkey,
-                ScriptAll,
-                ScriptAny,
-                ScriptNofK,
-                InvalidBefore,
-                InvalidHereAfter,
-            ]
-        }
-
         script_type: str = script_json["type"]
-        native_script: List[Primitive] = [types[script_type]._TYPE]  # type: ignore
+        native_script: List[Primitive] = [JSON_TAG_TO_INT[script_type]]
 
         for key, value in script_json.items():
             if key == "type":
@@ -225,3 +200,13 @@ class InvalidHereAfter(NativeScript):
     _TYPE: int = field(default=5, init=False)
 
     after: int
+
+
+JSON_TAG_TO_INT = {
+    ScriptPubkey.json_tag: ScriptPubkey._TYPE,
+    ScriptAll.json_tag: ScriptAll._TYPE,
+    ScriptAny.json_tag: ScriptAny._TYPE,
+    ScriptNofK.json_tag: ScriptNofK._TYPE,
+    InvalidBefore.json_tag: InvalidBefore._TYPE,
+    InvalidHereAfter.json_tag: InvalidHereAfter._TYPE,
+}
