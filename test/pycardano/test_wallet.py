@@ -1,10 +1,15 @@
 import datetime
 import pathlib
-from test.pycardano.util import chain_context
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 
+from blockfrost import BlockFrostApi, ApiError
+from blockfrost.utils import convert_json_to_object
 import pytest
+from requests import Response
 
+
+from test.pycardano.util import chain_context, blockfrost_patch, mock_blockfrost_api_error
+from pycardano.backend.blockfrost import BlockFrostChainContext
 from pycardano.address import Address, VerificationKeyHash
 from pycardano.nativescript import ScriptAll, ScriptPubkey
 from pycardano.wallet import (
@@ -56,7 +61,6 @@ WALLET = Wallet(
     keys_dir=str(pathlib.Path(__file__).parent / "../resources/keys"),
     context="null",
 )
-
 
 def test_amount():
     """Check that the Ada / Lovelace math works as expected."""
@@ -444,7 +448,7 @@ def test_metadata():
         "key_3": {"key_3_1": "value_3_1"},
     }
 
-    _ = Token(policy=policy, name="testToken", amount=1, metadata=metadata)
+    test_token = Token(policy=policy, name="testToken", amount=1, metadata=metadata)
 
     # test bad metadata
 
@@ -465,7 +469,44 @@ def test_metadata():
     with pytest.raises(MetadataFormattingException):
         _ = Token(policy=policy, name="testToken", amount=1, metadata=unserializable)
 
-    # TODO: add tests for onchain metadata
+    # Tests for onchain metadata
+    test_api_response = {
+        "asset": "6b0cb18696ccd4de1dcd9664c31ed6e98f7a4a1ff647855fef1e083174657374546f6b656e",
+        "policy_id": "6b0cb18696ccd4de1dcd9664c31ed6e98f7a4a1ff647855fef1e0831",
+        "asset_name": "74657374546f6b656e",
+        "fingerprint": "asset000",
+        "quantity": "1",
+        "initial_mint_tx_hash": "000",
+        "mint_or_burn_count": 1,
+        "onchain_metadata": metadata,
+        "metadata": None,
+    }
+
+    with blockfrost_patch:
+        with patch.object(
+            BlockFrostApi,
+            "asset",
+            return_value=convert_json_to_object(test_api_response),
+        ):
+            onchain_meta = test_token.get_on_chain_metadata(
+                context=BlockFrostChainContext("")
+            )
+
+            assert onchain_meta == convert_json_to_object(metadata).to_dict()
+         
+    # test for no onchain metadata
+    with blockfrost_patch:
+        
+        with patch.object(BlockFrostApi, "asset") as mock_asset:
+            
+            mock_asset.side_effect = mock_blockfrost_api_error()
+            
+            onchain_meta = test_token.get_on_chain_metadata(
+                context=BlockFrostChainContext("")
+            )
+            
+            assert onchain_meta == {}
+            
 
 
 def test_outputs():
