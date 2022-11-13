@@ -56,7 +56,7 @@ class NativeScript(ArrayCBORSerializable):
             InvalidHereAfter,
         ]:
             if t._TYPE == script_type:  # type: ignore
-                return super(NativeScript, t).from_primitive(value[1:])
+                return super(NativeScript, t).from_primitive(value[1:])  # type: ignore
         else:
             raise DeserializeException(f"Unknown script type indicator: {script_type}")
 
@@ -88,7 +88,7 @@ class NativeScript(ArrayCBORSerializable):
         script_type = script_json["type"]
         target_class = types[script_type]
         script_primitive = cls._script_json_to_primitive(script_json)
-        return super(NativeScript, target_class).from_primitive(script_primitive[1:])
+        return super(NativeScript, target_class).from_primitive(script_primitive[1:])  # type: ignore
 
     @classmethod
     def _script_json_to_primitive(
