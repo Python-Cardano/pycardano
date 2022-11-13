@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from test.pycardano.util import check_two_way_cbor
 
 import pytest
@@ -7,7 +8,7 @@ from pycardano.exception import InvalidDataException, InvalidOperationException
 from pycardano.hash import SCRIPT_HASH_SIZE, ScriptHash, TransactionId
 from pycardano.key import PaymentKeyPair, PaymentSigningKey, VerificationKey
 from pycardano.nativescript import ScriptPubkey
-from pycardano.plutus import PlutusV1Script, PlutusV2Script, datum_hash
+from pycardano.plutus import PlutusData, PlutusV1Script, PlutusV2Script, datum_hash
 from pycardano.transaction import (
     Asset,
     AssetName,
@@ -421,3 +422,22 @@ def test_values():
 
     with pytest.raises(InvalidOperationException):
         b - c
+
+
+def test_inline_datum_serdes():
+    @dataclass
+    class TestDatum(PlutusData):
+        a: int
+        b: bytes
+
+    output = TransactionOutput(
+        Address.from_primitive(
+            "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+        ),
+        1000000,
+        datum=TestDatum(1, b"test"),
+    )
+
+    cbor = output.to_cbor()
+
+    assert cbor == TransactionOutput.from_cbor(cbor).to_cbor()

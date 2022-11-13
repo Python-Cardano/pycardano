@@ -21,9 +21,9 @@ class TestBase:
 
     OGMIOS_WS = "ws://localhost:1337"
 
-    KUPO_URL = "http://localhost:1442/v1/matches"
+    KUPO_URL = "http://localhost:1442"
 
-    chain_context = OgmiosChainContext(OGMIOS_WS, Network.TESTNET)
+    chain_context = OgmiosChainContext(OGMIOS_WS, Network.TESTNET, kupo_url=KUPO_URL)
 
     check_chain_context(chain_context)
 

@@ -50,7 +50,7 @@ export POOL_ID=$(cat "$ROOT"/keys/pool/pool.id)
 # Wait for stake pool to start producing blocks
 sleep 30
 
-poetry run pytest -s -vv -n 2 "$ROOT"/test
+poetry run pytest -s -vv "$ROOT"/test
 
 # Cleanup
 docker-compose down --volumes --remove-orphans

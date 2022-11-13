@@ -293,7 +293,7 @@ class TestPlutus(TestBase):
         for utxo in self.chain_context.utxos(str(script_address)):
             if not utxo.output.script and (
                 utxo.output.datum_hash == datum_hash(datum)
-                or utxo.output.datum == datum
+                or datum_hash(utxo.output.datum) == datum_hash(datum)
             ):
                 utxo_to_spend = utxo
                 break
