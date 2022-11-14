@@ -1,4 +1,7 @@
-from pycardano.address import Address
+from unittest import TestCase
+
+from pycardano.address import Address, PointerAddress
+from pycardano.exception import DeserializeException
 from pycardano.key import PaymentVerificationKey
 from pycardano.network import Network
 
@@ -15,3 +18,9 @@ def test_payment_addr():
         Address(vk.hash(), network=Network.TESTNET).encode()
         == "addr_test1vr2p8st5t5cxqglyjky7vk98k7jtfhdpvhl4e97cezuhn0cqcexl7"
     )
+
+
+class PointerAddressTest(TestCase):
+    def test_from_primitive_invalid_value(self):
+        with self.assertRaises(DeserializeException):
+            PointerAddress.from_primitive(1)

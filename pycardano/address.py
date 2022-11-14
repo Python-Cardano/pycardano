@@ -19,7 +19,7 @@ from pycardano.exception import (
 )
 from pycardano.hash import VERIFICATION_KEY_HASH_SIZE, ScriptHash, VerificationKeyHash
 from pycardano.network import Network
-from pycardano.serialization import CBORSerializable
+from pycardano.serialization import CBORSerializable, Primitive
 
 __all__ = ["AddressType", "PointerAddress", "Address"]
 
@@ -160,7 +160,11 @@ class PointerAddress(CBORSerializable):
         return self.encode()
 
     @classmethod
-    def from_primitive(cls: Type[PointerAddress], value: bytes) -> PointerAddress:
+    def from_primitive(cls: Type[PointerAddress], value: Primitive) -> PointerAddress:
+        if not isinstance(value, bytes):
+            raise DeserializeException(
+                f"A bytes value is required for deserialization: {value}"
+            )
         return cls.decode(value)
 
     def __eq__(self, other):
