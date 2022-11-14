@@ -67,7 +67,6 @@ python_version = 3.7
 exclude = [
     '^pycardano/cip/cip8.py$',
     '^pycardano/crypto/bech32.py$',
-    '^pycardano/address.py$',
     '^pycardano/certificate.py$',
     '^pycardano/coinselection.py$',
     '^pycardano/exception.py$',
