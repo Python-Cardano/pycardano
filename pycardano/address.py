@@ -343,7 +343,18 @@ class Address(CBORSerializable):
         return bytes(self)
 
     @classmethod
-    def from_primitive(cls: Type[Address], value: Union[bytes, str]) -> Address:
+    def from_primitive(cls: Type[Address], value: Primitive) -> Address:
+        if not isinstance(
+            value,
+            (
+                bytes,
+                str,
+            ),
+        ):
+            raise DeserializeException(
+                f"A bytes or a string value is required for deserialization: {value}"
+            )
+
         if isinstance(value, str):
             value = bytes(decode(value))
         header = value[0]

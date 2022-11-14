@@ -24,3 +24,21 @@ class PointerAddressTest(TestCase):
     def test_from_primitive_invalid_value(self):
         with self.assertRaises(DeserializeException):
             PointerAddress.from_primitive(1)
+
+        with self.assertRaises(DeserializeException):
+            PointerAddress.from_primitive([])
+
+        with self.assertRaises(DeserializeException):
+            PointerAddress.from_primitive({})
+
+
+class AddressTest(TestCase):
+    def test_from_primitive_invalid_value(self):
+        with self.assertRaises(DeserializeException):
+            Address.from_primitive(1)
+
+        with self.assertRaises(DeserializeException):
+            Address.from_primitive([])
+
+        with self.assertRaises(DeserializeException):
+            Address.from_primitive({})
