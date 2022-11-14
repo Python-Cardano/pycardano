@@ -43,7 +43,7 @@ class NativeScript(ArrayCBORSerializable):
             ),
         ):
             raise DeserializeException(
-                f"A list or a tuple is required for deserialization: {str(value)}"
+                f"A list or a tuple is required for deserialization: {value}"
             )
 
         script_type: int = value[0]

@@ -407,7 +407,7 @@ def _restore_dataclass_field(
             elif t in PRIMITIVE_TYPES and isinstance(v, t):
                 return v
         raise DeserializeException(
-            f"Cannot deserialize object: \n{str(v)}\n in any valid type from {t_args}."
+            f"Cannot deserialize object: \n{v}\n in any valid type from {t_args}."
         )
     return v
 
@@ -739,10 +739,10 @@ class DictCBORSerializable(CBORSerializable):
             DeserializeException: When the object could not be restored from primitives.
         """
         if not value:
-            raise DeserializeException(f"Cannot accept empty value {str(value)}.")
+            raise DeserializeException(f"Cannot accept empty value {value}.")
         if not isinstance(value, dict):
             raise DeserializeException(
-                f"A dictionary value is required for deserialization: {str(value)}"
+                f"A dictionary value is required for deserialization: {value}"
             )
 
         restored = cls()

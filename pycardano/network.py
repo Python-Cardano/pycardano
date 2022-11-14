@@ -26,6 +26,6 @@ class Network(CBORSerializable, Enum):
     def from_primitive(cls: Type[Network], value: Primitive) -> Network:
         if not isinstance(value, int):
             raise DeserializeException(
-                f"An integer value is required for deserialization: {str(value)}"
+                f"An integer value is required for deserialization: {value}"
             )
         return cls(value)

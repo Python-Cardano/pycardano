@@ -63,6 +63,7 @@ profile = "black"
 
 [tool.mypy]
 ignore_missing_imports = true
+disable_error_code = ["str-bytes-safe"]
 python_version = 3.7
 exclude = [
     '^pycardano/cip/cip8.py$',
