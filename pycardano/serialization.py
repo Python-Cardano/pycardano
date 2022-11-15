@@ -8,6 +8,7 @@ from copy import deepcopy
 from dataclasses import Field, dataclass, fields
 from datetime import datetime
 from decimal import Decimal
+from functools import wraps
 from inspect import isclass
 from typing import Any, Callable, List, Type, TypeVar, Union, get_type_hints
 
@@ -104,6 +105,31 @@ PRIMITIVE_TYPES = (
 A list of types that could be encoded by
 `Cbor2 encoder <https://cbor2.readthedocs.io/en/latest/modules/encoder.html>`_ directly.
 """
+
+
+def limit_primitive_type(*allowed_types):
+    """
+    A helper function to validate primitive type given to from_primitive class methods
+
+    Not exposed to public by intention.
+    """
+
+    def decorator(func):
+        @wraps(func)
+        def wrapper(cls, value: Primitive):
+            if not isinstance(value, allowed_types):
+                allowed_types_str = [
+                    allowed_type.__name__ for allowed_type in allowed_types
+                ]
+                raise DeserializeException(
+                    f"{allowed_types_str} typed value is required for deserialization. Got {type(value)}: {value}"
+                )
+            return func(cls, value)
+
+        return wrapper
+
+    return decorator
+
 
 CBORBase = TypeVar("CBORBase", bound="CBORSerializable")
 
@@ -245,7 +271,7 @@ class CBORSerializable:
         return self.to_primitive()
 
     @classmethod
-    def from_primitive(cls: Type[CBORBase], value: Primitive) -> CBORBase:
+    def from_primitive(cls: Type[CBORBase], value: Any) -> CBORBase:
         """Turn a CBOR primitive to its original class type.
 
         Args:
@@ -494,7 +520,8 @@ class ArrayCBORSerializable(CBORSerializable):
         return primitives
 
     @classmethod
-    def from_primitive(cls: Type[ArrayBase], values: Primitive) -> ArrayBase:
+    @limit_primitive_type(list)
+    def from_primitive(cls: Type[ArrayBase], values: list) -> ArrayBase:
         """Restore a primitive value to its original class type.
 
         Args:
@@ -508,10 +535,6 @@ class ArrayCBORSerializable(CBORSerializable):
             DeserializeException: When the object could not be restored from primitives.
         """
         all_fields = [f for f in fields(cls) if f.init]
-        if type(values) != list:
-            raise DeserializeException(
-                f"Expect input value to be a list, got a {type(values)} instead."
-            )
 
         restored_vals = []
         type_hints = get_type_hints(cls)
@@ -606,7 +629,8 @@ class MapCBORSerializable(CBORSerializable):
         return primitives
 
     @classmethod
-    def from_primitive(cls: Type[MapBase], values: Primitive) -> MapBase:
+    @limit_primitive_type(dict)
+    def from_primitive(cls: Type[MapBase], values: dict) -> MapBase:
         """Restore a primitive value to its original class type.
 
         Args:
@@ -620,10 +644,6 @@ class MapCBORSerializable(CBORSerializable):
             :class:`pycardano.exception.DeserializeException`: When the object could not be restored from primitives.
         """
         all_fields = {f.metadata.get("key", f.name): f for f in fields(cls) if f.init}
-        if type(values) != dict:
-            raise DeserializeException(
-                f"Expect input value to be a dict, got a {type(values)} instead."
-            )
 
         kwargs = {}
         type_hints = get_type_hints(cls)
@@ -725,7 +745,8 @@ class DictCBORSerializable(CBORSerializable):
         return dict(sorted(self.data.items(), key=lambda x: _get_sortable_val(x[0])))
 
     @classmethod
-    def from_primitive(cls: Type[DictBase], value: Primitive) -> DictBase:
+    @limit_primitive_type(dict)
+    def from_primitive(cls: Type[DictBase], value: dict) -> DictBase:
         """Restore a primitive value to its original class type.
 
         Args:
@@ -740,10 +761,6 @@ class DictCBORSerializable(CBORSerializable):
         """
         if not value:
             raise DeserializeException(f"Cannot accept empty value {value}.")
-        if not isinstance(value, dict):
-            raise DeserializeException(
-                f"A dictionary value is required for deserialization: {value}"
-            )
 
         restored = cls()
         for k, v in value.items():
