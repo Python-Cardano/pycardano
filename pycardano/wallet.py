@@ -5,19 +5,25 @@ from dataclasses import dataclass, field
 from os import getenv
 from pathlib import Path
 from time import sleep
-from typing import List, Optional, Sequence, Union
-from typing_extensions import Literal
+from typing import List, Optional, Union
 
 from blockfrost import ApiError
+from typing_extensions import Literal
 
-from pycardano.address import Address
+from pycardano.address import Address, PointerAddress
 from pycardano.backend.base import ChainContext
 from pycardano.backend.blockfrost import BlockFrostChainContext
-from pycardano.certificate import StakeCredential, StakeDelegation, StakeRegistration
+from pycardano.certificate import (
+    StakeCredential,
+    StakeDelegation,
+    StakeDeregistration,
+    StakeRegistration,
+)
 from pycardano.cip.cip8 import sign
 from pycardano.exception import PyCardanoException
 from pycardano.hash import PoolKeyHash, ScriptHash, TransactionId
 from pycardano.key import (
+    ExtendedSigningKey,
     PaymentKeyPair,
     PaymentSigningKey,
     PaymentVerificationKey,
@@ -38,6 +44,7 @@ from pycardano.transaction import (
     Asset,
     AssetName,
     MultiAsset,
+    TransactionBody,
     TransactionOutput,
     UTxO,
     Value,
@@ -283,9 +290,7 @@ class TokenPolicy:
     name: str
     policy_id: Optional[str] = None
     script: Optional[Union[NativeScript, dict]] = field(repr=False, default=None)
-    policy_dir: Optional[Union[str, Path]] = field(
-        repr=False, default=Path("./priv/policies")
-    )
+    policy_dir: Union[str, Path] = field(repr=False, default=Path("./priv/policies"))
 
     def __post_init__(self):
 
@@ -390,9 +395,6 @@ class TokenPolicy:
             context (Optional[ChainContext]): A context is needed to estimate the expiration slot from a datetime.
         """
 
-        if not self.script or not self.policy_dir:
-            raise TypeError("The script of this policy is not set.")
-
         script_filepath = Path(self.policy_dir) / f"{self.name}.script"
 
         if script_filepath.exists() or self.script:
@@ -413,18 +415,13 @@ class TokenPolicy:
         if expiration:
             if isinstance(expiration, int):  # assume this is directly the block no.
                 must_before_slot = InvalidHereAfter(expiration)
-            elif isinstance(expiration, datetime.datetime):
+            elif isinstance(expiration, datetime.datetime) and context:
                 if expiration.tzinfo:
                     time_until_expiration = expiration - get_now(expiration.tzinfo)
                 else:
                     time_until_expiration = expiration - get_now()
 
-                if context:
-                    last_block_slot = context.last_block_slot
-                else:
-                    raise AttributeError(
-                        "If input expiration is provided as a datetime, please also provide a context."
-                    )
+                last_block_slot = context.last_block_slot
 
                 must_before_slot = InvalidHereAfter(
                     last_block_slot + int(time_until_expiration.total_seconds())
@@ -742,6 +739,15 @@ class Wallet:
             return None
 
     @property
+    def full_address(self):
+
+        return Address(
+            payment_part=self.address.payment_part,
+            staking_part=self.address.staking_part,
+            network=self._network,
+        )
+
+    @property
     def verification_key_hash(self):
         return self.address.payment_part
 
@@ -848,9 +854,9 @@ class Wallet:
         By default, will return `self.context` unless a context variable has been specifically specified.
         """
 
-        if not context and not self.context:
+        if context is None and self.context is None:
             raise TypeError("Please pass `context` or set Wallet.context.")
-        elif not self.context:
+        elif context is not None or not self.context:
             return context
         else:
             return self.context
@@ -917,10 +923,10 @@ class Wallet:
 
         """
 
-        context = self._find_context(context)
+        current_context = self._find_context(context)
 
         try:
-            self.utxos = context.utxos(str(self.address))
+            self.utxos = current_context.utxos(str(self.address))
         except Exception as e:
             logger.warning(
                 f"Error getting UTxOs. Address has likely not transacted yet. Details: {e}"
@@ -955,10 +961,10 @@ class Wallet:
             context (Optional[ChainContext]): The context to use for the query. Defaults to the wallet's context.
         """
 
-        context = self._find_context(context)
+        current_context = self._find_context(context)
 
         for utxo in self.utxos:
-            utxo.creator = get_utxo_creator(utxo, context)
+            utxo.creator = get_utxo_creator(utxo, current_context)
 
     def get_utxo_block_times(self, context: Optional[ChainContext] = None):
         """Get a list of the creation block number for each UTxO in the wallet.
@@ -967,10 +973,10 @@ class Wallet:
             context (Optional[ChainContext]): The context to use for the query. Defaults to the wallet's context.
         """
 
-        context = self._find_context(context)
+        current_context = self._find_context(context)
 
         for utxo in self.utxos:
-            utxo.block_time = get_utxo_block_time(utxo, context)
+            utxo.block_time = get_utxo_block_time(utxo, current_context)
 
         self.sort_utxos()
 
@@ -1031,6 +1037,11 @@ class Wallet:
                 f"Data signing mode must be `payment` or `stake`, not {mode}."
             )
 
+        if not signing_key:
+            raise TypeError(
+                f"Wallet {self.name} does not have a compatible signing key."
+            )
+
         return sign(
             message,
             signing_key,
@@ -1044,7 +1055,7 @@ class Wallet:
         amount: Union[Ada, Lovelace],
         utxos: Optional[Union[UTxO, List[UTxO]]] = None,
         **kwargs,
-    ) -> str:
+    ) -> Union[str, TransactionBody]:
         """Create a simple transaction in which Ada is sent to a single recipient.
 
 
@@ -1064,7 +1075,7 @@ class Wallet:
         # streamline inputs, use either specific utxos or all wallet utxos
         if utxos:
             if isinstance(utxos, UTxO):
-                inputs = [utxos]
+                inputs: Union[List[UTxO], List["Wallet"]] = [utxos]
             else:
                 inputs = utxos
         else:
@@ -1074,7 +1085,7 @@ class Wallet:
 
     def send_utxo(
         self, to: Union[str, Address], utxos: Union[UTxO, List[UTxO]], **kwargs
-    ) -> str:
+    ) -> Union[str, TransactionBody]:
         """Send all of the contents (ADA and tokens) of specified UTxO(s) to a single recipient.
 
         Args:
@@ -1091,7 +1102,7 @@ class Wallet:
         self,
         to: Union[str, Address],
         **kwargs,
-    ) -> str:
+    ) -> Union[str, TransactionBody]:
 
         """Send all of the contents (ADA and tokens) of the wallet to a single recipient.
         The current wallet will be left completely empty
@@ -1109,10 +1120,10 @@ class Wallet:
         self,
         pool_hash: Union[PoolKeyHash, str],
         register: Optional[bool] = True,
-        amount: Optional[Union[Ada, Lovelace]] = Lovelace(2000000),
+        amount: Union[Ada, Lovelace] = Lovelace(2000000),
         utxos: Optional[Union[UTxO, List[UTxO]]] = None,
         **kwargs,
-    ) -> str:
+    ) -> Union[str, TransactionBody]:
         """Delegate the current wallet to a pool.
 
         Args:
@@ -1135,7 +1146,7 @@ class Wallet:
         # streamline inputs, use either specific utxos or all wallet utxos
         if utxos:
             if isinstance(utxos, UTxO):
-                inputs = [utxos]
+                inputs: Union[List[UTxO], List["Wallet"]] = [utxos]
             else:
                 inputs = utxos
         else:
@@ -1161,9 +1172,9 @@ class Wallet:
     def withdraw_rewards(
         self,
         withdrawal_amount: Optional[Union[Ada, Lovelace]] = None,
-        output_amount: Optional[Union[Ada, Lovelace]] = Lovelace(1000000),
+        output_amount: Union[Ada, Lovelace] = Lovelace(1000000),
         **kwargs,
-    ) -> str:
+    ) -> Union[str, TransactionBody]:
         """Withdraw staking rewards.
 
         Args:
@@ -1203,7 +1214,7 @@ class Wallet:
         amount: Optional[Union[Ada, Lovelace]] = None,
         utxos: Optional[Union[UTxO, List[UTxO]]] = None,
         **kwargs,
-    ):
+    ) -> Union[str, TransactionBody]:
         """Mints (or burns) tokens of a policy owned by a user wallet. To attach metadata,
         set it in Token class directly.
 
@@ -1233,7 +1244,7 @@ class Wallet:
         # streamline inputs, use either specific utxos or all wallet utxos
         if utxos:
             if isinstance(utxos, UTxO):
-                inputs = [utxos]
+                inputs: Union[List[UTxO], List["Wallet"]] = [utxos]
             else:
                 inputs = utxos
         else:
@@ -1249,11 +1260,11 @@ class Wallet:
     def burn_tokens(
         self,
         tokens: Union[Token, List[Token]],
-        change_address: Union[Address, str] = None,
+        change_address: Union[Address, str],
         amount: Optional[Union[Ada, Lovelace]] = None,
         utxos: Optional[Union[UTxO, List[UTxO]]] = None,
         **kwargs,
-    ):
+    ) -> Union[str, TransactionBody]:
         """Burns tokens of a policy owned by a user wallet.
         Same as mint_tokens but automatically sets Token class amount to a negative value.
 
@@ -1277,12 +1288,14 @@ class Wallet:
 
         if not amount:
             # attach 1 ADA to burn transactions
-            amount = Ada(1)
+            attach_amount: Union[Ada, Lovelace] = Ada(1)
+        else:
+            attach_amount = amount
 
         # streamline inputs, use either specific utxos or all wallet utxos
         if utxos:
             if isinstance(utxos, UTxO):
-                inputs = [utxos]
+                inputs: Union[List[UTxO], List["Wallet"]] = [utxos]
             else:
                 inputs = utxos
         else:
@@ -1297,7 +1310,7 @@ class Wallet:
 
         return self.transact(
             inputs=inputs,
-            outputs=Output(change_address, amount, tokens=tokens),
+            outputs=Output(change_address, attach_amount, tokens=tokens),
             mints=tokens,
             **kwargs,
         )
@@ -1317,11 +1330,24 @@ class Wallet:
         outputs: Optional[Union[Output, List[Output]]] = None,
         mints: Optional[Union[Token, List[Token]]] = None,
         signers: Optional[
-            Union["Wallet", List["Wallet"], SigningKey, List[SigningKey], Sequence["Wallet", SigningKey]]
+            Union[
+                "Wallet",
+                List["Wallet"],
+                SigningKey,
+                List[SigningKey],
+                List[Union["Wallet", SigningKey]],
+            ]
         ] = None,
         stake_registration: Optional[
             Union[
-                bool, "Wallet", Address, str, List[Address], List["Wallet"], List[str], Sequence[Address, "Wallet", str]
+                bool,
+                "Wallet",
+                Address,
+                str,
+                List[Address],
+                List["Wallet"],
+                List[str],
+                List[Union[Address, "Wallet", str]],
             ]
         ] = None,
         delegations: Optional[Union[str, dict, PoolKeyHash]] = None,
@@ -1334,7 +1360,7 @@ class Wallet:
         submit: Optional[bool] = True,
         await_confirmation: Optional[bool] = False,
         context: Optional[ChainContext] = None,
-    ) -> str:
+    ) -> Union[str, TransactionBody]:
         """
         Construct fully manual transactions.
 
@@ -1372,40 +1398,53 @@ class Wallet:
         """
 
         # streamline inputs
-        context = self._find_context(context)
+        tx_context = self._find_context(context)
 
         if not isinstance(inputs, list):
-            inputs = [inputs]
+            input_list = [inputs]
+        else:
+            input_list = [i for i in inputs]
 
         if outputs and not isinstance(outputs, list):
-            outputs = [outputs]
+            output_list = [outputs]
+        elif outputs and isinstance(outputs, list):
+            output_list = [o for o in outputs]
+        else:
+            output_list = []
 
         if mints and not isinstance(mints, list):
-            mints = [mints]
-        elif not mints:
-            mints = []
+            mint_list = [mints]
+        elif mints and isinstance(mints, list):
+            mint_list = [m for m in mints]
+        else:
+            mint_list = []
 
         if (
             stake_registration
             and not isinstance(stake_registration, list)
             and not isinstance(stake_registration, bool)
         ):
-            stake_registration = [stake_registration]
-        elif not stake_registration:
-            stake_registration = []
+            stake_registration_info = [stake_registration]
+        elif stake_registration and isinstance(stake_registration, list):
+            stake_registration_info = [s for s in stake_registration]
+        else:
+            stake_registration_info = []
 
         if signers and not isinstance(signers, list):
-            signers = [signers]
-        elif not signers:
-            signers = []
+            signers_list = [signers]
+        elif signers and isinstance(signers, list):
+            signers_list = [s for s in signers]
+        else:
+            signers_list = []
 
         if not change_address:
-            change_address = self.address
+            output_change_address = self.full_address
+        elif isinstance(change_address, str):
+            output_change_address = Address.from_primitive(change_address)
+        elif isinstance(change_address, Address):
+            output_change_address = change_address
         else:
-            if isinstance(change_address, str):
-                change_address = Address.from_primitive(change_address)
-            elif not isinstance(change_address, Address):
-                change_address = change_address.address
+            output_change_address = change_address.full_address
 
         if other_metadata is None:
             other_metadata = {}
@@ -1413,10 +1452,10 @@ class Wallet:
         all_metadata = {}
 
         # sort out mints
-        mints_dict = {}
-        mint_metadata = {}
-        native_scripts = []
-        for token in mints:
+        mints_dict: dict = {}
+        mint_metadata: dict = {}
+        native_scripts: list = []
+        for token in mint_list:
             if isinstance(token.policy, NativeScript):
                 policy_hash = token.policy.hash()
             elif isinstance(token.policy, TokenPolicy):
@@ -1429,10 +1468,11 @@ class Wallet:
             if not mints_dict.get(policy_hash):
                 mints_dict[policy_hash] = {}
 
-                if token.policy.script not in native_scripts:
-                    if isinstance(token.policy, NativeScript):
+                if isinstance(token.policy, NativeScript):
+                    if token.policy not in native_scripts:
                         native_scripts.append(token.policy)
-                    else:
+                else:
+                    if token.policy.script not in native_scripts:
                         native_scripts.append(token.policy.script)
 
             mints_dict[policy_hash][token.name] = token
@@ -1480,23 +1520,30 @@ class Wallet:
         else:
             auxiliary_data = AuxiliaryData(Metadata())
 
-        # create stake registrations, delegations
-        certificates = []
-        if stake_registration:  # add registrations
-            if isinstance(stake_registration, bool):
+        # create stake_registrations, delegations
+        certificates: List[
+            Union[StakeDelegation, StakeRegistration, StakeDeregistration]
+        ] = []
+        if stake_registration_info:  # add registrations
+            if isinstance(stake_registration_info, bool):
                 # register current wallet
                 stake_credential = StakeCredential(self.stake_verification_key.hash())
                 certificates.append(StakeRegistration(stake_credential))
-                if self.stake_signing_key not in signers:
-                    signers.append(self.stake_signing_key)
+                if self.stake_signing_key not in signers_list:
+                    signers_list.append(self.stake_signing_key)
             else:
-                for stake in stake_registration:
+                for stake in stake_registration_info:
                     if isinstance(stake, str):
                         stake_hash = Address.from_primitive(stake).staking_part
-                    elif isinstance(stake, self.__class__):
+                    elif isinstance(stake, self.__class__) or isinstance(stake, Wallet):
                         stake_hash = self.stake_verification_key.hash()
                     else:
                         stake_hash = stake.staking_part
+
+                    if isinstance(stake_hash, PointerAddress) or stake_hash is None:
+                        raise ValueError(
+                            f"Stake hash of type {type(stake_hash)} is not valid for stake registration."
+                        )
                     stake_credential = StakeCredential(stake_hash)
                     certificates.append(StakeRegistration(stake_credential))
         if delegations:  # add delegations
@@ -1506,8 +1553,8 @@ class Wallet:
                 certificates.append(
                     StakeDelegation(stake_credential, pool_keyhash=pool_hash)
                 )
-                if self.stake_signing_key not in signers:
-                    signers.append(self.stake_signing_key)
+                if self.stake_signing_key not in signers_list:
+                    signers_list.append(self.stake_signing_key)
             elif isinstance(delegations, PoolKeyHash):  # register current wallet
                 stake_credential = StakeCredential(self.stake_verification_key.hash())
                 certificates.append(
@@ -1522,6 +1569,11 @@ class Wallet:
                         stake_hash = self.stake_verification_key.hash()
                     else:
                         stake_hash = key.staking_part
+
+                    if isinstance(stake_hash, PointerAddress) or stake_hash is None:
+                        raise ValueError(
+                            f"Stake hash of type {type(stake_hash)} is not valid for stake registration."
+                        )
 
                     # get pool hash from value:
                     if isinstance(value, str):
@@ -1540,8 +1592,8 @@ class Wallet:
             withdraw[
                 self.stake_address.to_primitive()
             ] = self.withdrawable_amount.lovelace
-            if self.stake_signing_key not in signers:
-                signers.append(self.stake_signing_key)
+            if self.stake_signing_key not in signers_list:
+                signers_list.append(self.stake_signing_key)
         elif isinstance(withdrawals, dict):
             for key, value in withdrawals.items():
                 if isinstance(key, Address):
@@ -1554,11 +1606,27 @@ class Wallet:
                 if isinstance(value, Amount):
                     withdrawal_amount = value
                 elif isinstance(value, bool) or value == "all":  # withdraw all
-                    account_info = get_stake_info(stake_address, self.context)
-                    if account_info.get("withdrawable_amount"):
-                        withdrawal_amount = Lovelace(
-                            int(account_info.get("withdrawable_amount"))
+                    if not isinstance(tx_context, BlockFrostChainContext):
+                        raise ValueError(
+                            "Withdraw all is only supported with BlockFrostChainContext at the moment."
                         )
+                    account_info = get_stake_info(stake_address, tx_context)
+                    withdrawable_amount = account_info.get("withdrawable_amount")
+
+                    if withdrawable_amount:
+                        if isinstance(withdrawable_amount, (int, float)):
+                            withdrawal_amount = Lovelace(int(withdrawable_amount))
+                        elif (
+                            isinstance(withdrawable_amount, str)
+                            and withdrawable_amount.isdigit()
+                        ):
+                            withdrawal_amount = Lovelace(int(withdrawable_amount))
+
+                        else:
+                            logger.warn(
+                                f"Unable to parse a withdrawal amount of {withdrawable_amount}. Setting to 0."
+                            )
+                            withdrawal_amount = Lovelace(0)
                     else:
                         logger.warn(
                             f"Stake address {stake_address} is not registered yet."
@@ -1567,24 +1635,31 @@ class Wallet:
                 else:
                     withdrawal_amount = Lovelace(0)
 
-                withdraw[
-                    stake_address.staking_part.to_primitive()
-                ] = withdrawal_amount.as_lovelace().amount
+                if not stake_address.staking_part:
+                    raise ValueError(f"Stake Address {stake_address} is invalid.")
+
+                withdraw[stake_address.staking_part.to_primitive()] = (
+                    withdrawal_amount.as_lovelace().amount
+                    if isinstance(withdrawal_amount, Lovelace)
+                    else withdrawal_amount.lovelace
+                )
 
         # build the transaction
-        builder = TransactionBuilder(context)
+        builder = TransactionBuilder(tx_context)
 
         # add transaction inputs
-        for input_thing in inputs:
+        for input_thing in input_list:
             if isinstance(input_thing, Address) or isinstance(input_thing, str):
                 builder.add_input_address(input_thing)
             elif isinstance(input_thing, Wallet):
+                if input_thing.address is None:
+                    raise ValueError(f"Transaction input {input_thing} has no address.")
                 builder.add_input_address(input_thing.address)
             elif isinstance(input_thing, UTxO):
                 builder.add_input(input_thing)
 
         # set builder ttl to the min of the included policies
-        if mints:
+        if mint_list:
             builder.ttl = min(
                 [TokenPolicy("", policy).expiration_slot for policy in native_scripts]
             )
@@ -1596,13 +1671,19 @@ class Wallet:
             builder.auxiliary_data = auxiliary_data
 
         # format tokens and lovelace of outputs
-        if outputs:
-            for output in outputs:
-                multi_asset = {}
+        if output_list:
+            for output in output_list:
+                multi_asset = MultiAsset()
                 if output.tokens:
                     multi_asset = MultiAsset()
-                    output_policies = {}
-                    for token in output.tokens:
+                    output_policies: dict = {}
+
+                    if isinstance(output.tokens, list):
+                        output_tokens: List[Token] = [token for token in output.tokens]
+                    else:
+                        output_tokens = [output.tokens]
+
+                    for token in output_tokens:
                         if not output_policies.get(token.policy_id):
                             output_policies[token.policy_id] = {}
 
@@ -1620,19 +1701,29 @@ class Wallet:
 
                         multi_asset[ScriptHash.from_primitive(policy)] = asset
 
+                if not isinstance(output.amount, Amount):
+                    output.amount = Lovelace(output.amount)
+
+                if isinstance(output.address, str):
+                    output_address: Address = Address.from_primitive(output.address)
+                elif isinstance(output.address, Wallet):
+                    output_address = output.address.full_address
+                else:
+                    output_address = output.address
+
                 if not output.amount.lovelace:  # Calculate min lovelace if necessary
                     output.amount = Lovelace(
                         min_lovelace(
-                            context=context,
+                            context=tx_context,
                             output=TransactionOutput(
-                                output.address, Value(1000000, mint_multiasset)
+                                output_address, Value(1000000, mint_multiasset)
                             ),
                         )
                     )
 
                 builder.add_output(
                     TransactionOutput(
-                        output.address, Value(output.amount.lovelace, multi_asset)
+                        output_address, Value(output.amount.lovelace, multi_asset)
                     )
                 )
 
@@ -1646,34 +1737,50 @@ class Wallet:
 
         if build_only:
             return builder.build(
-                change_address=change_address, merge_change=merge_change
+                change_address=output_change_address, merge_change=merge_change
             )
 
-        if signers:
-            signing_keys = []
-            for signer in signers:
-                if isinstance(signer, self.__class__):
+        if signers_list:
+            signing_keys: List[Union[SigningKey, ExtendedSigningKey]] = []
+            for signer in signers_list:
+                if isinstance(signer, Wallet):
+                    if not signer.signing_key:
+                        raise ValueError(f"Wallet {signer} has no signing key.")
                     signing_keys.append(signer.signing_key)
-                else:
+                elif isinstance(signer, SigningKey) or isinstance(
+                    signer, ExtendedSigningKey
+                ):
                     signing_keys.append(signer)
+                else:
+                    raise ValueError(f"Signer {signer} is not a valid signing key.")
 
             if self.signing_key not in signing_keys:
-                signing_keys.insert(0, self.signing_key)
-
+                if isinstance(self.signing_key, SigningKey):
+                    signing_keys.insert(0, self.signing_key)
+                else:
+                    logger.warn(
+                        f"Unable to add wallet's own signature to the transaction. Signing key: {self.signing_key}"
+                    )
         else:
+            if not self.signing_key:
+                raise ValueError(
+                    f"Unable to add wallet's own signature to the transaction. Signing key: {self.signing_key}"
+                )
             signing_keys = [self.signing_key]
 
         signed_tx = builder.build_and_sign(
-            signing_keys, change_address=change_address, merge_change=merge_change
+            signing_keys,
+            change_address=output_change_address,
+            merge_change=merge_change,
         )
 
         if not submit:
-            return signed_tx.to_cbor()
+            return str(signed_tx.to_cbor())
 
-        context.submit_tx(signed_tx.to_cbor())
+        tx_context.submit_tx(signed_tx.to_cbor())
 
         if await_confirmation:
-            _ = wait_for_confirmation(str(signed_tx.id), self.context)
+            _ = wait_for_confirmation(str(signed_tx.id), tx_context)
             self.sync()
 
         return str(signed_tx.id)
@@ -1898,7 +2005,7 @@ def confirm_tx(
 def wait_for_confirmation(
     tx_id: Union[str, TransactionId],
     context: BlockFrostChainContext,
-    delay: Optional[int] = 10,
+    delay: int = 10,
 ) -> bool:
     """Wait for a transaction to be confirmed, checking every `delay` seconds.
 
