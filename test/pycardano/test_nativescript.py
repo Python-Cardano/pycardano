@@ -2,7 +2,7 @@ from test.pycardano.util import check_two_way_cbor
 
 import pytest
 
-from pycardano.exception import InvalidArgumentException
+from pycardano.exception import DeserializeException, InvalidArgumentException
 from pycardano.key import VerificationKey
 from pycardano.nativescript import (
     InvalidBefore,
@@ -161,6 +161,11 @@ def test_to_dict():
     }
 
     assert NativeScript.from_dict(script_dict) == script_nofk
+
+
+def test_from_primitive_invalid_primitive_input():
+    with pytest.raises(DeserializeException):
+        NativeScript.from_primitive(1)
 
 
 def test_from_dict():

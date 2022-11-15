@@ -75,7 +75,6 @@ exclude = [
     '^pycardano/key.py$',
     '^pycardano/logging.py$',
     '^pycardano/metadata.py$',
-    '^pycardano/nativescript.py$',
     '^pycardano/plutus.py$',
     '^pycardano/transaction.py$',
     '^pycardano/txbuilder.py$',
