@@ -14,7 +14,7 @@ from nacl.signing import SigningKey as NACLSigningKey
 from pycardano.crypto.bip32 import BIP32ED25519PrivateKey, HDWallet
 from pycardano.exception import InvalidKeyTypeException
 from pycardano.hash import VERIFICATION_KEY_HASH_SIZE, VerificationKeyHash
-from pycardano.serialization import CBORSerializable
+from pycardano.serialization import CBORSerializable, limit_primitive_type
 
 __all__ = [
     "Key",
@@ -62,6 +62,7 @@ class Key(CBORSerializable):
         return self.payload
 
     @classmethod
+    @limit_primitive_type(bytes)
     def from_primitive(cls: Type["Key"], value: bytes) -> Key:
         return cls(value)
 

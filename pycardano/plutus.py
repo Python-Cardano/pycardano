@@ -6,7 +6,7 @@ import inspect
 import json
 from dataclasses import dataclass, field, fields
 from enum import Enum
-from typing import Any, ClassVar, List, Optional, Type, Union
+from typing import Any, ClassVar, Optional, Type, Union
 
 import cbor2
 from cbor2 import CBORTag
@@ -21,9 +21,9 @@ from pycardano.serialization import (
     CBORSerializable,
     DictCBORSerializable,
     IndefiniteList,
-    Primitive,
     RawCBOR,
     default_encoder,
+    limit_primitive_type,
 )
 
 __all__ = [
@@ -66,6 +66,7 @@ class CostModels(DictCBORSerializable):
         return result
 
     @classmethod
+    @limit_primitive_type(dict)
     def from_primitive(cls: Type[CostModels], value: dict) -> CostModels:
         raise DeserializeException(
             "Deserialization of cost model is impossible, because some information is lost "
@@ -480,11 +481,8 @@ class PlutusData(ArrayCBORSerializable):
             return CBORTag(102, [self.CONSTR_ID, primitives])
 
     @classmethod
+    @limit_primitive_type(CBORTag)
     def from_primitive(cls: Type[PlutusData], value: CBORTag) -> PlutusData:
-        if not isinstance(value, CBORTag):
-            raise DeserializeException(
-                f"Unexpected type: {CBORTag}. Got {type(value)} instead."
-            )
         if value.tag == 102:
             tag = value.value[0]
             if tag != cls.CONSTR_ID:
@@ -643,6 +641,7 @@ class RawPlutusData(CBORSerializable):
         return _dfs(self.data)
 
     @classmethod
+    @limit_primitive_type(CBORTag)
     def from_primitive(cls: Type[RawPlutusData], value: CBORTag) -> RawPlutusData:
         return cls(value)
 
@@ -675,6 +674,7 @@ class RedeemerTag(CBORSerializable, Enum):
         return self.value
 
     @classmethod
+    @limit_primitive_type(int)
     def from_primitive(cls: Type[RedeemerTag], value: int) -> RedeemerTag:
         return cls(value)
 
@@ -704,7 +704,8 @@ class Redeemer(ArrayCBORSerializable):
     ex_units: ExecutionUnits = None
 
     @classmethod
-    def from_primitive(cls: Type[Redeemer], values: List[Primitive]) -> Redeemer:
+    @limit_primitive_type(list)
+    def from_primitive(cls: Type[Redeemer], values: list) -> Redeemer:
         if isinstance(values[2], CBORTag) and cls is Redeemer:
             values[2] = RawPlutusData.from_primitive(values[2])
         redeemer = super(Redeemer, cls).from_primitive(

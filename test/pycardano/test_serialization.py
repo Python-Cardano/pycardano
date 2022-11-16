@@ -1,11 +1,38 @@
 from dataclasses import dataclass, field
 from test.pycardano.util import check_two_way_cbor
 
+import pytest
+
+from pycardano.exception import DeserializeException
 from pycardano.serialization import (
     ArrayCBORSerializable,
+    CBORSerializable,
     DictCBORSerializable,
     MapCBORSerializable,
+    limit_primitive_type,
 )
+
+
+@pytest.mark.single
+def test_limit_primitive_type():
+    class MockClass(CBORSerializable):
+        @classmethod
+        def from_primitive(*args):
+            return
+
+    wrapped = limit_primitive_type(int, str, bytes, list, dict, tuple, dict)(
+        MockClass.from_primitive
+    )
+    wrapped(MockClass, 1)
+    wrapped(MockClass, "")
+    wrapped(MockClass, b"")
+    wrapped(MockClass, [])
+    wrapped(MockClass, tuple())
+    wrapped(MockClass, {})
+
+    wrapped = limit_primitive_type(int)(MockClass.from_primitive)
+    with pytest.raises(DeserializeException):
+        wrapped(MockClass, "")
 
 
 def test_array_cbor_serializable():
