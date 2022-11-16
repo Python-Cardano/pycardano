@@ -455,7 +455,7 @@ class TokenPolicy:
     @staticmethod
     def _get_pub_key_hash(signer: Union["Wallet", Address]):
 
-        if isinstance(signer, Wallet):
+        if isinstance(signer, Wallet):  # TODO: This isinstance is not working
             if signer.verification_key:
                 return signer.verification_key.hash()
             else:
