@@ -13,7 +13,7 @@ from blockfrost.utils import convert_json_to_object
 
 from pycardano.address import Address, VerificationKeyHash
 from pycardano.backend.blockfrost import BlockFrostChainContext
-from pycardano.nativescript import ScriptAll, ScriptPubkey
+from pycardano.nativescript import ScriptAll, ScriptPubkey, InvalidBefore
 from pycardano.wallet import (
     Ada,
     Lovelace,
@@ -281,6 +281,11 @@ def test_policy(chain_context):
         policy_dir=third_policy_dir,
     )
     assert their_policy.policy_id == policy.policy_id
+    
+    # test a policy with more than one condition
+    after_script = ScriptAll([ScriptPubkey(WALLET.verification_key.hash()), InvalidBefore(1000)])
+    after_policy = TokenPolicy(name="after", script=after_script, policy_dir=str(policy_dir))
+    assert after_policy.required_signatures == [WALLET.verification_key.hash()]
 
     # try loading an already existing policy
     reloaded_policy = TokenPolicy(name="testToken", policy_dir=str(policy_dir))
@@ -299,6 +304,7 @@ def test_policy(chain_context):
         temp_policy.generate_minting_policy(
             signers=WALLET, expiration=datetime.datetime.now()
         )
+
 
     # test policy with expiration
     exp_filepath = policy_dir / f"expiring.script"
