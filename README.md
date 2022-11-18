@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./logo.png" height=200 width=200 />
+  <img src="./.github/logo.png" height=200 width=200 />
 </p>
 
 ---
@@ -236,6 +236,19 @@ Build docs and open the docs in browser:
 `make docs`
 
 </details>
+
+## Donation and Sponsor
+If you find this project helpful, please consider donate or sponsor us. Your donation and sponsor will allow us to
+ spend more time on improving PyCardano and adding more features in the future.
+
+You can support us by 1) sponsoring through Github, or 2) donating ADA to our ADA Handle `pycardano` or to the address below:
+
+[`addr1vxa4qadv7hk2dd3jtz9rep7sp92lkgwzefwkmsy3qkglq5qzv8c0d`](https://cardanoscan.io/address/61bb5075acf5eca6b632588a3c87d00955fb21c2ca5d6dc0910591f050)
+
+<p>
+  <img src="./.github/donate_addr.png" height=150 width=150/>
+</p>
+
 
 ## Sponsors :heart:
 
