@@ -19,7 +19,7 @@ from pycardano.exception import (
 )
 from pycardano.hash import VERIFICATION_KEY_HASH_SIZE, ScriptHash, VerificationKeyHash
 from pycardano.network import Network
-from pycardano.serialization import CBORSerializable
+from pycardano.serialization import CBORSerializable, limit_primitive_type
 
 __all__ = ["AddressType", "PointerAddress", "Address"]
 
@@ -160,6 +160,7 @@ class PointerAddress(CBORSerializable):
         return self.encode()
 
     @classmethod
+    @limit_primitive_type(bytes)
     def from_primitive(cls: Type[PointerAddress], value: bytes) -> PointerAddress:
         return cls.decode(value)
 
@@ -339,6 +340,7 @@ class Address(CBORSerializable):
         return bytes(self)
 
     @classmethod
+    @limit_primitive_type(bytes, str)
     def from_primitive(cls: Type[Address], value: Union[bytes, str]) -> Address:
         if isinstance(value, str):
             value = bytes(decode(value))

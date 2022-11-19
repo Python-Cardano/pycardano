@@ -16,6 +16,7 @@ from pycardano.serialization import (
     DictCBORSerializable,
     MapCBORSerializable,
     Primitive,
+    limit_primitive_type,
     list_hook,
 )
 
@@ -91,6 +92,7 @@ class AlonzoMetadata(MapCBORSerializable):
         return CBORTag(AlonzoMetadata.TAG, super(AlonzoMetadata, self).to_primitive())
 
     @classmethod
+    @limit_primitive_type(CBORTag)
     def from_primitive(cls: Type[AlonzoMetadata], value: CBORTag) -> AlonzoMetadata:
         if not hasattr(value, "tag"):
             raise DeserializeException(
