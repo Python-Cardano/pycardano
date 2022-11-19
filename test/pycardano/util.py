@@ -30,6 +30,7 @@ class FixedChainContext(ChainContext):
         treasury_expansion=0.2,
         monetary_expansion=0.003,
         decentralization_param=0,
+        extra_entropy="",
         protocol_major_version=6,
         protocol_minor_version=0,
         min_utxo=1000000,

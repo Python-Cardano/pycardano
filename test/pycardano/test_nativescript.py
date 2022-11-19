@@ -2,7 +2,7 @@ from test.pycardano.util import check_two_way_cbor
 
 import pytest
 
-from pycardano.exception import InvalidArgumentException
+from pycardano.exception import DeserializeException, InvalidArgumentException
 from pycardano.key import VerificationKey
 from pycardano.nativescript import (
     InvalidBefore,
@@ -163,6 +163,11 @@ def test_to_dict():
     assert NativeScript.from_dict(script_dict) == script_nofk
 
 
+def test_from_primitive_invalid_primitive_input():
+    with pytest.raises(DeserializeException):
+        NativeScript.from_primitive(1)
+
+
 def test_from_dict():
 
     vk1 = VerificationKey.from_cbor(
@@ -196,3 +201,43 @@ def test_from_dict():
 
     assert script_from_dict == script_all
     assert script_from_dict.to_dict() == script_all_dict
+
+
+def test_from_dict_nested_scripts():
+    vk1 = VerificationKey.from_cbor(
+        "58206443a101bdb948366fc87369336224595d36d8b0eee5602cba8b81a024e58473"
+    )
+    vk2 = VerificationKey.from_cbor(
+        "58206443a101bdb948366fc87369336224595d36d8b0eee5602cba8b81a024e58475"
+    )
+    spk1 = ScriptPubkey(key_hash=vk1.hash())
+    spk2 = ScriptPubkey(key_hash=vk2.hash())
+    before = InvalidHereAfter(3000)
+
+    script_all = ScriptAll([before, spk2])
+    script_any = ScriptAny([spk1, script_all])
+
+    nested_script_dict = {
+        "type": "any",
+        "scripts": [
+            {
+                "type": "sig",
+                "keyHash": "9139e5c0a42f0f2389634c3dd18dc621f5594c5ba825d9a8883c6627",
+            },
+            {
+                "type": "all",
+                "scripts": [
+                    {"type": "before", "slot": 3000},
+                    {
+                        "type": "sig",
+                        "keyHash": "835600a2be276a18a4bebf0225d728f090f724f4c0acd591d066fa6f",
+                    },
+                ],
+            },
+        ],
+    }
+
+    script_from_dict = NativeScript.from_dict(nested_script_dict)
+
+    assert script_from_dict == script_any
+    assert script_from_dict.to_dict() == nested_script_dict

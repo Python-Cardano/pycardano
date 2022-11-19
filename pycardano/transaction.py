@@ -5,7 +5,7 @@ from __future__ import annotations
 from copy import deepcopy
 from dataclasses import dataclass, field
 from pprint import pformat
-from typing import Any, Callable, List, Optional, Union
+from typing import Any, Callable, List, Optional, Type, Union
 
 import cbor2
 from cbor2 import CBORTag
@@ -29,7 +29,7 @@ from pycardano.hash import (
 from pycardano.metadata import AuxiliaryData
 from pycardano.nativescript import NativeScript
 from pycardano.network import Network
-from pycardano.plutus import Datum, PlutusV1Script, PlutusV2Script
+from pycardano.plutus import Datum, PlutusV1Script, PlutusV2Script, RawPlutusData
 from pycardano.serialization import (
     ArrayCBORSerializable,
     CBORSerializable,
@@ -281,7 +281,7 @@ class _Script(ArrayCBORSerializable):
             self._TYPE = 2
 
     @classmethod
-    def from_primitive(cls: _Script, values: List[Primitive]) -> _Script:
+    def from_primitive(cls: Type[_Script], values: List[Primitive]) -> _Script:
         if values[0] == 0:
             return cls(NativeScript.from_primitive(values[1]))
         elif values[0] == 1:
@@ -311,11 +311,17 @@ class _DatumOption(ArrayCBORSerializable):
         return [self._TYPE, data]
 
     @classmethod
-    def from_primitive(cls: _DatumOption, values: List[Primitive]) -> _DatumOption:
+    def from_primitive(
+        cls: Type[_DatumOption], values: List[Primitive]
+    ) -> _DatumOption:
         if values[0] == 0:
             return _DatumOption(DatumHash(values[1]))
         else:
-            return _DatumOption(cbor2.loads(values[1].value))
+            v = cbor2.loads(values[1].value)
+            if isinstance(v, CBORTag):
+                return _DatumOption(RawPlutusData.from_primitive(v))
+            else:
+                return _DatumOption(v)
 
 
 @dataclass(repr=False)
@@ -327,7 +333,7 @@ class _ScriptRef(CBORSerializable):
         return CBORTag(24, cbor2.dumps(self.script, default=default_encoder))
 
     @classmethod
-    def from_primitive(cls: _ScriptRef, value: Primitive) -> _ScriptRef:
+    def from_primitive(cls: Type[_ScriptRef], value: Primitive) -> _ScriptRef:
         return cls(_Script.from_primitive(cbor2.loads(value.value)))
 
 
@@ -418,7 +424,9 @@ class TransactionOutput(CBORSerializable):
             ).to_primitive()
 
     @classmethod
-    def from_primitive(cls: TransactionOutput, value: Primitive) -> TransactionOutput:
+    def from_primitive(
+        cls: Type[TransactionOutput], value: Primitive
+    ) -> TransactionOutput:
         if isinstance(value, list):
             output = _TransactionOutputLegacy.from_primitive(value)
             return cls(output.address, output.amount, datum=output.datum_hash)

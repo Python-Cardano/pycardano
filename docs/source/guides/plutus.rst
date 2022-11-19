@@ -161,3 +161,71 @@ Taker/Unlocker provides collateral. Collateral has been introduced in Alonzo tra
 
 The funds locked in script address is successfully retrieved to the taker address.
 
+-------------
+Vasil Upgrade
+-------------
+As part of the Basho phase of Cardano roadmap, the Vasil upgrade brings new capabilities on Plutus, namely reference inputs, inline datums, reference scripts, collateral output and Plutus V2 primitives.
+
+- **Reference inputs** (`CIP-31 <https://cips.cardano.org/cips/cip31/>`_): This upgrade enables data sharing on-chain. Previously, datums were carried in transaction outputs; they stored and provided access to information on the blockchain. However, to access information in this datum, one had to spend the output that the datum was attached to. This required the re-creation of a spent output. The addition of reference inputs now allows developers to look at the datum without extra steps. This facilitates access to information stored on the blockchain without the need for spending and re-creating UTXOs. This can be useful for oracles and other use cases where state need to be inspected.
+
+- **Inline datums** (`CIP-32 <https://cips.cardano.org/cips/cip32/>`_): Transaction datums were previously attached to outputs as hashes. With the implementation of inline datums, developers can now create scripts and attach datums directly to outputs instead of using their hashes. This simplifies how datums are used – a user can see the actual datum rather than supply it to match the given hash.
+
+- **Reference scripts** (`CIP-33 <https://cips.cardano.org/cips/cip33/>`_): In Alonzo, when spending an output locked within a Plutus script, one had to include the script in the spending transaction. This increased the size of the script and caused certain delays in its processing. The reference scripts upgrade allows developers to reference a script without including it in each transaction. This significantly reduces transaction size, improves throughput, and reduces script execution costs (since the script only needs to be paid for once).
+
+- **Explicit collateral output** (`CIP-40 <https://cips.cardano.org/cips/cip40/>`_): Transactions that call Plutus smart contracts are required to put up collateral to cover the potential cost of smart contract execution failure. If contract execution fails during phase 2 validation, all the funds stored in the chose UTXO for the collateral will be lost. After Vasil, user can specify a change address for the script collateral. If the script fails phase-2 validation, only the collateral amount will be taken, and the remaining funds will be sent to the change address.
+
+- **Plutus V2 scripts**: The Vasil upgrade includes a new cost model that's lower than before, and developers will be able to see redeemers for all inputs rather than just the one being passed to the currently executing script.
+
+Using the same FortyTwo example, now in Vasil, we show how reference scripts can be used. Reference script exists at a particular transaction output, and it can be used to witness UTxO at the corresponding script address::
+
+    >>> builder = TransactionBuilder(context)
+    >>> builder.add_input_address(giver_address)
+    >>> datum = 42
+    >>> # Include scripts in the script address
+    >>> builder.add_output(
+    >>>     TransactionOutput(script_address, 50000000, script=forty_two_script)
+    >>> )
+
+With reference script, actual script doesn't need to be included in the transaction anymore in order to spend UTxO sitting at script address::
+
+    >>> utxo_to_spend = None
+    >>> # Spend the utxo that has datum/datum hash but no script
+    >>> for utxo in chain_context.utxos(str(script_address)):
+    >>>     if not utxo.output.script and (
+    >>>        utxo.output.datum_hash == datum_hash(datum)
+    >>>         or utxo.output.datum == datum
+    >>>     ):
+    >>>         utxo_to_spend = utxo
+    >>>         break
+
+    >>> builder = TransactionBuilder(context)
+    >>> builder.add_script_input(utxo_to_spend, datum=datum, redeemer=redeemer)
+    >>> take_output = TransactionOutput(taker_address, 25123456)
+    >>> builder.add_output(take_output)
+    >>> signed_tx = builder.build_and_sign([extended_payment_skey], taker_address)
+
+Again, with the same example, we show that you can send funds to script address with inline datums directly::
+
+    >>> builder = TransactionBuilder(context)
+    >>> builder.add_input_address(giver_address)
+    >>> datum = 42
+    >>> builder.add_output(
+    >>>     TransactionOutput(script_address, 50000000, datum=datum, script=forty_two_script)
+    >>> )
+
+With inline datum, we no longer have to include a datum within our transaction for our plutus spending scripts. Instead we can specify the transaction output where our datum exists to be used in conjunction with our Plutus spending script. This reduces the overall size of our transaction::
+
+    >>> utxo_to_spend = None
+    >>> # Speed the utxo that has both inline script and inline datum
+    >>> for utxo in chain_context.utxos(str(script_address)):
+    >>>     if utxo.output.datum and utxo.output.script:
+    >>>         utxo_to_spend = utxo
+    >>>         break
+
+    >>> builder = TransactionBuilder(context)
+    >>> builder.add_script_input(utxo_to_spend, redeemer=redeemer)
+    >>> take_output = TransactionOutput(taker_address, 25123456)
+    >>> builder.add_output(take_output)
+    >>> signed_tx = builder.build_and_sign([extended_payment_skey], taker_address)
+
+

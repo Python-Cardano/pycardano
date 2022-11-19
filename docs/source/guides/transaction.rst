@@ -142,15 +142,22 @@ Specify output amount::
 
 Step 6
 
+Add additional transaction information as needed:
+
+    >>> builder.ttl = 3600
+    >>> builder.reference_inputs.add(tx_in)
+
+Step 7
+
 Create a signed transaction using transaction builder. Unlike building a raw transaction, where we need to manually
 sign a transaction and build a transaction witness set, transaction builder can build and sign a transaction directly
 with its `build_and_sign` method. The code below tells the builder to build a transaction and sign the transaction
 with a list of signing keys (in this case, we only need the signature from one signing key, `sk`) and send the change
 back to sender's address::
 
-    >>> tx = builder.build_and_sign([sk], change_address=address)
+    >>> signed_tx = builder.build_and_sign([sk], change_address=address)
 
-Transaction ID could be obtained from the transaction obejct::
+Transaction ID could be obtained from the transaction object::
 
     >>> tx.id
     TransactionId(hex='1d40b950ded3a144fb4c100d1cf8b85719da91b06845530e34a0304427692ce4')

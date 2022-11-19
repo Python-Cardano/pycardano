@@ -3,14 +3,20 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import ClassVar, List, Union
+from typing import ClassVar, List, Type, Union, cast
 
 from nacl.encoding import RawEncoder
 from nacl.hash import blake2b
 
 from pycardano.exception import DeserializeException
 from pycardano.hash import SCRIPT_HASH_SIZE, ScriptHash, VerificationKeyHash
-from pycardano.serialization import ArrayCBORSerializable, Primitive, list_hook
+from pycardano.serialization import (
+    ArrayCBORSerializable,
+    Primitive,
+    limit_primitive_type,
+    list_hook,
+)
+from pycardano.types import JsonDict
 
 __all__ = [
     "NativeScript",
@@ -25,90 +31,85 @@ __all__ = [
 
 @dataclass
 class NativeScript(ArrayCBORSerializable):
+    json_tag: ClassVar[str]
+    json_field: ClassVar[str]
+
     @classmethod
+    @limit_primitive_type(list)
     def from_primitive(
-        cls: NativeScript, value: Primitive
+        cls: Type[NativeScript], value: list
     ) -> Union[
         ScriptPubkey, ScriptAll, ScriptAny, ScriptNofK, InvalidBefore, InvalidHereAfter
     ]:
-        script_type = value[0]
-        for t in [
-            ScriptPubkey,
-            ScriptAll,
-            ScriptAny,
-            ScriptNofK,
-            InvalidBefore,
-            InvalidHereAfter,
-        ]:
-            if t._TYPE == script_type:
-                return super(NativeScript, t).from_primitive(value[1:])
+        script_type: int = value[0]
+        if script_type == ScriptPubkey._TYPE:
+            return super(NativeScript, ScriptPubkey).from_primitive(value[1:])
+        elif script_type == ScriptAll._TYPE:
+            return super(NativeScript, ScriptAll).from_primitive(value[1:])
+        elif script_type == ScriptAny._TYPE:
+            return super(NativeScript, ScriptAny).from_primitive(value[1:])
+        elif script_type == ScriptNofK._TYPE:
+            return super(NativeScript, ScriptNofK).from_primitive(value[1:])
+        elif script_type == InvalidBefore._TYPE:
+            return super(NativeScript, InvalidBefore).from_primitive(value[1:])
+        elif script_type == InvalidHereAfter._TYPE:
+            return super(NativeScript, InvalidHereAfter).from_primitive(value[1:])
         else:
             raise DeserializeException(f"Unknown script type indicator: {script_type}")
 
     def hash(self) -> ScriptHash:
+        cbor_bytes = cast(bytes, self.to_cbor("bytes"))
         return ScriptHash(
-            blake2b(
-                bytes(1) + self.to_cbor("bytes"), SCRIPT_HASH_SIZE, encoder=RawEncoder
-            )
+            blake2b(bytes(1) + cbor_bytes, SCRIPT_HASH_SIZE, encoder=RawEncoder)
         )
 
     @classmethod
     def from_dict(
-        cls: NativeScript, script: dict, top_level: bool = True
+        cls: Type[NativeScript], script_json: JsonDict
     ) -> Union[
         ScriptPubkey, ScriptAll, ScriptAny, ScriptNofK, InvalidBefore, InvalidHereAfter
     ]:
         """Parse a standard native script dictionary (potentially parsed from a JSON file)."""
+        script_primitive = cls._script_json_to_primitive(script_json)
+        return cls.from_primitive(script_primitive)
 
-        types = {
-            p.json_tag: p
-            for p in [
-                ScriptPubkey,
-                ScriptAll,
-                ScriptAny,
-                ScriptNofK,
-                InvalidBefore,
-                InvalidHereAfter,
-            ]
-        }
+    @classmethod
+    def _script_json_to_primitive(
+        cls: Type[NativeScript], script_json: JsonDict
+    ) -> List[Primitive]:
+        """Serialize a standard JSON native script into a primitive array"""
+        script_type: str = script_json["type"]
+        native_script: List[Primitive] = [JSON_TAG_TO_INT[script_type]]
 
-        native_script = []
-        if isinstance(script, dict):
+        for key, value in script_json.items():
+            if key == "type":
+                continue
+            elif key == "scripts":
+                native_script.append(cls._script_jsons_to_primitive(value))
+            else:
+                native_script.append(value)
+        return native_script
 
-            for key, value in script.items():
-                if key == "type":
-                    native_script.insert(0, list(types.keys()).index(value))
-                elif key == "scripts":
-                    native_script.append(cls.from_dict(value, top_level=False))
-                else:
-                    native_script.append(value)
+    @classmethod
+    def _script_jsons_to_primitive(
+        cls: Type[NativeScript], script_jsons: List[JsonDict]
+    ) -> List[List[Primitive]]:
+        """Parse a list of JSON scripts into a list of primitive arrays"""
+        native_script = [cls._script_json_to_primitive(i) for i in script_jsons]
+        return native_script
 
-        elif isinstance(script, list):  # list
-            native_script = [cls.from_dict(i, top_level=False) for i in script]
-
-        if not top_level:
-            return native_script
-        else:
-            return super(NativeScript, types[script["type"]]).from_primitive(
-                native_script[1:]
-            )
-
-    def to_dict(self) -> dict:
+    def to_dict(self) -> JsonDict:
         """Export to standard native script dictionary (potentially to dump to a JSON file)."""
-
-        script = {}
-
+        script: JsonDict = {}
         for value in self.__dict__.values():
             script["type"] = self.json_tag
 
             if isinstance(value, list):
                 script["scripts"] = [i.to_dict() for i in value]
-
+            elif isinstance(value, int):
+                script[self.json_field] = value
             else:
-                if isinstance(value, int):
-                    script[self.json_field] = value
-                else:
-                    script[self.json_field] = str(value)
+                script[self.json_field] = str(value)
 
         return script
 
@@ -184,7 +185,7 @@ class InvalidBefore(NativeScript):
     json_field: ClassVar[str] = "slot"
     _TYPE: int = field(default=4, init=False)
 
-    before: int = None
+    before: int
 
 
 @dataclass
@@ -193,4 +194,14 @@ class InvalidHereAfter(NativeScript):
     json_field: ClassVar[str] = "slot"
     _TYPE: int = field(default=5, init=False)
 
-    after: int = None
+    after: int
+
+
+JSON_TAG_TO_INT = {
+    ScriptPubkey.json_tag: ScriptPubkey._TYPE,
+    ScriptAll.json_tag: ScriptAll._TYPE,
+    ScriptAny.json_tag: ScriptAny._TYPE,
+    ScriptNofK.json_tag: ScriptNofK._TYPE,
+    InvalidBefore.json_tag: InvalidBefore._TYPE,
+    InvalidHereAfter.json_tag: InvalidHereAfter._TYPE,
+}

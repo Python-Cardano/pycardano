@@ -25,9 +25,7 @@ export EXTENDED_PAYMENT_KEY="$ROOT"/keys/extended.skey
 export POOL_ID=$(cat "$ROOT"/keys/pool/pool.id)
 
 # Wait for stake pool to start producing blocks
-sleep 20
-
-poetry run pytest -s -vv -n 4 "$ROOT"/test -m "not (post_alonzo)"
+sleep 10
 
 # Cleanup
 docker-compose down --volumes --remove-orphans
@@ -39,7 +37,7 @@ docker-compose down --volumes --remove-orphans
 # Cleanup containers and volumes in case there is any running
 docker-compose down --volumes --remove-orphans
 
-# Run alonzo integration tests
+# Run integration tests
 ./bootstrap.sh local-vasil
 
 # Launch containers
@@ -50,9 +48,9 @@ export EXTENDED_PAYMENT_KEY="$ROOT"/keys/extended.skey
 export POOL_ID=$(cat "$ROOT"/keys/pool/pool.id)
 
 # Wait for stake pool to start producing blocks
-sleep 60
+sleep 30
 
-poetry run pytest -s -vv -n 4 "$ROOT"/test
+poetry run pytest -s -vv "$ROOT"/test
 
 # Cleanup
 docker-compose down --volumes --remove-orphans

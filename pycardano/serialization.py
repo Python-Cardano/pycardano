@@ -8,8 +8,9 @@ from copy import deepcopy
 from dataclasses import Field, dataclass, fields
 from datetime import datetime
 from decimal import Decimal
+from functools import wraps
 from inspect import isclass
-from typing import Any, Callable, ClassVar, List, Type, TypeVar, Union, get_type_hints
+from typing import Any, Callable, List, Type, TypeVar, Union, get_type_hints
 
 from cbor2 import CBOREncoder, CBORSimpleValue, CBORTag, dumps, loads, undefined
 from pprintpp import pformat
@@ -53,8 +54,31 @@ class RawCBOR:
     cbor: bytes
 
 
-Primitive = TypeVar(
-    "Primitive",
+Primitive = Union[
+    bytes,
+    bytearray,
+    str,
+    int,
+    float,
+    Decimal,
+    bool,
+    None,
+    tuple,
+    list,
+    IndefiniteList,
+    dict,
+    defaultdict,
+    OrderedDict,
+    undefined.__class__,
+    datetime,
+    re.Pattern,
+    CBORSimpleValue,
+    CBORTag,
+    set,
+    frozenset,
+]
+
+PRIMITIVE_TYPES = (
     bytes,
     bytearray,
     str,
@@ -81,6 +105,31 @@ Primitive = TypeVar(
 A list of types that could be encoded by
 `Cbor2 encoder <https://cbor2.readthedocs.io/en/latest/modules/encoder.html>`_ directly.
 """
+
+
+def limit_primitive_type(*allowed_types):
+    """
+    A helper function to validate primitive type given to from_primitive class methods
+
+    Not exposed to public by intention.
+    """
+
+    def decorator(func):
+        @wraps(func)
+        def wrapper(cls, value: Primitive):
+            if not isinstance(value, allowed_types):
+                allowed_types_str = [
+                    allowed_type.__name__ for allowed_type in allowed_types
+                ]
+                raise DeserializeException(
+                    f"{allowed_types_str} typed value is required for deserialization. Got {type(value)}: {value}"
+                )
+            return func(cls, value)
+
+        return wrapper
+
+    return decorator
+
 
 CBORBase = TypeVar("CBORBase", bound="CBORSerializable")
 
@@ -222,7 +271,7 @@ class CBORSerializable:
         return self.to_primitive()
 
     @classmethod
-    def from_primitive(cls: CBORBase, value: Primitive) -> CBORBase:
+    def from_primitive(cls: Type[CBORBase], value: Any) -> CBORBase:
         """Turn a CBOR primitive to its original class type.
 
         Args:
@@ -381,7 +430,7 @@ def _restore_dataclass_field(
                     return t.from_primitive(v)
                 except DeserializeException:
                     pass
-            elif t in Primitive.__constraints__ and isinstance(v, t):
+            elif t in PRIMITIVE_TYPES and isinstance(v, t):
                 return v
         raise DeserializeException(
             f"Cannot deserialize object: \n{v}\n in any valid type from {t_args}."
@@ -453,8 +502,6 @@ class ArrayCBORSerializable(CBORSerializable):
         Test2(c='c', test1=Test1(a='a', b=None))
     """
 
-    field_sorter: ClassVar[Callable[[List], List]] = lambda x: x
-
     def to_shallow_primitive(self) -> List[Primitive]:
         """
         Returns:
@@ -465,7 +512,7 @@ class ArrayCBORSerializable(CBORSerializable):
                 types.
         """
         primitives = []
-        for f in self.__class__.field_sorter(fields(self)):
+        for f in fields(self):
             val = getattr(self, f.name)
             if val is None and f.metadata.get("optional"):
                 continue
@@ -473,7 +520,8 @@ class ArrayCBORSerializable(CBORSerializable):
         return primitives
 
     @classmethod
-    def from_primitive(cls: ArrayBase, values: List[Primitive]) -> ArrayBase:
+    @limit_primitive_type(list)
+    def from_primitive(cls: Type[ArrayBase], values: list) -> ArrayBase:
         """Restore a primitive value to its original class type.
 
         Args:
@@ -487,10 +535,6 @@ class ArrayCBORSerializable(CBORSerializable):
             DeserializeException: When the object could not be restored from primitives.
         """
         all_fields = [f for f in fields(cls) if f.init]
-        if type(values) != list:
-            raise DeserializeException(
-                f"Expect input value to be a list, got a {type(values)} instead."
-            )
 
         restored_vals = []
         type_hints = get_type_hints(cls)
@@ -585,7 +629,8 @@ class MapCBORSerializable(CBORSerializable):
         return primitives
 
     @classmethod
-    def from_primitive(cls: MapBase, values: Primitive) -> MapBase:
+    @limit_primitive_type(dict)
+    def from_primitive(cls: Type[MapBase], values: dict) -> MapBase:
         """Restore a primitive value to its original class type.
 
         Args:
@@ -599,10 +644,6 @@ class MapCBORSerializable(CBORSerializable):
             :class:`pycardano.exception.DeserializeException`: When the object could not be restored from primitives.
         """
         all_fields = {f.metadata.get("key", f.name): f for f in fields(cls) if f.init}
-        if type(values) != dict:
-            raise DeserializeException(
-                f"Expect input value to be a dict, got a {type(values)} instead."
-            )
 
         kwargs = {}
         type_hints = get_type_hints(cls)
@@ -660,7 +701,7 @@ class DictCBORSerializable(CBORSerializable):
     def __getattr__(self, item):
         return getattr(self.data, item)
 
-    def __setitem__(self, key: KEY_TYPE, value: VALUE_TYPE):
+    def __setitem__(self, key: Any, value: Any):
         check_type("key", key, self.KEY_TYPE)
         check_type("value", value, self.VALUE_TYPE)
         self.data[key] = value
@@ -704,7 +745,8 @@ class DictCBORSerializable(CBORSerializable):
         return dict(sorted(self.data.items(), key=lambda x: _get_sortable_val(x[0])))
 
     @classmethod
-    def from_primitive(cls: DictBase, value: dict) -> DictBase:
+    @limit_primitive_type(dict)
+    def from_primitive(cls: Type[DictBase], value: dict) -> DictBase:
         """Restore a primitive value to its original class type.
 
         Args:
@@ -719,12 +761,12 @@ class DictCBORSerializable(CBORSerializable):
         """
         if not value:
             raise DeserializeException(f"Cannot accept empty value {value}.")
+
         restored = cls()
         for k, v in value.items():
             k = (
                 cls.KEY_TYPE.from_primitive(k)
-                if isclass(cls.VALUE_TYPE)
-                and issubclass(cls.KEY_TYPE, CBORSerializable)
+                if isclass(cls.KEY_TYPE) and issubclass(cls.KEY_TYPE, CBORSerializable)
                 else k
             )
             v = (
@@ -736,13 +778,13 @@ class DictCBORSerializable(CBORSerializable):
             restored[k] = v
         return restored
 
-    def copy(self) -> DictBase:
+    def copy(self) -> DictCBORSerializable:
         return self.__class__(self)
 
 
 @typechecked
 def list_hook(
-    cls: Type[CBORSerializable],
+    cls: Type[CBORBase],
 ) -> Callable[[List[Primitive]], List[CBORBase]]:
     """A factory that generates a Callable which turns a list of Primitive to a list of CBORSerializables.
 

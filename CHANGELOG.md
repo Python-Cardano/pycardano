@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.7.0] - 2022-10-16
+
+### Added
+
+- Support HDWallets and mnemonic phrases. (#85)
+
+### Fixed
+
+- Fix key error when there are duplicates in reference scripts.
+- If merging change into existing outputs is enabled, do not enforce min_utxo on changes.
+- Make script estimation more accurate.
+
 ## [0.6.3] - 2022-10-02
 
 ### Added

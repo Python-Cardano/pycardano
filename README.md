@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./logo.png" height=200 width=200 />
+  <img src="./.github/logo.png" height=200 width=200 />
 </p>
 
 ---
@@ -9,11 +9,13 @@
 [![PyPi version](https://badgen.net/pypi/v/pycardano)](https://pypi.python.org/pypi/pycardano/)
 [![PyPI pyversions](https://img.shields.io/pypi/pyversions/pycardano)](https://pypi.python.org/pypi/pycardano/)
 [![PyPI download month](https://img.shields.io/pypi/dm/pycardano)](https://pypi.python.org/pypi/pycardano/)
-[![Discord](https://img.shields.io/discord/949404918903631923.svg?label=chat&logo=discord&logoColor=ffffff&color=7389D8&labelColor=6A7EC2)](https://discord.gg/qT9Mn9xjgz)
 
-[![PyCardano](https://github.com/cffls/pycardano/actions/workflows/main.yml/badge.svg)](https://github.com/cffls/pycardano/actions/workflows/main.yml)
-[![codecov](https://codecov.io/gh/cffls/pycardano/branch/main/graph/badge.svg?token=62N0IL9IMQ)](https://codecov.io/gh/cffls/pycardano)
+[![PyCardano](https://github.com/Python-Cardano/pycardano/actions/workflows/main.yml/badge.svg)](https://github.com/Python-Cardano/pycardano/actions/workflows/main.yml)
+[![codecov](https://codecov.io/gh/Python-Cardano/pycardano/branch/main/graph/badge.svg?token=62N0IL9IMQ)](https://codecov.io/gh/Python-Cardano/pycardano)
 [![Documentation Status](https://readthedocs.org/projects/pycardano/badge/?version=latest)](https://pycardano.readthedocs.io/en/latest/?badge=latest)
+
+[![Discord](https://img.shields.io/discord/949404918903631923.svg?label=chat&logo=discord&logoColor=ffffff&color=7389D8&labelColor=6A7EC2)](https://discord.gg/qT9Mn9xjgz)
+[![Twitter](https://img.shields.io/twitter/follow/PyCardano?style=social&label=Follow%20%40PyCardano)](https://twitter.com/PyCardano)
 
 
 PyCardano is a Cardano library written in Python. It allows users to create and sign transactions without 
@@ -41,9 +43,9 @@ could be beneficial for faster R&D iterations.
 - [X] Plutus script
 - [X] Staking certificates
 - [X] Reward withdraw
-- [ ] Mnemonic 
+- [X] Mnemonic 
+- [X] HD Wallet
 - [ ] Byron Address
-- [ ] HD Wallet
 - [ ] Pool certificate
 - [ ] Protocol proposal update
 
@@ -158,7 +160,7 @@ context.submit_tx(signed_tx.to_cbor())
 ```
 </details>
 
-See more usages under [examples](https://github.com/cffls/pycardano/tree/main/examples).
+See more usages under [examples](https://github.com/Python-Cardano/pycardano/tree/main/examples).
 
 
 ### Development
@@ -170,7 +172,7 @@ See more usages under [examples](https://github.com/cffls/pycardano/tree/main/ex
 
 Clone the repository:
 
-`git clone https://github.com/cffls/pycardano.git`
+`git clone https://github.com/Python-Cardano/pycardano.git`
 
 PyCardano uses [poetry](https://python-poetry.org/) to manage its dependencies. 
 Install poetry for osx / linux / bashonwindows:
@@ -235,10 +237,25 @@ Build docs and open the docs in browser:
 
 </details>
 
+## Donation and Sponsor
+If you find this project helpful, please consider donate or sponsor us. Your donation and sponsor will allow us to
+ spend more time on improving PyCardano and adding more features in the future.
+
+You can support us by 1) sponsoring through Github, or 2) donating ADA to our ADA Handle `pycardano` or to the address below:
+
+[`addr1vxa4qadv7hk2dd3jtz9rep7sp92lkgwzefwkmsy3qkglq5qzv8c0d`](https://cardanoscan.io/address/61bb5075acf5eca6b632588a3c87d00955fb21c2ca5d6dc0910591f050)
+
+<p>
+  <img src="./.github/donate_addr.png" height=150 width=150/>
+</p>
+
+
 ## Sponsors :heart:
 
 <p align="left">
   <a href="https://www.blockery.io/"><img src="https://avatars.githubusercontent.com/u/97766045?s=50&v=4"/></a>
   <a href="https://github.com/KtorZ"><img src="https://avatars.githubusercontent.com/u/5680256?s=50&v=4"/></a>
   <a href="https://github.com/lacepool"><img src="https://avatars.githubusercontent.com/u/79309785?s=50&v=4"/></a>
+  <a href="https://github.com/muppetADA"><img width="50" src="https://avatars.githubusercontent.com/u/115075316?s=50&v=4"/></a>
+  <a href="https://github.com/CardanoDur"><img width="50" src="https://avatars.githubusercontent.com/u/1000466?s=50&v=4"/></a>
 </p>

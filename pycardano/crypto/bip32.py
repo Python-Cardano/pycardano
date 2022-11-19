@@ -11,10 +11,26 @@ import hashlib
 import hmac
 import unicodedata
 from binascii import hexlify, unhexlify
-from typing import Optional
+from typing import Optional, Tuple
 
 from mnemonic import Mnemonic
 from nacl import bindings
+
+from pycardano.logging import logger
+
+__all__ = ["BIP32ED25519PrivateKey", "BIP32ED25519PublicKey", "HDWallet"]
+
+
+SUPPORTED_MNEMONIC_LANGS = {
+    "english",
+    "french",
+    "italian",
+    "japanese",
+    "chinese_simplified",
+    "chinese_traditional",
+    "korean",
+    "spanish",
+}
 
 
 class BIP32ED25519PrivateKey:
@@ -66,24 +82,18 @@ class HDWallet:
 
     def __init__(
         self,
+        root_xprivate_key: bytes,
+        root_public_key: bytes,
+        root_chain_code: bytes,
+        xprivate_key: bytes,
+        public_key: bytes,
+        chain_code: bytes,
+        path: str = "m",
         seed: Optional[bytes] = None,
         mnemonic: Optional[str] = None,
         passphrase: Optional[str] = None,
         entropy: Optional[str] = None,
-        root_xprivate_key: Optional[bytes] = None,
-        root_public_key: Optional[bytes] = None,
-        root_chain_code: Optional[bytes] = None,
-        xprivate_key: Optional[bytes] = None,
-        public_key: Optional[bytes] = None,
-        chain_code: Optional[bytes] = None,
-        path: Optional[str] = None,
     ):
-
-        self._seed = seed
-        self._mnemonic = mnemonic
-        self._passphrase = passphrase
-        self._entropy = entropy
-
         self._root_xprivate_key = root_xprivate_key
         self._root_public_key = root_public_key
         self._root_chain_code = root_chain_code
@@ -92,7 +102,12 @@ class HDWallet:
         self._public_key = public_key
         self._chain_code = chain_code
 
-        self._path = path if path else "m"
+        self._path = path
+
+        self._seed = seed
+        self._mnemonic = mnemonic
+        self._passphrase = passphrase
+        self._entropy = entropy
 
     @classmethod
     def from_seed(
@@ -107,13 +122,16 @@ class HDWallet:
 
         Args:
             seed: Master key of 96 bytes from seed hex string.
+            entropy: Entropy hex string, default to ``None``.
+            passphrase: Mnemonic passphrase or password, default to ``None``.
+            mnemonic: Mnemonic words, default to ``None``.
 
         Returns:
             HDWallet -- Hierarchical Deterministic Wallet instance.
         """
 
-        seed = bytearray(bytes.fromhex(seed))
-        seed_modified = cls._tweak_bits(seed)
+        seed_converted = bytearray(bytes.fromhex(seed))
+        seed_modified = cls._tweak_bits(seed_converted)
 
         kL, c = seed_modified[:32], seed_modified[64:]
 
@@ -121,16 +139,16 @@ class HDWallet:
         A = bindings.crypto_scalarmult_ed25519_base_noclamp(kL)
 
         return cls(
-            seed=seed_modified,
-            mnemonic=mnemonic,
-            entropy=entropy,
-            passphrase=passphrase,
             root_xprivate_key=seed_modified[:64],
             root_public_key=A,
             root_chain_code=c,
             xprivate_key=seed_modified[:64],
             public_key=A,
             chain_code=c,
+            seed=seed_modified,
+            mnemonic=mnemonic,
+            passphrase=passphrase,
+            entropy=entropy,
         )
 
     @classmethod
@@ -150,28 +168,18 @@ class HDWallet:
             raise ValueError("Invalid mnemonic words.")
 
         mnemonic = unicodedata.normalize("NFKD", mnemonic)
-        passphrase = str(passphrase) if passphrase else ""
         entropy = Mnemonic(language="english").to_entropy(words=mnemonic)
-
-        seed = bytearray(
-            hashlib.pbkdf2_hmac(
-                "sha512",
-                password=passphrase.encode(),
-                salt=entropy,
-                iterations=4096,
-                dklen=96,
-            )
-        )
+        seed = cls._generate_seed(passphrase, entropy)
 
         return cls.from_seed(
             seed=hexlify(seed).decode(),
             mnemonic=mnemonic,
-            entropy=entropy,
+            entropy=hexlify(entropy).decode("utf-8"),
             passphrase=passphrase,
         )
 
     @classmethod
-    def from_entropy(cls, entropy: str, passphrase: str = None) -> HDWallet:
+    def from_entropy(cls, entropy: str, passphrase: str = "") -> HDWallet:
         """
         Create master key and HDWallet from Mnemonic words.
 
@@ -186,12 +194,20 @@ class HDWallet:
         if not cls.is_entropy(entropy):
             raise ValueError("Invalid entropy")
 
-        seed = bytearray(
+        seed = cls._generate_seed(passphrase, bytearray.fromhex(entropy))
+        return cls.from_seed(seed=hexlify(seed).decode(), entropy=entropy)
+
+    @classmethod
+    def _generate_seed(cls, passphrase: str, entropy: bytearray) -> bytearray:
+        return bytearray(
             hashlib.pbkdf2_hmac(
-                "sha512", password=passphrase, salt=entropy, iterations=4096, dklen=96
+                "sha512",
+                password=passphrase.encode(),
+                salt=entropy,
+                iterations=4096,
+                dklen=96,
             )
         )
-        return cls.from_seed(seed=hexlify(seed).decode(), entropy=entropy)
 
     @classmethod
     def _tweak_bits(cls, seed: bytearray) -> bytes:
@@ -224,17 +240,17 @@ class HDWallet:
         """
 
         return HDWallet(
-            self._seed,
-            self._mnemonic,
-            self._passphrase,
-            self._entropy,
-            self._root_xprivate_key,
-            self._root_public_key,
-            self._root_chain_code,
-            self._xprivate_key,
-            self._public_key,
-            self._chain_code,
-            self._path,
+            root_xprivate_key=self._root_xprivate_key,
+            root_public_key=self._root_public_key,
+            root_chain_code=self._root_chain_code,
+            xprivate_key=self._xprivate_key,
+            public_key=self._public_key,
+            chain_code=self._chain_code,
+            path=self._path,
+            seed=self._seed,
+            mnemonic=self._mnemonic,
+            passphrase=self._passphrase,
+            entropy=self._entropy,
         )
 
     def derive_from_path(self, path: str, private: bool = True) -> HDWallet:
@@ -262,28 +278,26 @@ class HDWallet:
             )
 
         derived_hdwallet = self._copy_hdwallet()
-
         for index in path.lstrip("m/").split("/"):
             if index.endswith("'"):
-                derived_hdwallet = self.derive_from_index(
-                    derived_hdwallet, int(index[:-1]), private=private, hardened=True
+                derived_hdwallet = derived_hdwallet.derive(
+                    int(index[:-1]), private=private, hardened=True
                 )
             else:
-                derived_hdwallet = self.derive_from_index(
-                    derived_hdwallet, int(index), private=private, hardened=False
+                derived_hdwallet = derived_hdwallet.derive(
+                    int(index), private=private, hardened=False
                 )
 
         return derived_hdwallet
 
-    def derive_from_index(
+    def derive(
         self,
-        parent_wallet: HDWallet,
         index: int,
         private: bool = True,
         hardened: bool = False,
     ) -> HDWallet:
         """
-        Derive keys from index.
+        Returns a new HDWallet derived from given index.
 
         Args:
             index: Derivation index.
@@ -296,12 +310,12 @@ class HDWallet:
         Examples:
             >>> mnemonic_words = "test walk nut penalty hip pave soap entry language right filter choice"
             >>> hdwallet = HDWallet.from_mnemonic(mnemonic_words)
-            >>> hdwallet_l1 = hdwallet.derive_from_index(parent_wallet=hdwallet, index=1852, hardened=True)
-            >>> hdwallet_l2 = hdwallet.derive_from_index(parent_wallet=hdwallet_l1, index=1815, hardened=True)
-            >>> hdwallet_l3 = hdwallet.derive_from_index(parent_wallet=hdwallet_l2, index=0, hardened=True)
-            >>> hdwallet_l4 = hdwallet.derive_from_index(parent_wallet=hdwallet_l3, index=0)
-            >>> hdwallet_l5 = hdwallet.derive_from_index(parent_wallet=hdwallet_l4, index=0)
-            >>> hdwallet_l5.public_key.hex()
+            >>> hdwallet = hdwallet.derive(1852, hardened=True)
+            >>> hdwallet = hdwallet.derive(1815, hardened=True)
+            >>> hdwallet = hdwallet.derive(0, hardened=True)
+            >>> hdwallet = hdwallet.derive(0)
+            >>> hdwallet = hdwallet.derive(0)
+            >>> hdwallet.public_key.hex()
             '73fea80d424276ad0978d4fe5310e8bc2d485f5f6bb3bf87612989f112ad5a7d'
         """
 
@@ -314,29 +328,25 @@ class HDWallet:
         if hardened:
             index += 2**31
 
-        # derive private child key
         if private:
-            node = (
-                parent_wallet._xprivate_key[:32],
-                parent_wallet._xprivate_key[32:],
-                parent_wallet._public_key,
-                parent_wallet._chain_code,
-                parent_wallet._path,
+            private_node = (
+                self._xprivate_key[:32],
+                self._xprivate_key[32:],
+                self._public_key,
+                self._chain_code,
+                self._path,
             )
-            derived_hdwallet = self._derive_private_child_key_by_index(node, index)
-        # derive public child key
-        else:
-            node = (
-                parent_wallet._public_key,
-                parent_wallet._chain_code,
-                parent_wallet._path,
-            )
-            derived_hdwallet = self._derive_public_child_key_by_index(node, index)
+            return self._derive_private_child_key_by_index(private_node, index)
 
-        return derived_hdwallet
+        public_node = (
+            self._public_key,
+            self._chain_code,
+            self._path,
+        )
+        return self._derive_public_child_key_by_index(public_node, index)
 
     def _derive_private_child_key_by_index(
-        self, private_pnode: (bytes, bytes, bytes, bytes, str), index: int
+        self, private_pnode: Tuple[bytes, bytes, bytes, bytes, str], index: int
     ) -> HDWallet:
         """
         Derive private child keys from parent node.
@@ -376,10 +386,6 @@ class HDWallet:
             HDWallet with child node derived.
 
         """
-
-        if not private_pnode:
-            return None
-
         # unpack argument
         (kLP, kRP, AP, cP, path) = private_pnode
         assert 0 <= index < 2**32
@@ -414,13 +420,23 @@ class HDWallet:
         path += "/" + str(index)
 
         derived_hdwallet = HDWallet(
-            xprivate_key=kL + kR, public_key=A, chain_code=c, path=path
+            root_xprivate_key=self._root_xprivate_key,
+            root_public_key=self._root_public_key,
+            root_chain_code=self._root_chain_code,
+            xprivate_key=kL + kR,
+            public_key=A,
+            chain_code=c,
+            path=path,
+            seed=self._seed,
+            mnemonic=self._mnemonic,
+            passphrase=self._passphrase,
+            entropy=self._entropy,
         )
 
         return derived_hdwallet
 
     def _derive_public_child_key_by_index(
-        self, public_pnode: (bytes, bytes, str), index: int
+        self, public_pnode: Tuple[bytes, bytes, str], index: int
     ) -> HDWallet:
         """
         Derive public child keys from parent node.
@@ -432,10 +448,6 @@ class HDWallet:
         Returns:
             HDWallet with child node derived.
         """
-
-        if not public_pnode:
-            return None
-
         # unpack argument
         (AP, cP, path) = public_pnode
         assert 0 <= index < 2**32
@@ -467,7 +479,19 @@ class HDWallet:
         # compute path
         path += "/" + str(index)
 
-        derived_hdwallet = HDWallet(public_key=A, chain_code=c, path=path)
+        derived_hdwallet = HDWallet(
+            root_xprivate_key=self._root_xprivate_key,
+            root_public_key=self._root_public_key,
+            root_chain_code=self._root_chain_code,
+            xprivate_key=self._xprivate_key,
+            public_key=A,
+            chain_code=c,
+            path=path,
+            seed=self._seed,
+            mnemonic=self._mnemonic,
+            passphrase=self._passphrase,
+            entropy=self._entropy,
+        )
 
         return derived_hdwallet
 
@@ -508,16 +532,7 @@ class HDWallet:
             mnemonic (str): mnemonic words.
         """
 
-        if language and language not in [
-            "english",
-            "french",
-            "italian",
-            "japanese",
-            "chinese_simplified",
-            "chinese_traditional",
-            "korean",
-            "spanish",
-        ]:
+        if language and language not in SUPPORTED_MNEMONIC_LANGS:
             raise ValueError(
                 "invalid language, use only this options english, french, "
                 "italian, spanish, chinese_simplified, chinese_traditional, japanese or korean languages."
@@ -543,44 +558,24 @@ class HDWallet:
             bool. Whether the input mnemonic words is valid.
         """
 
-        if language and language not in [
-            "english",
-            "french",
-            "italian",
-            "japanese",
-            "chinese_simplified",
-            "chinese_traditional",
-            "korean",
-            "spanish",
-        ]:
+        if language and language not in SUPPORTED_MNEMONIC_LANGS:
             raise ValueError(
                 "invalid language, use only this options english, french, "
                 "italian, spanish, chinese_simplified, chinese_traditional, japanese or korean languages."
             )
         try:
             mnemonic = unicodedata.normalize("NFKD", mnemonic)
-            if language is None:
-                for _language in [
-                    "english",
-                    "french",
-                    "italian",
-                    "chinese_simplified",
-                    "chinese_traditional",
-                    "japanese",
-                    "korean",
-                    "spanish",
-                ]:
-                    valid = False
-                    if Mnemonic(language=_language).check(mnemonic=mnemonic) is True:
-                        valid = True
-                        break
-                return valid
-            else:
+            if language:
                 return Mnemonic(language=language).check(mnemonic=mnemonic)
+
+            for _language in SUPPORTED_MNEMONIC_LANGS:
+                if Mnemonic(language=_language).check(mnemonic=mnemonic) is True:
+                    return True
         except ValueError:
-            print(
+            logger.warning(
                 "The input mnemonic words are not valid. Words should be in string format seperated by space."
             )
+        return False
 
     @staticmethod
     def is_entropy(entropy: str) -> bool:
@@ -597,4 +592,5 @@ class HDWallet:
         try:
             return len(unhexlify(entropy)) in [16, 20, 24, 28, 32]
         except ValueError:
-            print("The input entropy is not valid.")
+            logger.warning("The input entropy is not valid.")
+            return False
