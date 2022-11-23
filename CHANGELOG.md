@@ -4,6 +4,44 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.7.1] - 2022-11-23
+
+A major improvement of this version is the enforcement of static typing on some modules. Special thanks to [daehan-koreapool](https://github.com/daehan-koreapool)!
+
+**Implemented enhancements:**
+
+- Feature request: address.balance\(\) helper function [\#115](https://github.com/Python-Cardano/pycardano/issues/115)
+- Improve address type hint [\#130](https://github.com/Python-Cardano/pycardano/pull/130) ([daehan-koreapool](https://github.com/daehan-koreapool))
+- Enhance nativescript.py type hint [\#129](https://github.com/Python-Cardano/pycardano/pull/129) ([daehan-koreapool](https://github.com/daehan-koreapool))
+- Attempt to improve liskov substitution principle error [\#128](https://github.com/Python-Cardano/pycardano/pull/128) ([daehan-koreapool](https://github.com/daehan-koreapool))
+- Support utxo query with kupo for Vasil [\#121](https://github.com/Python-Cardano/pycardano/pull/121) ([henryyuanheng-wang](https://github.com/henryyuanheng-wang))
+- Improve base + blockfrost module maintainability [\#120](https://github.com/Python-Cardano/pycardano/pull/120) ([daehan-koreapool](https://github.com/daehan-koreapool))
+- Refactor ogmios.py module maintainability [\#114](https://github.com/Python-Cardano/pycardano/pull/114) ([daehan-koreapool](https://github.com/daehan-koreapool))
+- Improve bip32.py type hint [\#107](https://github.com/Python-Cardano/pycardano/pull/107) ([daehan-koreapool](https://github.com/daehan-koreapool))
+- Testing more types of HDWallet derived Cardano addresses [\#103](https://github.com/Python-Cardano/pycardano/pull/103) ([daehan-koreapool](https://github.com/daehan-koreapool))
+- Fixing inconsistency between generated entropy value type and the expected HDWallet.entropy value type [\#101](https://github.com/Python-Cardano/pycardano/pull/101) ([daehan-koreapool](https://github.com/daehan-koreapool))
+- Improve Ogmios backend module [\#111](https://github.com/Python-Cardano/pycardano/pull/111) ([daehan-koreapool](https://github.com/daehan-koreapool))
+
+**Fixed bugs:**
+
+- decodeVerKeyDSIGN: wrong length, expected 32 bytes but got 0 [\#113](https://github.com/Python-Cardano/pycardano/issues/113)
+
+**Closed issues:**
+
+- Document how to add reference\_inputs when using TransactionBuilder [\#118](https://github.com/Python-Cardano/pycardano/issues/118)
+- config option to choose local cardano-node for transactions [\#102](https://github.com/Python-Cardano/pycardano/issues/102)
+
+**Merged pull requests:**
+
+- Bump websocket-client from 1.4.1 to 1.4.2 [\#126](https://github.com/Python-Cardano/pycardano/pull/126) ([dependabot[bot]](https://github.com/apps/dependabot))
+- Bump sphinx-rtd-theme from 1.0.0 to 1.1.1 [\#125](https://github.com/Python-Cardano/pycardano/pull/125) ([dependabot[bot]](https://github.com/apps/dependabot))
+- provide examples for adding transaction properties [\#119](https://github.com/Python-Cardano/pycardano/pull/119) ([peterVG](https://github.com/peterVG))
+- Update variable name so it matches downstream code [\#117](https://github.com/Python-Cardano/pycardano/pull/117) ([peterVG](https://github.com/peterVG))
+- Bump pytest from 7.1.3 to 7.2.0 [\#110](https://github.com/Python-Cardano/pycardano/pull/110) ([dependabot[bot]](https://github.com/apps/dependabot))
+- Bump pytest-xdist from 2.5.0 to 3.0.2 [\#109](https://github.com/Python-Cardano/pycardano/pull/109) ([dependabot[bot]](https://github.com/apps/dependabot))
+- Add python3.11 to CI [\#108](https://github.com/Python-Cardano/pycardano/pull/108) ([cffls](https://github.com/cffls))
+
+
 ## [0.7.0] - 2022-10-16
 
 ### Added
