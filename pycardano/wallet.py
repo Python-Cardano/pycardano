@@ -749,15 +749,6 @@ class Wallet:
             return None
 
     @property
-    def full_address(self):
-
-        return Address(
-            payment_part=self.address.payment_part,
-            staking_part=self.address.staking_part,
-            network=self._network,
-        )
-
-    @property
     def verification_key_hash(self):
         return self.address.payment_part
 
