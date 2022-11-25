@@ -1671,7 +1671,7 @@ class Wallet:
         # set builder ttl to the min of the included policies
         if mint_list:
             builder.ttl = min(
-                [TokenPolicy("", policy).expiration_slot for policy in native_scripts]
+                [TokenPolicy("", script=policy).expiration_slot for policy in native_scripts]
             )
 
             builder.mint = all_assets
