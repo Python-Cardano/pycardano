@@ -907,7 +907,7 @@ class Wallet:
                 else:
                     token_list.append(
                         Token(
-                            TokenPolicy(name=policy_id[:8], policy=policy_id),
+                            TokenPolicy(name=policy_id[:8], policy_id=policy_id),
                             amount=amount,
                             name=asset,
                         )
@@ -1987,7 +1987,9 @@ def get_all_policies(
     if isinstance(policy_path, str):
         policy_path = Path(policy_path)
 
-    policies = [TokenPolicy(skey.stem) for skey in list(policy_path.glob("*.script"))]
+    policies = [
+        TokenPolicy(name=skey.stem) for skey in list(policy_path.glob("*.script"))
+    ]
 
     return policies
 
