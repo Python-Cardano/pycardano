@@ -954,6 +954,16 @@ class Wallet:
 
             self.lovelace = Lovelace(0)
             self.ada = Ada(0)
+            
+            
+    def to_address(self):
+
+        return Address(
+            payment_part=self.address.payment_part,
+            staking_part=self.address.staking_part,
+            network=self._network,
+        )
+
 
     def get_utxo_creators(self, context: Optional[ChainContext] = None):
         """Get a list of all addresses that created each of the UTxOs in the wallet.
@@ -1439,13 +1449,13 @@ class Wallet:
             signers_list = []
 
         if not change_address:
-            output_change_address = self.full_address
+            output_change_address = self.to_address()
         elif isinstance(change_address, str):
             output_change_address = Address.from_primitive(change_address)
         elif isinstance(change_address, Address):
             output_change_address = change_address
         else:
-            output_change_address = change_address.full_address
+            output_change_address = change_address.to_address()
 
         if other_metadata is None:
             other_metadata = {}
@@ -1708,7 +1718,7 @@ class Wallet:
                 if isinstance(output.address, str):
                     output_address: Address = Address.from_primitive(output.address)
                 elif isinstance(output.address, Wallet):
-                    output_address = output.address.full_address
+                    output_address = output.address.to_address()
                 else:
                     output_address = output.address
 
