@@ -954,8 +954,7 @@ class Wallet:
 
             self.lovelace = Lovelace(0)
             self.ada = Ada(0)
-            
-            
+
     def to_address(self):
 
         return Address(
@@ -963,7 +962,6 @@ class Wallet:
             staking_part=self.address.staking_part,
             network=self._network,
         )
-
 
     def get_utxo_creators(self, context: Optional[ChainContext] = None):
         """Get a list of all addresses that created each of the UTxOs in the wallet.
@@ -1672,7 +1670,10 @@ class Wallet:
         # set builder ttl to the min of the included policies
         if mint_list:
             builder.ttl = min(
-                [TokenPolicy("", script=policy).expiration_slot for policy in native_scripts]
+                [
+                    TokenPolicy("", script=policy).expiration_slot
+                    for policy in native_scripts
+                ]
             )
 
             builder.mint = all_assets
