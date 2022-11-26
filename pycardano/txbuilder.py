@@ -865,9 +865,6 @@ class TransactionBuilder:
         Returns:
             TransactionBody: A transaction body.
         """
-        self._update_execution_units(
-            change_address, merge_change, collateral_change_address
-        )
         self._ensure_no_input_exclusion_conflict()
         selected_utxos = []
         selected_amount = Value()
@@ -999,6 +996,10 @@ class TransactionBuilder:
         self._set_redeemer_index()
 
         self._set_collateral_return(collateral_change_address or change_address)
+
+        self._update_execution_units(
+            change_address, merge_change, collateral_change_address
+        )
 
         self._add_change_and_fee(change_address, merge_change=merge_change)
 
