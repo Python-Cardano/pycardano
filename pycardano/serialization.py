@@ -568,7 +568,7 @@ class MapCBORSerializable(CBORSerializable):
 
         Basic usage:
 
-        >>> from dataclasses import dataclass
+        >>> from dataclasses import dataclass, field
         >>> @dataclass
         ... class Test1(MapCBORSerializable):
         ...     a: str=""
@@ -576,7 +576,7 @@ class MapCBORSerializable(CBORSerializable):
         >>> @dataclass
         ... class Test2(MapCBORSerializable):
         ...     c: str=None
-        ...     test1: Test1=Test1()
+        ...     test1: Test1=field(default_factory=Test1)
         >>> t = Test2(test1=Test1(a="a"))
         >>> t
         Test2(c=None, test1=Test1(a='a', b=''))
@@ -600,7 +600,7 @@ class MapCBORSerializable(CBORSerializable):
         >>> @dataclass
         ... class Test2(MapCBORSerializable):
         ...     c: str=field(default=None, metadata={"key": "0", "optional": True})
-        ...     test1: Test1=field(default=Test1(), metadata={"key": "1"})
+        ...     test1: Test1=field(default_factory=Test1, metadata={"key": "1"})
         >>> t = Test2(test1=Test1(a="a"))
         >>> t
         Test2(c=None, test1=Test1(a='a', b=''))

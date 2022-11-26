@@ -87,7 +87,7 @@ def test_map_cbor_serializable():
     @dataclass
     class Test2(MapCBORSerializable):
         c: str = None
-        test1: Test1 = Test1()
+        test1: Test1 = field(default_factory=Test1)
 
     t = Test2(test1=Test1(a="a"))
     assert t.to_cbor() == "a26163f6657465737431a261616161616260"
@@ -103,7 +103,7 @@ def test_map_cbor_serializable_custom_keys():
     @dataclass
     class Test2(MapCBORSerializable):
         c: str = field(default=None, metadata={"key": "0", "optional": True})
-        test1: Test1 = field(default=Test1(), metadata={"key": "1"})
+        test1: Test1 = field(default_factory=Test1, metadata={"key": "1"})
 
     t = Test2(test1=Test1(a="a"))
     assert t.to_primitive() == {"1": {"0": "a", "1": ""}}
