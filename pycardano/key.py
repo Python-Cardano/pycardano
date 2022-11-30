@@ -194,8 +194,10 @@ class ExtendedSigningKey(Key):
                 "The hdwallet doesn't contain extended private key or chain code info."
             )
 
-        return ExtendedSigningKey(
+        return cls(
             payload=hdwallet.xprivate_key + hdwallet.public_key + hdwallet.chain_code,
+            key_type="PaymentExtendedSigningKeyShelley_ed25519_bip32",
+            description="Payment Signing Key",
         )
 
 
