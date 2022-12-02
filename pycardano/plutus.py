@@ -530,7 +530,7 @@ class PlutusData(ArrayCBORSerializable):
             elif isinstance(obj, list):
                 return [_dfs(item) for item in obj]
             elif isinstance(obj, IndefiniteList):
-                return {"list": [_dfs(item) for item in obj.items]}
+                return {"list": [_dfs(item) for item in obj]}
             elif isinstance(obj, dict):
                 return {"map": [{"v": _dfs(v), "k": _dfs(k)} for k, v in obj.items()]}
             elif isinstance(obj, PlutusData):

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from collections import OrderedDict, defaultdict
+from collections import OrderedDict, defaultdict, UserList
 from copy import deepcopy
 from dataclasses import Field, dataclass, fields
 from datetime import datetime
@@ -36,15 +36,9 @@ __all__ = [
 ]
 
 
-class IndefiniteList:
-    def __init__(self, items):
-        self.items = items
-
-    def __eq__(self, other):
-        if isinstance(other, IndefiniteList):
-            return self.items == other.items
-        else:
-            return False
+class IndefiniteList(UserList):
+    def __init__(self, list: [Primitive]):  # type: ignore
+        super().__init__(list)
 
 
 @dataclass
@@ -146,7 +140,7 @@ def default_encoder(
         # handling here to explicitly write header (b'\x9f'), each body item, and footer (b'\xff') to
         # the output bytestring.
         encoder.write(b"\x9f")
-        for item in value.items:
+        for item in value:
             encoder.encode(item)
         encoder.write(b"\xff")
     elif isinstance(value, RawCBOR):
@@ -240,7 +234,7 @@ class CBORSerializable:
             elif isinstance(value, list):
                 return [_helper(k) for k in value]
             elif isinstance(value, IndefiniteList):
-                return IndefiniteList([_helper(k) for k in value.items])
+                return IndefiniteList([_helper(k) for k in value])
             elif isinstance(value, CBORTag):
                 return CBORTag(value.tag, _helper(value.value))
             else:

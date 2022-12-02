@@ -10,6 +10,7 @@ from pycardano.serialization import (
     DictCBORSerializable,
     MapCBORSerializable,
     limit_primitive_type,
+    IndefiniteList,
 )
 
 
@@ -133,3 +134,31 @@ def test_dict_cbor_serializable():
 
     # Make sure the cbor of a and b are exactly the same even when their items are inserted in different orders.
     assert a.to_cbor() == b.to_cbor()
+
+
+def test_indefinite_list():
+
+    a = IndefiniteList([4, 5])
+
+    a.append(6)
+    # append should add element and return IndefiniteList
+    assert a == IndefiniteList([4, 5, 6]) and type(a) == IndefiniteList
+
+    b = a + IndefiniteList([7, 8])
+    # addition of two IndefiniteLists should return IndefiniteList
+    assert type(b) == IndefiniteList
+
+    a.extend([7, 8])
+    # extend should add elements and return IndefiniteList
+    assert a == IndefiniteList([4, 5, 6, 7, 8]) and type(a) == IndefiniteList
+
+    # testing eq operator
+    assert a == b
+
+    b.pop()
+    # pop should remove last element and return IndefiniteList
+    assert b == IndefiniteList([4, 5, 6, 7]) and type(b) == IndefiniteList
+
+    b.remove(5)
+    # remove should remove element and return IndefiniteList
+    assert b == IndefiniteList([4, 6, 7]) and type(b) == IndefiniteList
