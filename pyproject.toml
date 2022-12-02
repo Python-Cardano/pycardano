@@ -55,7 +55,8 @@ build-backend = "poetry.core.masonry.api"
 addopts = "--doctest-modules --ignore=examples --ignore=integration-test --ignore=test/resources/haskell"
 minversion = "6.0"
 markers = [
-    "post_alonzo"
+    "post_alonzo",
+    "single"
 ]
 
 [tool.isort]
