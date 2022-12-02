@@ -37,7 +37,8 @@ __all__ = [
 
 
 class IndefiniteList(UserList):
-    pass
+    def __init__(self, list: [Primitive]):  # type: ignore
+        super().__init__(list)
 
 
 @dataclass
@@ -139,7 +140,7 @@ def default_encoder(
         # handling here to explicitly write header (b'\x9f'), each body item, and footer (b'\xff') to
         # the output bytestring.
         encoder.write(b"\x9f")
-        for item in value.data:
+        for item in value:
             encoder.encode(item)
         encoder.write(b"\xff")
     elif isinstance(value, RawCBOR):
@@ -233,7 +234,7 @@ class CBORSerializable:
             elif isinstance(value, list):
                 return [_helper(k) for k in value]
             elif isinstance(value, IndefiniteList):
-                return IndefiniteList([_helper(k) for k in value.data])
+                return IndefiniteList([_helper(k) for k in value])
             elif isinstance(value, CBORTag):
                 return CBORTag(value.tag, _helper(value.value))
             else:
