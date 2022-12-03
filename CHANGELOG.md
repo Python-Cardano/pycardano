@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.7.2] - 2022-12-03
+
+**Implemented enhancements:**
+
+- Modified IndefiniteList as subclass of UserList. [\#138](https://github.com/Python-Cardano/pycardano/pull/138) ([bhatt-deep](https://github.com/bhatt-deep))
+- Slight modification ExtendedSigningKey creation from HDWallet [\#132](https://github.com/Python-Cardano/pycardano/pull/132) ([henryyuanheng-wang](https://github.com/henryyuanheng-wang))
+
+**Fixed bugs:**
+
+- Move execution unit estimation to the very last part of tx building [\#136](https://github.com/Python-Cardano/pycardano/pull/136) ([cffls](https://github.com/cffls))
+
+
 ## [0.7.1] - 2022-11-23
 
 A major improvement of this version is the enforcement of static typing on some modules. Special thanks to [daehan-koreapool](https://github.com/daehan-koreapool)!
