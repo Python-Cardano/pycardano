@@ -20,7 +20,8 @@ app = Flask(__name__)
 block_forst_project_id = os.environ.get("BLOCKFROST_ID")
 
 # Use BlockFrostChainContext for simplicity. You can also implement your own chain context.
-chain_context = BlockFrostChainContext(block_forst_project_id, network=Network.TESTNET)
+chain_context = BlockFrostChainContext(block_forst_project_id,
+                                       base_url="https://cardano-preview.blockfrost.io/api")
 
 
 def build_transaction(data):
