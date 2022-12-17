@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from collections import OrderedDict, defaultdict, UserList
+from collections import OrderedDict, UserList, defaultdict
 from copy import deepcopy
 from dataclasses import Field, dataclass, fields
 from datetime import datetime
