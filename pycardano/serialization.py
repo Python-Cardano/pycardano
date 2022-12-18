@@ -10,7 +10,7 @@ from datetime import datetime
 from decimal import Decimal
 from functools import wraps
 from inspect import isclass
-from typing import Any, Callable, List, Type, TypeVar, Union, get_type_hints
+from typing import Any, Callable, List, Optional, Type, TypeVar, Union, get_type_hints
 
 from cbor2 import CBOREncoder, CBORSimpleValue, CBORTag, dumps, loads, undefined
 from pprintpp import pformat
@@ -33,12 +33,13 @@ __all__ = [
     "DictCBORSerializable",
     "RawCBOR",
     "list_hook",
+    "limit_primitive_type",
 ]
 
 
 class IndefiniteList(UserList):
-    def __init__(self, list: [Primitive]):  # type: ignore
-        super().__init__(list)
+    def __init__(self, li: Primitive):  # type: ignore
+        super().__init__(li)  # type: ignore
 
 
 @dataclass
@@ -414,7 +415,9 @@ def _restore_dataclass_field(
         return f.type.from_primitive(v)
     elif isclass(f.type) and issubclass(f.type, IndefiniteList):
         return IndefiniteList(v)
-    elif hasattr(f.type, "__origin__") and f.type.__origin__ is Union:
+    elif hasattr(f.type, "__origin__") and (
+        f.type.__origin__ is Union or f.type.__origin__ is Optional
+    ):
         t_args = f.type.__args__
         for t in t_args:
             if isclass(t) and issubclass(t, IndefiniteList):
@@ -424,8 +427,11 @@ def _restore_dataclass_field(
                     return t.from_primitive(v)
                 except DeserializeException:
                     pass
-            elif t in PRIMITIVE_TYPES and isinstance(v, t):
-                return v
+            else:
+                if not isclass(t) and hasattr(t, "__origin__"):
+                    t = t.__origin__
+                if t in PRIMITIVE_TYPES and isinstance(v, t):
+                    return v
         raise DeserializeException(
             f"Cannot deserialize object: \n{v}\n in any valid type from {t_args}."
         )

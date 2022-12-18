@@ -33,9 +33,9 @@ class UTxOSelector:
         utxos: List[UTxO],
         outputs: List[TransactionOutput],
         context: ChainContext,
-        max_input_count: int = None,
-        include_max_fee: bool = True,
-        respect_min_utxo: bool = True,
+        max_input_count: Optional[int] = None,
+        include_max_fee: Optional[bool] = True,
+        respect_min_utxo: Optional[bool] = True,
     ) -> Tuple[List[UTxO], Value]:
         """From an input list of UTxOs, select a subset of UTxOs whose sum (including ADA and multi-assets)
         is equal to or larger than the sum of a set of outputs.
@@ -115,7 +115,11 @@ class LargestFirstSelector(UTxOSelector):
             if change.coin < min_change_amount:
                 additional, _ = self.select(
                     available,
-                    [TransactionOutput(None, min_change_amount - change.coin)],
+                    [
+                        TransactionOutput(
+                            _FAKE_ADDR, Value(min_change_amount - change.coin)
+                        )
+                    ],
                     context,
                     max_input_count - len(selected) if max_input_count else None,
                     include_max_fee=False,
@@ -230,13 +234,13 @@ class RandomImproveMultiAsset(UTxOSelector):
         remaining: List[UTxO],
         ideal: Value,
         upper_bound: Value,
-        max_input_count: int,
+        max_input_count: Optional[int] = None,
     ):
         if not remaining or self._find_diff_by_former(ideal, selected_amount) <= 0:
             # In case where there is no remaining UTxOs or we already selected more than ideal,
             # we cannot improve by randomly adding more UTxOs, therefore return immediate.
             return
-        if max_input_count and len(selected) > max_input_count:
+        if max_input_count is not None and len(selected) > max_input_count:
             raise MaxInputCountExceededException(
                 f"Max input count: {max_input_count} exceeded!"
             )
@@ -269,9 +273,9 @@ class RandomImproveMultiAsset(UTxOSelector):
         utxos: List[UTxO],
         outputs: List[TransactionOutput],
         context: ChainContext,
-        max_input_count: int = None,
-        include_max_fee: bool = True,
-        respect_min_utxo: bool = True,
+        max_input_count: Optional[int] = None,
+        include_max_fee: Optional[bool] = True,
+        respect_min_utxo: Optional[bool] = True,
     ) -> Tuple[List[UTxO], Value]:
         # Shallow copy the list
         remaining = list(utxos)
@@ -284,7 +288,7 @@ class RandomImproveMultiAsset(UTxOSelector):
         request_sorted = sorted(assets, key=self._get_single_asset_val, reverse=True)
 
         # Phase 1 - random select
-        selected = []
+        selected: List[UTxO] = []
         selected_amount = Value()
         for r in request_sorted:
             self._random_select_subset(r, remaining, selected, selected_amount)
@@ -321,7 +325,11 @@ class RandomImproveMultiAsset(UTxOSelector):
             if change.coin < min_change_amount:
                 additional, _ = self.select(
                     remaining,
-                    [TransactionOutput(None, min_change_amount - change.coin)],
+                    [
+                        TransactionOutput(
+                            _FAKE_ADDR, Value(min_change_amount - change.coin)
+                        )
+                    ],
                     context,
                     max_input_count - len(selected) if max_input_count else None,
                     include_max_fee=False,

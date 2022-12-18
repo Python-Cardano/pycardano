@@ -21,6 +21,7 @@ from pycardano.serialization import (
     CBORSerializable,
     DictCBORSerializable,
     IndefiniteList,
+    Primitive,
     RawCBOR,
     default_encoder,
     limit_primitive_type,
@@ -39,6 +40,7 @@ __all__ = [
     "PlutusV2Script",
     "RawPlutusData",
     "Redeemer",
+    "ScriptType",
     "datum_hash",
     "plutus_script_hash",
     "script_hash",
@@ -471,7 +473,7 @@ class PlutusData(ArrayCBORSerializable):
                 )
 
     def to_shallow_primitive(self) -> CBORTag:
-        primitives = super().to_shallow_primitive()
+        primitives: Primitive = super().to_shallow_primitive()
         if primitives:
             primitives = IndefiniteList(primitives)
         tag = get_tag(self.CONSTR_ID)
@@ -544,7 +546,7 @@ class PlutusData(ArrayCBORSerializable):
         return json.dumps(_dfs(self), **kwargs)
 
     @classmethod
-    def from_dict(cls: PlutusData, data: dict) -> PlutusData:
+    def from_dict(cls: Type[PlutusData], data: dict) -> PlutusData:
         """Convert a dictionary to PlutusData
 
         Args:
@@ -606,7 +608,7 @@ class PlutusData(ArrayCBORSerializable):
         return _dfs(data)
 
     @classmethod
-    def from_json(cls: PlutusData, data: str) -> PlutusData:
+    def from_json(cls: Type[PlutusData], data: str) -> PlutusData:
         """Restore a json encoded string to a PlutusData.
 
         Args:
@@ -701,7 +703,7 @@ class Redeemer(ArrayCBORSerializable):
 
     data: Any
 
-    ex_units: ExecutionUnits = None
+    ex_units: Optional[ExecutionUnits] = None
 
     @classmethod
     @limit_primitive_type(list)
@@ -729,13 +731,23 @@ def plutus_script_hash(
     return script_hash(script)
 
 
-def script_hash(
-    script: Union[bytes, NativeScript, PlutusV1Script, PlutusV2Script]
-) -> ScriptHash:
+class PlutusV1Script(bytes):
+    pass
+
+
+class PlutusV2Script(bytes):
+    pass
+
+
+ScriptType = Union[bytes, NativeScript, PlutusV1Script, PlutusV2Script]
+"""Script type. A Union type that contains all valid script types."""
+
+
+def script_hash(script: ScriptType) -> ScriptHash:
     """Calculates the hash of a script, which could be either native script or plutus script.
 
     Args:
-        script (Union[bytes, NativeScript, PlutusV1Script, PlutusV2Script]): A script.
+        script (ScriptType): A script.
 
     Returns:
         ScriptHash: blake2b hash of the script.
@@ -752,11 +764,3 @@ def script_hash(
         )
     else:
         raise TypeError(f"Unexpected script type: {type(script)}")
-
-
-class PlutusV1Script(bytes):
-    pass
-
-
-class PlutusV2Script(bytes):
-    pass

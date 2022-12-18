@@ -119,13 +119,19 @@ def verify(
     if attach_cose_key:
         # The cose key is attached as a dict object which contains the verification key
         # the headers of the signature are emtpy
+        assert isinstance(
+            signed_message, dict
+        ), "signed_message must be a dict if attach_cose_key is True"
         key = signed_message.get("key")
-        signed_message = signed_message.get("signature")
+        signed_message = signed_message.get("signature")  # type: ignore
 
     else:
         key = ""  # key will be extracted later from the payload headers
 
     # Add back the "D2" header byte and decode
+    assert isinstance(
+        signed_message, str
+    ), "signed_message must be a hex string at this point"
     decoded_message = CoseMessage.decode(bytes.fromhex("d2" + signed_message))
 
     # generate/extract the cose key
@@ -146,6 +152,9 @@ def verify(
 
     else:
         # i,e key is sent separately
+        assert isinstance(
+            key, str
+        ), "key must be a hex string if attach_cose_key is True"
         cose_key = CoseKey.decode(bytes.fromhex(key))
         verification_key = cose_key[OKPKpX]
 

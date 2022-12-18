@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Union
+from typing import Optional, Union
 
 from pycardano.hash import PoolKeyHash, ScriptHash, VerificationKeyHash
 from pycardano.serialization import ArrayCBORSerializable
@@ -16,7 +16,7 @@ __all__ = [
 @dataclass(repr=False)
 class StakeCredential(ArrayCBORSerializable):
 
-    _CODE: int = field(init=False, default=None)
+    _CODE: Optional[int] = field(init=False, default=None)
 
     credential: Union[VerificationKeyHash, ScriptHash]
 
