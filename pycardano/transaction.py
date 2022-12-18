@@ -284,7 +284,8 @@ class _Script(ArrayCBORSerializable):
     def from_primitive(cls: Type[_Script], values: List[Primitive]) -> _Script:
         if values[0] == 0:
             return cls(NativeScript.from_primitive(values[1]))
-        elif values[0] == 1:
+        assert isinstance(values[1], bytes)
+        if values[0] == 1:
             return cls(PlutusV1Script(values[1]))
         else:
             return cls(PlutusV2Script(values[1]))
@@ -315,8 +316,10 @@ class _DatumOption(ArrayCBORSerializable):
         cls: Type[_DatumOption], values: List[Primitive]
     ) -> _DatumOption:
         if values[0] == 0:
+            assert isinstance(values[1], bytes)
             return _DatumOption(DatumHash(values[1]))
         else:
+            assert isinstance(values[1], CBORTag)
             v = cbor2.loads(values[1].value)
             if isinstance(v, CBORTag):
                 return _DatumOption(RawPlutusData.from_primitive(v))
@@ -334,6 +337,7 @@ class _ScriptRef(CBORSerializable):
 
     @classmethod
     def from_primitive(cls: Type[_ScriptRef], value: Primitive) -> _ScriptRef:
+        assert isinstance(value, CBORTag)
         return cls(_Script.from_primitive(cbor2.loads(value.value)))
 
 
@@ -343,9 +347,13 @@ class _TransactionOutputPostAlonzo(MapCBORSerializable):
 
     amount: Union[int, Value] = field(metadata={"key": 1})
 
-    datum: _DatumOption = field(default=None, metadata={"key": 2, "optional": True})
+    datum: Optional[_DatumOption] = field(
+        default=None, metadata={"key": 2, "optional": True}
+    )
 
-    script_ref: _ScriptRef = field(default=None, metadata={"key": 3, "optional": True})
+    script_ref: Optional[_ScriptRef] = field(
+        default=None, metadata={"key": 3, "optional": True}
+    )
 
     @property
     def script(self) -> Optional[Union[NativeScript, PlutusV1Script, PlutusV2Script]]:
@@ -361,7 +369,7 @@ class _TransactionOutputLegacy(ArrayCBORSerializable):
 
     amount: Union[int, Value]
 
-    datum_hash: DatumHash = field(default=None, metadata={"optional": True})
+    datum_hash: Optional[DatumHash] = field(default=None, metadata={"optional": True})
 
 
 @dataclass(repr=False)
@@ -369,7 +377,7 @@ class TransactionOutput(CBORSerializable):
 
     address: Address
 
-    amount: Union[int, Value]
+    amount: Union[Value]
 
     datum_hash: Optional[DatumHash] = None
 
@@ -496,30 +504,36 @@ class TransactionBody(MapCBORSerializable):
 
     fee: int = field(default=0, metadata={"key": 2})
 
-    ttl: int = field(default=None, metadata={"key": 3, "optional": True})
+    ttl: Optional[int] = field(default=None, metadata={"key": 3, "optional": True})
 
-    certificates: List[Certificate] = field(
+    certificates: Optional[List[Certificate]] = field(
         default=None, metadata={"key": 4, "optional": True}
     )
 
-    withdraws: Withdrawals = field(default=None, metadata={"key": 5, "optional": True})
+    withdraws: Optional[Withdrawals] = field(
+        default=None, metadata={"key": 5, "optional": True}
+    )
 
     # TODO: Add proposal update support
     update: Any = field(default=None, metadata={"key": 6, "optional": True})
 
-    auxiliary_data_hash: AuxiliaryDataHash = field(
+    auxiliary_data_hash: Optional[AuxiliaryDataHash] = field(
         default=None, metadata={"key": 7, "optional": True}
     )
 
-    validity_start: int = field(default=None, metadata={"key": 8, "optional": True})
+    validity_start: Optional[int] = field(
+        default=None, metadata={"key": 8, "optional": True}
+    )
 
-    mint: MultiAsset = field(default=None, metadata={"key": 9, "optional": True})
+    mint: Optional[MultiAsset] = field(
+        default=None, metadata={"key": 9, "optional": True}
+    )
 
-    script_data_hash: ScriptDataHash = field(
+    script_data_hash: Optional[ScriptDataHash] = field(
         default=None, metadata={"key": 11, "optional": True}
     )
 
-    collateral: List[TransactionInput] = field(
+    collateral: Optional[List[TransactionInput]] = field(
         default=None,
         metadata={
             "key": 13,
@@ -528,7 +542,7 @@ class TransactionBody(MapCBORSerializable):
         },
     )
 
-    required_signers: List[VerificationKeyHash] = field(
+    required_signers: Optional[List[VerificationKeyHash]] = field(
         default=None,
         metadata={
             "key": 14,
@@ -537,15 +551,19 @@ class TransactionBody(MapCBORSerializable):
         },
     )
 
-    network_id: Network = field(default=None, metadata={"key": 15, "optional": True})
+    network_id: Optional[Network] = field(
+        default=None, metadata={"key": 15, "optional": True}
+    )
 
-    collateral_return: TransactionOutput = field(
+    collateral_return: Optional[TransactionOutput] = field(
         default=None, metadata={"key": 16, "optional": True}
     )
 
-    total_collateral: int = field(default=None, metadata={"key": 17, "optional": True})
+    total_collateral: Optional[int] = field(
+        default=None, metadata={"key": 17, "optional": True}
+    )
 
-    reference_inputs: List[TransactionInput] = field(
+    reference_inputs: Optional[List[TransactionInput]] = field(
         default=None,
         metadata={
             "key": 18,
@@ -555,9 +573,7 @@ class TransactionBody(MapCBORSerializable):
     )
 
     def hash(self) -> bytes:
-        return blake2b(
-            self.to_cbor(encoding="bytes"), TRANSACTION_HASH_SIZE, encoder=RawEncoder
-        )
+        return blake2b(self.to_cbor(encoding="bytes"), TRANSACTION_HASH_SIZE, encoder=RawEncoder)  # type: ignore
 
     @property
     def id(self) -> TransactionId:
@@ -572,7 +588,7 @@ class Transaction(ArrayCBORSerializable):
 
     valid: bool = True
 
-    auxiliary_data: Union[AuxiliaryData, type(None)] = None
+    auxiliary_data: Optional[AuxiliaryData] = None
 
     @property
     def id(self) -> TransactionId:

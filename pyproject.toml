@@ -67,18 +67,5 @@ ignore_missing_imports = true
 disable_error_code = ["str-bytes-safe"]
 python_version = 3.7
 exclude = [
-    '^pycardano/cip/cip8.py$',
     '^pycardano/crypto/bech32.py$',
-    '^pycardano/certificate.py$',
-    '^pycardano/coinselection.py$',
-    '^pycardano/exception.py$',
-    '^pycardano/hash.py$',
-    '^pycardano/key.py$',
-    '^pycardano/logging.py$',
-    '^pycardano/metadata.py$',
-    '^pycardano/plutus.py$',
-    '^pycardano/transaction.py$',
-    '^pycardano/txbuilder.py$',
-    '^pycardano/utils.py$',
-    '^pycardano/witness.py$',
 ]

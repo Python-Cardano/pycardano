@@ -40,6 +40,7 @@ from pycardano.plutus import (
     PlutusV2Script,
     Redeemer,
     RedeemerTag,
+    ScriptType,
     datum_hash,
     script_hash,
 )
@@ -87,23 +88,23 @@ class TransactionBuilder:
     execution_step_buffer: float = 0.2
     """Additional amount of execution step (in ratio) that will be added on top of estimation"""
 
-    ttl: int = field(default=None)
+    ttl: Optional[int] = field(default=None)
 
-    validity_start: int = field(default=None)
+    validity_start: Optional[int] = field(default=None)
 
-    auxiliary_data: AuxiliaryData = field(default=None)
+    auxiliary_data: Optional[AuxiliaryData] = field(default=None)
 
-    native_scripts: List[NativeScript] = field(default=None)
+    native_scripts: Optional[List[NativeScript]] = field(default=None)
 
-    mint: MultiAsset = field(default=None)
+    mint: Optional[MultiAsset] = field(default=None)
 
-    required_signers: List[VerificationKeyHash] = field(default=None)
+    required_signers: Optional[List[VerificationKeyHash]] = field(default=None)
 
     collaterals: List[UTxO] = field(default_factory=lambda: [])
 
-    certificates: List[Certificate] = field(default=None)
+    certificates: Optional[List[Certificate]] = field(default=None)
 
-    withdrawals: Withdrawals = field(default=None)
+    withdrawals: Optional[Withdrawals] = field(default=None)
 
     reference_inputs: Set[TransactionInput] = field(
         init=False, default_factory=lambda: set()
@@ -113,7 +114,9 @@ class TransactionBuilder:
 
     _excluded_inputs: List[UTxO] = field(init=False, default_factory=lambda: [])
 
-    _input_addresses: List[Address] = field(init=False, default_factory=lambda: [])
+    _input_addresses: List[Union[Address, str]] = field(
+        init=False, default_factory=lambda: []
+    )
 
     _outputs: List[TransactionOutput] = field(init=False, default_factory=lambda: [])
 
@@ -121,19 +124,19 @@ class TransactionBuilder:
 
     _datums: Dict[DatumHash, Datum] = field(init=False, default_factory=lambda: {})
 
-    _collateral_return: TransactionOutput = field(init=False, default=None)
+    _collateral_return: Optional[TransactionOutput] = field(init=False, default=None)
 
-    _total_collateral: int = field(init=False, default=None)
+    _total_collateral: Optional[int] = field(init=False, default=None)
 
     _inputs_to_redeemers: Dict[UTxO, Redeemer] = field(
         init=False, default_factory=lambda: {}
     )
 
-    _minting_script_to_redeemers: List[Tuple[bytes, Redeemer]] = field(
+    _minting_script_to_redeemers: List[Tuple[ScriptType, Optional[Redeemer]]] = field(
         init=False, default_factory=lambda: []
     )
 
-    _inputs_to_scripts: Dict[UTxO, bytes] = field(
+    _inputs_to_scripts: Dict[UTxO, ScriptType] = field(
         init=False, default_factory=lambda: {}
     )
 
@@ -141,7 +144,7 @@ class TransactionBuilder:
         Union[NativeScript, PlutusV1Script, PlutusV2Script]
     ] = field(init=False, default_factory=lambda: [])
 
-    _should_estimate_execution_units: bool = field(init=False, default=None)
+    _should_estimate_execution_units: Optional[bool] = field(init=False, default=None)
 
     def add_input(self, utxo: UTxO) -> TransactionBuilder:
         """Add a specific UTxO to transaction's inputs.
@@ -208,13 +211,18 @@ class TransactionBuilder:
                 f"Expect the output address of utxo to be script type, "
                 f"but got {utxo.output.address.address_type} instead."
             )
-        if utxo.output.datum_hash and utxo.output.datum_hash != datum_hash(datum):
+
+        if (
+            utxo.output.datum_hash
+            and datum is not None
+            and utxo.output.datum_hash != datum_hash(datum)
+        ):
             raise InvalidArgumentException(
                 f"Datum hash in transaction output is {utxo.output.datum_hash}, "
                 f"but actual datum hash from input datum is {datum_hash(datum)}."
             )
 
-        if datum:
+        if datum is not None:
             self.datums[datum_hash(datum)] = datum
 
         if redeemer:
@@ -233,6 +241,7 @@ class TransactionBuilder:
                     self._reference_scripts.append(i.output.script)
                     break
         elif isinstance(script, UTxO):
+            assert script.output.script is not None
             self._inputs_to_scripts[utxo] = script.output.script
             self.reference_inputs.add(script.input)
             self._reference_scripts.append(script.output.script)
@@ -265,6 +274,7 @@ class TransactionBuilder:
             self._consolidate_redeemer(redeemer)
 
         if isinstance(script, UTxO):
+            assert script.output.script is not None
             self._minting_script_to_redeemers.append((script.output.script, redeemer))
             self.reference_inputs.add(script.input)
             self._reference_scripts.append(script.output.script)
@@ -303,10 +313,10 @@ class TransactionBuilder:
         Returns:
             TransactionBuilder: Current transaction builder.
         """
-        if datum:
+        if datum is not None:
             tx_out.datum_hash = datum_hash(datum)
         self.outputs.append(tx_out)
-        if add_datum_to_witness:
+        if datum is not None and add_datum_to_witness:
             self.datums[datum_hash(datum)] = datum
         return self
 
@@ -339,8 +349,9 @@ class TransactionBuilder:
         self._fee = fee
 
     @property
-    def all_scripts(self) -> List[bytes]:
-        scripts = {}
+    def all_scripts(self) -> List[ScriptType]:
+        scripts: Dict[ScriptHash, ScriptType] = {}
+        s: ScriptType
 
         if self.native_scripts:
             for s in self.native_scripts:
@@ -355,8 +366,11 @@ class TransactionBuilder:
         return list(scripts.values())
 
     @property
-    def scripts(self) -> List[bytes]:
-        scripts = {script_hash(s): s for s in self.all_scripts}
+    def scripts(self) -> List[ScriptType]:
+        scripts: Dict[ScriptHash, ScriptType] = {
+            script_hash(s): s for s in self.all_scripts
+        }
+        s: ScriptType
 
         for s in self._reference_scripts:
             if script_hash(s) in scripts:
@@ -370,8 +384,8 @@ class TransactionBuilder:
 
     @property
     def redeemers(self) -> List[Redeemer]:
-        return list(self._inputs_to_redeemers.values()) + [
-            r for _, r in self._minting_script_to_redeemers
+        return [r for r in self._inputs_to_redeemers.values() if r is not None] + [
+            r for _, r in self._minting_script_to_redeemers if r is not None
         ]
 
     @property
@@ -438,7 +452,7 @@ class TransactionBuilder:
                     f"Not enough ADA left for change: {change.coin} but needs "
                     f"{min_lovelace_post_alonzo(TransactionOutput(address, change), self.context)}"
                 )
-            lovelace_change = change.coin
+            lovelace_change = Value(change.coin)
             change_output_arr.append(TransactionOutput(address, lovelace_change))
 
         # If there are multi asset in the change
@@ -582,6 +596,7 @@ class TransactionBuilder:
     ) -> List[MultiAsset]:
         multi_asset_arr = []
         base_coin = Value(coin=change_estimator.coin)
+        change_address = change_address or Address(FAKE_VKEY.hash())
         output = TransactionOutput(change_address, base_coin)
 
         # iteratively add tokens to output
@@ -801,15 +816,17 @@ class TransactionBuilder:
             TransactionWitnessSet: A transaction witness set without verification key witnesses.
         """
 
-        native_scripts = []
-        plutus_v1_scripts = []
-        plutus_v2_scripts = []
+        native_scripts: List[NativeScript] = []
+        plutus_v1_scripts: List[PlutusV1Script] = []
+        plutus_v2_scripts: List[PlutusV2Script] = []
 
         for script in self.scripts:
             if isinstance(script, NativeScript):
                 native_scripts.append(script)
-            elif isinstance(script, PlutusV1Script) or type(script) is bytes:
+            elif isinstance(script, PlutusV1Script):
                 plutus_v1_scripts.append(script)
+            elif type(script) is bytes:
+                plutus_v1_scripts.append(PlutusV1Script(script))
             elif isinstance(script, PlutusV2Script):
                 plutus_v2_scripts.append(script)
             else:
@@ -944,11 +961,15 @@ class TransactionBuilder:
                         additional_utxo_pool.append(utxo)
                         additional_amount += utxo.output.amount
 
-            for i, selector in enumerate(self.utxo_selectors):
+            for index, selector in enumerate(self.utxo_selectors):
                 try:
                     selected, _ = selector.select(
                         additional_utxo_pool,
-                        [TransactionOutput(None, unfulfilled_amount)],
+                        [
+                            TransactionOutput(
+                                Address(FAKE_VKEY.hash()), unfulfilled_amount
+                            )
+                        ],
                         self.context,
                         include_max_fee=False,
                         respect_min_utxo=not can_merge_change,
@@ -960,7 +981,7 @@ class TransactionBuilder:
                     break
 
                 except UTxOSelectionException as e:
-                    if i < len(self.utxo_selectors) - 1:
+                    if index < len(self.utxo_selectors) - 1:
                         logger.info(e)
                         logger.info(f"{selector} failed. Trying next selector.")
                     else:
@@ -1007,7 +1028,7 @@ class TransactionBuilder:
 
         return tx_body
 
-    def _set_collateral_return(self, collateral_return_address: Address):
+    def _set_collateral_return(self, collateral_return_address: Optional[Address]):
         """Calculate and set the change returned from the collateral inputs.
 
         Args:
@@ -1090,7 +1111,7 @@ class TransactionBuilder:
     def _update_execution_units(
         self,
         change_address: Optional[Address] = None,
-        merge_change: bool = False,
+        merge_change: Optional[bool] = False,
         collateral_change_address: Optional[Address] = None,
     ):
         if self._should_estimate_execution_units:
@@ -1099,7 +1120,10 @@ class TransactionBuilder:
             )
             for r in self.redeemers:
                 key = f"{r.tag.name.lower()}:{r.index}"
-                if key not in estimated_execution_units:
+                if (
+                    key not in estimated_execution_units
+                    or estimated_execution_units[key] is None
+                ):
                     raise TransactionBuilderException(
                         f"Cannot find execution unit for redeemer: {r} "
                         f"in estimated execution units: {estimated_execution_units}"
@@ -1115,9 +1139,9 @@ class TransactionBuilder:
     def _estimate_execution_units(
         self,
         change_address: Optional[Address] = None,
-        merge_change: bool = False,
+        merge_change: Optional[bool] = False,
         collateral_change_address: Optional[Address] = None,
-    ):
+    ) -> Dict[str, ExecutionUnits]:
         # Create a deep copy of current builder, so we won't mess up current builder's internal states
         tmp_builder = TransactionBuilder(self.context)
         for f in fields(self):
