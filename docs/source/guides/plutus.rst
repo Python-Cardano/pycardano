@@ -131,12 +131,13 @@ Create script address::
     ...     TransactionBuilder,
     ...     PlutusData,
     ...     Redeemer,
+    ...     PlutusV2Script,
     ... )
 
     >>> # This artifact was generated in step 2
     >>> with open("gift/script.cbor", "r") as f:
     >>>     script_hex = f.read()
-    >>> gift_script = bytes.fromhex(script_hex)
+    >>> gift_script = PlutusV2Script(bytes.fromhex(script_hex))
 
     >>> script_hash = plutus_script_hash(gift_script)
     >>> script_address = Address(script_hash, network=network)
