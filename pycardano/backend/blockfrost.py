@@ -56,7 +56,7 @@ class BlockFrostChainContext(ChainContext):
         self._base_url = (
             base_url
             if base_url
-            else ApiUrls.testnet.value
+            else ApiUrls.preprod.value
             if self.network == Network.TESTNET
             else ApiUrls.mainnet.value
         )
