@@ -70,14 +70,51 @@ Similarly, redeemer can be serialized like following::
 Example - FortyTwo
 ------------------
 
-We demonstrate how these concepts come into play using a simple example from PPP - FortyTwo. The original script in haskell can be found here `here <https://github.com/input-output-hk/plutus-pioneer-program/blob/28559d379df8b66c06d8fbd1e2a43f6a8351382a/code/week02/src/Week02/Typed.hs>`_. Using PyCardano, we will show one can send and lock funds at a script address, and how someone else with the correct redeemer value can unlock and receive the funds.
+We demonstrate how these concepts come into play using a simple example from `eopsin <https://github.com/ImperatorLang/eopsin>`_.
+A user can lock funds together with a public key hash.
+The contract will make sure that only the owner of the matching private key can redeem the gift.
+
+We will first compile the contract locally. For this, you will need to have installed python3.8.
 
 Step 1
 
+Open a file called ``gift.py`` and fill it with the following code:::
+
+    from eopsin.prelude import *
+
+    @dataclass()
+    class CancelDatum(PlutusData):
+        pubkeyhash: bytes
+
+
+    def validator(datum: CancelDatum, redeemer: None, context: ScriptContext) -> None:
+        sig_present = False
+        for s in context.tx_info.signatories:
+            if datum.pubkeyhash == s:
+                sig_present = True
+        assert sig_present
+
+
+Step 2
+
+Install the python packages ``eopsin-lang`` and ``pyaiken``. We can then build the contract.
+
+.. code:: bash
+
+    $ python3.8 -m venv venv
+    $ source venv/bin/activate
+    $ pip install eopsin-lang
+    $ eopsin build gift.py
+
+This is it! You will now find all relevant artifacts for proceeding in the folder ``gift/``.
+
+Step 3
+
+Back into the python console.
 Similar to `Transaction guide <../guides/transaction.html>`_, we build a chain context using `BlockFrostChainContext <../api/pycardano.backend.base.html#pycardano.backend.blockfrost.BlockFrostChainContext>`_::
 
     >>> from pycardano import BlockFrostChainContext, Network
-    >>> network = Network.TESTNET
+    >>> network = Network.PREPROD
     >>> context = BlockFrostChainContext("your_blockfrost_project_id", network)
 
 Step 2
@@ -94,53 +131,60 @@ Create script address::
     ...     TransactionBuilder,
     ...     PlutusData,
     ...     Redeemer,
+    ...     PlutusV2Script,
     ... )
 
-    >>> # Assuming the hexadecimal file of the script exists at your local path
-    >>> with open("path/to/fortytwo.plutus", "r") as f:
+    >>> # This artifact was generated in step 2
+    >>> with open("gift/script.cbor", "r") as f:
     >>>     script_hex = f.read()
-    >>>     forty_two_script = cbor2.loads(bytes.fromhex(script_hex))
+    >>> gift_script = PlutusV2Script(bytes.fromhex(script_hex))
 
-    >>> script_hash = plutus_script_hash(forty_two_script)
+    >>> script_hash = plutus_script_hash(gift_script)
     >>> script_address = Address(script_hash, network=network)
 
 Step 3
 
-Giver/Locker sends funds to script address::
+Giver/Locker sends funds to script address.
+We will attach the public key hash of a receiver address as datum to the utxo.
+Note that we will just use the datatype defined in the contract, as it also uses ``PlutusData``.
+
+::
 
     >>> payment_vkey = PaymentVerificationKey.load("path/to/payment.vkey")
     >>> payment_skey = PaymentSigningKey.load("path/to/payment.skey")
     >>> giver_address = Address(payment_vkey.hash(), network=network)
 
+    >>> payment_vkey_2 = PaymentVerificationKey.load("path/to/payment2.vkey")
+    >>> payment_skey_2 = PaymentSigningKey.load("path/to/payment2.skey")
+    >>> taker_address = Address(payment_vkey_2.hash(), network=network)
+
     >>> builder = TransactionBuilder(context)
     >>> builder.add_input_address(giver_address)
 
-    >>> datum = PlutusData()  # A Unit type "()" in Haskell
+    >>> from gift import CancelDatum
+    >>> datum = CancelDatum(payment_vkey_2.hash().to_primitive())
     >>> builder.add_output(
     >>>     TransactionOutput(script_address, 50000000, datum_hash=datum_hash(datum))
     >>> )
 
 Build, sign and submit the transaction:
 
-    >>> signed_tx = builder.build_and_sign([payment_skey], giver_address)
-    >>> context.submit_tx(signed_tx.to_cbor())
+   >>> signed_tx = builder.build_and_sign([payment_skey], giver_address)
+   >>> context.submit_tx(signed_tx.to_cbor())
 
 Step 4
 
-Taker/Unlocker sends transaction to consume funds. Here we specify the redeemer tag as spend and pass in the redeemer value of 42. If the redeemer value is anything else, the validator will fail and funds won't be retrieved::
+Taker/Unlocker sends transaction to consume funds. Here we specify the redeemer tag as spend and pass in no special redeemer, as it is being ignored by the contract.::
 
-    >>> redeemer = Redeemer(RedeemerTag.SPEND, 42)
+    >>> redeemer = Redeemer(RedeemerTag.SPEND, PlutusData())  # The plutus equivalent of None
 
     >>> utxo_to_spend = context.utxos(str(script_address))[0]
-    >>> extended_payment_vkey = PaymentVerificationKey.load("path/to/extended_payment.vkey")
-    >>> extended_payment_skey = PaymentSigningKey.load("path/to/extended_payment.skey")
-    >>> taker_address = Address(extended_payment_vkey.hash(), network=network)
 
     >>> builder = TransactionBuilder(context)
 
 Add info on the UTxO to spend, Plutus script, actual datum and the redeemer. Specify funds amount to take::
 
-    >>> builder.add_script_input(utxo_to_spend, forty_two_script, datum, redeemer)
+    >>> builder.add_script_input(utxo_to_spend, gift_script, datum, redeemer)
     >>> take_output = TransactionOutput(taker_address, 25123456)
     >>> builder.add_output(take_output)
 
@@ -157,7 +201,17 @@ Taker/Unlocker provides collateral. Collateral has been introduced in Alonzo tra
 
     >>> signed_tx = builder.build_and_sign([self.extended_payment_skey], taker_address)
 
-    >>> chain_context.submit_tx(signed_tx.to_cbor())
+
+Uh oh! That failed. We forgot to add the taker as a `required` signer, so that the contract knows
+that they will sign the transaction::
+
+    >>> builder.required_signers = [payment_vkey_2.hash()]
+
+Now lets try to resubmit this::
+
+    >>> signed_tx = builder.build_and_sign([self.extended_payment_skey], taker_address)
+
+    >>> context.submit_tx(signed_tx.to_cbor())
 
 The funds locked in script address is successfully retrieved to the taker address.
 
@@ -183,7 +237,7 @@ Using the same FortyTwo example, now in Vasil, we show how reference scripts can
     >>> datum = 42
     >>> # Include scripts in the script address
     >>> builder.add_output(
-    >>>     TransactionOutput(script_address, 50000000, script=forty_two_script)
+    >>>     TransactionOutput(script_address, 50000000, script=gift_script)
     >>> )
 
 With reference script, actual script doesn't need to be included in the transaction anymore in order to spend UTxO sitting at script address::
@@ -210,7 +264,7 @@ Again, with the same example, we show that you can send funds to script address 
     >>> builder.add_input_address(giver_address)
     >>> datum = 42
     >>> builder.add_output(
-    >>>     TransactionOutput(script_address, 50000000, datum=datum, script=forty_two_script)
+    >>>     TransactionOutput(script_address, 50000000, datum=datum, script=gift_script)
     >>> )
 
 With inline datum, we no longer have to include a datum within our transaction for our plutus spending scripts. Instead we can specify the transaction output where our datum exists to be used in conjunction with our Plutus spending script. This reduces the overall size of our transaction::
