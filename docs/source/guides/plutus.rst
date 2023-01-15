@@ -103,8 +103,8 @@ Install the python packages ``eopsin-lang`` and ``pyaiken``. We can then build t
 
     $ python3.8 -m venv venv
     $ source venv/bin/activate
-    $ pip install eopsin-lang pyaiken
-    $ python3 -m eopsin build gift.py
+    $ pip install eopsin-lang
+    $ eopsin build gift.py
 
 This is it! You will now find all relevant artifacts for proceeding in the folder ``gift/``.
 
@@ -200,8 +200,6 @@ Taker/Unlocker provides collateral. Collateral has been introduced in Alonzo tra
     >>> builder.collaterals.append(non_nft_utxo)
 
     >>> signed_tx = builder.build_and_sign([self.extended_payment_skey], taker_address)
-
-    >>> context.submit_tx(signed_tx.to_cbor())
 
 
 Uh oh! That failed. We forgot to add the taker as a `required` signer, so that the contract knows
