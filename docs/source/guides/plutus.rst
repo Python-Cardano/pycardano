@@ -66,9 +66,9 @@ Similarly, redeemer can be serialized like following::
     >>> redeemer.to_cbor()
     '840000d8668218829f187b433233349fffa2014131024132ff821a000f42401a000f4240'
 
-------------------
-Example - FortyTwo
-------------------
+-----------------------
+Example - Gift Contract
+-----------------------
 
 We demonstrate how these concepts come into play using a simple example from `eopsin <https://github.com/ImperatorLang/eopsin>`_.
 A user can lock funds together with a public key hash.
