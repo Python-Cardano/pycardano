@@ -97,7 +97,7 @@ Open a file called ``gift.py`` and fill it with the following code:::
 
 Step 2
 
-Install the python packages ``eopsin-lang`` and ``pyaiken``. We can then build the contract.
+Install the python package ``eopsin-lang``. We can then build the contract.
 
 .. code:: bash
 
