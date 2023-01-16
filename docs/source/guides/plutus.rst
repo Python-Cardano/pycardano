@@ -1,10 +1,14 @@
-======
-Plutus
-======
+===============
+Smart Contracts
+===============
 
-Plutus is the native language to write smart contract on Cardano's extended UTxO model (EUTxO). It allows us to incorporate expressive logics to determine when a particular UTxO can be spent.
-To learn more about EUTxO and its advantages, you can refer to the `Cardano docs <https://docs.cardano.org/plutus/eutxo-explainer>`_ or the `class notes <https://plutus-pioneer-program.readthedocs.io/en/latest/pioneer/week1.html>`_ from Plutus pioneer program (PPP).
-To learn how Plutus enables logic creation, we need to understand a couple key concepts:
+Smart Contracts on Cardano allow us to incorporate expressive logics to determine when a particular UTxO can be spent.
+The official language to write Contracts is Plutus, which is why we will often refer to "Plutus Scripts" and "Plutus binarys".
+However, many `many different languages <https://aiken-lang.org/ecosystem-overview#the-alternatives>` are emerging
+that aim to make the development of contracts more accesible.
+In this tutorial, we will focus on `eopsin <https://github.com/ImperatorLang/eopsin>`,
+a Smart Contract language based on python.
+In order to understand how Smart Contracts work on Cardanos eUTxO model we need to understand a couple of concepts.
 
 * **Plutus script**: the smart contract that acts as the validator of the transaction. By evaluating the inputs from someone who wants to spend the UTxO, they either approve or deny it (by returning either True or False). The script is compiled into Plutus Core binary and sits on-chain.
 * **Script address**: the hash of the Plutus script binary. They hold UTxOs like typical public key address, but every time a transaction tries to consume the UTxOs on this address, the Plutus script generated this address will be executed by evaluating the input of the transaction, namely datum, redeemer and script context. The transaction is only valid if the script returns True.
