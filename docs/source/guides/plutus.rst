@@ -4,9 +4,9 @@ Smart Contracts
 
 Smart Contracts on Cardano allow us to incorporate expressive logics to determine when a particular UTxO can be spent.
 The official language to write Contracts is Plutus, which is why we will often refer to "Plutus Scripts" and "Plutus binarys".
-However, many `many different languages <https://aiken-lang.org/ecosystem-overview#the-alternatives>` are emerging
+However, many `many different languages <https://aiken-lang.org/ecosystem-overview#the-alternatives>`_ are emerging
 that aim to make the development of contracts more accesible.
-In this tutorial, we will focus on `eopsin <https://github.com/ImperatorLang/eopsin>`,
+In this tutorial, we will focus on  `eopsin <https://github.com/ImperatorLang/eopsin>`_,
 a Smart Contract language based on python.
 In order to understand how Smart Contracts work on Cardanos eUTxO model we need to understand a couple of concepts.
 
