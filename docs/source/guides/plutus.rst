@@ -118,7 +118,7 @@ Back into the python console.
 Similar to `Transaction guide <../guides/transaction.html>`_, we build a chain context using `BlockFrostChainContext <../api/pycardano.backend.base.html#pycardano.backend.blockfrost.BlockFrostChainContext>`_::
 
     >>> from pycardano import BlockFrostChainContext, Network
-    >>> network = Network.PREPROD
+    >>> network = Network.TESTNET
     >>> context = BlockFrostChainContext("your_blockfrost_project_id", network)
 
 Step 2
