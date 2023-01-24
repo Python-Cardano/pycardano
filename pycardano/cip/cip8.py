@@ -13,6 +13,8 @@ from pycardano.address import Address
 from pycardano.key import (
     PaymentVerificationKey,
     SigningKey,
+    StakeExtendedSigningKey,
+    StakeSigningKey,
     StakeVerificationKey,
     VerificationKey,
 )
@@ -27,7 +29,9 @@ def sign(
     attach_cose_key: bool = False,
     network: Network = Network.MAINNET,
 ) -> Union[str, dict]:
-    """Sign an arbitrary message with a payment key following CIP-0008.
+    """Sign an arbitrary message with a payment or stake key following CIP-0008.
+    Note that a stake key passed in must be of type StakeSigningKey or
+    StakeExtendedSigningKey to be detected.
 
     Args:
         message (str): Message to be signed
@@ -43,11 +47,22 @@ def sign(
     # derive the verification key
     verification_key = VerificationKey.from_signing_key(signing_key)
 
+    if isinstance(signing_key, StakeSigningKey) or isinstance(
+        signing_key, StakeExtendedSigningKey
+    ):
+        address = Address(
+            payment_part=None, staking_part=verification_key.hash(), network=network
+        )
+    else:
+        address = Address(
+            payment_part=verification_key.hash(), staking_part=None, network=network
+        )
+
     # create the message object, attach verification key to the header
     msg = Sign1Message(
         phdr={
             Algorithm: EdDSA,
-            "address": Address(verification_key.hash(), network=network).to_primitive(),
+            "address": address.to_primitive(),
         },
         payload=message.encode("utf-8"),
     )
