@@ -1,5 +1,10 @@
 from pycardano.cip.cip8 import sign, verify
-from pycardano.key import PaymentSigningKey, PaymentVerificationKey
+from pycardano.key import (
+    PaymentSigningKey,
+    PaymentVerificationKey,
+    StakeSigningKey,
+    StakeVerificationKey,
+)
 from pycardano.network import Network
 
 SK = PaymentSigningKey.from_json(
@@ -15,6 +20,22 @@ VK = PaymentVerificationKey.from_json(
         "type": "GenesisUTxOVerificationKey_ed25519",
         "description": "Genesis Initial UTxO Verification Key",
         "cborHex": "58208be8339e9f3addfa6810d59e2f072f85e64d4c024c087e0d24f8317c6544f62f"
+    }"""
+)
+
+STAKE_SK = StakeSigningKey.from_json(
+    """{
+        "type": "StakeSigningKeyShelley_ed25519",
+        "description": "Stake Signing Key",
+        "cborHex": "5820ff3a330df8859e4e5f42a97fcaee73f6a00d0cf864f4bca902bd106d423f02c0"
+    }"""
+)
+
+STAKE_VK = StakeVerificationKey.from_json(
+    """{
+        "type": "StakeVerificationKeyShelley_ed25519",
+        "description": "Stake Verification Key",
+        "cborHex": "58205edaa384c658c2bd8945ae389edac0a5bd452d0cfd5d1245e3ecd540030d1e3c"
     }"""
 )
 
@@ -75,6 +96,18 @@ def test_sign_message():
     )
 
 
+def test_sign_message_with_stake():
+
+    message = "Pycardano is cool."
+    signed_message = sign(
+        message, signing_key=STAKE_SK, attach_cose_key=False, network=Network.TESTNET
+    )
+    assert (
+        signed_message
+        == "84584da301276761646472657373581de04828a2dadba97ca9fd0cdc99975899470c219bdc0d828cfa6ddf6d690458205edaa384c658c2bd8945ae389edac0a5bd452d0cfd5d1245e3ecd540030d1e3ca166686173686564f452507963617264616e6f20697320636f6f6c2e5840ba1dd643f0d2e844f0509b1a7161ae4a3650f1d553fcc6e517020c5703acb70dfeea1014f2a1513baefaa2279cb151e8ff2dada6b51269cf33127d3c05829502"
+    )
+
+
 def test_sign_message_cosy_key_separate():
 
     message = "Pycardano is cool."
@@ -109,3 +142,29 @@ def test_sign_and_verify():
     assert verification["verified"]
     assert verification["message"] == "Pycardano is cool."
     assert verification["signing_address"].payment_part == VK.hash()
+
+
+def test_sign_and_verify_stake():
+
+    # try first with no cose key attached
+    message = "Pycardano is cool."
+    signed_message = sign(
+        message, signing_key=STAKE_SK, attach_cose_key=False, network=Network.TESTNET
+    )
+
+    verification = verify(signed_message)
+    assert verification["verified"]
+    assert verification["message"] == "Pycardano is cool."
+    assert verification["signing_address"].payment_part == None
+    assert verification["signing_address"].staking_part == STAKE_VK.hash()
+
+    # try again but attach cose key
+    signed_message = sign(
+        message, signing_key=STAKE_SK, attach_cose_key=True, network=Network.TESTNET
+    )
+
+    verification = verify(signed_message)
+    assert verification["verified"]
+    assert verification["message"] == "Pycardano is cool."
+    assert verification["signing_address"].payment_part == None
+    assert verification["signing_address"].staking_part == STAKE_VK.hash()
