@@ -1,6 +1,7 @@
 import os
 import tempfile
 import time
+import warnings
 from typing import Dict, List, Optional, Union
 
 import cbor2
@@ -40,6 +41,7 @@ class BlockFrostChainContext(ChainContext):
     Args:
         project_id (str): A BlockFrost project ID obtained from https://blockfrost.io.
         network (Network): Network to use.
+        base_url (str): Base URL for the BlockFrost API. Defaults to the preprod url.
     """
 
     api: BlockFrostApi
@@ -49,9 +51,19 @@ class BlockFrostChainContext(ChainContext):
     _protocol_param: Optional[ProtocolParameters] = None
 
     def __init__(
-        self, project_id: str, network: Network = Network.TESTNET, base_url: str = ""
+        self,
+        project_id: str,
+        network: Optional[Network] = None,
+        base_url: str = ApiUrls.preprod.value,
     ):
-        self._network = network
+        if network is not None:
+            warnings.warn(
+                "`network` argument will be deprecated in the future. Directly passing `base_url` is recommended."
+            )
+            self._network = network
+        else:
+            self._network = Network.TESTNET
+
         self._project_id = project_id
         self._base_url = (
             base_url
