@@ -8,6 +8,7 @@ Off-chain code of taker and giver in fortytwo.
 import os
 
 import cbor2
+from blockfrost import ApiUrls
 from retry import retry
 
 from pycardano import *
@@ -27,8 +28,7 @@ payment_vkey = PaymentVerificationKey.from_signing_key(payment_skey)
 
 chain_context = BlockFrostChainContext(
     project_id=get_env_val("BLOCKFROST_ID"),
-    network=NETWORK,
-    base_url="https://cardano-preview.blockfrost.io/api",
+    base_url=ApiUrls.preprod.value,
 )
 
 

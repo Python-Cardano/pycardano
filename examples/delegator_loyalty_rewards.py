@@ -41,7 +41,7 @@ print(
 )
 
 # Create a BlockFrost chain context
-context = BlockFrostChainContext(BLOCK_FROST_PROJECT_ID, network)
+context = BlockFrostChainContext(BLOCK_FROST_PROJECT_ID, base_url=ApiUrls.mainnet.value)
 
 api = BlockFrostApi(BLOCK_FROST_PROJECT_ID, ApiUrls.mainnet.value)
 

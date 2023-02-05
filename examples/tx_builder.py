@@ -1,4 +1,5 @@
 """Build a transaction using transaction builder"""
+from blockfrost import ApiUrls
 
 from pycardano import *
 
@@ -17,8 +18,10 @@ svk = StakeVerificationKey.from_signing_key(ssk)
 # Derive an address from payment verification key and stake verification key
 address = Address(pvk.hash(), svk.hash(), network)
 
-# Create a BlockFrost chain context
-context = BlockFrostChainContext("your_blockfrost_project_id", network)
+# Create a BlockFrost chain context. In this example, we will use preprod network.
+context = BlockFrostChainContext(
+    "your_blockfrost_project_id", base_url=ApiUrls.preprod.value
+)
 
 # Create a transaction builder
 builder = TransactionBuilder(context)
