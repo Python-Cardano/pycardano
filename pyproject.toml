@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pycardano"
-version = "0.7.2"
+version = "0.7.3"
 classifiers = [
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
@@ -10,9 +10,10 @@ classifiers = [
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
 ]
 description = "A Cardano library in Python"
-homepage = "https://github.com/cffls/pycardano"
+homepage = "https://github.com/Python-Cardano/pycardano"
 documentation = "https://pycardano.readthedocs.io/en/latest/"
 keywords = ["python", "cardano", "blockchain", "crypto"]
 authors = ["Jerry <jerrycgh@gmail.com>"]

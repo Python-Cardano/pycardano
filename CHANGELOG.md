@@ -4,6 +4,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.7.3] - 2023-02-05
+
+**Implemented enhancements:**
+
+- CIP-0008: Allow for signing with stake key directly [\#154](https://github.com/Python-Cardano/pycardano/pull/154) ([thaddeusdiamond](https://github.com/thaddeusdiamond))
+- Generalize the "plutus" section and introduce alternative languages [\#145](https://github.com/Python-Cardano/pycardano/pull/145) ([nielstron](https://github.com/nielstron))
+- Switch the Plutus introduction to eopsin [\#144](https://github.com/Python-Cardano/pycardano/pull/144) ([nielstron](https://github.com/nielstron))
+- Fix static typing [\#139](https://github.com/Python-Cardano/pycardano/pull/139) ([cffls](https://github.com/cffls))
+
+**Fixed bugs:**
+
+- Default to preprod testnet with blockfrost [\#143](https://github.com/Python-Cardano/pycardano/pull/143) ([nielstron](https://github.com/nielstron))
+
+**Closed issues:**
+
+- Docs for adding arbitrary datum value to .add\_output method [\#116](https://github.com/Python-Cardano/pycardano/issues/116)
+
+**Merged pull requests:**
+
+- Fix typo in documentation pointing to Network.PREPROD [\#152](https://github.com/Python-Cardano/pycardano/pull/152) ([nielstron](https://github.com/nielstron))
+- Bump pytest from 7.2.0 to 7.2.1 [\#150](https://github.com/Python-Cardano/pycardano/pull/150) ([dependabot[bot]](https://github.com/apps/dependabot))
+- Fix typo that broke link formatting in the plutus introduction [\#149](https://github.com/Python-Cardano/pycardano/pull/149) ([nielstron](https://github.com/nielstron))
+- Remove mention of pyaiken in plutus docs [\#147](https://github.com/Python-Cardano/pycardano/pull/147) ([nielstron](https://github.com/nielstron))
+- Rename plutus sample contract name to correct "Gift contract" [\#146](https://github.com/Python-Cardano/pycardano/pull/146) ([nielstron](https://github.com/nielstron))
+- Bump isort from 5.10.1 to 5.11.4 [\#142](https://github.com/Python-Cardano/pycardano/pull/142) ([dependabot[bot]](https://github.com/apps/dependabot))
+- Bump mypy from 0.990 to 0.991 [\#133](https://github.com/Python-Cardano/pycardano/pull/133) ([dependabot[bot]](https://github.com/apps/dependabot))
+
+
 ## [0.7.2] - 2022-12-03
 
 **Implemented enhancements:**
