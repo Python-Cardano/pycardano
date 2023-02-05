@@ -76,6 +76,7 @@ To learn more details, go to the [DApp page](https://github.com/cffls/pycardano/
 ```python
 """Build a transaction using transaction builder"""
 
+from blockfrost import ApiUrls
 from pycardano import *
 
 # Use testnet
@@ -94,7 +95,7 @@ svk = StakeVerificationKey.from_signing_key(ssk)
 address = Address(pvk.hash(), svk.hash(), network)
 
 # Create a BlockFrost chain context
-context = BlockFrostChainContext("your_blockfrost_project_id", network)
+context = BlockFrostChainContext("your_blockfrost_project_id", base_url=ApiUrls.preprod.value)
 
 # Create a transaction builder
 builder = TransactionBuilder(context)
