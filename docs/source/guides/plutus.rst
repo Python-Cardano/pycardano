@@ -117,9 +117,9 @@ Step 3
 Back into the python console.
 Similar to `Transaction guide <../guides/transaction.html>`_, we build a chain context using `BlockFrostChainContext <../api/pycardano.backend.base.html#pycardano.backend.blockfrost.BlockFrostChainContext>`_::
 
-    >>> from pycardano import BlockFrostChainContext, Network
-    >>> network = Network.TESTNET
-    >>> context = BlockFrostChainContext("your_blockfrost_project_id", network)
+    >>> from blockfrost import ApiUrls
+    >>> from pycardano import BlockFrostChainContext
+    >>> context = BlockFrostChainContext("your_blockfrost_project_id", base_url=ApiUrls.preprod.value)
 
 Step 2
 
@@ -136,6 +136,7 @@ Create script address::
     ...     PlutusData,
     ...     Redeemer,
     ...     PlutusV2Script,
+    ...     Network,
     ... )
 
     >>> # This artifact was generated in step 2
@@ -144,6 +145,7 @@ Create script address::
     >>> gift_script = PlutusV2Script(bytes.fromhex(script_hex))
 
     >>> script_hash = plutus_script_hash(gift_script)
+    >>> network = Network.TESTNET
     >>> script_address = Address(script_hash, network=network)
 
 Step 3
