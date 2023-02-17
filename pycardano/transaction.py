@@ -388,6 +388,8 @@ class TransactionOutput(CBORSerializable):
     post_alonzo: Optional[bool] = False
 
     def __post_init__(self):
+        if isinstance(self.address, str):
+            self.address = Address.from_primitive(self.address)
         if isinstance(self.amount, int):
             self.amount = Value(self.amount)
 

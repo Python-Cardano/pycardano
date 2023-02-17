@@ -44,6 +44,16 @@ def test_transaction_output():
     check_two_way_cbor(output)
 
 
+def test_transaction_output_str_address():
+    addr = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    output = TransactionOutput(addr, 100000000000)
+    assert (
+        output.to_cbor()
+        == "82581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f41b000000174876e800"
+    )
+    check_two_way_cbor(output)
+
+
 def test_transaction_output_inline_datum():
     addr = Address.decode(
         "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
