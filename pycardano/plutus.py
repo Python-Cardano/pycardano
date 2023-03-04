@@ -589,6 +589,25 @@ class PlutusData(ArrayCBORSerializable):
                                 raise DeserializeException(
                                     f"Unexpected data structure: {f}."
                                 )
+                        elif (
+                                hasattr(f_info.type, "__origin__")
+                                and f_info.type.__origin__ is list
+                        ):
+                            t_args = f_info.type.__args__
+                            if len(t_args) != 1:
+                                raise DeserializeException(
+                                    f"List types need exactly one type argument, but got {t_args}"
+                                )
+                            if "list" not in f:
+                                raise DeserializeException(f"Expected type \"list\" for constructor List but got {f}")
+                            t = t_args[0]
+                            if (
+                                    inspect.isclass(t)
+                                    and issubclass(t, PlutusData)
+                            ):
+                                converted_fields.append(t.from_dict(f))
+                            else:
+                                converted_fields.append(_dfs(f))
                         else:
                             converted_fields.append(_dfs(f))
                     return cls(*converted_fields)
