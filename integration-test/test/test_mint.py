@@ -215,7 +215,7 @@ class TestMint(TestBase):
 
         # Add minting script with an empty datum and a minting redeemer
         builder.add_minting_script(
-            forty_two_script, redeemer=Redeemer(RedeemerTag.MINT, 42)
+            forty_two_script, redeemer=Redeemer(42)
         )
 
         # Set nft we want to mint
@@ -311,7 +311,7 @@ class TestMint(TestBase):
 
         # Add minting script with an empty datum and a minting redeemer
         builder.add_minting_script(
-            anymint_script, redeemer=Redeemer(RedeemerTag.MINT, MyPlutusData(a=42))
+            anymint_script, redeemer=Redeemer(MyPlutusData(a=42))
         )
 
         # Set nft we want to mint

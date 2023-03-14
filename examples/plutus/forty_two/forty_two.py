@@ -94,7 +94,7 @@ taker_address = giver_address
 # Notice that transaction builder will automatically estimate execution units (num steps & memory) for a redeemer if
 # no execution units are provided in the constructor of Redeemer.
 # Put integer 42 (the secret that unlocks the fund) in the redeemer.
-redeemer = Redeemer(RedeemerTag.SPEND, 42)
+redeemer = Redeemer(42)
 
 utxo_to_spend = None
 for utxo in chain_context.utxos(str(script_address)):

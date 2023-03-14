@@ -226,6 +226,12 @@ class TransactionBuilder:
             self.datums[datum_hash(datum)] = datum
 
         if redeemer:
+            if redeemer.tag is not None and redeemer.tag != RedeemerTag.SPEND:
+                raise InvalidArgumentException(
+                    f"Expect the redeemer tag's type to be {RedeemerTag.SPEND}, "
+                    f"but got {redeemer.tag} instead."
+                )
+            redeemer.tag = RedeemerTag.SPEND
             self._consolidate_redeemer(redeemer)
             self._inputs_to_redeemers[utxo] = redeemer
 
@@ -266,11 +272,12 @@ class TransactionBuilder:
             TransactionBuilder: Current transaction builder.
         """
         if redeemer:
-            if redeemer.tag != RedeemerTag.MINT:
+            if redeemer.tag is not None and redeemer.tag != RedeemerTag.MINT:
                 raise InvalidArgumentException(
                     f"Expect the redeemer tag's type to be {RedeemerTag.MINT}, "
                     f"but got {redeemer.tag} instead."
                 )
+            redeemer.tag = RedeemerTag.MINT
             self._consolidate_redeemer(redeemer)
 
         if isinstance(script, UTxO):
