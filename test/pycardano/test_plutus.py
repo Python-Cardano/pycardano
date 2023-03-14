@@ -1,6 +1,8 @@
-from dataclasses import dataclass, field
+import unittest
+
+from dataclasses import dataclass
 from test.pycardano.util import check_two_way_cbor
-from typing import Union, Optional
+from typing import Union, List
 
 import pytest
 
@@ -40,6 +42,11 @@ class LargestTest(PlutusData):
 
 
 @dataclass
+class ListTest(PlutusData):
+    a: List[LargestTest]
+
+
+@dataclass
 class VestingParam(PlutusData):
     CONSTR_ID = 1
 
@@ -72,6 +79,19 @@ def test_plutus_data():
     check_two_way_cbor(my_vesting)
 
 
+@unittest.skip(
+    "From CBOR is generally not correctly implemented for tags > 7, so this test fails"
+)
+def test_plutus_data_list_cbor():
+    test = ListTest([LargestTest(), LargestTest()])
+
+    encoded_cbor = test.to_cbor()
+
+    assert "d8799f82d9050280d9050280ff" == encoded_cbor
+
+    assert test == ListTest.from_cbor(encoded_cbor)
+
+
 def test_plutus_data_json():
     key_hash = bytes.fromhex("c2ff616e11299d9094ce0a7eb5b7284b705147a822f4ffbd471f971a")
     deadline = 1643235300000
@@ -93,6 +113,19 @@ def test_plutus_data_json():
     )
 
     assert my_vesting == VestingParam.from_json(encoded_json)
+
+
+def test_plutus_data_list_json():
+    test = ListTest([LargestTest(), LargestTest()])
+
+    encoded_json = test.to_json(separators=(",", ":"))
+
+    assert (
+        '{"constructor":0,"fields":[[{"constructor":9,"fields":[]},{"constructor":9,"fields":[]}]]}'
+        == encoded_json
+    )
+
+    assert test == ListTest.from_json(encoded_json)
 
 
 def test_plutus_data_to_json_wrong_type():
