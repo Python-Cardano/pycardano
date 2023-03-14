@@ -869,6 +869,8 @@ class TransactionBuilder:
         change_address: Optional[Address] = None,
         merge_change: Optional[bool] = False,
         collateral_change_address: Optional[Address] = None,
+        auto_validity = True,
+        auto_required_signers=True,
     ) -> TransactionBody:
         """Build a transaction body from all constraints set through the builder.
 
@@ -878,11 +880,27 @@ class TransactionBuilder:
             merge_change (Optional[bool]): If the change address match one of the transaction output, the change amount
                 will be directly added to that transaction output, instead of being added as a separate output.
             collateral_change_address (Optional[Address]): Address to which collateral changes will be returned.
+            auto_validity (Optional[bool]): Automatically set the validity interval of the transaction to a reasonable value
+            auto_required_signers (Optional[bool]): Automatically add all pubkeyhashes of transaction inputs to required signatories
 
         Returns:
             TransactionBody: A transaction body.
         """
         self._ensure_no_input_exclusion_conflict()
+
+        if auto_validity:
+            # Automatically set the validity range to a tight value around transaction creation
+            last_slot = self.context.last_block_slot
+            if self.validity_start is None:
+                self.validity_start = last_slot - 1000
+            if self.ttl is None:
+                self.ttl = last_slot + 10000
+
+        if auto_required_signers:
+            # collect all signatories from explicitly defined transaction inputs and collateral inputs
+            required_signers = set(i.output.address.payment_part for i in self.inputs + self.collaterals)
+            self.required_signers = required_signers
+
         selected_utxos = []
         selected_amount = Value()
         for i in self.inputs:
