@@ -1,6 +1,8 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+import unittest
+
 from test.pycardano.util import check_two_way_cbor
-from typing import Union, Optional, Dict
+from typing import Union, Dict
 
 import pytest
 
@@ -113,6 +115,17 @@ def test_plutus_data_json_dict():
     )
 
     assert test == DictTest.from_json(encoded_json)
+
+
+@unittest.skip("Plutus tags not supported for cbor entirely right now")
+def test_plutus_data_cbor_dict():
+    test = DictTest({0: LargestTest(), 1: LargestTest()})
+
+    encoded_cbor = test.to_cbor()
+
+    assert "d87c9fa200d905028001d9050280ff" == encoded_cbor
+
+    assert test == DictTest.from_cbor(encoded_cbor)
 
 
 def test_plutus_data_to_json_wrong_type():
