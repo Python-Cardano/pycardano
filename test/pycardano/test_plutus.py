@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from test.pycardano.util import check_two_way_cbor
-from typing import Union, Optional
+from typing import Union, Optional, Dict
 
 import pytest
 
@@ -37,6 +37,13 @@ class BigTest(PlutusData):
 @dataclass
 class LargestTest(PlutusData):
     CONSTR_ID = 9
+
+
+@dataclass
+class DictTest(PlutusData):
+    CONSTR_ID = 3
+
+    a: Dict[int, LargestTest]
 
 
 @dataclass
@@ -93,6 +100,19 @@ def test_plutus_data_json():
     )
 
     assert my_vesting == VestingParam.from_json(encoded_json)
+
+
+def test_plutus_data_json_dict():
+    test = DictTest({0: LargestTest(), 1: LargestTest()})
+
+    encoded_json = test.to_json(separators=(",", ":"))
+
+    assert (
+        '{"constructor":3,"fields":[{"map":[{"v":{"constructor":9,"fields":[]},"k":{"int":0}},{"v":{"constructor":9,"fields":[]},"k":{"int":1}}]}]}'
+        == encoded_json
+    )
+
+    assert test == DictTest.from_json(encoded_json)
 
 
 def test_plutus_data_to_json_wrong_type():
