@@ -898,8 +898,8 @@ class TransactionBuilder:
 
         if auto_required_signers:
             # collect all signatories from explicitly defined transaction inputs and collateral inputs
-            required_signers = set(i.output.address.payment_part for i in self.inputs + self.collaterals)
-            self.required_signers = required_signers
+            required_signers = set(i.output.address.payment_part for i in self.inputs + self.collaterals if not isinstance(i.output.address.payment_part, ScriptHash))
+            self.required_signers = list(required_signers)
 
         selected_utxos = []
         selected_amount = Value()
