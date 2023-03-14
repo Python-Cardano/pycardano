@@ -697,7 +697,7 @@ class ExecutionUnits(ArrayCBORSerializable):
 
 @dataclass(repr=False)
 class Redeemer(ArrayCBORSerializable):
-    tag: RedeemerTag = field(default=RedeemerTag.SPEND, init=False)
+    tag: Optional[RedeemerTag] = field(default=None, init=False)
 
     index: int = field(default=0, init=False)
 
