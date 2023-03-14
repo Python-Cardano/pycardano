@@ -117,7 +117,6 @@ def test_plutus_data_json_dict():
     assert test == DictTest.from_json(encoded_json)
 
 
-@unittest.skip("Plutus tags not supported for cbor entirely right now")
 def test_plutus_data_cbor_dict():
     test = DictTest({0: LargestTest(), 1: LargestTest()})
 
