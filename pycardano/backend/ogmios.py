@@ -194,7 +194,7 @@ class OgmiosChainContext(ChainContext):
         result = self._query_genesis_config()
         system_start_unix = int(
             calendar.timegm(
-                time.strptime(result["systemStart"].split(".")[0], "%Y-%m-%dT%H:%M:%S"),
+                time.strptime(result["systemStart"].split(".")[0], "%Y-%m-%dT%H:%M:%S%z"),
             )
         )
         return GenesisParameters(
