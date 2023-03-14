@@ -90,7 +90,7 @@ class FixedChainContext(ChainContext):
         return 300
 
     @property
-    def slot(self) -> int:
+    def last_block_slot(self) -> int:
         """Current slot number"""
         return 2000
 
