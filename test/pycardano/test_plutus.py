@@ -79,9 +79,6 @@ def test_plutus_data():
     check_two_way_cbor(my_vesting)
 
 
-@unittest.skip(
-    "From CBOR is generally not correctly implemented for tags > 7, so this test fails"
-)
 def test_plutus_data_list_cbor():
     test = ListTest([LargestTest(), LargestTest()])
 

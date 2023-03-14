@@ -413,6 +413,17 @@ def _restore_dataclass_field(
         return f.metadata["object_hook"](v)
     elif isclass(f.type) and issubclass(f.type, CBORSerializable):
         return f.type.from_primitive(v)
+    elif hasattr(f.type, "__origin__") and (f.type.__origin__ is list):
+        t_args = f.type.__args__
+        if len(t_args) != 1:
+            raise DeserializeException(
+                f"List types need exactly one type argument, but got {t_args}"
+            )
+        t = t_args[0]
+        if isclass(t) and issubclass(t, CBORSerializable):
+            return IndefiniteList([t.from_primitive(w) for w in v])
+        else:
+            return IndefiniteList(v)
     elif isclass(f.type) and issubclass(f.type, IndefiniteList):
         return IndefiniteList(v)
     elif hasattr(f.type, "__origin__") and (
