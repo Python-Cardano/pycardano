@@ -880,8 +880,10 @@ class TransactionBuilder:
             merge_change (Optional[bool]): If the change address match one of the transaction output, the change amount
                 will be directly added to that transaction output, instead of being added as a separate output.
             collateral_change_address (Optional[Address]): Address to which collateral changes will be returned.
-            auto_validity (Optional[bool]): Automatically set the validity interval of the transaction to a reasonable value
-            auto_required_signers (Optional[bool]): Automatically add all pubkeyhashes of transaction inputs to required signatories
+            auto_validity (Optional[bool]): Automatically set the validity interval of the transaction to a
+                reasonable value
+            auto_required_signers (Optional[bool]): Automatically add all pubkeyhashes of transaction inputs
+                to required signatories
 
         Returns:
             TransactionBody: A transaction body.
@@ -902,6 +904,7 @@ class TransactionBuilder:
                 i.output.address.payment_part
                 for i in self.inputs + self.collaterals
                 if not isinstance(i.output.address.payment_part, ScriptHash)
+                and i.output.address.payment_part is not None
             )
             self.required_signers = list(required_signers)
 
@@ -1201,8 +1204,10 @@ class TransactionBuilder:
             merge_change (Optional[bool]): If the change address match one of the transaction output, the change amount
                 will be directly added to that transaction output, instead of being added as a separate output.
             collateral_change_address (Optional[Address]): Address to which collateral changes will be returned.
-            auto_validity (Optional[bool]): Automatically set the validity interval of the transaction to a reasonable value
-            auto_required_signers (Optional[bool]): Automatically add all pubkeyhashes of transaction inputs to required signatories
+            auto_validity (Optional[bool]): Automatically set the validity interval of the transaction to
+                a reasonable value
+            auto_required_signers (Optional[bool]): Automatically add all pubkeyhashes of transaction inputs
+                to required signatories
 
         Returns:
             Transaction: A signed transaction.
