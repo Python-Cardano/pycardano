@@ -869,8 +869,8 @@ class TransactionBuilder:
         change_address: Optional[Address] = None,
         merge_change: Optional[bool] = False,
         collateral_change_address: Optional[Address] = None,
-        auto_validity = True,
-        auto_required_signers=True,
+        auto_validity: Optional[bool] = True,
+        auto_required_signers: Optional[bool] = True,
     ) -> TransactionBody:
         """Build a transaction body from all constraints set through the builder.
 
@@ -1183,6 +1183,8 @@ class TransactionBuilder:
         change_address: Optional[Address] = None,
         merge_change: Optional[bool] = False,
         collateral_change_address: Optional[Address] = None,
+        auto_validity: Optional[bool] = True,
+        auto_required_signers: Optional[bool] = True,
     ) -> Transaction:
         """Build a transaction body from all constraints set through the builder and sign the transaction with
         provided signing keys.
@@ -1195,6 +1197,8 @@ class TransactionBuilder:
             merge_change (Optional[bool]): If the change address match one of the transaction output, the change amount
                 will be directly added to that transaction output, instead of being added as a separate output.
             collateral_change_address (Optional[Address]): Address to which collateral changes will be returned.
+            auto_validity (Optional[bool]): Automatically set the validity interval of the transaction to a reasonable value
+            auto_required_signers (Optional[bool]): Automatically add all pubkeyhashes of transaction inputs to required signatories
 
         Returns:
             Transaction: A signed transaction.
@@ -1204,6 +1208,8 @@ class TransactionBuilder:
             change_address=change_address,
             merge_change=merge_change,
             collateral_change_address=collateral_change_address,
+            auto_validity=auto_validity,
+            auto_required_signers=auto_required_signers,
         )
         witness_set = self.build_witness_set()
         witness_set.vkey_witnesses = []
