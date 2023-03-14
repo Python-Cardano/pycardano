@@ -1126,6 +1126,9 @@ class TransactionBuilder:
                 change_address, merge_change, collateral_change_address
             )
             for r in self.redeemers:
+                assert (
+                    r.tag is not None
+                ), "Expected tag of redeemer to be set, but found None"
                 key = f"{r.tag.name.lower()}:{r.index}"
                 if (
                     key not in estimated_execution_units

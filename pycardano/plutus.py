@@ -710,9 +710,7 @@ class Redeemer(ArrayCBORSerializable):
     def from_primitive(cls: Type[Redeemer], values: list) -> Redeemer:
         if isinstance(values[2], CBORTag) and cls is Redeemer:
             values[2] = RawPlutusData.from_primitive(values[2])
-        redeemer = super(Redeemer, cls).from_primitive(
-            [values[2], values[3]]
-        )
+        redeemer = super(Redeemer, cls).from_primitive([values[2], values[3]])
         redeemer.tag = RedeemerTag.from_primitive(values[0])
         redeemer.index = values[1]
         return redeemer

@@ -214,9 +214,7 @@ class TestMint(TestBase):
         builder.add_input_address(address)
 
         # Add minting script with an empty datum and a minting redeemer
-        builder.add_minting_script(
-            forty_two_script, redeemer=Redeemer(42)
-        )
+        builder.add_minting_script(forty_two_script, redeemer=Redeemer(42))
 
         # Set nft we want to mint
         builder.mint = my_nft
