@@ -529,16 +529,14 @@ class PlutusData(ArrayCBORSerializable):
                 return {"int": obj}
             elif isinstance(obj, bytes):
                 return {"bytes": obj.hex()}
-            elif isinstance(obj, list):
-                return [_dfs(item) for item in obj]
-            elif isinstance(obj, IndefiniteList):
+            elif isinstance(obj, IndefiniteList) or isinstance(obj, list):
                 return {"list": [_dfs(item) for item in obj]}
             elif isinstance(obj, dict):
                 return {"map": [{"v": _dfs(v), "k": _dfs(k)} for k, v in obj.items()]}
             elif isinstance(obj, PlutusData):
                 return {
                     "constructor": obj.CONSTR_ID,
-                    "fields": _dfs([getattr(obj, f.name) for f in fields(obj)]),
+                    "fields": [_dfs(getattr(obj, f.name)) for f in fields(obj)],
                 }
             else:
                 raise TypeError(f"Unexpected type {type(obj)}")

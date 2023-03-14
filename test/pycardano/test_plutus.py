@@ -121,7 +121,7 @@ def test_plutus_data_list_json():
     encoded_json = test.to_json(separators=(",", ":"))
 
     assert (
-        '{"constructor":0,"fields":[[{"constructor":9,"fields":[]},{"constructor":9,"fields":[]}]]}'
+        '{"constructor":0,"fields":[{"list":[{"constructor":9,"fields":[]},{"constructor":9,"fields":[]}]}]}'
         == encoded_json
     )
 
