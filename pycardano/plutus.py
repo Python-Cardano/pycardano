@@ -590,8 +590,8 @@ class PlutusData(ArrayCBORSerializable):
                                     f"Unexpected data structure: {f}."
                                 )
                         elif (
-                                hasattr(f_info.type, "__origin__")
-                                and f_info.type.__origin__ is list
+                            hasattr(f_info.type, "__origin__")
+                            and f_info.type.__origin__ is list
                         ):
                             t_args = f_info.type.__args__
                             if len(t_args) != 1:
@@ -599,12 +599,11 @@ class PlutusData(ArrayCBORSerializable):
                                     f"List types need exactly one type argument, but got {t_args}"
                                 )
                             if "list" not in f:
-                                raise DeserializeException(f"Expected type \"list\" for constructor List but got {f}")
+                                raise DeserializeException(
+                                    f'Expected type "list" for constructor List but got {f}'
+                                )
                             t = t_args[0]
-                            if (
-                                    inspect.isclass(t)
-                                    and issubclass(t, PlutusData)
-                            ):
+                            if inspect.isclass(t) and issubclass(t, PlutusData):
                                 converted_fields.append(t.from_dict(f))
                             else:
                                 converted_fields.append(_dfs(f))
