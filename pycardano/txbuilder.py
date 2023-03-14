@@ -894,7 +894,7 @@ class TransactionBuilder:
             # Automatically set the validity range to a tight value around transaction creation
             last_slot = self.context.last_block_slot
             if self.validity_start is None:
-                self.validity_start = last_slot - 1000
+                self.validity_start = max(0, last_slot - 1000)
             if self.ttl is None:
                 self.ttl = last_slot + 10000
 
