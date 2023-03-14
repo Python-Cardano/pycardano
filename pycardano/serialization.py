@@ -420,6 +420,8 @@ def _restore_dataclass_field(
                 f"List types need exactly one type argument, but got {t_args}"
             )
         t = t_args[0]
+        if not isinstance(v, list):
+            raise DeserializeException(f"Expected type list but got {type(v)}")
         if isclass(t) and issubclass(t, CBORSerializable):
             return IndefiniteList([t.from_primitive(w) for w in v])
         else:
