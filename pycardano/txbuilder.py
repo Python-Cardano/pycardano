@@ -923,8 +923,6 @@ class TransactionBuilder:
             # Collect all signatories from explicitly defined
             # transaction inputs and collateral inputs, and input addresses
             input_addresses = [
-                i.output.address for i in self.inputs + self.collaterals
-            ] + [
                 Address.from_primitive(a) if isinstance(a, str) else a
                 for a in self.input_addresses
             ]
@@ -932,7 +930,7 @@ class TransactionBuilder:
                 a.payment_part
                 for a in input_addresses
                 if isinstance(a.payment_part, VerificationKeyHash)
-            )
+            ) | self._input_vkey_hashes()
             self.required_signers = list(required_signers)
 
         selected_utxos = []
