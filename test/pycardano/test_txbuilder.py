@@ -59,9 +59,7 @@ def test_tx_builder(chain_context):
         TransactionOutput.from_primitive([sender, 500000])
     )
 
-    tx_body = tx_builder.build(
-        change_address=sender_address, auto_validity=False, auto_required_signers=False
-    )
+    tx_body = tx_builder.build(change_address=sender_address)
 
     expected = {
         0: [[b"11111111111111111111111111111111", 0]],
@@ -102,9 +100,7 @@ def test_tx_builder_with_certain_input(chain_context):
         TransactionOutput.from_primitive([sender, 500000])
     )
 
-    tx_body = tx_builder.build(
-        change_address=sender_address, auto_validity=False, auto_required_signers=False
-    )
+    tx_body = tx_builder.build(change_address=sender_address)
 
     expected = {
         0: [[b"22222222222222222222222222222222", 1]],
@@ -140,9 +136,7 @@ def test_tx_builder_multi_asset(chain_context):
         )
     )
 
-    tx_body = tx_builder.build(
-        change_address=sender_address, auto_validity=False, auto_required_signers=False
-    )
+    tx_body = tx_builder.build(change_address=sender_address)
 
     expected = {
         0: [
@@ -186,8 +180,6 @@ def test_tx_builder_raises_utxo_selection(chain_context):
     with pytest.raises(UTxOSelectionException) as e:
         tx_body = tx_builder.build(
             change_address=sender_address,
-            auto_validity=False,
-            auto_required_signers=False,
         )
 
     # The unfulfilled amount includes requested (991000000) and estimated fees (161277)
@@ -224,9 +216,7 @@ def test_tx_small_utxo_precise_fee(chain_context):
 
     # This will not fail as we replace max fee constraint with more precise fee calculation
     # And remainder is greater than minimum ada required for change
-    tx_body = tx_builder.build(
-        change_address=sender_address, auto_validity=False, auto_required_signers=False
-    )
+    tx_body = tx_builder.build(change_address=sender_address)
 
     expect = {
         0: [
@@ -278,9 +268,7 @@ def test_tx_small_utxo_balance_pass(chain_context):
 
     # Balance is smaller than minimum ada required in change
     # Additional UTxOs are selected from the input address
-    tx_body = tx_builder.build(
-        change_address=sender_address, auto_validity=False, auto_required_signers=False
-    )
+    tx_body = tx_builder.build(change_address=sender_address)
 
     expected = {
         0: [
@@ -315,7 +303,7 @@ def test_tx_builder_mint_multi_asset(chain_context):
 
     tx_builder = TransactionBuilder(chain_context)
     sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
-    sender_address = Address.from_primitive(sender)
+    sender_address: Address = Address.from_primitive(sender)
 
     # Add sender address as input
     mint = {policy_id.payload: {b"Token1": 1}}
@@ -326,9 +314,7 @@ def test_tx_builder_mint_multi_asset(chain_context):
     tx_builder.native_scripts = [script]
     tx_builder.ttl = 123456789
 
-    tx_body = tx_builder.build(
-        change_address=sender_address, auto_validity=False, auto_required_signers=False
-    )
+    tx_body = tx_builder.build(change_address=sender_address)
 
     expected = {
         0: [
@@ -344,14 +330,16 @@ def test_tx_builder_mint_multi_asset(chain_context):
             [
                 sender_address.to_primitive(),
                 [
-                    5811267,
+                    5809683,
                     {b"1111111111111111111111111111": {b"Token1": 1, b"Token2": 2}},
                 ],
             ],
         ],
-        2: 188733,
+        2: 190317,
         3: 123456789,
+        8: 1000,
         9: mint,
+        14: [sender_address.payment_part.to_primitive()],
     }
 
     assert expected == tx_body.to_primitive()
@@ -370,9 +358,7 @@ def test_tx_add_change_split_nfts(chain_context):
         TransactionOutput.from_primitive([sender, 7000000])
     )
 
-    tx_body = tx_builder.build(
-        change_address=sender_address, auto_validity=False, auto_required_signers=False
-    )
+    tx_body = tx_builder.build(change_address=sender_address)
 
     expected = {
         0: [
@@ -804,9 +790,7 @@ def test_excluded_input(chain_context):
 
     tx_builder.excluded_inputs.append(chain_context.utxos(sender)[0])
 
-    tx_body = tx_builder.build(
-        change_address=sender_address, auto_validity=False, auto_required_signers=False
-    )
+    tx_body = tx_builder.build(change_address=sender_address)
 
     expected = {
         0: [[b"22222222222222222222222222222222", 1]],
@@ -839,9 +823,7 @@ def test_build_and_sign(chain_context):
         TransactionOutput.from_primitive([sender, 500000])
     )
 
-    tx_body = tx_builder1.build(
-        change_address=sender_address, auto_validity=False, auto_required_signers=False
-    )
+    tx_body = tx_builder1.build(change_address=sender_address)
 
     tx_builder2 = TransactionBuilder(
         chain_context, [RandomImproveMultiAsset([0, 0, 0, 0, 0])]
@@ -852,8 +834,6 @@ def test_build_and_sign(chain_context):
     tx = tx_builder2.build_and_sign(
         [SK],
         change_address=sender_address,
-        auto_validity=False,
-        auto_required_signers=False,
     )
 
     assert tx.transaction_witness_set.vkey_witnesses == [
@@ -910,7 +890,7 @@ def test_tx_builder_exact_fee_no_change(chain_context):
 
     tx_builder.add_output(TransactionOutput.from_primitive([sender, 5000000]))
 
-    tx_body = tx_builder.build(auto_validity=False, auto_required_signers=False)
+    tx_body = tx_builder.build()
 
     tx_builder = TransactionBuilder(chain_context)
 
@@ -924,9 +904,7 @@ def test_tx_builder_exact_fee_no_change(chain_context):
         TransactionOutput.from_primitive([sender, input_amount - tx_body.fee])
     )
 
-    tx = tx_builder.build_and_sign(
-        [SK], auto_validity=False, auto_required_signers=False
-    )
+    tx = tx_builder.build_and_sign([SK])
 
     expected = {
         0: [[b"11111111111111111111111111111111", 3]],
@@ -962,9 +940,7 @@ def test_tx_builder_certificates(chain_context):
 
     tx_builder.certificates = [stake_registration, stake_delegation]
 
-    tx_body = tx_builder.build(
-        change_address=sender_address, auto_validity=False, auto_required_signers=False
-    )
+    tx_body = tx_builder.build(change_address=sender_address)
 
     expected = {
         0: [[b"11111111111111111111111111111111", 0]],
@@ -1001,9 +977,7 @@ def test_tx_builder_withdrawal(chain_context):
     withdrawals = Withdrawals({bytes(stake_address): 10000})
     tx_builder.withdrawals = withdrawals
 
-    tx_body = tx_builder.build(
-        change_address=sender_address, auto_validity=False, auto_required_signers=False
-    )
+    tx_body = tx_builder.build(change_address=sender_address)
 
     expected = {
         0: [[b"11111111111111111111111111111111", 0]],
@@ -1038,8 +1012,6 @@ def test_tx_builder_no_output(chain_context):
     tx_body = tx_builder.build(
         change_address=sender_address,
         merge_change=True,
-        auto_validity=False,
-        auto_required_signers=False,
     )
 
     expected = {
@@ -1070,8 +1042,6 @@ def test_tx_builder_merge_change_to_output(chain_context):
     tx_body = tx_builder.build(
         change_address=sender_address,
         merge_change=True,
-        auto_validity=False,
-        auto_required_signers=False,
     )
 
     expected = {
@@ -1106,8 +1076,6 @@ def test_tx_builder_merge_change_to_output_2(chain_context):
     tx_body = tx_builder.build(
         change_address=sender_address,
         merge_change=True,
-        auto_validity=False,
-        auto_required_signers=False,
     )
 
     expected = {
@@ -1140,8 +1108,6 @@ def test_tx_builder_merge_change_to_zero_amount_output(chain_context):
     tx_body = tx_builder.build(
         change_address=sender_address,
         merge_change=True,
-        auto_validity=False,
-        auto_required_signers=False,
     )
 
     expected = {
@@ -1172,8 +1138,6 @@ def test_tx_builder_merge_change_smaller_than_min_utxo(chain_context):
     tx_body = tx_builder.build(
         change_address=sender_address,
         merge_change=True,
-        auto_validity=False,
-        auto_required_signers=False,
     )
 
     expected = {

@@ -869,8 +869,9 @@ class TransactionBuilder:
         change_address: Optional[Address] = None,
         merge_change: Optional[bool] = False,
         collateral_change_address: Optional[Address] = None,
-        auto_validity: Optional[bool] = True,
-        auto_required_signers: Optional[bool] = True,
+        auto_validity_start_offset: Optional[int] = None,
+        auto_ttl_offset: Optional[int] = None,
+        auto_required_signers: Optional[bool] = None,
     ) -> TransactionBody:
         """Build a transaction body from all constraints set through the builder.
 
@@ -880,33 +881,40 @@ class TransactionBuilder:
             merge_change (Optional[bool]): If the change address match one of the transaction output, the change amount
                 will be directly added to that transaction output, instead of being added as a separate output.
             collateral_change_address (Optional[Address]): Address to which collateral changes will be returned.
-            auto_validity (Optional[bool]): Automatically set the validity interval of the transaction to a
-                reasonable value
+            auto_validity_start_offset (Optional[int]): Automatically set the validity start interval of the transaction
+                to the current slot number + the given offset (default -1000).
+                A manually set validity start will always take precedence.
+            auto_ttl_offset (Optional[int]): Automatically set the validity end interval (ttl) of the transaction
+                to the current slot number + the given offset (default 10_000).
+                A manually set ttl will always take precedence.
             auto_required_signers (Optional[bool]): Automatically add all pubkeyhashes of transaction inputs
-                to required signatories
+                to required signatories (default only for Smart Contract transactions).
+                Manually set required signers will always take precedence.
 
         Returns:
             TransactionBody: A transaction body.
         """
         self._ensure_no_input_exclusion_conflict()
 
-        if auto_validity:
-            # Automatically set the validity range to a tight value around transaction creation
-            last_slot = self.context.last_block_slot
-            if self.validity_start is None:
-                self.validity_start = max(0, last_slot - 1000)
-            if self.ttl is None:
-                self.ttl = last_slot + 10000
+        # only automatically set the validity interval and required signers if scripts are involved
+        is_smart = bool(self.scripts)
 
-        if auto_required_signers:
-            # collect all signatories from explicitly defined transaction inputs and collateral inputs
-            required_signers = set(
-                i.output.address.payment_part
-                for i in self.inputs + self.collaterals
-                if not isinstance(i.output.address.payment_part, ScriptHash)
-                and i.output.address.payment_part is not None
-            )
-            self.required_signers = list(required_signers)
+        # Automatically set the validity range to a tight value around transaction creation
+        if (
+            is_smart or auto_validity_start_offset is not None
+        ) and self.validity_start is None:
+            last_slot = self.context.last_block_slot
+            # If None is provided, the default value is -1000
+            if auto_validity_start_offset is None:
+                auto_validity_start_offset = -1000
+            self.validity_start = max(0, last_slot + auto_validity_start_offset)
+
+        if (is_smart or auto_ttl_offset is not None) and self.ttl is None:
+            last_slot = self.context.last_block_slot
+            # If None is provided, the default value is 10_000
+            if auto_ttl_offset is None:
+                auto_ttl_offset = 10_000
+            self.ttl = max(0, last_slot + auto_ttl_offset)
 
         selected_utxos = []
         selected_amount = Value()
@@ -1038,6 +1046,18 @@ class TransactionBuilder:
         )
 
         self.inputs[:] = selected_utxos[:]
+
+        # Automatically set the required signers for smart transactions
+        if (
+            is_smart or auto_required_signers is not None
+        ) and self.required_signers is None:
+            # Collect all signatories from explicitly defined transaction inputs and collateral inputs
+            required_signers = set(
+                i.output.address.payment_part
+                for i in self.inputs + self.collaterals
+                if isinstance(i.output.address.payment_part, VerificationKeyHash)
+            )
+            self.required_signers = list(required_signers)
 
         self._set_redeemer_index()
 
@@ -1190,8 +1210,9 @@ class TransactionBuilder:
         change_address: Optional[Address] = None,
         merge_change: Optional[bool] = False,
         collateral_change_address: Optional[Address] = None,
-        auto_validity: Optional[bool] = True,
-        auto_required_signers: Optional[bool] = True,
+        auto_validity_start_offset: Optional[int] = None,
+        auto_ttl_offset: Optional[int] = None,
+        auto_required_signers: Optional[bool] = None,
     ) -> Transaction:
         """Build a transaction body from all constraints set through the builder and sign the transaction with
         provided signing keys.
@@ -1204,10 +1225,15 @@ class TransactionBuilder:
             merge_change (Optional[bool]): If the change address match one of the transaction output, the change amount
                 will be directly added to that transaction output, instead of being added as a separate output.
             collateral_change_address (Optional[Address]): Address to which collateral changes will be returned.
-            auto_validity (Optional[bool]): Automatically set the validity interval of the transaction to
-                a reasonable value
+            auto_validity_start_offset (Optional[int]): Automatically set the validity start interval of the transaction
+                to the current slot number + the given offset (default -1000).
+                A manually set validity start will always take precedence.
+            auto_ttl_offset (Optional[int]): Automatically set the validity end interval (ttl) of the transaction
+                to the current slot number + the given offset (default 10_000).
+                A manually set ttl will always take precedence.
             auto_required_signers (Optional[bool]): Automatically add all pubkeyhashes of transaction inputs
-                to required signatories
+                to required signatories (default only for Smart Contract transactions).
+                Manually set required signers will always take precedence.
 
         Returns:
             Transaction: A signed transaction.
@@ -1217,7 +1243,8 @@ class TransactionBuilder:
             change_address=change_address,
             merge_change=merge_change,
             collateral_change_address=collateral_change_address,
-            auto_validity=auto_validity,
+            auto_validity_start_offset=auto_validity_start_offset,
+            auto_ttl_offset=auto_ttl_offset,
             auto_required_signers=auto_required_signers,
         )
         witness_set = self.build_witness_set()
