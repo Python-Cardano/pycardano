@@ -50,7 +50,6 @@ from pycardano.transaction import (
     MultiAsset,
     Transaction,
     TransactionBody,
-    TransactionInput,
     TransactionOutput,
     UTxO,
     Value,
@@ -106,9 +105,7 @@ class TransactionBuilder:
 
     withdrawals: Optional[Withdrawals] = field(default=None)
 
-    reference_inputs: Set[TransactionInput] = field(
-        init=False, default_factory=lambda: set()
-    )
+    reference_inputs: List[UTxO] = field(init=False, default_factory=lambda: list())
 
     _inputs: List[UTxO] = field(init=False, default_factory=lambda: [])
 
@@ -237,19 +234,19 @@ class TransactionBuilder:
 
         if utxo.output.script:
             self._inputs_to_scripts[utxo] = utxo.output.script
-            self.reference_inputs.add(utxo.input)
+            self.reference_inputs.append(utxo)
             self._reference_scripts.append(utxo.output.script)
         elif not script:
             for i in self.context.utxos(str(utxo.output.address)):
                 if i.output.script:
                     self._inputs_to_scripts[utxo] = i.output.script
-                    self.reference_inputs.add(i.input)
+                    self.reference_inputs.append(i)
                     self._reference_scripts.append(i.output.script)
                     break
         elif isinstance(script, UTxO):
             assert script.output.script is not None
             self._inputs_to_scripts[utxo] = script.output.script
-            self.reference_inputs.add(script.input)
+            self.reference_inputs.append(script)
             self._reference_scripts.append(script.output.script)
         else:
             self._inputs_to_scripts[utxo] = script
@@ -283,7 +280,7 @@ class TransactionBuilder:
         if isinstance(script, UTxO):
             assert script.output.script is not None
             self._minting_script_to_redeemers.append((script.output.script, redeemer))
-            self.reference_inputs.add(script.input)
+            self.reference_inputs.append(script)
             self._reference_scripts.append(script.output.script)
         else:
             self._minting_script_to_redeemers.append((script, redeemer))
@@ -777,7 +774,9 @@ class TransactionBuilder:
             withdraws=self.withdrawals,
             collateral_return=self._collateral_return,
             total_collateral=self._total_collateral,
-            reference_inputs=list(self.reference_inputs) or None,
+            reference_inputs=[i.input for i in self.reference_inputs]
+            if self.reference_inputs is not None
+            else None,
         )
         return tx_body
 
