@@ -916,6 +916,22 @@ class TransactionBuilder:
                 auto_ttl_offset = 10_000
             self.ttl = max(0, last_slot + auto_ttl_offset)
 
+        # Automatically set the required signers for smart transactions
+        if (
+            is_smart or auto_required_signers is not None
+        ) and self.required_signers is None:
+            # Collect all signatories from explicitly defined
+            # transaction inputs and collateral inputs, and input addresses
+            input_addresses = [
+                i.output.address for i in self.inputs + self.collaterals
+            ] + [Address.from_primitive(a) for a in self.input_addresses]
+            required_signers = set(
+                a.payment_part
+                for a in input_addresses
+                if isinstance(a.payment_part, VerificationKeyHash)
+            )
+            self.required_signers = list(required_signers)
+
         selected_utxos = []
         selected_amount = Value()
         for i in self.inputs:
@@ -1046,18 +1062,6 @@ class TransactionBuilder:
         )
 
         self.inputs[:] = selected_utxos[:]
-
-        # Automatically set the required signers for smart transactions
-        if (
-            is_smart or auto_required_signers is not None
-        ) and self.required_signers is None:
-            # Collect all signatories from explicitly defined transaction inputs and collateral inputs
-            required_signers = set(
-                i.output.address.payment_part
-                for i in self.inputs + self.collaterals
-                if isinstance(i.output.address.payment_part, VerificationKeyHash)
-            )
-            self.required_signers = list(required_signers)
 
         self._set_redeemer_index()
 
