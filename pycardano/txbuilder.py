@@ -926,11 +926,11 @@ class TransactionBuilder:
                 Address.from_primitive(a) if isinstance(a, str) else a
                 for a in self.input_addresses
             ]
-            required_signers = set(
+            required_signers = self._input_vkey_hashes() | set(
                 a.payment_part
                 for a in input_addresses
                 if isinstance(a.payment_part, VerificationKeyHash)
-            ) | self._input_vkey_hashes()
+            )
             self.required_signers = list(required_signers)
 
         selected_utxos = []
