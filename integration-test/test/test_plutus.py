@@ -61,7 +61,7 @@ class TestPlutus(TestBase):
 
         # ----------- Taker take ---------------
 
-        redeemer = Redeemer(RedeemerTag.SPEND, 42)
+        redeemer = Redeemer(42)
 
         utxo_to_spend = self.chain_context.utxos(str(script_address))[0]
 
@@ -128,7 +128,7 @@ class TestPlutus(TestBase):
 
         # ----------- Taker take ---------------
 
-        redeemer = Redeemer(RedeemerTag.SPEND, 42)
+        redeemer = Redeemer(42)
 
         utxo_to_spend = None
 
@@ -206,7 +206,7 @@ class TestPlutus(TestBase):
 
         # ----------- Taker take ---------------
 
-        redeemer = Redeemer(RedeemerTag.SPEND, 42)
+        redeemer = Redeemer(42)
 
         utxo_to_spend = None
 
@@ -285,7 +285,7 @@ class TestPlutus(TestBase):
 
         # ----------- Taker take ---------------
 
-        redeemer = Redeemer(RedeemerTag.SPEND, 42)
+        redeemer = Redeemer(42)
 
         utxo_to_spend = None
 

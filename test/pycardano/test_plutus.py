@@ -1,6 +1,6 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from test.pycardano.util import check_two_way_cbor
-from typing import Union
+from typing import Union, Optional
 
 import pytest
 
@@ -152,7 +152,8 @@ def test_plutus_data_hash():
 
 def test_redeemer():
     data = MyTest(123, b"234", IndefiniteList([4, 5, 6]), {1: b"1", 2: b"2"})
-    redeemer = MyRedeemer(RedeemerTag.SPEND, data, ExecutionUnits(1000000, 1000000))
+    redeemer = MyRedeemer(data, ExecutionUnits(1000000, 1000000))
+    redeemer.tag = RedeemerTag.SPEND
     assert (
         "840000d8668218829f187b433233349f040506ffa2014131024132ff821a000f42401a000f4240"
         == redeemer.to_cbor()
@@ -162,7 +163,8 @@ def test_redeemer():
 
 def test_redeemer_empty_datum():
     data = MyTest(123, b"234", IndefiniteList([]), {1: b"1", 2: b"2"})
-    redeemer = MyRedeemer(RedeemerTag.SPEND, data, ExecutionUnits(1000000, 1000000))
+    redeemer = MyRedeemer(data, ExecutionUnits(1000000, 1000000))
+    redeemer.tag = RedeemerTag.SPEND
     assert (
         "840000d8668218829f187b433233349fffa2014131024132ff821a000f42401a000f4240"
         == redeemer.to_cbor()
