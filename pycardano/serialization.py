@@ -37,7 +37,7 @@ __all__ = [
 ]
 
 
-def identity(x):
+def _identity(x):
     return x
 
 
@@ -430,11 +430,11 @@ def _restore_dataclass_field(
         if isclass(key_t) and issubclass(key_t, CBORSerializable):
             key_converter = key_t.from_primitive
         else:
-            key_converter = identity
+            key_converter = _identity
         if isclass(val_t) and issubclass(val_t, CBORSerializable):
             val_converter = val_t.from_primitive
         else:
-            val_converter = identity
+            val_converter = _identity
         if not isinstance(v, dict):
             raise DeserializeException(f"Expected dict type but got {type(v)}")
         return {key_converter(key): val_converter(val) for key, val in v.items()}
