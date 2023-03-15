@@ -924,7 +924,10 @@ class TransactionBuilder:
             # transaction inputs and collateral inputs, and input addresses
             input_addresses = [
                 i.output.address for i in self.inputs + self.collaterals
-            ] + [Address.from_primitive(a) for a in self.input_addresses]
+            ] + [
+                Address.from_primitive(a) if isinstance(a, str) else a
+                for a in self.input_addresses
+            ]
             required_signers = set(
                 a.payment_part
                 for a in input_addresses
