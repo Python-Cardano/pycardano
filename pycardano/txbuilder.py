@@ -918,7 +918,7 @@ class TransactionBuilder:
 
         # Automatically set the required signers for smart transactions
         if (
-            is_smart or auto_required_signers is not None
+            is_smart and auto_required_signers is not False
         ) and self.required_signers is None:
             # Collect all signatories from explicitly defined
             # transaction inputs and collateral inputs, and input addresses
