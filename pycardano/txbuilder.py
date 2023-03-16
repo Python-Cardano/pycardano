@@ -916,14 +916,6 @@ class TransactionBuilder:
                 auto_ttl_offset = 10_000
             self.ttl = max(0, last_slot + auto_ttl_offset)
 
-        # Automatically set the required signers for smart transactions
-        if (
-            is_smart and auto_required_signers is not False
-        ) and self.required_signers is None:
-            # Collect all signatories from explicitly defined
-            # transaction inputs and collateral inputs, and input addresses
-            self.required_signers = list(self._input_vkey_hashes())
-
         selected_utxos = []
         selected_amount = Value()
         for i in self.inputs:
@@ -1054,6 +1046,14 @@ class TransactionBuilder:
         )
 
         self.inputs[:] = selected_utxos[:]
+
+        # Automatically set the required signers for smart transactions
+        if (
+            is_smart and auto_required_signers is not False
+        ) and self.required_signers is None:
+            # Collect all signatories from explicitly defined
+            # transaction inputs and collateral inputs, and input addresses
+            self.required_signers = list(self._input_vkey_hashes())
 
         self._set_redeemer_index()
 

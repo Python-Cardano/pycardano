@@ -330,16 +330,16 @@ def test_tx_builder_mint_multi_asset(chain_context):
             [
                 sender_address.to_primitive(),
                 [
-                    5811003,
+                    5809683,
                     {b"1111111111111111111111111111": {b"Token1": 1, b"Token2": 2}},
                 ],
             ],
         ],
-        2: 188997,
+        2: 190317,
         3: 123456789,
         8: 1000,
         9: mint,
-        14: [],
+        14: [sender_address.payment_part.to_primitive()],
     }
 
     assert expected == tx_body.to_primitive()
