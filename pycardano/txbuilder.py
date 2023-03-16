@@ -775,7 +775,7 @@ class TransactionBuilder:
             collateral_return=self._collateral_return,
             total_collateral=self._total_collateral,
             reference_inputs=[i.input for i in self.reference_inputs]
-            if self.reference_inputs is not None
+            if self.reference_inputs
             else None,
         )
         return tx_body
