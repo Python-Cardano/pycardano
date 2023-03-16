@@ -178,7 +178,9 @@ def test_tx_builder_raises_utxo_selection(chain_context):
     )
 
     with pytest.raises(UTxOSelectionException) as e:
-        tx_body = tx_builder.build(change_address=sender_address)
+        tx_body = tx_builder.build(
+            change_address=sender_address,
+        )
 
     # The unfulfilled amount includes requested (991000000) and estimated fees (161277)
     assert "Unfulfilled amount:\n {\n  'coin': 991161277" in e.value.args[0]
@@ -301,7 +303,7 @@ def test_tx_builder_mint_multi_asset(chain_context):
 
     tx_builder = TransactionBuilder(chain_context)
     sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
-    sender_address = Address.from_primitive(sender)
+    sender_address: Address = Address.from_primitive(sender)
 
     # Add sender address as input
     mint = {policy_id.payload: {b"Token1": 1}}
@@ -328,14 +330,16 @@ def test_tx_builder_mint_multi_asset(chain_context):
             [
                 sender_address.to_primitive(),
                 [
-                    5811267,
+                    5809683,
                     {b"1111111111111111111111111111": {b"Token1": 1, b"Token2": 2}},
                 ],
             ],
         ],
-        2: 188733,
+        2: 190317,
         3: 123456789,
+        8: 1000,
         9: mint,
+        14: [sender_address.payment_part.to_primitive()],
     }
 
     assert expected == tx_body.to_primitive()
@@ -806,7 +810,10 @@ def test_build_and_sign(chain_context):
     tx_builder2.add_input_address(sender).add_output(
         TransactionOutput.from_primitive([sender, 500000])
     )
-    tx = tx_builder2.build_and_sign([SK], change_address=sender_address)
+    tx = tx_builder2.build_and_sign(
+        [SK],
+        change_address=sender_address,
+    )
 
     assert tx.transaction_witness_set.vkey_witnesses == [
         VerificationKeyWitness(SK.to_verification_key(), SK.sign(tx_body.hash()))
@@ -981,7 +988,10 @@ def test_tx_builder_no_output(chain_context):
 
     tx_builder.add_input(utxo1)
 
-    tx_body = tx_builder.build(change_address=sender_address, merge_change=True)
+    tx_body = tx_builder.build(
+        change_address=sender_address,
+        merge_change=True,
+    )
 
     expected = {
         0: [[b"11111111111111111111111111111111", 3]],
@@ -1008,7 +1018,10 @@ def test_tx_builder_merge_change_to_output(chain_context):
     tx_builder.add_input(utxo1)
     tx_builder.add_output(TransactionOutput.from_primitive([sender, 10000]))
 
-    tx_body = tx_builder.build(change_address=sender_address, merge_change=True)
+    tx_body = tx_builder.build(
+        change_address=sender_address,
+        merge_change=True,
+    )
 
     expected = {
         0: [[b"11111111111111111111111111111111", 3]],
@@ -1039,7 +1052,10 @@ def test_tx_builder_merge_change_to_output_2(chain_context):
     tx_builder.add_output(TransactionOutput.from_primitive([receiver, 10000]))
     tx_builder.add_output(TransactionOutput.from_primitive([sender, 0]))
 
-    tx_body = tx_builder.build(change_address=sender_address, merge_change=True)
+    tx_body = tx_builder.build(
+        change_address=sender_address,
+        merge_change=True,
+    )
 
     expected = {
         0: [[b"11111111111111111111111111111111", 3]],
@@ -1068,7 +1084,10 @@ def test_tx_builder_merge_change_to_zero_amount_output(chain_context):
     tx_builder.add_input(utxo1)
     tx_builder.add_output(TransactionOutput.from_primitive([sender, 0]))
 
-    tx_body = tx_builder.build(change_address=sender_address, merge_change=True)
+    tx_body = tx_builder.build(
+        change_address=sender_address,
+        merge_change=True,
+    )
 
     expected = {
         0: [[b"11111111111111111111111111111111", 3]],
@@ -1095,7 +1114,10 @@ def test_tx_builder_merge_change_smaller_than_min_utxo(chain_context):
     tx_builder.add_input(utxo1)
     tx_builder.add_output(TransactionOutput.from_primitive([sender, 9800000]))
 
-    tx_body = tx_builder.build(change_address=sender_address, merge_change=True)
+    tx_body = tx_builder.build(
+        change_address=sender_address,
+        merge_change=True,
+    )
 
     expected = {
         0: [[b"11111111111111111111111111111111", 3]],
