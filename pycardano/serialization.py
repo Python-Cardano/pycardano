@@ -37,6 +37,10 @@ __all__ = [
 ]
 
 
+def _identity(x):
+    return x
+
+
 class IndefiniteList(UserList):
     def __init__(self, li: Primitive):  # type: ignore
         super().__init__(li)  # type: ignore
@@ -415,6 +419,25 @@ def _restore_dataclass_field(
         return f.type.from_primitive(v)
     elif isclass(f.type) and issubclass(f.type, IndefiniteList):
         return IndefiniteList(v)
+    elif hasattr(f.type, "__origin__") and (f.type.__origin__ is dict):
+        t_args = f.type.__args__
+        if len(t_args) != 2:
+            raise DeserializeException(
+                f"Dict types need exactly two type arguments, but got {t_args}"
+            )
+        key_t = t_args[0]
+        val_t = t_args[1]
+        if isclass(key_t) and issubclass(key_t, CBORSerializable):
+            key_converter = key_t.from_primitive
+        else:
+            key_converter = _identity
+        if isclass(val_t) and issubclass(val_t, CBORSerializable):
+            val_converter = val_t.from_primitive
+        else:
+            val_converter = _identity
+        if not isinstance(v, dict):
+            raise DeserializeException(f"Expected dict type but got {type(v)}")
+        return {key_converter(key): val_converter(val) for key, val in v.items()}
     elif hasattr(f.type, "__origin__") and (
         f.type.__origin__ is Union or f.type.__origin__ is Optional
     ):
