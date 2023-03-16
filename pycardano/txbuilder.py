@@ -922,16 +922,7 @@ class TransactionBuilder:
         ) and self.required_signers is None:
             # Collect all signatories from explicitly defined
             # transaction inputs and collateral inputs, and input addresses
-            input_addresses = [
-                Address.from_primitive(a) if isinstance(a, str) else a
-                for a in self.input_addresses
-            ]
-            required_signers = self._input_vkey_hashes() | set(
-                a.payment_part
-                for a in input_addresses
-                if isinstance(a.payment_part, VerificationKeyHash)
-            )
-            self.required_signers = list(required_signers)
+            self.required_signers = list(self._input_vkey_hashes())
 
         selected_utxos = []
         selected_amount = Value()
