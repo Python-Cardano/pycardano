@@ -97,3 +97,18 @@ def test_key_save():
         SK.save(f.name)
         sk = PaymentSigningKey.load(f.name)
         assert SK == sk
+
+
+def test_key_hash():
+    sk = PaymentSigningKey.generate()
+    vk = PaymentVerificationKey.from_signing_key(sk)
+
+    sk_set = set()
+    vk_set = set()
+
+    for _ in range(2):
+        sk_set.add(sk)
+        vk_set.add(vk)
+
+    assert len(sk_set) == 1
+    assert len(vk_set) == 1

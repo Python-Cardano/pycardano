@@ -148,6 +148,9 @@ class Key(CBORSerializable):
     def __repr__(self) -> str:
         return self.to_json()
 
+    def __hash__(self):
+        return hash(self.payload)
+
 
 class SigningKey(Key):
     def sign(self, data: bytes) -> bytes:

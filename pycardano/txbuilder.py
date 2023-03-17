@@ -1256,7 +1256,7 @@ class TransactionBuilder:
         witness_set = self.build_witness_set()
         witness_set.vkey_witnesses = []
 
-        for signing_key in signing_keys:
+        for signing_key in set(signing_keys):
             signature = signing_key.sign(tx_body.hash())
             witness_set.vkey_witnesses.append(
                 VerificationKeyWitness(signing_key.to_verification_key(), signature)
