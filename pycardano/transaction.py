@@ -267,7 +267,6 @@ class Value(ArrayCBORSerializable):
 
 @dataclass(repr=False)
 class _Script(ArrayCBORSerializable):
-
     _TYPE: int = field(init=False, default=0)
 
     script: Union[NativeScript, PlutusV1Script, PlutusV2Script]
@@ -293,7 +292,6 @@ class _Script(ArrayCBORSerializable):
 
 @dataclass(repr=False)
 class _DatumOption(ArrayCBORSerializable):
-
     _TYPE: int = field(init=False, default=0)
 
     datum: Union[DatumHash, Any]
@@ -329,7 +327,6 @@ class _DatumOption(ArrayCBORSerializable):
 
 @dataclass(repr=False)
 class _ScriptRef(CBORSerializable):
-
     script: _Script
 
     def to_primitive(self) -> Primitive:
@@ -374,7 +371,6 @@ class _TransactionOutputLegacy(ArrayCBORSerializable):
 
 @dataclass(repr=False)
 class TransactionOutput(CBORSerializable):
-
     address: Address
 
     amount: Union[Value]

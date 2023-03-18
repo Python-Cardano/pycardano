@@ -605,6 +605,36 @@ class PlutusData(ArrayCBORSerializable):
                                 converted_fields.append(t.from_dict(f))
                             else:
                                 converted_fields.append(_dfs(f))
+
+                        elif (
+                            hasattr(f_info.type, "__origin__")
+                            and f_info.type.__origin__ is dict
+                        ):
+                            t_args = f_info.type.__args__
+                            if len(t_args) != 2:
+                                raise DeserializeException(
+                                    "Dict type with wrong number of arguments"
+                                )
+                            if "map" not in f:
+                                raise DeserializeException(
+                                    f'Expected type "map" in object but got "{f}"'
+                                )
+                            key_t = t_args[0]
+                            val_t = t_args[1]
+                            if inspect.isclass(key_t) and issubclass(key_t, PlutusData):
+                                key_convert = key_t.from_dict
+                            else:
+                                key_convert = _dfs
+                            if inspect.isclass(val_t) and issubclass(val_t, PlutusData):
+                                val_convert = val_t.from_dict
+                            else:
+                                val_convert = _dfs
+                            converted_fields.append(
+                                {
+                                    key_convert(pair["k"]): val_convert(pair["v"])
+                                    for pair in f["map"]
+                                }
+                            )
                         else:
                             converted_fields.append(_dfs(f))
                     return cls(*converted_fields)
@@ -639,7 +669,6 @@ class PlutusData(ArrayCBORSerializable):
 
 @dataclass
 class RawPlutusData(CBORSerializable):
-
     data: CBORTag
 
     def to_primitive(self) -> CBORTag:

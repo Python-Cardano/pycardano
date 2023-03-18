@@ -106,7 +106,7 @@ class TransactionBuilder:
 
     withdrawals: Optional[Withdrawals] = field(default=None)
 
-    reference_inputs: Set[TransactionInput] = field(
+    reference_inputs: Set[Union[UTxO, TransactionInput]] = field(
         init=False, default_factory=lambda: set()
     )
 
@@ -237,19 +237,19 @@ class TransactionBuilder:
 
         if utxo.output.script:
             self._inputs_to_scripts[utxo] = utxo.output.script
-            self.reference_inputs.add(utxo.input)
+            self.reference_inputs.add(utxo)
             self._reference_scripts.append(utxo.output.script)
         elif not script:
             for i in self.context.utxos(str(utxo.output.address)):
                 if i.output.script:
                     self._inputs_to_scripts[utxo] = i.output.script
-                    self.reference_inputs.add(i.input)
+                    self.reference_inputs.add(i)
                     self._reference_scripts.append(i.output.script)
                     break
         elif isinstance(script, UTxO):
             assert script.output.script is not None
             self._inputs_to_scripts[utxo] = script.output.script
-            self.reference_inputs.add(script.input)
+            self.reference_inputs.add(script)
             self._reference_scripts.append(script.output.script)
         else:
             self._inputs_to_scripts[utxo] = script
@@ -283,7 +283,7 @@ class TransactionBuilder:
         if isinstance(script, UTxO):
             assert script.output.script is not None
             self._minting_script_to_redeemers.append((script.output.script, redeemer))
-            self.reference_inputs.add(script.input)
+            self.reference_inputs.add(script)
             self._reference_scripts.append(script.output.script)
         else:
             self._minting_script_to_redeemers.append((script, redeemer))
@@ -516,11 +516,8 @@ class TransactionBuilder:
                 self._outputs += changes
 
         if change_address:
-
             if merge_change:
-
                 for idx, output in enumerate(original_outputs):
-
                     # Find any transaction outputs which already contain the change address
                     if change_address == output.address:
                         if change_output_index is None or output.lovelace == 0:
@@ -607,7 +604,7 @@ class TransactionBuilder:
         output = TransactionOutput(change_address, base_coin)
 
         # iteratively add tokens to output
-        for (policy_id, assets) in change_estimator.multi_asset.items():
+        for policy_id, assets in change_estimator.multi_asset.items():
             temp_multi_asset = MultiAsset()
             temp_value = Value(coin=0)
             temp_assets = Asset()
@@ -673,7 +670,6 @@ class TransactionBuilder:
         return results
 
     def _certificate_vkey_hashes(self) -> Set[VerificationKeyHash]:
-
         results = set()
 
         def _check_and_add_vkey(stake_credential: StakeCredential):
@@ -697,7 +693,6 @@ class TransactionBuilder:
         return self.context.protocol_param.key_deposit * len(results)
 
     def _withdrawal_vkey_hashes(self) -> Set[VerificationKeyHash]:
-
         results = set()
 
         if self.withdrawals:
@@ -777,7 +772,11 @@ class TransactionBuilder:
             withdraws=self.withdrawals,
             collateral_return=self._collateral_return,
             total_collateral=self._total_collateral,
-            reference_inputs=list(self.reference_inputs) or None,
+            reference_inputs=[
+                i.input if isinstance(i, UTxO) else i for i in self.reference_inputs
+            ]
+            if self.reference_inputs
+            else None,
         )
         return tx_body
 
@@ -876,6 +875,9 @@ class TransactionBuilder:
         change_address: Optional[Address] = None,
         merge_change: Optional[bool] = False,
         collateral_change_address: Optional[Address] = None,
+        auto_validity_start_offset: Optional[int] = None,
+        auto_ttl_offset: Optional[int] = None,
+        auto_required_signers: Optional[bool] = None,
     ) -> TransactionBody:
         """Build a transaction body from all constraints set through the builder.
 
@@ -885,11 +887,41 @@ class TransactionBuilder:
             merge_change (Optional[bool]): If the change address match one of the transaction output, the change amount
                 will be directly added to that transaction output, instead of being added as a separate output.
             collateral_change_address (Optional[Address]): Address to which collateral changes will be returned.
+            auto_validity_start_offset (Optional[int]): Automatically set the validity start interval of the transaction
+                to the current slot number + the given offset (default -1000).
+                A manually set validity start will always take precedence.
+            auto_ttl_offset (Optional[int]): Automatically set the validity end interval (ttl) of the transaction
+                to the current slot number + the given offset (default 10_000).
+                A manually set ttl will always take precedence.
+            auto_required_signers (Optional[bool]): Automatically add all pubkeyhashes of transaction inputs
+                to required signatories (default only for Smart Contract transactions).
+                Manually set required signers will always take precedence.
 
         Returns:
             TransactionBody: A transaction body.
         """
         self._ensure_no_input_exclusion_conflict()
+
+        # only automatically set the validity interval and required signers if scripts are involved
+        is_smart = bool(self.scripts)
+
+        # Automatically set the validity range to a tight value around transaction creation
+        if (
+            is_smart or auto_validity_start_offset is not None
+        ) and self.validity_start is None:
+            last_slot = self.context.last_block_slot
+            # If None is provided, the default value is -1000
+            if auto_validity_start_offset is None:
+                auto_validity_start_offset = -1000
+            self.validity_start = max(0, last_slot + auto_validity_start_offset)
+
+        if (is_smart or auto_ttl_offset is not None) and self.ttl is None:
+            last_slot = self.context.last_block_slot
+            # If None is provided, the default value is 10_000
+            if auto_ttl_offset is None:
+                auto_ttl_offset = 10_000
+            self.ttl = max(0, last_slot + auto_ttl_offset)
+
         selected_utxos = []
         selected_amount = Value()
         for i in self.inputs:
@@ -1020,6 +1052,14 @@ class TransactionBuilder:
         )
 
         self.inputs[:] = selected_utxos[:]
+
+        # Automatically set the required signers for smart transactions
+        if (
+            is_smart and auto_required_signers is not False
+        ) and self.required_signers is None:
+            # Collect all signatories from explicitly defined
+            # transaction inputs and collateral inputs, and input addresses
+            self.required_signers = list(self._input_vkey_hashes())
 
         self._set_redeemer_index()
 
@@ -1175,6 +1215,9 @@ class TransactionBuilder:
         change_address: Optional[Address] = None,
         merge_change: Optional[bool] = False,
         collateral_change_address: Optional[Address] = None,
+        auto_validity_start_offset: Optional[int] = None,
+        auto_ttl_offset: Optional[int] = None,
+        auto_required_signers: Optional[bool] = None,
     ) -> Transaction:
         """Build a transaction body from all constraints set through the builder and sign the transaction with
         provided signing keys.
@@ -1187,6 +1230,15 @@ class TransactionBuilder:
             merge_change (Optional[bool]): If the change address match one of the transaction output, the change amount
                 will be directly added to that transaction output, instead of being added as a separate output.
             collateral_change_address (Optional[Address]): Address to which collateral changes will be returned.
+            auto_validity_start_offset (Optional[int]): Automatically set the validity start interval of the transaction
+                to the current slot number + the given offset (default -1000).
+                A manually set validity start will always take precedence.
+            auto_ttl_offset (Optional[int]): Automatically set the validity end interval (ttl) of the transaction
+                to the current slot number + the given offset (default 10_000).
+                A manually set ttl will always take precedence.
+            auto_required_signers (Optional[bool]): Automatically add all pubkeyhashes of transaction inputs
+                to required signatories (default only for Smart Contract transactions).
+                Manually set required signers will always take precedence.
 
         Returns:
             Transaction: A signed transaction.
@@ -1196,11 +1248,14 @@ class TransactionBuilder:
             change_address=change_address,
             merge_change=merge_change,
             collateral_change_address=collateral_change_address,
+            auto_validity_start_offset=auto_validity_start_offset,
+            auto_ttl_offset=auto_ttl_offset,
+            auto_required_signers=auto_required_signers,
         )
         witness_set = self.build_witness_set()
         witness_set.vkey_witnesses = []
 
-        for signing_key in signing_keys:
+        for signing_key in set(signing_keys):
             signature = signing_key.sign(tx_body.hash())
             witness_set.vkey_witnesses.append(
                 VerificationKeyWitness(signing_key.to_verification_key(), signature)

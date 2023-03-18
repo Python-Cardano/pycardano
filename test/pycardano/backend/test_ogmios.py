@@ -148,7 +148,6 @@ class TestOgmiosChainContext:
         )
 
     def test_utxo(self):
-
         results = self.chain_context.utxos(
             "addr_test1qraen6hr9zs5yae8cxnhlkh7rk2nfl7rnpg0xvmel3a0xf70v3kz6ee7mtq86x6gmrnw8j7kuf485902akkr7tlcx24qemz34a"
         )

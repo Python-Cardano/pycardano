@@ -21,7 +21,6 @@ def test_min_lovelace_ada_only_2(chain_context):
 
 
 class TestMinLoveLaceMultiAsset:
-
     # Tests copied from: https://github.com/input-output-hk/cardano-ledger/blob/master/doc/explanations/min-utxo-alonzo.rst#example-min-ada-value-calculations-and-current-constants
 
     def test_min_lovelace_multi_asset_1(self, chain_context):

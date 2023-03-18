@@ -84,7 +84,6 @@ class LargestFirstSelector(UTxOSelector):
         include_max_fee: Optional[bool] = True,
         respect_min_utxo: Optional[bool] = True,
     ) -> Tuple[List[UTxO], Value]:
-
         available: List[UTxO] = sorted(utxos, key=lambda utxo: utxo.output.lovelace)
         max_fee = max_tx_fee(context) if include_max_fee else 0
         total_requested = Value(max_fee)

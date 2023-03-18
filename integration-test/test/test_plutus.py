@@ -12,7 +12,6 @@ from .base import TEST_RETRIES, TestBase
 class TestPlutus(TestBase):
     @retry(tries=TEST_RETRIES, backoff=1.5, delay=6, jitter=(0, 4))
     def test_plutus_v1(self):
-
         # ----------- Giver give ---------------
 
         with open("./plutus_scripts/fortytwo.plutus", "r") as f:
@@ -97,7 +96,6 @@ class TestPlutus(TestBase):
     @retry(tries=TEST_RETRIES, backoff=1.5, delay=6, jitter=(0, 4))
     @pytest.mark.post_alonzo
     def test_plutus_v2_datum_hash(self):
-
         # ----------- Giver give ---------------
 
         with open("./plutus_scripts/fortytwoV2.plutus", "r") as f:
@@ -173,7 +171,6 @@ class TestPlutus(TestBase):
     @retry(tries=TEST_RETRIES, backoff=1.5, delay=6, jitter=(0, 4))
     @pytest.mark.post_alonzo
     def test_plutus_v2_inline_script_inline_datum(self):
-
         # ----------- Giver give ---------------
 
         with open("./plutus_scripts/fortytwoV2.plutus", "r") as f:
@@ -237,7 +234,6 @@ class TestPlutus(TestBase):
     @retry(tries=TEST_RETRIES, backoff=1.5, delay=6, jitter=(0, 4))
     @pytest.mark.post_alonzo
     def test_plutus_v2_ref_script(self):
-
         # ----------- Create a reference script ---------------
 
         with open("./plutus_scripts/fortytwoV2.plutus", "r") as f:

@@ -151,7 +151,6 @@ def verify(
 
     # generate/extract the cose key
     if not attach_cose_key:
-
         # get the verification key from the headers
         verification_key = decoded_message.phdr[KID]
 

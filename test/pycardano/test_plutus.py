@@ -1,8 +1,8 @@
+from dataclasses import dataclass
 import unittest
 
-from dataclasses import dataclass
 from test.pycardano.util import check_two_way_cbor
-from typing import Union, List
+from typing import Union, Dict, List
 
 import pytest
 
@@ -39,6 +39,13 @@ class BigTest(PlutusData):
 @dataclass
 class LargestTest(PlutusData):
     CONSTR_ID = 9
+
+
+@dataclass
+class DictTest(PlutusData):
+    CONSTR_ID = 3
+
+    a: Dict[int, LargestTest]
 
 
 @dataclass
@@ -79,16 +86,6 @@ def test_plutus_data():
     check_two_way_cbor(my_vesting)
 
 
-def test_plutus_data_list_cbor():
-    test = ListTest([LargestTest(), LargestTest()])
-
-    encoded_cbor = test.to_cbor()
-
-    assert "d8799f82d9050280d9050280ff" == encoded_cbor
-
-    assert test == ListTest.from_cbor(encoded_cbor)
-
-
 def test_plutus_data_json():
     key_hash = bytes.fromhex("c2ff616e11299d9094ce0a7eb5b7284b705147a822f4ffbd471f971a")
     deadline = 1643235300000
@@ -112,9 +109,8 @@ def test_plutus_data_json():
     assert my_vesting == VestingParam.from_json(encoded_json)
 
 
-def test_plutus_data_list_json():
+def test_plutus_data_json_list():
     test = ListTest([LargestTest(), LargestTest()])
-
     encoded_json = test.to_json(separators=(",", ":"))
 
     assert (
@@ -123,6 +119,39 @@ def test_plutus_data_list_json():
     )
 
     assert test == ListTest.from_json(encoded_json)
+
+
+def test_plutus_data_cbor_list():
+    test = ListTest([LargestTest(), LargestTest()])
+
+    encoded_cbor = test.to_cbor()
+
+    assert "d8799f82d9050280d9050280ff" == encoded_cbor
+
+    assert test == ListTest.from_cbor(encoded_cbor)
+
+
+def test_plutus_data_json_dict():
+    test = DictTest({0: LargestTest(), 1: LargestTest()})
+
+    encoded_json = test.to_json(separators=(",", ":"))
+
+    assert (
+        '{"constructor":3,"fields":[{"map":[{"v":{"constructor":9,"fields":[]},"k":{"int":0}},{"v":{"constructor":9,"fields":[]},"k":{"int":1}}]}]}'
+        == encoded_json
+    )
+
+    assert test == DictTest.from_json(encoded_json)
+
+
+def test_plutus_data_cbor_dict():
+    test = DictTest({0: LargestTest(), 1: LargestTest()})
+
+    encoded_cbor = test.to_cbor()
+
+    assert "d87c9fa200d905028001d9050280ff" == encoded_cbor
+
+    assert test == DictTest.from_cbor(encoded_cbor)
 
 
 def test_plutus_data_to_json_wrong_type():

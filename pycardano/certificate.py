@@ -15,7 +15,6 @@ __all__ = [
 
 @dataclass(repr=False)
 class StakeCredential(ArrayCBORSerializable):
-
     _CODE: Optional[int] = field(init=False, default=None)
 
     credential: Union[VerificationKeyHash, ScriptHash]
@@ -29,7 +28,6 @@ class StakeCredential(ArrayCBORSerializable):
 
 @dataclass(repr=False)
 class StakeRegistration(ArrayCBORSerializable):
-
     _CODE: int = field(init=False, default=0)
 
     stake_credential: StakeCredential
@@ -37,7 +35,6 @@ class StakeRegistration(ArrayCBORSerializable):
 
 @dataclass(repr=False)
 class StakeDeregistration(ArrayCBORSerializable):
-
     _CODE: int = field(init=False, default=1)
 
     stake_credential: StakeCredential
@@ -45,7 +42,6 @@ class StakeDeregistration(ArrayCBORSerializable):
 
 @dataclass(repr=False)
 class StakeDelegation(ArrayCBORSerializable):
-
     _CODE: int = field(init=False, default=2)
 
     stake_credential: StakeCredential
