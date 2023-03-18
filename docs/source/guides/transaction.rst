@@ -147,7 +147,7 @@ Step 6
 Add additional transaction information as needed:
 
     >>> builder.ttl = 3600
-    >>> builder.reference_inputs.append(utxo)
+    >>> builder.reference_inputs.add(utxo)
 
 Step 7
 
