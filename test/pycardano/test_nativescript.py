@@ -127,7 +127,6 @@ def test_full_tx():
 
 
 def test_to_dict():
-
     vk1 = VerificationKey.from_cbor(
         "58206443a101bdb948366fc87369336224595d36d8b0eee5602cba8b81a024e58473"
     )
@@ -169,7 +168,6 @@ def test_from_primitive_invalid_primitive_input():
 
 
 def test_from_dict():
-
     vk1 = VerificationKey.from_cbor(
         "58206443a101bdb948366fc87369336224595d36d8b0eee5602cba8b81a024e58473"
     )

@@ -17,7 +17,6 @@ def check_two_way_cbor(serializable: CBORSerializable):
 
 
 class FixedChainContext(ChainContext):
-
     _protocol_param = ProtocolParameters(
         min_fee_constant=155381,
         min_fee_coefficient=44,

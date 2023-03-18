@@ -652,7 +652,6 @@ class PlutusData(ArrayCBORSerializable):
 
 @dataclass
 class RawPlutusData(CBORSerializable):
-
     data: CBORTag
 
     def to_primitive(self) -> CBORTag:

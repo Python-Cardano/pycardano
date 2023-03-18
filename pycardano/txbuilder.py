@@ -516,11 +516,8 @@ class TransactionBuilder:
                 self._outputs += changes
 
         if change_address:
-
             if merge_change:
-
                 for idx, output in enumerate(original_outputs):
-
                     # Find any transaction outputs which already contain the change address
                     if change_address == output.address:
                         if change_output_index is None or output.lovelace == 0:
@@ -607,7 +604,7 @@ class TransactionBuilder:
         output = TransactionOutput(change_address, base_coin)
 
         # iteratively add tokens to output
-        for (policy_id, assets) in change_estimator.multi_asset.items():
+        for policy_id, assets in change_estimator.multi_asset.items():
             temp_multi_asset = MultiAsset()
             temp_value = Value(coin=0)
             temp_assets = Asset()
@@ -673,7 +670,6 @@ class TransactionBuilder:
         return results
 
     def _certificate_vkey_hashes(self) -> Set[VerificationKeyHash]:
-
         results = set()
 
         def _check_and_add_vkey(stake_credential: StakeCredential):
@@ -697,7 +693,6 @@ class TransactionBuilder:
         return self.context.protocol_param.key_deposit * len(results)
 
     def _withdrawal_vkey_hashes(self) -> Set[VerificationKeyHash]:
-
         results = set()
 
         if self.withdrawals:

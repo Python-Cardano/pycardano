@@ -118,7 +118,6 @@ class MyTestDict(DictCBORSerializable):
 
 
 def test_dict_cbor_serializable():
-
     a = MyTestDict()
     a[b"110"] = 1
     a[b"100"] = 2
@@ -137,7 +136,6 @@ def test_dict_cbor_serializable():
 
 
 def test_indefinite_list():
-
     a = IndefiniteList([4, 5])
 
     a.append(6)
