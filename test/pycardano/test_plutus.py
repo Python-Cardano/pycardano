@@ -2,7 +2,7 @@ from dataclasses import dataclass
 import unittest
 
 from test.pycardano.util import check_two_way_cbor
-from typing import Union, Dict
+from typing import Union, Dict, List
 
 import pytest
 
@@ -46,6 +46,11 @@ class DictTest(PlutusData):
     CONSTR_ID = 3
 
     a: Dict[int, LargestTest]
+
+
+@dataclass
+class ListTest(PlutusData):
+    a: List[LargestTest]
 
 
 @dataclass
@@ -102,6 +107,28 @@ def test_plutus_data_json():
     )
 
     assert my_vesting == VestingParam.from_json(encoded_json)
+
+
+def test_plutus_data_json_list():
+    test = ListTest([LargestTest(), LargestTest()])
+    encoded_json = test.to_json(separators=(",", ":"))
+
+    assert (
+        '{"constructor":0,"fields":[{"list":[{"constructor":9,"fields":[]},{"constructor":9,"fields":[]}]}]}'
+        == encoded_json
+    )
+
+    assert test == ListTest.from_json(encoded_json)
+
+
+def test_plutus_data_cbor_list():
+    test = ListTest([LargestTest(), LargestTest()])
+
+    encoded_cbor = test.to_cbor()
+
+    assert "d8799f82d9050280d9050280ff" == encoded_cbor
+
+    assert test == ListTest.from_cbor(encoded_cbor)
 
 
 def test_plutus_data_json_dict():

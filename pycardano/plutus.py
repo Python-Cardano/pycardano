@@ -529,16 +529,14 @@ class PlutusData(ArrayCBORSerializable):
                 return {"int": obj}
             elif isinstance(obj, bytes):
                 return {"bytes": obj.hex()}
-            elif isinstance(obj, list):
-                return [_dfs(item) for item in obj]
-            elif isinstance(obj, IndefiniteList):
+            elif isinstance(obj, IndefiniteList) or isinstance(obj, list):
                 return {"list": [_dfs(item) for item in obj]}
             elif isinstance(obj, dict):
                 return {"map": [{"v": _dfs(v), "k": _dfs(k)} for k, v in obj.items()]}
             elif isinstance(obj, PlutusData):
                 return {
                     "constructor": obj.CONSTR_ID,
-                    "fields": _dfs([getattr(obj, f.name) for f in fields(obj)]),
+                    "fields": [_dfs(getattr(obj, f.name)) for f in fields(obj)],
                 }
             else:
                 raise TypeError(f"Unexpected type {type(obj)}")
@@ -589,6 +587,25 @@ class PlutusData(ArrayCBORSerializable):
                                 raise DeserializeException(
                                     f"Unexpected data structure: {f}."
                                 )
+                        elif (
+                            hasattr(f_info.type, "__origin__")
+                            and f_info.type.__origin__ is list
+                        ):
+                            t_args = f_info.type.__args__
+                            if len(t_args) != 1:
+                                raise DeserializeException(
+                                    f"List types need exactly one type argument, but got {t_args}"
+                                )
+                            if "list" not in f:
+                                raise DeserializeException(
+                                    f'Expected type "list" for constructor List but got {f}'
+                                )
+                            t = t_args[0]
+                            if inspect.isclass(t) and issubclass(t, PlutusData):
+                                converted_fields.append(t.from_dict(f))
+                            else:
+                                converted_fields.append(_dfs(f))
+
                         elif (
                             hasattr(f_info.type, "__origin__")
                             and f_info.type.__origin__ is dict
