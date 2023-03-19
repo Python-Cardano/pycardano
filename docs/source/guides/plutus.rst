@@ -6,7 +6,7 @@ Smart Contracts on Cardano allow us to incorporate expressive logics to determin
 The official language to write Contracts is Plutus, which is why we will often refer to "Plutus Scripts" and "Plutus binarys".
 However, many `many different languages <https://aiken-lang.org/ecosystem-overview#the-alternatives>`_ are emerging
 that aim to make the development of contracts more accesible.
-In this tutorial, we will focus on  `eopsin <https://github.com/ImperatorLang/eopsin>`_,
+In this tutorial, we will focus on  `opshin <https://github.com/OpShin/opshin>`_,
 a Smart Contract language based on python.
 In order to understand how Smart Contracts work on Cardanos eUTxO model we need to understand a couple of concepts.
 
@@ -74,7 +74,7 @@ Similarly, redeemer can be serialized like following::
 Example - Gift Contract
 -----------------------
 
-We demonstrate how these concepts come into play using a simple example from `eopsin <https://github.com/ImperatorLang/eopsin>`_.
+We demonstrate how these concepts come into play using a simple example from `opshin <https://github.com/ImperatorLang/opshin>`_.
 A user can lock funds together with a public key hash.
 The contract will make sure that only the owner of the matching private key can redeem the gift.
 
@@ -84,7 +84,7 @@ Step 1
 
 Open a file called ``gift.py`` and fill it with the following code:::
 
-    from eopsin.prelude import *
+    from opshin.prelude import *
 
     @dataclass()
     class CancelDatum(PlutusData):
@@ -101,14 +101,14 @@ Open a file called ``gift.py`` and fill it with the following code:::
 
 Step 2
 
-Install the python package ``eopsin-lang``. We can then build the contract.
+Install the python package ``opshin``. We can then build the contract.
 
 .. code:: bash
 
     $ python3.8 -m venv venv
     $ source venv/bin/activate
-    $ pip install eopsin-lang
-    $ eopsin build gift.py
+    $ pip install opshin
+    $ opshin build gift.py
 
 This is it! You will now find all relevant artifacts for proceeding in the folder ``gift/``.
 
