@@ -1,6 +1,5 @@
-import calendar
 import json
-import time
+from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -192,11 +191,9 @@ class OgmiosChainContext(ChainContext):
 
     def _fetch_genesis_param(self) -> GenesisParameters:
         result = self._query_genesis_config()
-        system_start_unix = int(
-            calendar.timegm(
-                time.strptime(result["systemStart"].split(".")[0], "%Y-%m-%dT%H:%M:%S"),
-            )
-        )
+        start_str = result["systemStart"].split(".")[0]
+        dt = datetime.fromisoformat(start_str.replace("Z", "+00:00"))
+        system_start_unix = int(dt.timestamp())
         return GenesisParameters(
             active_slots_coefficient=self._fraction_parser(
                 result["activeSlotsCoefficient"]
