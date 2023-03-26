@@ -5,7 +5,7 @@ import warnings
 from typing import Dict, List, Optional, Union
 
 import cbor2
-from blockfrost import ApiUrls, BlockFrostApi
+from blockfrost import ApiError, ApiUrls, BlockFrostApi
 from blockfrost.utils import Namespace
 
 from pycardano.address import Address
@@ -222,13 +222,31 @@ class BlockFrostChainContext(ChainContext):
 
         return utxos
 
-    def submit_tx(self, cbor: Union[bytes, str]):
+    def submit_tx(self, cbor: Union[bytes, str]) -> str:
+        """Submit a transaction.
+
+        Args:
+            cbor (Union[bytes, str]): The serialized transaction to be submitted.
+
+        Returns:
+            str: The transaction hash.
+
+        Raises:
+            :class:`TransactionFailedException`: When fails to submit the transaction.
+        """
         if isinstance(cbor, str):
             cbor = bytes.fromhex(cbor)
         with tempfile.NamedTemporaryFile(delete=False) as f:
             f.write(cbor)
-        self.api.transaction_submit(f.name)
+        try:
+            response = self.api.transaction_submit(f.name)
+        except ApiError as e:
+            os.remove(f.name)
+            raise TransactionFailedException(
+                f"Failed to submit transaction. Error code: {e.status_code}. Error message: {e.message}"
+            ) from e
         os.remove(f.name)
+        return response
 
     def evaluate_tx(self, cbor: Union[bytes, str]) -> Dict[str, ExecutionUnits]:
         """Evaluate execution units of a transaction.
