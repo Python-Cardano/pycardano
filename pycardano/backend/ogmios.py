@@ -366,61 +366,76 @@ class OgmiosChainContext(ChainContext):
 
         utxos = []
         for result in results:
-            in_ref = result[0]
-            output = result[1]
-            tx_in = TransactionInput.from_primitive([in_ref["txId"], in_ref["index"]])
-
-            lovelace_amount = output["value"]["coins"]
-
-            script = output.get("script", None)
-            if script:
-                if "plutus:v2" in script:
-                    script = PlutusV2Script(
-                        cbor2.loads(bytes.fromhex(script["plutus:v2"]))
-                    )
-                elif "plutus:v1" in script:
-                    script = PlutusV1Script(
-                        cbor2.loads(bytes.fromhex(script["plutus:v1"]))
-                    )
-                else:
-                    raise ValueError("Unknown plutus script type")
-
-            datum_hash = (
-                DatumHash.from_primitive(output["datumHash"])
-                if output.get("datumHash", None)
-                else None
-            )
-
-            datum = None
-
-            if output["datum"] and output["datum"] != output["datumHash"]:
-                datum = RawCBOR(bytes.fromhex(output["datum"]))
-
-            if not output["value"]["assets"]:
-                tx_out = TransactionOutput(
-                    Address.from_primitive(address),
-                    amount=lovelace_amount,
-                    datum_hash=datum_hash,
-                    datum=datum,
-                    script=script,
-                )
-            else:
-                multi_assets = MultiAsset()
-
-                for asset, quantity in output["value"]["assets"].items():
-                    policy_hex, policy, asset_name_hex = self._extract_asset_info(asset)
-                    multi_assets.setdefault(policy, Asset())[asset_name_hex] = quantity
-
-                tx_out = TransactionOutput(
-                    Address.from_primitive(address),
-                    amount=Value(lovelace_amount, multi_assets),
-                    datum_hash=datum_hash,
-                    datum=datum,
-                    script=script,
-                )
-            utxos.append(UTxO(tx_in, tx_out))
+            utxos.append(self._utxo_from_ogmios_result(result))
 
         return utxos
+
+    def utxo_by_tx_id(self, tx_id: str, index: int) -> Optional[UTxO]:
+        """Get a UTxO associated with a tx_id and index.
+
+        Args:
+            tx_id (str): The transaction id.
+            index (int): The index for the UTxO at the specified transaction.
+
+        Returns:
+            Optional[UTxO]: Return a UTxO if exists at the tx_id and index.
+        """
+        results = self._query_utxos_by_tx_id(tx_id, index)
+        assert len(results) < 2, f"Query for UTxO {tx_id}#{index} should be unique!"
+
+        utxos = []
+        for result in results:
+            utxos.append(self._utxo_from_ogmios_result(result))
+
+        if len(utxos) > 0:
+            return utxos[0]
+        return None
+
+    def _utxo_from_ogmios_result(self, result) -> UTxO:
+        in_ref = result[0]
+        output = result[1]
+        tx_in = TransactionInput.from_primitive([in_ref["txId"], in_ref["index"]])
+        lovelace_amount = output["value"]["coins"]
+        script = output.get("script", None)
+        if script:
+            if "plutus:v2" in script:
+                script = PlutusV2Script(cbor2.loads(bytes.fromhex(script["plutus:v2"])))
+            elif "plutus:v1" in script:
+                script = PlutusV1Script(cbor2.loads(bytes.fromhex(script["plutus:v1"])))
+            else:
+                raise ValueError("Unknown plutus script type")
+        datum_hash = (
+            DatumHash.from_primitive(output["datumHash"])
+            if output.get("datumHash", None)
+            else None
+        )
+        datum = None
+        if output["datum"] and output["datum"] != output["datumHash"]:
+            datum = RawCBOR(bytes.fromhex(output["datum"]))
+        if not output["value"]["assets"]:
+            tx_out = TransactionOutput(
+                Address.from_primitive(output["address"]),
+                amount=lovelace_amount,
+                datum_hash=datum_hash,
+                datum=datum,
+                script=script,
+            )
+        else:
+            multi_assets = MultiAsset()
+
+            for asset, quantity in output["value"]["assets"].items():
+                policy_hex, policy, asset_name_hex = self._extract_asset_info(asset)
+                multi_assets.setdefault(policy, Asset())[asset_name_hex] = quantity
+
+            tx_out = TransactionOutput(
+                Address.from_primitive(output["address"]),
+                amount=Value(lovelace_amount, multi_assets),
+                datum_hash=datum_hash,
+                datum=datum,
+                script=script,
+            )
+        utxo = UTxO(tx_in, tx_out)
+        return utxo
 
     def submit_tx(self, cbor: Union[bytes, str]):
         """Submit a transaction to the blockchain.
