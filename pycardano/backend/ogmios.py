@@ -384,6 +384,7 @@ class OgmiosChainContext(ChainContext):
             Optional[UTxO]: Return a UTxO if exists at the tx_id and index.
         """
         results = self._query_utxos_by_tx_id(tx_id, index)
+        assert len(results) < 2, f"Query for UTxO {tx_id}#{index} should be unique!"
 
         utxos = []
         for result in results:

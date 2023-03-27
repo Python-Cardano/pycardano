@@ -89,7 +89,17 @@ class TestOgmiosChainContext:
         elif args["query"] == "genesisConfig":
             return GENESIS_RESULT
         elif "utxo" in args["query"]:
-            return UTXOS
+            query = args["query"]["utxo"][0]
+            if isinstance(query, dict):
+                for utxo in UTXOS:
+                    if (
+                        utxo[0]["txId"] == query["txId"]
+                        and utxo[0]["index"] == query["index"]
+                    ):
+                        return [utxo]
+                return []
+            else:
+                return UTXOS
         else:
             return None
 
@@ -174,3 +184,19 @@ class TestOgmiosChainContext:
                 },
             }
         )
+
+    def test_utxo_by_tx_id(self):
+        utxo = self.chain_context.utxo_by_tx_id(
+            "3a42f652bd8dee788577e8c39b6217db3df659c33b10a2814c20fb66089ca167",
+            1,
+        )
+        assert utxo.input == TransactionInput.from_primitive(
+            ["3a42f652bd8dee788577e8c39b6217db3df659c33b10a2814c20fb66089ca167", 1]
+        )
+        assert utxo.output.amount == 764295183
+
+        not_utxo = self.chain_context.utxo_by_tx_id(
+            "3a42f652bd8dee788577e8c39b6217db3df659c33b10a2814c20fb66089ca167",
+            2,
+        )
+        assert not_utxo is None
