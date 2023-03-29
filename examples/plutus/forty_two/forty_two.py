@@ -47,29 +47,12 @@ def submit_tx(tx):
     wait_for_tx(str(tx.id))
 
 
-def find_collateral(target_address):
-    for utxo in chain_context.utxos(str(target_address)):
-        # A collateral should contain no multi asset
-        if not utxo.output.amount.multi_asset:
-            return utxo
-    return None
-
-
-def create_collateral(target_address, skey):
-    collateral_builder = TransactionBuilder(chain_context)
-
-    collateral_builder.add_input_address(target_address)
-    collateral_builder.add_output(TransactionOutput(target_address, 5000000))
-
-    submit_tx(collateral_builder.build_and_sign([skey], target_address))
-
-
-# ----------- Giver sends 10 ADA to a script address ---------------
-with open("fortytwo.plutus", "r") as f:
+with open("fortytwoV2.plutus", "r") as f:
     script_hex = f.read()
-    forty_two_script = cbor2.loads(bytes.fromhex(script_hex))
+    forty_two_script = PlutusV2Script(cbor2.loads(bytes.fromhex(script_hex)))
 
-script_hash = plutus_script_hash(PlutusV1Script(forty_two_script))
+
+script_hash = plutus_script_hash(forty_two_script)
 
 script_address = Address(script_hash, network=NETWORK)
 
@@ -77,52 +60,61 @@ giver_address = Address(payment_vkey.hash(), network=NETWORK)
 
 builder = TransactionBuilder(chain_context)
 builder.add_input_address(giver_address)
-datum = PlutusData()  # A Unit type "()" in Haskell
-builder.add_output(
-    TransactionOutput(script_address, 10000000, datum_hash=datum_hash(datum))
-)
+builder.add_output(TransactionOutput(giver_address, 50000000, script=forty_two_script))
 
 signed_tx = builder.build_and_sign([payment_skey], giver_address)
 
+print("############### Transaction created ###############")
+print(signed_tx)
+print("############### Submitting transaction ###############")
 submit_tx(signed_tx)
 
-# ----------- Taker takes 10 ADA from the script address ---------------
 
-# taker_address could be any address. In this example, we will use the same address as giver.
-taker_address = giver_address
+# ----------- Send ADA to the script address ---------------
 
-# Notice that transaction builder will automatically estimate execution units (num steps & memory) for a redeemer if
-# no execution units are provided in the constructor of Redeemer.
-# Put integer 42 (the secret that unlocks the fund) in the redeemer.
+builder = TransactionBuilder(chain_context)
+builder.add_input_address(giver_address)
+datum = 42
+builder.add_output(TransactionOutput(script_address, 50000000, datum=datum))
+
+signed_tx = builder.build_and_sign([payment_skey], giver_address)
+
+print("############### Transaction created ###############")
+print(signed_tx)
+print("############### Submitting transaction ###############")
+submit_tx(signed_tx)
+
+# ----------- Taker take ---------------
+
 redeemer = Redeemer(42)
 
 utxo_to_spend = None
+
+# Spend the utxo with datum 42 sitting at the script address
 for utxo in chain_context.utxos(str(script_address)):
-    if utxo.output.datum_hash == datum_hash(datum):
+    print(utxo)
+    if utxo.output.datum:
         utxo_to_spend = utxo
         break
 
-if utxo_to_spend is None:
-    raise Exception("Can't find utxo to spend! Please try again later.")
+# Find the reference script utxo
+reference_script_utxo = None
+for utxo in chain_context.utxos(str(giver_address)):
+    if utxo.output.script and utxo.output.script == forty_two_script:
+        reference_script_utxo = utxo
+        break
+
+taker_address = Address(payment_vkey.hash(), network=NETWORK)
 
 builder = TransactionBuilder(chain_context)
 
-builder.add_script_input(
-    utxo_to_spend, PlutusV1Script(forty_two_script), datum, redeemer
-)
-
-# Send 5 ADA to taker address. The remaining ADA (~4.7) will be sent as change.
-take_output = TransactionOutput(taker_address, 5000000)
+builder.add_script_input(utxo_to_spend, script=reference_script_utxo, redeemer=redeemer)
+take_output = TransactionOutput(taker_address, 25123456)
 builder.add_output(take_output)
-
-non_nft_utxo = find_collateral(taker_address)
-
-if non_nft_utxo is None:
-    create_collateral(taker_address, payment_skey)
-    non_nft_utxo = find_collateral(taker_address)
-
-builder.collaterals.append(non_nft_utxo)
 
 signed_tx = builder.build_and_sign([payment_skey], taker_address)
 
+print("############### Transaction created ###############")
+print(signed_tx)
+print("############### Submitting transaction ###############")
 submit_tx(signed_tx)
