@@ -1,8 +1,7 @@
-from dataclasses import dataclass
 import unittest
-
+from dataclasses import dataclass
 from test.pycardano.util import check_two_way_cbor
-from typing import Union, Dict, List
+from typing import Dict, List, Union
 
 import pytest
 

@@ -4,7 +4,6 @@ import time
 import warnings
 from typing import Dict, List, Optional, Union
 
-import cbor2
 from blockfrost import ApiError, ApiUrls, BlockFrostApi
 from blockfrost.utils import Namespace
 
@@ -152,13 +151,9 @@ class BlockFrostChainContext(ChainContext):
     ) -> Union[PlutusV1Script, PlutusV2Script, NativeScript]:
         script_type = self.api.script(script_hash).type
         if script_type == "plutusV1":
-            return PlutusV1Script(
-                cbor2.loads(bytes.fromhex(self.api.script_cbor(script_hash).cbor))
-            )
+            return PlutusV1Script(bytes.fromhex(self.api.script_cbor(script_hash).cbor))
         elif script_type == "plutusV2":
-            return PlutusV2Script(
-                cbor2.loads(bytes.fromhex(self.api.script_cbor(script_hash).cbor))
-            )
+            return PlutusV2Script(bytes.fromhex(self.api.script_cbor(script_hash).cbor))
         else:
             script_json: JsonDict = self.api.script_json(
                 script_hash, return_type="json"
