@@ -1,5 +1,5 @@
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -193,6 +193,7 @@ class OgmiosChainContext(ChainContext):
         result = self._query_genesis_config()
         start_str = result["systemStart"].split(".")[0]
         dt = datetime.fromisoformat(start_str.replace("Z", "+00:00"))
+        dt = dt.replace(tzinfo=timezone.utc)
         system_start_unix = int(dt.timestamp())
         return GenesisParameters(
             active_slots_coefficient=self._fraction_parser(
