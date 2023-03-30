@@ -4,6 +4,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.8.0] - 2023-03-29
+
+This patch contains a number of bug fixes and enhancements.
+
+**Implemented enhancements and bug fixes:**
+
+- Allow str addresses as change address in txbuilder [\#187](https://github.com/Python-Cardano/pycardano/issues/187)
+- Include API responses in submit\_tx method [\#185](https://github.com/Python-Cardano/pycardano/issues/185)
+- Specification of the Redeemer Tag necessary? [\#177](https://github.com/Python-Cardano/pycardano/issues/177)
+- Error when submit NFT minting tx [\#165](https://github.com/Python-Cardano/pycardano/issues/165)
+- Add error handling to blockfrost submit\_tx method [\#188](https://github.com/Python-Cardano/pycardano/pull/188) ([bhatt-deep](https://github.com/bhatt-deep))
+- Get UTxO from Transaction ID and Index [\#186](https://github.com/Python-Cardano/pycardano/pull/186) ([juliusfrost](https://github.com/juliusfrost))
+- Reference UTxOs are UTxOs \(not TransactionInputs\) [\#181](https://github.com/Python-Cardano/pycardano/pull/181) ([nielstron](https://github.com/nielstron))
+- Add support for complex dictionary types [\#180](https://github.com/Python-Cardano/pycardano/pull/180) ([nielstron](https://github.com/nielstron))
+- Add functions to automatically add required signers and validity range [\#179](https://github.com/Python-Cardano/pycardano/pull/179) ([nielstron](https://github.com/nielstron))
+- Remove the need to specify the RedeemerTag [\#178](https://github.com/Python-Cardano/pycardano/pull/178) ([nielstron](https://github.com/nielstron))
+- Fix timezone info for Ogmios backend [\#176](https://github.com/Python-Cardano/pycardano/pull/176) ([juliusfrost](https://github.com/juliusfrost))
+- Correctly parse List\[X\] annotated objects [\#170](https://github.com/Python-Cardano/pycardano/pull/170) ([nielstron](https://github.com/nielstron))
+- Fixed the plutus script returned by blockfrost https://github.com/Python-Cardano/pycardano/commit/eabd61305ff4c52b8cd4dce3c54171f8e98cb7cf ([cffls](https://github.com/cffls))
+- Change plutus example to inline datum and inline script https://github.com/Python-Cardano/pycardano/commit/f5542b45066d1f17d2546be90531898b1ab63d7d. ([cffls](https://github.com/cffls))
+- [Bug fix] Force set timezone in system start unix to utc https://github.com/Python-Cardano/pycardano/commit/7771a3cc715ea7fb59900947d70b182db59e84ad ([cffls](https://github.com/cffls))
+
+**Closed issues:**
+
+- Verification and Signing Keys Bug [\#184](https://github.com/Python-Cardano/pycardano/issues/184)
+- Error: The seed must be exactly 32 bytes long [\#159](https://github.com/Python-Cardano/pycardano/issues/159)
+- Move to hashlib for hashing [\#153](https://github.com/Python-Cardano/pycardano/issues/153)
+
+**Merged pull requests:**
+
+- Update tutorial with renamed smart contract language [\#183](https://github.com/Python-Cardano/pycardano/pull/183) ([nielstron](https://github.com/nielstron))
+- Bump blockfrost-python from 0.5.2 to 0.5.3 [\#162](https://github.com/Python-Cardano/pycardano/pull/162) ([dependabot[bot]](https://github.com/apps/dependabot))
+
+
 ## [0.7.3] - 2023-02-05
 
 **Implemented enhancements:**
