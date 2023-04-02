@@ -66,7 +66,7 @@ is easier to read and write. The above could be convered to JSON like this::
 Similarly, redeemer can be serialized like following::
 
     >>> data = MyDatum(123, b"234", IndefiniteList([]), {1: b"1", 2: b"2"})
-    >>> redeemer = MyRedeemer(RedeemerTag.SPEND, data, ExecutionUnits(1000000, 1000000))
+    >>> redeemer = Redeemer(data, ExecutionUnits(1000000, 1000000))
     >>> redeemer.to_cbor()
     '840000d8668218829f187b433233349fffa2014131024132ff821a000f42401a000f4240'
 
@@ -182,7 +182,7 @@ Step 4
 
 Taker/Unlocker sends transaction to consume funds. Here we specify the redeemer tag as spend and pass in no special redeemer, as it is being ignored by the contract.::
 
-    >>> redeemer = Redeemer(RedeemerTag.SPEND, PlutusData())  # The plutus equivalent of None
+    >>> redeemer = Redeemer(PlutusData())  # The plutus equivalent of None
 
     >>> utxo_to_spend = context.utxos(str(script_address))[0]
 
