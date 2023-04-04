@@ -208,6 +208,15 @@ def test_plutus_data_hash():
     )
 
 
+def test_execution_units_bool():
+    assert ExecutionUnits(
+        1000000, 1000000
+    ), "ExecutionUnits should be true when its value is not 0"
+    assert not ExecutionUnits(
+        0, 0
+    ), "ExecutionUnits should be false when its value is 0"
+
+
 def test_redeemer():
     data = MyTest(123, b"234", IndefiniteList([4, 5, 6]), {1: b"1", 2: b"2"})
     redeemer = MyRedeemer(data, ExecutionUnits(1000000, 1000000))

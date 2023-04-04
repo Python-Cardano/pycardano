@@ -166,7 +166,7 @@ class TransactionBuilder:
                 self._should_estimate_execution_units = True
                 redeemer.ex_units = ExecutionUnits(0, 0)
         else:
-            if not self._should_estimate_execution_units and redeemer.ex_units is None:
+            if not self._should_estimate_execution_units and not redeemer.ex_units:
                 raise InvalidArgumentException(
                     f"All redeemers need to provide execution units if the firstly "
                     f"added redeemer specifies execution units. \n"
@@ -174,7 +174,7 @@ class TransactionBuilder:
                     f"New redeemer: {redeemer}"
                 )
             if self._should_estimate_execution_units:
-                if redeemer.ex_units is not None:
+                if redeemer.ex_units:
                     raise InvalidArgumentException(
                         f"No redeemer should provide execution units if the firstly "
                         f"added redeemer didn't provide execution units. \n"

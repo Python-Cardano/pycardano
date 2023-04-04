@@ -585,6 +585,89 @@ def test_add_script_input_with_script_from_specified_utxo(chain_context):
     assert [existing_script_utxo.input] == tx_body.reference_inputs
 
 
+def test_add_script_input_multiple_redeemers(chain_context):
+    tx_builder = TransactionBuilder(chain_context)
+    tx_in1 = TransactionInput.from_primitive(
+        ["18cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad21431590f7e6643438ef", 0]
+    )
+    tx_in2 = TransactionInput.from_primitive(
+        ["18cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad21431590f7e6643438ef", 1]
+    )
+    plutus_script = PlutusV2Script(b"dummy test script")
+    script_hash = plutus_script_hash(plutus_script)
+    script_address = Address(script_hash)
+    datum = PlutusData()
+    utxo1 = UTxO(
+        tx_in1, TransactionOutput(script_address, 10000000, datum_hash=datum.hash())
+    )
+
+    existing_script_utxo = UTxO(
+        TransactionInput.from_primitive(
+            [
+                "41cb004bec7051621b19b46aea28f0657a586a05ce2013152ea9b9f1a5614cc7",
+                1,
+            ]
+        ),
+        TransactionOutput(script_address, 1234567, script=plutus_script),
+    )
+
+    utxo2 = UTxO(
+        tx_in2, TransactionOutput(script_address, 10000000, datum_hash=datum.hash())
+    )
+
+    existing_script_utxo = UTxO(
+        TransactionInput.from_primitive(
+            [
+                "41cb004bec7051621b19b46aea28f0657a586a05ce2013152ea9b9f1a5614cc7",
+                1,
+            ]
+        ),
+        TransactionOutput(script_address, 1234567, script=plutus_script),
+    )
+
+    tx_builder.add_script_input(
+        utxo1, script=existing_script_utxo, datum=datum, redeemer=Redeemer(PlutusData())
+    )
+
+    tx_builder.add_script_input(
+        utxo2, script=existing_script_utxo, datum=datum, redeemer=Redeemer(PlutusData())
+    )
+
+    pytest.raises(
+        InvalidArgumentException,
+        tx_builder.add_script_input,
+        utxo2,
+        script=existing_script_utxo,
+        datum=datum,
+        redeemer=Redeemer(PlutusData(), ExecutionUnits(1000000, 1000000)),
+    )
+
+    tx_builder = TransactionBuilder(chain_context)
+
+    tx_builder.add_script_input(
+        utxo1,
+        script=existing_script_utxo,
+        datum=datum,
+        redeemer=Redeemer(PlutusData(), ExecutionUnits(1000000, 1000000)),
+    )
+
+    tx_builder.add_script_input(
+        utxo2,
+        script=existing_script_utxo,
+        datum=datum,
+        redeemer=Redeemer(PlutusData(), ExecutionUnits(1000000, 1000000)),
+    )
+
+    pytest.raises(
+        InvalidArgumentException,
+        tx_builder.add_script_input,
+        utxo2,
+        script=existing_script_utxo,
+        datum=datum,
+        redeemer=Redeemer(PlutusData()),
+    )
+
+
 def test_add_minting_script_from_specified_utxo(chain_context):
     tx_builder = TransactionBuilder(chain_context)
     plutus_script = PlutusV2Script(b"dummy test script")

@@ -739,6 +739,12 @@ class ExecutionUnits(ArrayCBORSerializable):
             )
         return ExecutionUnits(self.mem + other.mem, self.steps + other.steps)
 
+    def is_empty(self) -> bool:
+        return self.mem == 0 and self.steps == 0
+
+    def __bool__(self):
+        return not self.is_empty()
+
 
 @dataclass(repr=False)
 class Redeemer(ArrayCBORSerializable):
