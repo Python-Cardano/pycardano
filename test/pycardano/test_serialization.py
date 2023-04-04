@@ -1,3 +1,5 @@
+from typing import Union
+
 from dataclasses import dataclass, field
 from test.pycardano.util import check_two_way_cbor
 
@@ -40,7 +42,7 @@ def test_array_cbor_serializable():
     @dataclass
     class Test1(ArrayCBORSerializable):
         a: str
-        b: str = None
+        b: Union[str, None] = None
 
     @dataclass
     class Test2(ArrayCBORSerializable):
@@ -87,7 +89,7 @@ def test_map_cbor_serializable():
 
     @dataclass
     class Test2(MapCBORSerializable):
-        c: str = None
+        c: Union[str, None] = None
         test1: Test1 = field(default_factory=Test1)
 
     t = Test2(test1=Test1(a="a"))
