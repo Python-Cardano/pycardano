@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-import typing
-
 import re
+import typing
 from collections import OrderedDict, UserList, defaultdict
 from copy import deepcopy
 from dataclasses import Field, dataclass, fields
@@ -433,7 +432,7 @@ def _restore_typed_primitive(
     Returns:
         Union[:const:`Primitive`, CBORSerializable]: A CBOR primitive or a CBORSerializable.
     """
-    if t in PRIMITIVE_TYPES and isinstance(v, t):
+    if t is Any or (t in PRIMITIVE_TYPES and isinstance(v, t)):
         return v
     elif isclass(t) and issubclass(t, CBORSerializable):
         return t.from_primitive(v)

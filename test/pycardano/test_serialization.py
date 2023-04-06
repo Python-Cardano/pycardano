@@ -1,7 +1,6 @@
-from typing import Union
-
 from dataclasses import dataclass, field
 from test.pycardano.util import check_two_way_cbor
+from typing import Any, Union
 
 import pytest
 
@@ -162,3 +161,14 @@ def test_indefinite_list():
     b.remove(5)
     # remove should remove element and return IndefiniteList
     assert b == IndefiniteList([4, 6, 7]) and type(b) == IndefiniteList
+
+
+def test_any_type():
+    @dataclass
+    class Test1(MapCBORSerializable):
+        a: str = ""
+        b: Any = ""
+
+    t = Test1(a="a", b=1)
+
+    check_two_way_cbor(t)
