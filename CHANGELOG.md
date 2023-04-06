@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.8.1] - 2023-04-06
+
+This patch contains a number of bug fixes to `v0.8.0`.
+
+**Implemented enhancements:**
+
+- Only upload code cov once in CI [\#190](https://github.com/Python-Cardano/pycardano/pull/190) ([cffls](https://github.com/cffls))
+
+**Fixed bugs:**
+
+- PyCardano does not correctly load nested PlutusData from cbor where the keys are unions of PlutusData [\#193](https://github.com/Python-Cardano/pycardano/issues/193)
+- \[Bug fix\] Return a value directly if its type is 'Any' on deserializing [\#195](https://github.com/Python-Cardano/pycardano/pull/195) ([cffls](https://github.com/cffls))
+- Fix recursive deserialization of cbor bytes [\#194](https://github.com/Python-Cardano/pycardano/pull/194) ([nielstron](https://github.com/nielstron))
+- Fix error when adding multiple redeemers [\#192](https://github.com/Python-Cardano/pycardano/pull/192) ([cffls](https://github.com/cffls))
+- Fix redeemer initalization [\#189](https://github.com/Python-Cardano/pycardano/pull/189) ([nielstron](https://github.com/nielstron))
+
+
 ## [0.8.0] - 2023-03-29
 
 This patch contains a number of bug fixes and enhancements.
