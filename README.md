@@ -254,10 +254,8 @@ You can support us by 1) sponsoring through Github, or 2) donating ADA to our AD
 ## Sponsors :heart:
 
 <p align="left">
-  <a href="https://www.blockery.io/"><img src="https://avatars.githubusercontent.com/u/97766045?s=50&v=4"/></a>
   <a href="https://github.com/KtorZ"><img src="https://avatars.githubusercontent.com/u/5680256?s=50&v=4"/></a>
-  <a href="https://github.com/lacepool"><img src="https://avatars.githubusercontent.com/u/79309785?s=50&v=4"/></a>
-  <a href="https://github.com/muppetADA"><img width="50" src="https://avatars.githubusercontent.com/u/115075316?s=50&v=4"/></a>
   <a href="https://github.com/CardanoDur"><img width="50" src="https://avatars.githubusercontent.com/u/1000466?s=50&v=4"/></a>
   <a href="https://github.com/huths0lo"><img width="50" src="https://avatars.githubusercontent.com/u/78839856?s=50&v=4"/></a>
+  <a href="https://github.com/markrufino"><img width="50" src="https://avatars.githubusercontent.com/u/30117352?v=4"/></a>
 </p>
