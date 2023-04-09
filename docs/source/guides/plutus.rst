@@ -133,6 +133,7 @@ Create script address::
     ...     plutus_script_hash,
     ...     Transaction,
     ...     TransactionBuilder,
+    ...     TransactionOutput,
     ...     PlutusData,
     ...     Redeemer,
     ...     PlutusV2Script,
