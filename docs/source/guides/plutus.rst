@@ -138,6 +138,7 @@ Create script address::
     ...     Redeemer,
     ...     PlutusV2Script,
     ...     Network,
+    ...     datum_hash,
     ... )
 
     >>> # This artifact was generated in step 2
