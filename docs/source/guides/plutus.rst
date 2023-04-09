@@ -121,7 +121,7 @@ Similar to `Transaction guide <../guides/transaction.html>`_, we build a chain c
     >>> from pycardano import BlockFrostChainContext
     >>> context = BlockFrostChainContext("your_blockfrost_project_id", base_url=ApiUrls.preprod.value)
 
-Step 2
+Step 4
 
 Create script address::
 
@@ -150,7 +150,7 @@ Create script address::
     >>> network = Network.TESTNET
     >>> script_address = Address(script_hash, network=network)
 
-Step 3
+Step 5
 
 Giver/Locker sends funds to script address.
 We will attach the public key hash of a receiver address as datum to the utxo.
@@ -180,7 +180,7 @@ Build, sign and submit the transaction:
    >>> signed_tx = builder.build_and_sign([payment_skey], giver_address)
    >>> context.submit_tx(signed_tx.to_cbor())
 
-Step 4
+Step 6
 
 Taker/Unlocker sends transaction to consume funds. Here we specify the redeemer tag as spend and pass in no special redeemer, as it is being ignored by the contract.::
 
