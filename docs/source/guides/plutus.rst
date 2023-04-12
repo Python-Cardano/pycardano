@@ -207,7 +207,7 @@ Taker/Unlocker provides collateral. Collateral has been introduced in Alonzo tra
 
     >>> builder.collaterals.append(non_nft_utxo)
 
-    >>> signed_tx = builder.build_and_sign([self.extended_payment_skey], taker_address)
+    >>> signed_tx = builder.build_and_sign([payment_skey_2], taker_address)
 
 
 Uh oh! That failed. We forgot to add the taker as a `required` signer, so that the contract knows
@@ -217,7 +217,7 @@ that they will sign the transaction::
 
 Now lets try to resubmit this::
 
-    >>> signed_tx = builder.build_and_sign([self.extended_payment_skey], taker_address)
+    >>> signed_tx = builder.build_and_sign([payment_skey_2], taker_address)
 
     >>> context.submit_tx(signed_tx.to_cbor())
 
@@ -264,7 +264,7 @@ With reference script, actual script doesn't need to be included in the transact
     >>> builder.add_script_input(utxo_to_spend, datum=datum, redeemer=redeemer)
     >>> take_output = TransactionOutput(taker_address, 25123456)
     >>> builder.add_output(take_output)
-    >>> signed_tx = builder.build_and_sign([extended_payment_skey], taker_address)
+    >>> signed_tx = builder.build_and_sign([payment_skey], taker_address)
 
 Again, with the same example, we show that you can send funds to script address with inline datums directly::
 
@@ -288,6 +288,6 @@ With inline datum, we no longer have to include a datum within our transaction f
     >>> builder.add_script_input(utxo_to_spend, redeemer=redeemer)
     >>> take_output = TransactionOutput(taker_address, 25123456)
     >>> builder.add_output(take_output)
-    >>> signed_tx = builder.build_and_sign([extended_payment_skey], taker_address)
+    >>> signed_tx = builder.build_and_sign([payment_skey], taker_address)
 
 
