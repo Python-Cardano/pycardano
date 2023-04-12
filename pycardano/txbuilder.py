@@ -1237,12 +1237,17 @@ class TransactionBuilder:
                 to the current slot number + the given offset (default 10_000).
                 A manually set ttl will always take precedence.
             auto_required_signers (Optional[bool]): Automatically add all pubkeyhashes of transaction inputs
-                to required signatories (default only for Smart Contract transactions).
+                and the given signers to required signatories (default only for Smart Contract transactions).
                 Manually set required signers will always take precedence.
 
         Returns:
             Transaction: A signed transaction.
         """
+        # The given signers should be required signers if they weren't added yet
+        if auto_required_signers and self.scripts and not self.required_signers:
+            self.required_signers = [
+                s.to_verification_key().hash() for s in signing_keys
+            ]
 
         tx_body = self.build(
             change_address=change_address,
