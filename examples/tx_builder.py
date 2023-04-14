@@ -31,7 +31,7 @@ builder = TransactionBuilder(context)
 builder.add_input_address(address)
 
 # Get all UTxOs currently sitting at this address
-utxos = context.utxos(str(address))
+utxos = context.utxos(address)
 
 # We can also tell the builder to include a specific UTxO in the transaction.
 # Similarly, "add_input" could be called multiple times.
@@ -82,4 +82,4 @@ builder.add_output(
 signed_tx = builder.build_and_sign([psk], change_address=address)
 
 # Submit signed transaction to the network
-context.submit_tx(signed_tx.to_cbor())
+context.submit_tx(signed_tx)

@@ -43,7 +43,7 @@ def submit_tx(tx):
     print(tx)
     print(tx.to_cbor())
     print("############### Submitting transaction ###############")
-    chain_context.submit_tx(tx.to_cbor())
+    chain_context.submit_tx(tx)
     wait_for_tx(str(tx.id))
 
 
@@ -91,7 +91,7 @@ redeemer = Redeemer(42)
 utxo_to_spend = None
 
 # Spend the utxo with datum 42 sitting at the script address
-for utxo in chain_context.utxos(str(script_address)):
+for utxo in chain_context.utxos(script_address):
     print(utxo)
     if utxo.output.datum:
         utxo_to_spend = utxo
@@ -99,7 +99,7 @@ for utxo in chain_context.utxos(str(script_address)):
 
 # Find the reference script utxo
 reference_script_utxo = None
-for utxo in chain_context.utxos(str(giver_address)):
+for utxo in chain_context.utxos(giver_address):
     if utxo.output.script and utxo.output.script == forty_two_script:
         reference_script_utxo = utxo
         break

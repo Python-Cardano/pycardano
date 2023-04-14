@@ -93,7 +93,7 @@ class FixedChainContext(ChainContext):
         """Current slot number"""
         return 2000
 
-    def utxos(self, address: str) -> List[UTxO]:
+    def _utxos(self, address: str) -> List[UTxO]:
         """Get all UTxOs associated with an address.
 
         Args:
@@ -110,7 +110,7 @@ class FixedChainContext(ChainContext):
         )
         return [UTxO(tx_in1, tx_out1), UTxO(tx_in2, tx_out2)]
 
-    def submit_tx(self, cbor: Union[bytes, str]):
+    def submit_tx_cbor(self, cbor: Union[bytes, str]):
         """Submit a transaction to the blockchain.
 
         Args:
@@ -122,7 +122,7 @@ class FixedChainContext(ChainContext):
         """
         pass
 
-    def evaluate_tx(self, cbor: Union[bytes, str]) -> Dict[str, ExecutionUnits]:
+    def evaluate_tx_cbor(self, cbor: Union[bytes, str]) -> Dict[str, ExecutionUnits]:
         return {"spend:0": ExecutionUnits(399882, 175940720)}
 
 

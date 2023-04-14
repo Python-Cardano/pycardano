@@ -77,5 +77,5 @@ def submit_tx():
     print(f"Transaction: \n {tx}")
     print(f"Transaction cbor: {tx.to_cbor()}")
     print(f"Transaction ID: {tx_id}")
-    chain_context.submit_tx(tx.to_cbor())
+    chain_context.submit_tx(tx)
     return {"tx_id": tx_id}

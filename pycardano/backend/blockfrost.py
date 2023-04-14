@@ -160,7 +160,7 @@ class BlockFrostChainContext(ChainContext):
             )["json"]
             return NativeScript.from_dict(script_json)
 
-    def utxos(self, address: str) -> List[UTxO]:
+    def _utxos(self, address: str) -> List[UTxO]:
         results = self.api.address_utxos(address, gather_pages=True)
 
         utxos = []
@@ -217,7 +217,7 @@ class BlockFrostChainContext(ChainContext):
 
         return utxos
 
-    def submit_tx(self, cbor: Union[bytes, str]) -> str:
+    def submit_tx_cbor(self, cbor: Union[bytes, str]) -> str:
         """Submit a transaction.
 
         Args:
@@ -243,7 +243,7 @@ class BlockFrostChainContext(ChainContext):
         os.remove(f.name)
         return response
 
-    def evaluate_tx(self, cbor: Union[bytes, str]) -> Dict[str, ExecutionUnits]:
+    def evaluate_tx_cbor(self, cbor: Union[bytes, str]) -> Dict[str, ExecutionUnits]:
         """Evaluate execution units of a transaction.
 
         Args:
