@@ -102,6 +102,6 @@ class TestMint(TestBase):
 
         # Submit signed transaction to the network
         print("############### Submitting transaction ###############")
-        self.chain_context.submit_tx(signed_tx.to_cbor())
+        self.chain_context.submit_tx(signed_tx)
 
         self.assert_output(address, nft_output)

@@ -240,7 +240,7 @@ class TransactionBuilder:
             self.reference_inputs.add(utxo)
             self._reference_scripts.append(utxo.output.script)
         elif not script:
-            for i in self.context.utxos(str(utxo.output.address)):
+            for i in self.context.utxos(utxo.output.address):
                 if i.output.script:
                     self._inputs_to_scripts[utxo] = i.output.script
                     self.reference_inputs.add(i)
@@ -989,7 +989,7 @@ class TransactionBuilder:
             additional_utxo_pool = []
             additional_amount = Value()
             for address in self.input_addresses:
-                for utxo in self.context.utxos(str(address)):
+                for utxo in self.context.utxos(address):
                     if (
                         utxo not in selected_utxos
                         and utxo not in self.excluded_inputs
@@ -1123,7 +1123,7 @@ class TransactionBuilder:
 
             if tmp_val.coin < collateral_amount:
                 sorted_inputs = sorted(
-                    self.context.utxos(str(collateral_return_address)),
+                    self.context.utxos(collateral_return_address),
                     key=lambda i: (len(i.output.to_cbor()), -i.output.amount.coin),
                 )
                 _add_collateral_input(tmp_val, sorted_inputs)
@@ -1207,7 +1207,7 @@ class TransactionBuilder:
             tx_body, witness_set, auxiliary_data=tmp_builder.auxiliary_data
         )
 
-        return self.context.evaluate_tx(tx.to_cbor())
+        return self.context.evaluate_tx(tx)
 
     def build_and_sign(
         self,

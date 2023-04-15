@@ -226,7 +226,7 @@ class OgmiosChainContext(ChainContext):
         result = self._query_chain_tip()
         return result["slot"]
 
-    def utxos(self, address: str) -> List[UTxO]:
+    def _utxos(self, address: str) -> List[UTxO]:
         """Get all UTxOs associated with an address.
 
         Args:
@@ -438,7 +438,7 @@ class OgmiosChainContext(ChainContext):
         utxo = UTxO(tx_in, tx_out)
         return utxo
 
-    def submit_tx(self, cbor: Union[bytes, str]):
+    def submit_tx_cbor(self, cbor: Union[bytes, str]):
         """Submit a transaction to the blockchain.
 
         Args:
@@ -456,7 +456,7 @@ class OgmiosChainContext(ChainContext):
         if "SubmitFail" in result:
             raise TransactionFailedException(result["SubmitFail"])
 
-    def evaluate_tx(self, cbor: Union[bytes, str]) -> Dict[str, ExecutionUnits]:
+    def evaluate_tx_cbor(self, cbor: Union[bytes, str]) -> Dict[str, ExecutionUnits]:
         """Evaluate execution units of a transaction.
 
         Args:

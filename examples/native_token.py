@@ -172,4 +172,4 @@ print(signed_tx.to_cbor())
 
 # Submit signed transaction to the network
 print("############### Submitting transaction ###############")
-chain_context.submit_tx(signed_tx.to_cbor())
+chain_context.submit_tx(signed_tx)

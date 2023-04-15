@@ -37,7 +37,7 @@ class TestPlutus(TestBase):
         print(signed_tx)
         print(signed_tx.to_cbor())
         print("############### Submitting transaction ###############")
-        self.chain_context.submit_tx(signed_tx.to_cbor())
+        self.chain_context.submit_tx(signed_tx)
         time.sleep(3)
 
         # ----------- Fund taker a collateral UTxO ---------------
@@ -55,14 +55,14 @@ class TestPlutus(TestBase):
         print(signed_tx)
         print(signed_tx.to_cbor())
         print("############### Submitting transaction ###############")
-        self.chain_context.submit_tx(signed_tx.to_cbor())
+        self.chain_context.submit_tx(signed_tx)
         time.sleep(3)
 
         # ----------- Taker take ---------------
 
         redeemer = Redeemer(42)
 
-        utxo_to_spend = self.chain_context.utxos(str(script_address))[0]
+        utxo_to_spend = self.chain_context.utxos(script_address)[0]
 
         taker_address = Address(self.extended_payment_vkey.hash(), network=self.NETWORK)
 
@@ -75,7 +75,7 @@ class TestPlutus(TestBase):
         builder.add_output(take_output)
 
         non_nft_utxo = None
-        for utxo in self.chain_context.utxos(str(taker_address)):
+        for utxo in self.chain_context.utxos(taker_address):
             # multi_asset should be empty for collateral utxo
             if not utxo.output.amount.multi_asset:
                 non_nft_utxo = utxo
@@ -89,7 +89,7 @@ class TestPlutus(TestBase):
         print(signed_tx)
         print(signed_tx.to_cbor())
         print("############### Submitting transaction ###############")
-        self.chain_context.submit_tx(signed_tx.to_cbor())
+        self.chain_context.submit_tx(signed_tx)
 
         self.assert_output(taker_address, take_output)
 
@@ -121,7 +121,7 @@ class TestPlutus(TestBase):
         print(signed_tx)
         print(signed_tx.to_cbor())
         print("############### Submitting transaction ###############")
-        self.chain_context.submit_tx(signed_tx.to_cbor())
+        self.chain_context.submit_tx(signed_tx)
         time.sleep(3)
 
         # ----------- Taker take ---------------
@@ -131,7 +131,7 @@ class TestPlutus(TestBase):
         utxo_to_spend = None
 
         # Speed the utxo that doesn't have datum/datum_hash or script attached
-        for utxo in self.chain_context.utxos(str(script_address)):
+        for utxo in self.chain_context.utxos(script_address):
             if not utxo.output.script and (
                 utxo.output.datum_hash == datum_hash(datum)
                 or utxo.output.datum == datum
@@ -150,7 +150,7 @@ class TestPlutus(TestBase):
         builder.add_output(take_output)
 
         non_nft_utxo = None
-        for utxo in self.chain_context.utxos(str(taker_address)):
+        for utxo in self.chain_context.utxos(taker_address):
             # multi_asset should be empty for collateral utxo
             if not utxo.output.amount.multi_asset:
                 non_nft_utxo = utxo
@@ -164,7 +164,7 @@ class TestPlutus(TestBase):
         print(signed_tx)
         print(signed_tx.to_cbor())
         print("############### Submitting transaction ###############")
-        self.chain_context.submit_tx(signed_tx.to_cbor())
+        self.chain_context.submit_tx(signed_tx)
 
         self.assert_output(taker_address, take_output)
 
@@ -198,7 +198,7 @@ class TestPlutus(TestBase):
         print(signed_tx)
         print(signed_tx.to_cbor())
         print("############### Submitting transaction ###############")
-        self.chain_context.submit_tx(signed_tx.to_cbor())
+        self.chain_context.submit_tx(signed_tx)
         time.sleep(3)
 
         # ----------- Taker take ---------------
@@ -208,7 +208,7 @@ class TestPlutus(TestBase):
         utxo_to_spend = None
 
         # Speed the utxo that has both inline script and inline datum
-        for utxo in self.chain_context.utxos(str(script_address)):
+        for utxo in self.chain_context.utxos(script_address):
             if utxo.output.datum and utxo.output.script:
                 utxo_to_spend = utxo
                 break
@@ -225,9 +225,9 @@ class TestPlutus(TestBase):
 
         print("############### Transaction created ###############")
         print(signed_tx)
-        print(signed_tx.to_cbor())
+        print(signed_tx)
         print("############### Submitting transaction ###############")
-        self.chain_context.submit_tx(signed_tx.to_cbor())
+        self.chain_context.submit_tx(signed_tx)
 
         self.assert_output(taker_address, take_output)
 
@@ -259,7 +259,7 @@ class TestPlutus(TestBase):
         print(signed_tx)
         print(signed_tx.to_cbor())
         print("############### Submitting transaction ###############")
-        self.chain_context.submit_tx(signed_tx.to_cbor())
+        self.chain_context.submit_tx(signed_tx)
         time.sleep(3)
 
         # ----------- Send ADA to the same script address without datum or script ---------------
@@ -276,7 +276,7 @@ class TestPlutus(TestBase):
         print(signed_tx)
         print(signed_tx.to_cbor())
         print("############### Submitting transaction ###############")
-        self.chain_context.submit_tx(signed_tx.to_cbor())
+        self.chain_context.submit_tx(signed_tx)
         time.sleep(3)
 
         # ----------- Taker take ---------------
@@ -286,7 +286,7 @@ class TestPlutus(TestBase):
         utxo_to_spend = None
 
         # Spend the utxo that doesn't have datum/datum_hash or script attached
-        for utxo in self.chain_context.utxos(str(script_address)):
+        for utxo in self.chain_context.utxos(script_address):
             if not utxo.output.script and (
                 utxo.output.datum_hash == datum_hash(datum)
                 or datum_hash(utxo.output.datum) == datum_hash(datum)
@@ -308,6 +308,6 @@ class TestPlutus(TestBase):
         print(signed_tx)
         print(signed_tx.to_cbor())
         print("############### Submitting transaction ###############")
-        self.chain_context.submit_tx(signed_tx.to_cbor())
+        self.chain_context.submit_tx(signed_tx)
 
         self.assert_output(taker_address, take_output)

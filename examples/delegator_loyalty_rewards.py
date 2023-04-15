@@ -101,5 +101,5 @@ print(signed_tx)
 
 print("#### Transaction id ####")
 print(signed_tx.id)
-context.submit_tx(signed_tx.to_cbor())
+context.submit_tx(signed_tx)
 print("Transaction successfully submitted!")
