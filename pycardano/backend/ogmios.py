@@ -267,7 +267,7 @@ class OgmiosChainContext(ChainContext):
             tx_id = result["transaction_id"]
             index = result["output_index"]
 
-            if result["spent_at"] is not None:
+            if result["spent_at"] is None:
                 tx_in = TransactionInput.from_primitive([tx_id, index])
 
                 lovelace_amount = result["value"]["coins"]
