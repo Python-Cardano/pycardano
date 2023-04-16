@@ -302,7 +302,7 @@ class CBORSerializable:
             if not _check_recursive(field_value, field_type):
                 raise TypeError(
                     f"Field '{field_name}' should be of type {field_type}, "
-                    f"got {type(field_value)} instead."
+                    f"got {repr(field_value)} instead."
                 )
 
     def to_validated_primitive(self) -> Primitive:
