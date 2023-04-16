@@ -258,7 +258,7 @@ class OgmiosChainContext(ChainContext):
                 "kupo_url object attribute has not been assigned properly."
             )
 
-        kupo_utxo_url = self._kupo_url + "/matches/" + address
+        kupo_utxo_url = self._kupo_url + "/matches/" + address + "?unspent"
         results = requests.get(kupo_utxo_url).json()
 
         utxos = []
@@ -267,11 +267,7 @@ class OgmiosChainContext(ChainContext):
             tx_id = result["transaction_id"]
             index = result["output_index"]
 
-            # Right now, all UTxOs of the address will be returned with Kupo, which requires Ogmios to
-            # validate if the UTxOs are spent with output reference. This feature is being considered to
-            # be added to Kupo to avoid extra API calls.
-            # See discussion here: https://github.com/CardanoSolutions/kupo/discussions/19.
-            if self._check_utxo_unspent(tx_id, index):
+            if result["spent_at"] is None:
                 tx_in = TransactionInput.from_primitive([tx_id, index])
 
                 lovelace_amount = result["value"]["coins"]
