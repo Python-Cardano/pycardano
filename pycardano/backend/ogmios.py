@@ -2,6 +2,7 @@ import json
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple, Union
+import time
 
 import cbor2
 import requests
@@ -45,6 +46,7 @@ class OgmiosChainContext(ChainContext):
     _service_name: str
     _kupo_url: Optional[str]
     _last_known_block_slot: int
+    _last_chain_tip_fetch: float
     _genesis_param: Optional[GenesisParameters]
     _protocol_param: Optional[ProtocolParameters]
 
@@ -54,12 +56,15 @@ class OgmiosChainContext(ChainContext):
         network: Network,
         compact_result=True,
         kupo_url=None,
+        refetch_chain_tip_interval=20,
     ):
         self._ws_url = ws_url
         self._network = network
         self._service_name = "ogmios.v1:compact" if compact_result else "ogmios"
         self._kupo_url = kupo_url
         self._last_known_block_slot = 0
+        self._refetch_chain_tip_interval = refetch_chain_tip_interval
+        self._last_chain_tip_fetch = 0
         self._genesis_param = None
         self._protocol_param = None
 
@@ -110,8 +115,12 @@ class OgmiosChainContext(ChainContext):
         return self._request(OgmiosQueryType.Query, args)
 
     def _is_chain_tip_updated(self):
+        # fetch at most every twenty seconds!
+        if time.time() - self._last_chain_tip_fetch < self._refetch_chain_tip_interval:
+            return False
+        self._last_chain_tip_fetch = time.time()
         slot = self.last_block_slot
-        if self._last_known_block_slot != slot:
+        if self._last_known_block_slot < slot:
             self._last_known_block_slot = slot
             return True
         else:
