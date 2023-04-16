@@ -390,6 +390,7 @@ class TransactionOutput(CBORSerializable):
             self.amount = Value(self.amount)
 
     def validate(self):
+        super().validate()
         if isinstance(self.amount, int) and self.amount < 0:
             raise InvalidDataException(
                 f"Transaction output cannot have negative amount of ADA or "

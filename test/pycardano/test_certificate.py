@@ -1,5 +1,6 @@
 from pycardano.address import Address
 from pycardano.certificate import (
+    PoolKeyHash,
     StakeCredential,
     StakeDelegation,
     StakeDeregistration,
@@ -43,7 +44,9 @@ def test_stake_deregistration():
 
 def test_stake_delegation():
     stake_credential = StakeCredential(TEST_ADDR.staking_part)
-    stake_delegation = StakeDelegation(stake_credential, b"1" * POOL_KEY_HASH_SIZE)
+    stake_delegation = StakeDelegation(
+        stake_credential, PoolKeyHash(b"1" * POOL_KEY_HASH_SIZE)
+    )
 
     assert (
         stake_delegation.to_cbor()
