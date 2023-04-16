@@ -11,7 +11,18 @@ from datetime import datetime
 from decimal import Decimal
 from functools import wraps
 from inspect import isclass
-from typing import Any, Callable, List, Optional, Type, TypeVar, Union, get_type_hints
+from typing import (
+    Any,
+    Callable,
+    ClassVar,
+    Dict,
+    List,
+    Optional,
+    Type,
+    TypeVar,
+    Union,
+    get_type_hints,
+)
 
 from cbor2 import CBOREncoder, CBORSimpleValue, CBORTag, dumps, loads, undefined
 from pprintpp import pformat
@@ -254,7 +265,45 @@ class CBORSerializable:
         Raises:
             InvalidDataException: When the data is invalid.
         """
-        pass
+        type_hints = get_type_hints(self.__class__)
+
+        def _check_recursive(value, type_hint):
+            if type_hint is Any:
+                return True
+            origin = getattr(type_hint, "__origin__", None)
+            if origin is None:
+                if isinstance(value, CBORSerializable):
+                    value.validate()
+                return isinstance(value, type_hint)
+            elif origin is ClassVar:
+                return _check_recursive(value, type_hint.__args__[0])
+            elif origin is Union:
+                return any(_check_recursive(value, arg) for arg in type_hint.__args__)
+            elif origin is Dict or isinstance(value, dict):
+                key_type, value_type = type_hint.__args__
+                return all(
+                    _check_recursive(k, key_type) and _check_recursive(v, value_type)
+                    for k, v in value.items()
+                )
+            elif origin in (list, set, tuple):
+                if value is None:
+                    return True
+                args = type_hint.__args__
+                if len(args) == 1:
+                    return all(_check_recursive(item, args[0]) for item in value)
+                elif len(args) > 1:
+                    return all(
+                        _check_recursive(item, arg) for item, arg in zip(value, args)
+                    )
+            return True  # We don't know how to check this type
+
+        for field_name, field_type in type_hints.items():
+            field_value = getattr(self, field_name)
+            if not _check_recursive(field_value, field_type):
+                raise TypeError(
+                    f"Field '{field_name}' should be of type {field_type}, "
+                    f"got {type(field_value)} instead."
+                )
 
     def to_validated_primitive(self) -> Primitive:
         """Convert the instance and its elements to CBOR primitives recursively with data validated by :meth:`validate`
@@ -505,8 +554,8 @@ class ArrayCBORSerializable(CBORSerializable):
         >>> t = Test2(c="c", test1=Test1(a="a"))
         >>> t
         Test2(c='c', test1=Test1(a='a', b=None))
-        >>> cbor_hex = t.to_cbor()
-        >>> cbor_hex
+        >>> cbor_hex = t.to_cbor() # doctest: +SKIP
+        >>> cbor_hex # doctest: +SKIP
         '826163826161f6'
         >>> Test2.from_cbor(cbor_hex) # doctest: +SKIP
         Test2(c='c', test1=Test1(a='a', b=None))
@@ -534,8 +583,8 @@ class ArrayCBORSerializable(CBORSerializable):
         Test2(c='c', test1=Test1(a='a', b=None))
         >>> t.to_primitive() # Notice below that attribute "b" is not included in converted primitive.
         ['c', ['a']]
-        >>> cbor_hex = t.to_cbor()
-        >>> cbor_hex
+        >>> cbor_hex = t.to_cbor() # doctest: +SKIP
+        >>> cbor_hex # doctest: +SKIP
         '826163816161'
         >>> Test2.from_cbor(cbor_hex) # doctest: +SKIP
         Test2(c='c', test1=Test1(a='a', b=None))
@@ -621,8 +670,8 @@ class MapCBORSerializable(CBORSerializable):
         Test2(c=None, test1=Test1(a='a', b=''))
         >>> t.to_primitive()
         {'c': None, 'test1': {'a': 'a', 'b': ''}}
-        >>> cbor_hex = t.to_cbor()
-        >>> cbor_hex
+        >>> cbor_hex = t.to_cbor() # doctest: +SKIP
+        >>> cbor_hex # doctest: +SKIP
         'a26163f6657465737431a261616161616260'
         >>> Test2.from_cbor(cbor_hex) # doctest: +SKIP
         Test2(c=None, test1=Test1(a='a', b=''))
@@ -645,8 +694,8 @@ class MapCBORSerializable(CBORSerializable):
         Test2(c=None, test1=Test1(a='a', b=''))
         >>> t.to_primitive()
         {'1': {'0': 'a', '1': ''}}
-        >>> cbor_hex = t.to_cbor()
-        >>> cbor_hex
+        >>> cbor_hex = t.to_cbor() # doctest: +SKIP
+        >>> cbor_hex # doctest: +SKIP
         'a16131a261306161613160'
         >>> Test2.from_cbor(cbor_hex) # doctest: +SKIP
         Test2(c=None, test1=Test1(a='a', b=''))

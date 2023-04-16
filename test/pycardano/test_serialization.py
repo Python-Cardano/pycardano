@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from test.pycardano.util import check_two_way_cbor
-from typing import Any, Union
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 import pytest
 
@@ -67,7 +67,7 @@ def test_array_cbor_serializable_optional_field():
     @dataclass
     class Test1(ArrayCBORSerializable):
         a: str
-        b: str = field(default=None, metadata={"optional": True})
+        b: Optional[str] = field(default=None, metadata={"optional": True})
 
     @dataclass
     class Test2(ArrayCBORSerializable):
@@ -104,7 +104,7 @@ def test_map_cbor_serializable_custom_keys():
 
     @dataclass
     class Test2(MapCBORSerializable):
-        c: str = field(default=None, metadata={"key": "0", "optional": True})
+        c: Optional[str] = field(default=None, metadata={"key": "0", "optional": True})
         test1: Test1 = field(default_factory=Test1, metadata={"key": "1"})
 
     t = Test2(test1=Test1(a="a"))
@@ -172,3 +172,83 @@ def test_any_type():
     t = Test1(a="a", b=1)
 
     check_two_way_cbor(t)
+
+
+def test_wrong_primitive_type():
+    @dataclass
+    class Test1(MapCBORSerializable):
+        a: str = ""
+
+    with pytest.raises(TypeError):
+        Test1(a=1).to_cbor()
+
+
+def test_wrong_union_type():
+    @dataclass
+    class Test1(MapCBORSerializable):
+        a: Union[str, int] = ""
+
+    with pytest.raises(TypeError):
+        Test1(a=1.0).to_cbor()
+
+
+def test_wrong_optional_type():
+    @dataclass
+    class Test1(MapCBORSerializable):
+        a: Optional[str] = ""
+
+    with pytest.raises(TypeError):
+        Test1(a=1.0).to_cbor()
+
+
+def test_wrong_list_type():
+    @dataclass
+    class Test1(MapCBORSerializable):
+        a: List[str] = ""
+
+    with pytest.raises(TypeError):
+        Test1(a=[1]).to_cbor()
+
+
+def test_wrong_dict_type():
+    @dataclass
+    class Test1(MapCBORSerializable):
+        a: Dict[str, int] = ""
+
+    with pytest.raises(TypeError):
+        Test1(a={1: 1}).to_cbor()
+
+
+def test_wrong_tuple_type():
+    @dataclass
+    class Test1(MapCBORSerializable):
+        a: Tuple[str, int] = ""
+
+    with pytest.raises(TypeError):
+        Test1(a=(1, 1)).to_cbor()
+
+
+def test_wrong_set_type():
+    @dataclass
+    class Test1(MapCBORSerializable):
+        a: Set[str] = ""
+
+    with pytest.raises(TypeError):
+        Test1(a={1}).to_cbor()
+
+
+def test_wrong_nested_type():
+    @dataclass
+    class Test1(MapCBORSerializable):
+        a: str = ""
+
+    @dataclass
+    class Test2(MapCBORSerializable):
+        a: Test1 = ""
+        b: Optional[Test1] = None
+
+    with pytest.raises(TypeError):
+        Test2(a=1).to_cbor()
+
+    with pytest.raises(TypeError):
+        Test2(a=Test1(a=1)).to_cbor()
