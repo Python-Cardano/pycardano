@@ -294,7 +294,7 @@ class OgmiosChainContext(ChainContext):
                     if result["datum_hash"]
                     else None
                 )
-                if datum_hash:
+                if datum_hash and result.get("datum_type", "inline"):
                     kupo_datum_url = self._kupo_url + "/datums/" + result["datum_hash"]
                     datum_result = requests.get(kupo_datum_url).json()
                     if datum_result and datum_result["datum"] != datum_hash:
