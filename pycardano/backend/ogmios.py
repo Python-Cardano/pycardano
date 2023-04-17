@@ -56,17 +56,19 @@ class OgmiosChainContext(ChainContext):
         network: Network,
         compact_result=True,
         kupo_url=None,
-        refetch_chain_tip_interval=20,
+        refetch_chain_tip_interval: Optional[int]=None,
     ):
         self._ws_url = ws_url
         self._network = network
         self._service_name = "ogmios.v1:compact" if compact_result else "ogmios"
         self._kupo_url = kupo_url
         self._last_known_block_slot = 0
-        self._refetch_chain_tip_interval = refetch_chain_tip_interval
+        self._refetch_chain_tip_interval = refetch_chain_tip_interval if refetch_chain_tip_interval is not None else 1000
         self._last_chain_tip_fetch = 0
         self._genesis_param = None
         self._protocol_param = None
+        if refetch_chain_tip_interval is None:
+            self._refetch_chain_tip_interval = self.genesis_param.slot_length / self.genesis_param.active_slots_coefficient
 
     def _request(self, method: OgmiosQueryType, args: JsonDict) -> Any:
         ws = websocket.WebSocket()
