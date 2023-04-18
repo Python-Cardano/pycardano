@@ -8,7 +8,7 @@ from typeguard import typechecked
 from pycardano.address import Address
 from pycardano.network import Network
 from pycardano.plutus import ExecutionUnits
-from pycardano.transaction import UTxO, Transaction
+from pycardano.transaction import Transaction, UTxO
 
 __all__ = [
     "GenesisParameters",

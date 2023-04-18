@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from pycardano.backend.base import GenesisParameters, ProtocolParameters
 from pycardano.backend.ogmios import OgmiosChainContext
 from pycardano.network import Network
@@ -80,30 +82,31 @@ UTXOS = [
 ]
 
 
-class TestOgmiosChainContext:
-    chain_context = OgmiosChainContext("", Network.TESTNET)
-
-    def override_request(method, args):
-        if args["query"] == "currentProtocolParameters":
-            return PROTOCOL_RESULT
-        elif args["query"] == "genesisConfig":
-            return GENESIS_RESULT
-        elif "utxo" in args["query"]:
-            query = args["query"]["utxo"][0]
-            if isinstance(query, dict):
-                for utxo in UTXOS:
-                    if (
-                        utxo[0]["txId"] == query["txId"]
-                        and utxo[0]["index"] == query["index"]
-                    ):
-                        return [utxo]
-                return []
-            else:
-                return UTXOS
+def override_request(method, args):
+    if args["query"] == "currentProtocolParameters":
+        return PROTOCOL_RESULT
+    elif args["query"] == "genesisConfig":
+        return GENESIS_RESULT
+    elif "utxo" in args["query"]:
+        query = args["query"]["utxo"][0]
+        if isinstance(query, dict):
+            for utxo in UTXOS:
+                if (
+                    utxo[0]["txId"] == query["txId"]
+                    and utxo[0]["index"] == query["index"]
+                ):
+                    return [utxo]
+            return []
         else:
-            return None
+            return UTXOS
+    else:
+        return None
 
-    chain_context._request = override_request
+
+class TestOgmiosChainContext:
+    def __init__(self):
+        with patch("OgmiosChainContext._request", return_value=override_request):
+            self.chain_context = OgmiosChainContext("", Network.TESTNET)
 
     def test_protocol_param(self):
         assert (
