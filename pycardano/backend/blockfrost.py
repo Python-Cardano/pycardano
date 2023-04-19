@@ -4,6 +4,7 @@ import time
 import warnings
 from typing import Dict, List, Optional, Union
 
+import cbor2
 from blockfrost import ApiError, ApiUrls, BlockFrostApi
 from blockfrost.utils import Namespace
 
@@ -18,7 +19,7 @@ from pycardano.exception import TransactionFailedException
 from pycardano.hash import SCRIPT_HASH_SIZE, DatumHash, ScriptHash
 from pycardano.nativescript import NativeScript
 from pycardano.network import Network
-from pycardano.plutus import ExecutionUnits, PlutusV1Script, PlutusV2Script
+from pycardano.plutus import ExecutionUnits, PlutusV1Script, PlutusV2Script, script_hash
 from pycardano.serialization import RawCBOR
 from pycardano.transaction import (
     Asset,
@@ -32,6 +33,19 @@ from pycardano.transaction import (
 from pycardano.types import JsonDict
 
 __all__ = ["BlockFrostChainContext"]
+
+
+def _try_fix_script(
+    scripth: str, script: Union[PlutusV1Script, PlutusV2Script]
+) -> Union[PlutusV1Script, PlutusV2Script]:
+    if str(script_hash(script)) == scripth:
+        return script
+    else:
+        new_script = script.__class__(cbor2.loads(script))
+        if str(script_hash(new_script)) == scripth:
+            return new_script
+        else:
+            raise ValueError("Cannot recover script from hash.")
 
 
 class BlockFrostChainContext(ChainContext):
@@ -151,9 +165,15 @@ class BlockFrostChainContext(ChainContext):
     ) -> Union[PlutusV1Script, PlutusV2Script, NativeScript]:
         script_type = self.api.script(script_hash).type
         if script_type == "plutusV1":
-            return PlutusV1Script(bytes.fromhex(self.api.script_cbor(script_hash).cbor))
+            v1script = PlutusV1Script(
+                bytes.fromhex(self.api.script_cbor(script_hash).cbor)
+            )
+            return _try_fix_script(script_hash, v1script)
         elif script_type == "plutusV2":
-            return PlutusV2Script(bytes.fromhex(self.api.script_cbor(script_hash).cbor))
+            v2script = PlutusV2Script(
+                bytes.fromhex(self.api.script_cbor(script_hash).cbor)
+            )
+            return _try_fix_script(script_hash, v2script)
         else:
             script_json: JsonDict = self.api.script_json(
                 script_hash, return_type="json"
