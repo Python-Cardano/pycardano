@@ -181,7 +181,13 @@ class BlockFrostChainContext(ChainContext):
             return NativeScript.from_dict(script_json)
 
     def _utxos(self, address: str) -> List[UTxO]:
-        results = self.api.address_utxos(address, gather_pages=True)
+        try:
+            results = self.api.address_utxos(address, gather_pages=True)
+        except ApiError as e:
+            if e.status_code == 404:
+                return []
+            else:
+                raise e
 
         utxos = []
 
