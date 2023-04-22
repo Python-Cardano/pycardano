@@ -693,7 +693,7 @@ class RawPlutusData(CBORSerializable):
         return cls(value)
 
 
-Datum = Union[PlutusData, dict, IndefiniteList, int, bytes, RawCBOR, RawPlutusData]
+Datum = Union[PlutusData, dict, int, bytes, IndefiniteList, RawCBOR, RawPlutusData]
 """Plutus Datum type. A Union type that contains all valid datum types."""
 
 

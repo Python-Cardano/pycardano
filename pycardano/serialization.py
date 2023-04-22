@@ -496,7 +496,10 @@ def _restore_typed_primitive(
             raise DeserializeException(f"Expected type list but got {type(v)}")
         return IndefiniteList([_restore_typed_primitive(t, w) for w in v])
     elif isclass(t) and issubclass(t, IndefiniteList):
-        return IndefiniteList(v)
+        try:
+            return IndefiniteList(v)
+        except TypeError:
+            raise DeserializeException(f"Can not initialize IndefiniteList from {v}")
     elif hasattr(t, "__origin__") and (t.__origin__ is dict):
         t_args = t.__args__
         if len(t_args) != 2:
