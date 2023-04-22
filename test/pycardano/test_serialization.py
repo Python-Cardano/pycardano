@@ -1,4 +1,6 @@
 from dataclasses import dataclass, field
+
+from pycardano import Datum
 from test.pycardano.util import check_two_way_cbor
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
@@ -170,6 +172,16 @@ def test_any_type():
         b: Any = ""
 
     t = Test1(a="a", b=1)
+
+    check_two_way_cbor(t)
+
+
+def test_datum_type():
+    @dataclass
+    class Test1(MapCBORSerializable):
+        b: Datum
+
+    t = Test1(b=1)
 
     check_two_way_cbor(t)
 
