@@ -112,6 +112,8 @@ class TransactionBuilder:
 
     _inputs: List[UTxO] = field(init=False, default_factory=lambda: [])
 
+    _potential_inputs: List[UTxO] = field(init=False, default_factory=lambda: [])
+
     _excluded_inputs: List[UTxO] = field(init=False, default_factory=lambda: [])
 
     _input_addresses: List[Union[Address, str]] = field(
@@ -330,6 +332,10 @@ class TransactionBuilder:
     @property
     def inputs(self) -> List[UTxO]:
         return self._inputs
+
+    @property
+    def potential_inputs(self) -> List[UTxO]:
+        return self._potential_inputs
 
     @property
     def excluded_inputs(self) -> List[UTxO]:
@@ -984,14 +990,26 @@ class TransactionBuilder:
             lambda p, n, v: v > 0
         )
 
+        # Create a set of all seen utxos in addition to other utxo lists.
+        # We need this set to avoid adding the same utxo twice.
+        # The reason of not turning all utxo lists into sets is that we want to keep the order of utxos and make
+        # utxo selection deterministic.
+        seen_utxos = set(selected_utxos)
+
         # When there are positive coin or native asset quantity in unfulfilled Value
         if Value() < unfulfilled_amount:
             additional_utxo_pool = []
             additional_amount = Value()
+
+            for utxo in self.potential_inputs:
+                additional_amount += utxo.output.amount
+                seen_utxos.add(utxo)
+                additional_utxo_pool.append(utxo)
+
             for address in self.input_addresses:
                 for utxo in self.context.utxos(address):
                     if (
-                        utxo not in selected_utxos
+                        utxo not in seen_utxos
                         and utxo not in self.excluded_inputs
                         and not utxo.output.datum_hash  # UTxO with datum should be added by using `add_script_input`
                         and not utxo.output.datum
@@ -999,6 +1017,7 @@ class TransactionBuilder:
                     ):
                         additional_utxo_pool.append(utxo)
                         additional_amount += utxo.output.amount
+                        seen_utxos.add(utxo)
 
             for index, selector in enumerate(self.utxo_selectors):
                 try:
