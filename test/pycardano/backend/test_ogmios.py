@@ -1,5 +1,7 @@
 from unittest.mock import patch
 
+import pytest
+
 from pycardano.backend.base import GenesisParameters, ProtocolParameters
 from pycardano.backend.ogmios import OgmiosChainContext
 from pycardano.network import Network
@@ -99,16 +101,25 @@ def override_request(method, args):
             return []
         else:
             return UTXOS
+    elif "chainTip" in args["query"]:
+        return {"slot": 100000000}
     else:
         return None
 
 
-class TestOgmiosChainContext:
-    def __init__(self):
-        with patch("OgmiosChainContext._request", return_value=override_request):
-            self.chain_context = OgmiosChainContext("", Network.TESTNET)
+@pytest.fixture
+def chain_context():
+    with patch(
+        "pycardano.backend.ogmios.OgmiosChainContext._request",
+        side_effect=override_request,
+    ):
+        context = OgmiosChainContext("", Network.TESTNET)
+        context._request = override_request
+    return context
 
-    def test_protocol_param(self):
+
+class TestOgmiosChainContext:
+    def test_protocol_param(self, chain_context):
         assert (
             ProtocolParameters(
                 min_fee_constant=155381,
@@ -140,10 +151,10 @@ class TestOgmiosChainContext:
                 coins_per_utxo_byte=1,
                 cost_models={},
             )
-            == self.chain_context.protocol_param
+            == chain_context.protocol_param
         )
 
-    def test_genesis(self):
+    def test_genesis(self, chain_context):
         assert (
             GenesisParameters(
                 active_slots_coefficient=0.1,
@@ -157,11 +168,11 @@ class TestOgmiosChainContext:
                 max_kes_evolutions=60000000,
                 security_param=1000000000,
             )
-            == self.chain_context.genesis_param
+            == chain_context.genesis_param
         )
 
-    def test_utxo(self):
-        results = self.chain_context.utxos(
+    def test_utxo(self, chain_context):
+        results = chain_context.utxos(
             "addr_test1qraen6hr9zs5yae8cxnhlkh7rk2nfl7rnpg0xvmel3a0xf70v3kz6ee7mtq86x6gmrnw8j7kuf485902akkr7tlcx24qemz34a"
         )
 
@@ -188,8 +199,8 @@ class TestOgmiosChainContext:
             }
         )
 
-    def test_utxo_by_tx_id(self):
-        utxo = self.chain_context.utxo_by_tx_id(
+    def test_utxo_by_tx_id(self, chain_context):
+        utxo = chain_context.utxo_by_tx_id(
             "3a42f652bd8dee788577e8c39b6217db3df659c33b10a2814c20fb66089ca167",
             1,
         )
@@ -198,7 +209,7 @@ class TestOgmiosChainContext:
         )
         assert utxo.output.amount == 764295183
 
-        not_utxo = self.chain_context.utxo_by_tx_id(
+        not_utxo = chain_context.utxo_by_tx_id(
             "3a42f652bd8dee788577e8c39b6217db3df659c33b10a2814c20fb66089ca167",
             2,
         )
