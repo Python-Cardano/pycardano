@@ -1,6 +1,7 @@
+import cbor2
 from dataclasses import dataclass, field
 
-from pycardano import Datum
+from pycardano import Datum, RawPlutusData
 from test.pycardano.util import check_two_way_cbor
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
@@ -181,7 +182,13 @@ def test_datum_type():
     class Test1(MapCBORSerializable):
         b: Datum
 
-    t = Test1(b=1)
+    # make sure that no "not iterable" error is thrown
+    t = Test1(b=RawPlutusData(cbor2.CBORTag(125, [])))
+
+    check_two_way_cbor(t)
+
+    # Make sure that iterable objects are not deserialized to the wrong object
+    t = Test1(b=b"hello!")
 
     check_two_way_cbor(t)
 
