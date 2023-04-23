@@ -1,3 +1,4 @@
+import copy
 from dataclasses import replace
 from test.pycardano.test_key import SK
 from test.pycardano.util import chain_context
@@ -120,6 +121,33 @@ def test_tx_builder_with_certain_input(chain_context):
     }
 
     assert expected == tx_body.to_primitive()
+
+
+def test_tx_builder_with_potential_inputs(chain_context):
+    tx_builder = TransactionBuilder(chain_context, [RandomImproveMultiAsset([0, 0])])
+    sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    sender_address = Address.from_primitive(sender)
+
+    utxos = chain_context.utxos(sender)
+
+    tx_builder.potential_inputs.extend(utxos)
+
+    for i in range(20):
+        utxo = copy.deepcopy(utxos[0])
+        utxo.input.index = i + 100
+        tx_builder.potential_inputs.append(utxo)
+
+    assert len(tx_builder.potential_inputs) > 1
+
+    tx_builder.add_output(
+        TransactionOutput.from_primitive(
+            [sender, [5000000, {b"1111111111111111111111111111": {b"Token1": 1}}]]
+        )
+    )
+
+    tx_body = tx_builder.build(change_address=sender_address)
+
+    assert len(tx_body.inputs) < len(tx_builder.potential_inputs)
 
 
 def test_tx_builder_multi_asset(chain_context):
