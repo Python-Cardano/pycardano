@@ -1008,13 +1008,7 @@ class TransactionBuilder:
 
             for address in self.input_addresses:
                 for utxo in self.context.utxos(address):
-                    if (
-                        utxo not in seen_utxos
-                        and utxo not in self.excluded_inputs
-                        and not utxo.output.datum_hash  # UTxO with datum should be added by using `add_script_input`
-                        and not utxo.output.datum
-                        and not utxo.output.script
-                    ):
+                    if utxo not in seen_utxos and utxo not in self.excluded_inputs:
                         additional_utxo_pool.append(utxo)
                         additional_amount += utxo.output.amount
                         seen_utxos.add(utxo)
