@@ -1,9 +1,11 @@
+import copy
 import unittest
 from dataclasses import dataclass
 from test.pycardano.util import check_two_way_cbor
 from typing import Dict, List, Union
 
 import pytest
+from cbor2 import CBORTag
 
 from pycardano.exception import DeserializeException, SerializeException
 from pycardano.plutus import (
@@ -284,3 +286,33 @@ def test_raw_plutus_data():
     raw_plutus_data = RawPlutusData.from_cbor(raw_plutus_cbor)
     assert raw_plutus_data.to_cbor() == raw_plutus_cbor
     check_two_way_cbor(raw_plutus_data)
+
+
+def test_clone_raw_plutus_data():
+    tag = RawPlutusData(CBORTag(121, [1000]))
+
+    cloned_tag = copy.deepcopy(tag)
+    assert cloned_tag == tag
+    assert cloned_tag.to_cbor() == tag.to_cbor()
+
+    tag.data.value = [1001]
+
+    assert cloned_tag != tag
+
+
+def test_clone_plutus_data():
+    key_hash = bytes.fromhex("c2ff616e11299d9094ce0a7eb5b7284b705147a822f4ffbd471f971a")
+    deadline = 1643235300000
+    testa = BigTest(MyTest(123, b"1234", IndefiniteList([4, 5, 6]), {1: b"1", 2: b"2"}))
+    testb = LargestTest()
+    my_vesting = VestingParam(
+        beneficiary=key_hash, deadline=deadline, testa=testa, testb=testb
+    )
+
+    cloned_vesting = copy.deepcopy(my_vesting)
+    assert cloned_vesting == my_vesting
+    assert cloned_vesting.to_cbor() == my_vesting.to_cbor()
+
+    my_vesting.deadline = 1643235300001
+
+    assert cloned_vesting != my_vesting

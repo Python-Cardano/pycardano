@@ -666,6 +666,9 @@ class PlutusData(ArrayCBORSerializable):
         obj = json.loads(data)
         return cls.from_dict(obj)
 
+    def __deepcopy__(self, memo):
+        return self.__class__.from_cbor(self.to_cbor())
+
 
 @dataclass
 class RawPlutusData(CBORSerializable):
@@ -691,6 +694,9 @@ class RawPlutusData(CBORSerializable):
     @limit_primitive_type(CBORTag)
     def from_primitive(cls: Type[RawPlutusData], value: CBORTag) -> RawPlutusData:
         return cls(value)
+
+    def __deepcopy__(self, memo):
+        return self.__class__.from_cbor(self.to_cbor())
 
 
 Datum = Union[PlutusData, dict, int, bytes, IndefiniteList, RawCBOR, RawPlutusData]
