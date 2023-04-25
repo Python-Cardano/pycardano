@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from frozenlist import FrozenList
 import re
 import typing
 from collections import OrderedDict, UserList, defaultdict
@@ -149,10 +150,10 @@ def default_encoder(
     encoder: CBOREncoder, value: Union[CBORSerializable, IndefiniteList]
 ):
     """A fallback function that encodes CBORSerializable to CBOR"""
-    assert isinstance(value, (CBORSerializable, IndefiniteList, RawCBOR)), (
+    assert isinstance(value, (CBORSerializable, IndefiniteList, RawCBOR, FrozenList)), (
         f"Type of input value is not CBORSerializable, " f"got {type(value)} instead."
     )
-    if isinstance(value, IndefiniteList):
+    if isinstance(value, IndefiniteList) or isinstance(value, FrozenList):
         # Currently, cbor2 doesn't support indefinite list, therefore we need special
         # handling here to explicitly write header (b'\x9f'), each body item, and footer (b'\xff') to
         # the output bytestring.
@@ -253,7 +254,9 @@ class CBORSerializable:
             elif isinstance(value, IndefiniteList):
                 return IndefiniteList([_helper(k) for k in value])
             elif isinstance(value, CBORTag):
-                return CBORTag(value.tag, _helper(value.value))
+                value_list = FrozenList(_helper(value.value))
+                value_list.freeze()
+                return CBORTag(value.tag, value_list)
             else:
                 return value
 
