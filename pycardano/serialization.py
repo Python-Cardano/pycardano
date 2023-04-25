@@ -244,9 +244,9 @@ class CBORSerializable:
 
         def _freeze(value):
             if isinstance(value, (dict, OrderedDict, defaultdict)):
-                return frozendict({_freeze(k): _freeze(v) for k, v in value.items()})
+                return frozendict({k: _freeze(v) for k, v in value.items()})
             elif isinstance(value, frozenset) or isinstance(value, set):
-                return frozenset({_freeze(v) for v in value})
+                return frozenset(value)
             elif isinstance(value, tuple):
                 return tuple([_freeze(k) for k in value])
             elif isinstance(value, IndefiniteList):
