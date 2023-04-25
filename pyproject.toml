@@ -32,6 +32,7 @@ cose = "0.9.dev8"
 pprintpp = "^0.4.0"
 mnemonic = "^0.20"
 ECPy = "^1.2.5"
+frozendict = "^2.3.7"
 
 [tool.poetry.dev-dependencies]
 Sphinx = "^4.3.2"

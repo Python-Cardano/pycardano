@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import frozenlist
 import re
 import typing
 from collections import OrderedDict, UserList, defaultdict
@@ -234,13 +235,29 @@ class CBORSerializable:
             else:
                 return value
 
+        def _freeze(value):
+            if isinstance(value, (dict, OrderedDict, defaultdict)):
+                return frozendict({_freeze(k): _freeze(v) for k, v in value.items()})
+            elif isinstance(value, frozenset) or isinstance(value, set):
+                return frozenset({_freeze(v) for v in value})
+            elif isinstance(value, tuple):
+                return tuple([_freeze(k) for k in value])
+            elif isinstance(value, list) or isinstance(value, IndefiniteList):
+                fl = frozenlist.FrozenList([_freeze(k) for k in value])
+                fl.freeze()
+                return fl
+            elif isinstance(value, CBORTag):
+                return CBORTag(value.tag, _freeze(value.value))
+            else:
+                return value
+
         def _dfs(value):
             if isinstance(value, (dict, OrderedDict, defaultdict)):
                 new_result = type(value)()
                 if hasattr(value, "default_factory"):
                     new_result.setdefault(value.default_factory)
                 for k, v in value.items():
-                    new_result[_helper(k)] = _helper(v)
+                    new_result[_freeze(_helper(k))] = _helper(v)
                 return new_result
             elif isinstance(value, set):
                 return {_helper(v) for v in value}
