@@ -60,7 +60,7 @@ class IndefiniteList(UserList):
         super().__init__(li)  # type: ignore
 
 
-class IndefiniteFrozenList(FrozenList, IndefiniteList):
+class IndefiniteFrozenList(FrozenList, IndefiniteList):  # type: ignore
     pass
 
 
