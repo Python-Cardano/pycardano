@@ -234,54 +234,33 @@ class CBORSerializable:
             IndefiniteList,
         )
 
-        def _helper(value):
+        def _dfs(value):
             if isinstance(value, CBORSerializable):
                 return value.to_primitive()
-            elif isinstance(value, container_types):
-                return _dfs(value)
-            else:
+            elif not isinstance(value, container_types):
                 return value
 
-        def _freeze(value):
-            if isinstance(value, (dict, OrderedDict, defaultdict)):
-                return frozendict({k: _freeze(v) for k, v in value.items()})
-            elif isinstance(value, frozenset) or isinstance(value, set):
-                return frozenset(value)
-            elif isinstance(value, tuple):
-                return tuple([_freeze(k) for k in value])
-            elif isinstance(value, IndefiniteList):
-                fl = IndefiniteFrozenList([_freeze(k) for k in value])
-                fl.freeze()
-                return fl
-            elif isinstance(value, list):
-                fl = FrozenList([_freeze(k) for k in value])
-                fl.freeze()
-                return fl
-            elif isinstance(value, CBORTag):
-                return CBORTag(value.tag, _freeze(value.value))
-            else:
-                return value
-
-        def _dfs(value):
             if isinstance(value, (dict, OrderedDict, defaultdict)):
                 new_result = type(value)()
                 if hasattr(value, "default_factory"):
                     new_result.setdefault(value.default_factory)
                 for k, v in value.items():
-                    new_result[_freeze(_helper(k))] = _helper(v)
-                return new_result
-            elif isinstance(value, set):
-                return {_freeze(_helper(v)) for v in value}
-            elif isinstance(value, frozenset):
-                return frozenset({_freeze(_helper(v)) for v in value})
+                    new_result[_dfs(k)] = _dfs(v)
+                return frozendict(new_result)
+            elif isinstance(value, (set, frozenset)):
+                return frozenset(_dfs(v) for v in value)
             elif isinstance(value, tuple):
-                return tuple([_helper(k) for k in value])
+                return tuple([_dfs(k) for k in value])
             elif isinstance(value, list):
-                return [_helper(k) for k in value]
+                fl = FrozenList([_dfs(k) for k in value])
+                fl.freeze()
+                return fl
             elif isinstance(value, IndefiniteList):
-                return IndefiniteList([_helper(k) for k in value])
+                fl = IndefiniteFrozenList([_dfs(k) for k in value])
+                fl.freeze()
+                return fl
             elif isinstance(value, CBORTag):
-                return CBORTag(value.tag, _helper(value.value))
+                return CBORTag(value.tag, _dfs(value.value))
             else:
                 return value
 
