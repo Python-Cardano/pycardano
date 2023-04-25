@@ -247,7 +247,7 @@ class CBORSerializable:
                 for k, v in value.items():
                     new_result[_dfs(k)] = _dfs(v)
                 return frozendict(new_result)
-            elif isinstance(value, (set, frozenset)):
+            elif isinstance(value, set):
                 return frozenset(_dfs(v) for v in value)
             elif isinstance(value, tuple):
                 return tuple([_dfs(k) for k in value])
