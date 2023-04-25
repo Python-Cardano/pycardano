@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-import frozenlist
+from frozenlist import FrozenList
+from frozendict import frozendict
 import re
 import typing
 from collections import OrderedDict, UserList, defaultdict
@@ -57,6 +58,10 @@ def _identity(x):
 class IndefiniteList(UserList):
     def __init__(self, li: Primitive):  # type: ignore
         super().__init__(li)  # type: ignore
+
+
+class IndefiniteFrozenList(FrozenList, IndefiniteList):
+    pass
 
 
 @dataclass
@@ -150,7 +155,7 @@ def default_encoder(
     encoder: CBOREncoder, value: Union[CBORSerializable, IndefiniteList]
 ):
     """A fallback function that encodes CBORSerializable to CBOR"""
-    assert isinstance(value, (CBORSerializable, IndefiniteList, RawCBOR)), (
+    assert isinstance(value, (CBORSerializable, IndefiniteList, RawCBOR, FrozenList)), (
         f"Type of input value is not CBORSerializable, " f"got {type(value)} instead."
     )
     if isinstance(value, IndefiniteList):
@@ -163,6 +168,8 @@ def default_encoder(
         encoder.write(b"\xff")
     elif isinstance(value, RawCBOR):
         encoder.write(value.cbor)
+    elif isinstance(value, FrozenList):
+        encoder.encode(list(value))
     else:
         encoder.encode(value.to_validated_primitive())
 
@@ -242,8 +249,12 @@ class CBORSerializable:
                 return frozenset({_freeze(v) for v in value})
             elif isinstance(value, tuple):
                 return tuple([_freeze(k) for k in value])
-            elif isinstance(value, list) or isinstance(value, IndefiniteList):
-                fl = frozenlist.FrozenList([_freeze(k) for k in value])
+            elif isinstance(value, IndefiniteList):
+                fl = IndefiniteFrozenList([_freeze(k) for k in value])
+                fl.freeze()
+                return fl
+            elif isinstance(value, list):
+                fl = FrozenList([_freeze(k) for k in value])
                 fl.freeze()
                 return fl
             elif isinstance(value, CBORTag):
