@@ -260,9 +260,9 @@ class CBORSerializable:
                     new_result[_freeze(_helper(k))] = _helper(v)
                 return new_result
             elif isinstance(value, set):
-                return {_helper(v) for v in value}
+                return {_freeze(_helper(v)) for v in value}
             elif isinstance(value, frozenset):
-                return frozenset({_helper(v) for v in value})
+                return frozenset({_freeze(_helper(v)) for v in value})
             elif isinstance(value, tuple):
                 return tuple([_helper(k) for k in value])
             elif isinstance(value, list):
