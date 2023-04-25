@@ -93,6 +93,9 @@ Primitive = Union[
     CBORTag,
     set,
     frozenset,
+    frozendict,
+    FrozenList,
+    IndefiniteFrozenList
 ]
 
 PRIMITIVE_TYPES = (
@@ -117,6 +120,9 @@ PRIMITIVE_TYPES = (
     CBORTag,
     set,
     frozenset,
+    frozendict,
+    FrozenList,
+    IndefiniteFrozenList
 )
 """
 A list of types that could be encoded by
