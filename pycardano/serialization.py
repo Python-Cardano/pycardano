@@ -161,7 +161,7 @@ def default_encoder(
     encoder: CBOREncoder, value: Union[CBORSerializable, IndefiniteList]
 ):
     """A fallback function that encodes CBORSerializable to CBOR"""
-    assert isinstance(value, (CBORSerializable, IndefiniteList, RawCBOR, FrozenList)), (
+    assert isinstance(value, (CBORSerializable, IndefiniteList, RawCBOR, FrozenList, frozendict)), (
         f"Type of input value is not CBORSerializable, " f"got {type(value)} instead."
     )
     if isinstance(value, IndefiniteList):
@@ -176,6 +176,8 @@ def default_encoder(
         encoder.write(value.cbor)
     elif isinstance(value, FrozenList):
         encoder.encode(list(value))
+    elif isinstance(value, frozendict):
+        encoder.encode(dict(value))
     else:
         encoder.encode(value.to_validated_primitive())
 
@@ -278,7 +280,7 @@ class CBORSerializable:
                 return _check_recursive(value, type_hint.__args__[0])
             elif origin is Union:
                 return any(_check_recursive(value, arg) for arg in type_hint.__args__)
-            elif origin is Dict or isinstance(value, dict):
+            elif origin is Dict or isinstance(value, (dict, frozendict)):
                 key_type, value_type = type_hint.__args__
                 return all(
                     _check_recursive(k, key_type) and _check_recursive(v, value_type)
