@@ -228,25 +228,11 @@ class CBORSerializable:
                 CBOR primitive types.
         """
         result = self.to_shallow_primitive()
-        container_types = (
-            dict,
-            OrderedDict,
-            defaultdict,
-            set,
-            frozenset,
-            tuple,
-            list,
-            CBORTag,
-            IndefiniteList,
-        )
 
         def _dfs(value):
             if isinstance(value, CBORSerializable):
                 return value.to_primitive()
-            elif not isinstance(value, container_types):
-                return value
-
-            if isinstance(value, (dict, OrderedDict, defaultdict)):
+            elif isinstance(value, (dict, OrderedDict, defaultdict)):
                 new_result = type(value)()
                 if hasattr(value, "default_factory"):
                     new_result.setdefault(value.default_factory)
