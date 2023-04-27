@@ -11,7 +11,6 @@ import cbor2
 from cbor2 import CBORTag
 from nacl.encoding import RawEncoder
 from nacl.hash import blake2b
-from typeguard import typechecked
 
 from pycardano.address import Address
 from pycardano.certificate import Certificate
@@ -39,6 +38,7 @@ from pycardano.serialization import (
     default_encoder,
     list_hook,
 )
+from pycardano.types import typechecked
 from pycardano.witness import TransactionWitnessSet
 
 __all__ = [
