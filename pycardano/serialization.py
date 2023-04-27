@@ -244,7 +244,7 @@ class CBORSerializable:
                     return frozendict(_dict)
                 return _dict
             elif isinstance(value, set):
-                _set = set(_dfs(v, freeze) for v in value)
+                _set = set(_dfs(v, freeze=True) for v in value)
                 if freeze:
                     return frozenset(_set)
                 return _set
