@@ -263,7 +263,7 @@ class CBORSerializable:
                     fl = IndefiniteFrozenList(_list)
                     fl.freeze()
                     return fl
-                return _list
+                return IndefiniteList(_list)
             elif isinstance(value, CBORTag):
                 return CBORTag(value.tag, _dfs(value.value, freeze))
             else:
