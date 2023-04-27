@@ -161,10 +161,10 @@ def default_encoder(
     encoder: CBOREncoder, value: Union[CBORSerializable, IndefiniteList]
 ):
     """A fallback function that encodes CBORSerializable to CBOR"""
-    assert isinstance(value, (CBORSerializable, IndefiniteList, RawCBOR, FrozenList, frozendict)), (
+    assert isinstance(value, (CBORSerializable, IndefiniteList, RawCBOR, FrozenList, IndefiniteFrozenList, frozendict)), (
         f"Type of input value is not CBORSerializable, " f"got {type(value)} instead."
     )
-    if isinstance(value, IndefiniteList):
+    if isinstance(value, (IndefiniteList, IndefiniteFrozenList)):
         # Currently, cbor2 doesn't support indefinite list, therefore we need special
         # handling here to explicitly write header (b'\x9f'), each body item, and footer (b'\xff') to
         # the output bytestring.
@@ -231,30 +231,41 @@ class CBORSerializable:
         """
         result = self.to_shallow_primitive()
 
-        def _dfs(value):
+        def _dfs(value, freeze=False):
             if isinstance(value, CBORSerializable):
                 return value.to_primitive()
             elif isinstance(value, (dict, OrderedDict, defaultdict)):
-                new_result = type(value)()
+                _dict = type(value)()
                 if hasattr(value, "default_factory"):
-                    new_result.setdefault(value.default_factory)
+                    _dict.setdefault(value.default_factory)
                 for k, v in value.items():
-                    new_result[_dfs(k)] = _dfs(v)
-                return frozendict(new_result)
+                    _dict[_dfs(k, freeze=True)] = _dfs(v, freeze)
+                if freeze:
+                    return frozendict(_dict)
+                return _dict
             elif isinstance(value, set):
-                return frozenset(_dfs(v) for v in value)
+                _set = set(_dfs(v, freeze) for v in value)
+                if freeze:
+                    return frozenset(_set)
+                return _set
             elif isinstance(value, tuple):
-                return tuple([_dfs(k) for k in value])
+                return tuple(_dfs(v, freeze) for v in value)
             elif isinstance(value, list):
-                fl = FrozenList([_dfs(k) for k in value])
-                fl.freeze()
-                return fl
+                _list = [_dfs(v, freeze) for v in value]
+                if freeze:
+                    fl = FrozenList(_list)
+                    fl.freeze()
+                    return fl
+                return _list
             elif isinstance(value, IndefiniteList):
-                fl = IndefiniteFrozenList([_dfs(k) for k in value])
-                fl.freeze()
-                return fl
+                _list = [_dfs(v, freeze) for v in value]
+                if freeze:
+                    fl = IndefiniteFrozenList(_list)
+                    fl.freeze()
+                    return fl
+                return IndefiniteList(_list)
             elif isinstance(value, CBORTag):
-                return CBORTag(value.tag, _dfs(value.value))
+                return CBORTag(value.tag, _dfs(value.value, freeze))
             else:
                 return value
 
