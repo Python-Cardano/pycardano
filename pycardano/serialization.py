@@ -233,7 +233,7 @@ class CBORSerializable:
 
         def _dfs(value, freeze=False):
             if isinstance(value, CBORSerializable):
-                return value.to_primitive()
+                return _dfs(value.to_primitive(), freeze)
             elif isinstance(value, (dict, OrderedDict, defaultdict)):
                 _dict = type(value)()
                 if hasattr(value, "default_factory"):
