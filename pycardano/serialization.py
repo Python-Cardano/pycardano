@@ -26,13 +26,13 @@ from typing import (
 
 from cbor2 import CBOREncoder, CBORSimpleValue, CBORTag, dumps, loads, undefined
 from pprintpp import pformat
-from typeguard import check_type, typechecked
 
 from pycardano.exception import (
     DeserializeException,
     InvalidArgumentException,
     SerializeException,
 )
+from pycardano.types import typechecked, check_type
 
 __all__ = [
     "default_encoder",

@@ -3,12 +3,11 @@
 from dataclasses import dataclass
 from typing import Dict, List, Union
 
-from typeguard import typechecked
-
 from pycardano.address import Address
 from pycardano.network import Network
 from pycardano.plutus import ExecutionUnits
 from pycardano.transaction import Transaction, UTxO
+from pycardano.types import typechecked
 
 __all__ = [
     "GenesisParameters",
