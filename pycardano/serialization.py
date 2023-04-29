@@ -95,7 +95,7 @@ Primitive = Union[
     frozenset,
     frozendict,
     FrozenList,
-    IndefiniteFrozenList
+    IndefiniteFrozenList,
 ]
 
 PRIMITIVE_TYPES = (
@@ -122,7 +122,7 @@ PRIMITIVE_TYPES = (
     frozenset,
     frozendict,
     FrozenList,
-    IndefiniteFrozenList
+    IndefiniteFrozenList,
 )
 """
 A list of types that could be encoded by
@@ -161,7 +161,17 @@ def default_encoder(
     encoder: CBOREncoder, value: Union[CBORSerializable, IndefiniteList]
 ):
     """A fallback function that encodes CBORSerializable to CBOR"""
-    assert isinstance(value, (CBORSerializable, IndefiniteList, RawCBOR, FrozenList, IndefiniteFrozenList, frozendict)), (
+    assert isinstance(
+        value,
+        (
+            CBORSerializable,
+            IndefiniteList,
+            RawCBOR,
+            FrozenList,
+            IndefiniteFrozenList,
+            frozendict,
+        ),
+    ), (
         f"Type of input value is not CBORSerializable, " f"got {type(value)} instead."
     )
     if isinstance(value, (IndefiniteList, IndefiniteFrozenList)):
