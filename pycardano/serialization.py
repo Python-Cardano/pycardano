@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from frozenlist import FrozenList
+from frozendict import frozendict
 import re
 import typing
 from collections import OrderedDict, UserList, defaultdict
@@ -58,6 +60,10 @@ class IndefiniteList(UserList):
         super().__init__(li)  # type: ignore
 
 
+class IndefiniteFrozenList(FrozenList, IndefiniteList):  # type: ignore
+    pass
+
+
 @dataclass
 class RawCBOR:
     """A wrapper class for bytes that represents a CBOR value."""
@@ -87,6 +93,9 @@ Primitive = Union[
     CBORTag,
     set,
     frozenset,
+    frozendict,
+    FrozenList,
+    IndefiniteFrozenList,
 ]
 
 PRIMITIVE_TYPES = (
@@ -111,6 +120,9 @@ PRIMITIVE_TYPES = (
     CBORTag,
     set,
     frozenset,
+    frozendict,
+    FrozenList,
+    IndefiniteFrozenList,
 )
 """
 A list of types that could be encoded by
@@ -149,10 +161,20 @@ def default_encoder(
     encoder: CBOREncoder, value: Union[CBORSerializable, IndefiniteList]
 ):
     """A fallback function that encodes CBORSerializable to CBOR"""
-    assert isinstance(value, (CBORSerializable, IndefiniteList, RawCBOR)), (
+    assert isinstance(
+        value,
+        (
+            CBORSerializable,
+            IndefiniteList,
+            RawCBOR,
+            FrozenList,
+            IndefiniteFrozenList,
+            frozendict,
+        ),
+    ), (
         f"Type of input value is not CBORSerializable, " f"got {type(value)} instead."
     )
-    if isinstance(value, IndefiniteList):
+    if isinstance(value, (IndefiniteList, IndefiniteFrozenList)):
         # Currently, cbor2 doesn't support indefinite list, therefore we need special
         # handling here to explicitly write header (b'\x9f'), each body item, and footer (b'\xff') to
         # the output bytestring.
@@ -162,6 +184,10 @@ def default_encoder(
         encoder.write(b"\xff")
     elif isinstance(value, RawCBOR):
         encoder.write(value.cbor)
+    elif isinstance(value, FrozenList):
+        encoder.encode(list(value))
+    elif isinstance(value, frozendict):
+        encoder.encode(dict(value))
     else:
         encoder.encode(value.to_validated_primitive())
 
@@ -214,46 +240,42 @@ class CBORSerializable:
                 CBOR primitive types.
         """
         result = self.to_shallow_primitive()
-        container_types = (
-            dict,
-            OrderedDict,
-            defaultdict,
-            set,
-            frozenset,
-            tuple,
-            list,
-            CBORTag,
-            IndefiniteList,
-        )
 
-        def _helper(value):
+        def _dfs(value, freeze=False):
             if isinstance(value, CBORSerializable):
-                return value.to_primitive()
-            elif isinstance(value, container_types):
-                return _dfs(value)
-            else:
-                return value
-
-        def _dfs(value):
-            if isinstance(value, (dict, OrderedDict, defaultdict)):
-                new_result = type(value)()
+                return _dfs(value.to_primitive(), freeze)
+            elif isinstance(value, (dict, OrderedDict, defaultdict)):
+                _dict = type(value)()
                 if hasattr(value, "default_factory"):
-                    new_result.setdefault(value.default_factory)
+                    _dict.setdefault(value.default_factory)
                 for k, v in value.items():
-                    new_result[_helper(k)] = _helper(v)
-                return new_result
+                    _dict[_dfs(k, freeze=True)] = _dfs(v, freeze)
+                if freeze:
+                    return frozendict(_dict)
+                return _dict
             elif isinstance(value, set):
-                return {_helper(v) for v in value}
-            elif isinstance(value, frozenset):
-                return frozenset({_helper(v) for v in value})
+                _set = set(_dfs(v, freeze=True) for v in value)
+                if freeze:
+                    return frozenset(_set)
+                return _set
             elif isinstance(value, tuple):
-                return tuple([_helper(k) for k in value])
+                return tuple(_dfs(v, freeze) for v in value)
             elif isinstance(value, list):
-                return [_helper(k) for k in value]
+                _list = [_dfs(v, freeze) for v in value]
+                if freeze:
+                    fl = FrozenList(_list)
+                    fl.freeze()
+                    return fl
+                return _list
             elif isinstance(value, IndefiniteList):
-                return IndefiniteList([_helper(k) for k in value])
+                _list = [_dfs(v, freeze) for v in value]
+                if freeze:
+                    fl = IndefiniteFrozenList(_list)
+                    fl.freeze()
+                    return fl
+                return IndefiniteList(_list)
             elif isinstance(value, CBORTag):
-                return CBORTag(value.tag, _helper(value.value))
+                return CBORTag(value.tag, _dfs(value.value, freeze))
             else:
                 return value
 
@@ -279,7 +301,7 @@ class CBORSerializable:
                 return _check_recursive(value, type_hint.__args__[0])
             elif origin is Union:
                 return any(_check_recursive(value, arg) for arg in type_hint.__args__)
-            elif origin is Dict or isinstance(value, dict):
+            elif origin is Dict or isinstance(value, (dict, frozendict)):
                 key_type, value_type = type_hint.__args__
                 return all(
                     _check_recursive(k, key_type) and _check_recursive(v, value_type)

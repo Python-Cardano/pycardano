@@ -115,12 +115,11 @@ def test_map_cbor_serializable_custom_keys():
     check_two_way_cbor(t)
 
 
-class MyTestDict(DictCBORSerializable):
-    KEY_TYPE = bytes
-    VALUE_TYPE = int
-
-
 def test_dict_cbor_serializable():
+    class MyTestDict(DictCBORSerializable):
+        KEY_TYPE = bytes
+        VALUE_TYPE = int
+
     a = MyTestDict()
     a[b"110"] = 1
     a[b"100"] = 2
@@ -136,6 +135,23 @@ def test_dict_cbor_serializable():
 
     # Make sure the cbor of a and b are exactly the same even when their items are inserted in different orders.
     assert a.to_cbor() == b.to_cbor()
+
+
+def test_dict_complex_key_cbor_serializable():
+    @dataclass(unsafe_hash=True)
+    class MyTest(ArrayCBORSerializable):
+        a: int
+
+    class MyTestDict(DictCBORSerializable):
+        KEY_TYPE = MyTest
+        VALUE_TYPE = int
+
+    a = MyTestDict()
+    a[MyTest(0)] = 1
+    a[MyTest(1)] = 2
+
+    assert a.to_cbor() == "a2810001810102"
+    check_two_way_cbor(a)
 
 
 def test_indefinite_list():
