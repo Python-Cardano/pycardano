@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from typing import Dict, List, Union
 
+from pycardano.exception import InvalidArgumentException
 from pycardano.address import Address
 from pycardano.network import Network
 from pycardano.plutus import ExecutionUnits
@@ -158,17 +159,24 @@ class ChainContext:
         """
         raise NotImplementedError()
 
-    def submit_tx(self, tx: Transaction):
+    def submit_tx(self, tx: Union[Transaction, bytes, str]):
         """Submit a transaction to the blockchain.
 
         Args:
-            tx (Transaction): The transaction to be submitted.
+            tx (Union[Transaction, bytes, str]): The transaction to be submitted.
 
         Raises:
             :class:`InvalidArgumentException`: When the transaction is invalid.
             :class:`TransactionFailedException`: When fails to submit the transaction to blockchain.
         """
-        return self.submit_tx_cbor(tx.to_cbor("bytes"))
+        if isinstance(tx, Transaction):
+            return self.submit_tx_cbor(tx.to_cbor("bytes"))
+        elif isinstance(tx, bytes):
+            return self.submit_tx_cbor(tx)
+        else:
+            raise InvalidArgumentException(
+                f"Invalid transaction type: {type(tx)}, expected Transaction, bytes, or str"
+            )
 
     def submit_tx_cbor(self, cbor: Union[bytes, str]):
         """Submit a transaction to the blockchain.
