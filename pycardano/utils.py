@@ -36,7 +36,7 @@ def fee(
     Args:
         context (ChainConext): A chain context.
         length (int): The length of CBOR bytes, which could usually be derived
-            by `len(tx.to_cbor("bytes"))`.
+            by `len(tx.to_cbor())`.
         exec_steps (Optional[int]): Number of execution steps run by plutus scripts in the transaction.
         max_mem_unit (Optional[int]): Max numer of memory units run by plutus scripts in the transaction.
 
@@ -180,7 +180,7 @@ def min_lovelace_post_alonzo(output: TransactionOutput, context: ChainContext) -
     )
 
     return (
-        constant_overhead + len(tmp_out.to_cbor("bytes"))
+        constant_overhead + len(tmp_out.to_cbor())
     ) * context.protocol_param.coins_per_utxo_byte
 
 

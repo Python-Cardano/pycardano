@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from frozenlist import FrozenList
-from frozendict import frozendict
 import re
 import typing
 from collections import OrderedDict, UserList, defaultdict
@@ -27,14 +25,12 @@ from typing import (
 )
 
 from cbor2 import CBOREncoder, CBORSimpleValue, CBORTag, dumps, loads, undefined
+from frozendict import frozendict
+from frozenlist import FrozenList
 from pprintpp import pformat
 
-from pycardano.exception import (
-    DeserializeException,
-    InvalidArgumentException,
-    SerializeException,
-)
-from pycardano.types import typechecked, check_type
+from pycardano.exception import DeserializeException, SerializeException
+from pycardano.types import check_type, typechecked
 
 __all__ = [
     "default_encoder",
@@ -359,14 +355,11 @@ class CBORSerializable:
             f"'from_primitive()' is not implemented by {cls.__name__}."
         )
 
-    def to_cbor(self, encoding: str = "hex") -> Union[str, bytes]:
-        """Encode a Python object into CBOR format.
-
-        Args:
-            encoding (str): Encoding to use. Choose from "hex" or "bytes".
+    def to_cbor(self) -> bytes:
+        """Encode a Python object into CBOR bytes.
 
         Returns:
-            Union[str, bytes]: CBOR encoded in a hex string if encoding is hex (default) or bytes if encoding is bytes.
+            bytes: Python object encoded in cbor bytes.
 
         Examples:
             >>> class Test(CBORSerializable):
@@ -384,22 +377,18 @@ class CBORSerializable:
             ...     def __repr__(self):
             ...         return f"Test({self.number1}, {self.number2})"
             >>> a = Test(1, 2)
-            >>> a.to_cbor()
+            >>> a.to_cbor().hex()
             '820102'
         """
-        valid_encodings = ("hex", "bytes")
+        return dumps(self, default=default_encoder)
 
-        # Make sure encoding is selected correctly before proceeding further.
-        if encoding not in ("hex", "bytes"):
-            raise InvalidArgumentException(
-                f"Invalid encoding: {encoding}. Please choose from {valid_encodings}"
-            )
+    def to_cbor_hex(self) -> str:
+        """Encode a Python object into CBOR hex.
 
-        cbor = dumps(self, default=default_encoder)
-        if encoding == "hex":
-            return cbor.hex()
-        else:
-            return cbor
+        Returns:
+            str: Python object encoded in cbor hex string.
+        """
+        return self.to_cbor().hex()
 
     @classmethod
     def from_cbor(cls, payload: Union[str, bytes]) -> CBORSerializable:
@@ -430,7 +419,7 @@ class CBORSerializable:
             ...     def __repr__(self):
             ...         return f"Test({self.number1}, {self.number2})"
             >>> a = Test(1, 2)
-            >>> cbor_hex = a.to_cbor()
+            >>> cbor_hex = a.to_cbor_hex()
             >>> print(Test.from_cbor(cbor_hex))
             Test(1, 2)
 
@@ -457,7 +446,7 @@ class CBORSerializable:
             >>> b = TestParent(3, a)
             >>> b
             TestParent(3, Test(1, 2))
-            >>> cbor_hex = b.to_cbor()
+            >>> cbor_hex = b.to_cbor_hex()
             >>> cbor_hex
             '8203820102'
             >>> print(TestParent.from_cbor(cbor_hex))
@@ -579,7 +568,7 @@ class ArrayCBORSerializable(CBORSerializable):
         >>> t = Test2(c="c", test1=Test1(a="a"))
         >>> t
         Test2(c='c', test1=Test1(a='a', b=None))
-        >>> cbor_hex = t.to_cbor() # doctest: +SKIP
+        >>> cbor_hex = t.to_cbor_hex() # doctest: +SKIP
         >>> cbor_hex # doctest: +SKIP
         '826163826161f6'
         >>> Test2.from_cbor(cbor_hex) # doctest: +SKIP
@@ -608,7 +597,7 @@ class ArrayCBORSerializable(CBORSerializable):
         Test2(c='c', test1=Test1(a='a', b=None))
         >>> t.to_primitive() # Notice below that attribute "b" is not included in converted primitive.
         ['c', ['a']]
-        >>> cbor_hex = t.to_cbor() # doctest: +SKIP
+        >>> cbor_hex = t.to_cbor_hex() # doctest: +SKIP
         >>> cbor_hex # doctest: +SKIP
         '826163816161'
         >>> Test2.from_cbor(cbor_hex) # doctest: +SKIP
@@ -695,7 +684,7 @@ class MapCBORSerializable(CBORSerializable):
         Test2(c=None, test1=Test1(a='a', b=''))
         >>> t.to_primitive()
         {'c': None, 'test1': {'a': 'a', 'b': ''}}
-        >>> cbor_hex = t.to_cbor() # doctest: +SKIP
+        >>> cbor_hex = t.to_cbor_hex() # doctest: +SKIP
         >>> cbor_hex # doctest: +SKIP
         'a26163f6657465737431a261616161616260'
         >>> Test2.from_cbor(cbor_hex) # doctest: +SKIP
@@ -719,7 +708,7 @@ class MapCBORSerializable(CBORSerializable):
         Test2(c=None, test1=Test1(a='a', b=''))
         >>> t.to_primitive()
         {'1': {'0': 'a', '1': ''}}
-        >>> cbor_hex = t.to_cbor() # doctest: +SKIP
+        >>> cbor_hex = t.to_cbor_hex() # doctest: +SKIP
         >>> cbor_hex # doctest: +SKIP
         'a16131a261306161613160'
         >>> Test2.from_cbor(cbor_hex) # doctest: +SKIP
@@ -850,7 +839,7 @@ class DictCBORSerializable(CBORSerializable):
         # Sort keys in a map according to https://datatracker.ietf.org/doc/html/rfc7049#section-3.9
         def _get_sortable_val(key):
             if isinstance(key, CBORSerializable):
-                cbor_bytes = key.to_cbor("bytes")
+                cbor_bytes = key.to_cbor()
             else:
                 cbor_bytes = dumps(key)
             return len(cbor_bytes), cbor_bytes

@@ -82,7 +82,7 @@ def test_plutus_data():
     assert (
         "d87a9f581cc2ff616e11299d9094ce0a7eb5b7284b705147a822f4ffbd471f971a1b0000017e9"
         "874d2a0d905019fd8668218829f187b44313233349f040506ffa2014131024132ffffd9050280ff"
-        == my_vesting.to_cbor()
+        == my_vesting.to_cbor_hex()
     )
     check_two_way_cbor(my_vesting)
 
@@ -125,7 +125,7 @@ def test_plutus_data_json_list():
 def test_plutus_data_cbor_list():
     test = ListTest([LargestTest(), LargestTest()])
 
-    encoded_cbor = test.to_cbor()
+    encoded_cbor = test.to_cbor_hex()
 
     assert "d8799f82d9050280d9050280ff" == encoded_cbor
 
@@ -148,7 +148,7 @@ def test_plutus_data_json_dict():
 def test_plutus_data_cbor_dict():
     test = DictTest({0: LargestTest(), 1: LargestTest()})
 
-    encoded_cbor = test.to_cbor()
+    encoded_cbor = test.to_cbor_hex()
 
     assert "d87c9fa200d905028001d9050280ff" == encoded_cbor
 
@@ -225,7 +225,7 @@ def test_redeemer():
     redeemer.tag = RedeemerTag.SPEND
     assert (
         "840000d8668218829f187b433233349f040506ffa2014131024132ff821a000f42401a000f4240"
-        == redeemer.to_cbor()
+        == redeemer.to_cbor_hex()
     )
     check_two_way_cbor(redeemer)
 
@@ -236,7 +236,7 @@ def test_redeemer_empty_datum():
     redeemer.tag = RedeemerTag.SPEND
     assert (
         "840000d8668218829f187b433233349fffa2014131024132ff821a000f42401a000f4240"
-        == redeemer.to_cbor()
+        == redeemer.to_cbor_hex()
     )
     check_two_way_cbor(redeemer)
 
@@ -256,7 +256,7 @@ def test_cost_model():
         "7e2318760001011a000242201a00067e2318760001011a0025cea81971f704001a00014"
         "1bb041a000249f019138800011a000249f018201a000302590001011a000249f018201a"
         "000249f018201a000249f018201a000249f018201a000249f018201a000249f018201a0"
-        "00249f018201a00330da70101ff" == COST_MODELS.to_cbor()
+        "00249f018201a00330da70101ff" == COST_MODELS.to_cbor_hex()
     )
 
 
@@ -284,7 +284,7 @@ def test_raw_plutus_data():
         "140d8799f00a1401a004c7a20ffffffff"
     )
     raw_plutus_data = RawPlutusData.from_cbor(raw_plutus_cbor)
-    assert raw_plutus_data.to_cbor() == raw_plutus_cbor
+    assert raw_plutus_data.to_cbor_hex() == raw_plutus_cbor
     check_two_way_cbor(raw_plutus_data)
 
 
@@ -293,7 +293,7 @@ def test_clone_raw_plutus_data():
 
     cloned_tag = copy.deepcopy(tag)
     assert cloned_tag == tag
-    assert cloned_tag.to_cbor() == tag.to_cbor()
+    assert cloned_tag.to_cbor_hex() == tag.to_cbor_hex()
 
     tag.data.value = [1001]
 
@@ -311,7 +311,7 @@ def test_clone_plutus_data():
 
     cloned_vesting = copy.deepcopy(my_vesting)
     assert cloned_vesting == my_vesting
-    assert cloned_vesting.to_cbor() == my_vesting.to_cbor()
+    assert cloned_vesting.to_cbor_hex() == my_vesting.to_cbor_hex()
 
     my_vesting.deadline = 1643235300001
 

@@ -127,5 +127,5 @@ class AuxiliaryData(CBORSerializable):
 
     def hash(self) -> AuxiliaryDataHash:
         return AuxiliaryDataHash(
-            blake2b(self.to_cbor("bytes"), AUXILIARY_DATA_HASH_SIZE, encoder=RawEncoder)  # type: ignore
+            blake2b(self.to_cbor(), AUXILIARY_DATA_HASH_SIZE, encoder=RawEncoder)  # type: ignore
         )

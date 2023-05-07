@@ -596,7 +596,7 @@ class TransactionBuilder:
         )
         attempt_amount.coin = required_lovelace
 
-        return len(attempt_amount.to_cbor("bytes")) > max_val_size
+        return len(attempt_amount.to_cbor()) > max_val_size
 
     def _pack_tokens_for_change(
         self,
@@ -656,7 +656,7 @@ class TransactionBuilder:
             )
             updated_amount.coin = required_lovelace
 
-            if len(updated_amount.to_cbor("bytes")) > max_val_size:
+            if len(updated_amount.to_cbor()) > max_val_size:
                 output.amount = old_amount
                 break
 
@@ -732,9 +732,7 @@ class TransactionBuilder:
         # https://hydra.iohk.io/build/13099856/download/1/alonzo-changes.pdf
 
         if self.mint:
-            sorted_mint_policies = sorted(
-                self.mint.keys(), key=lambda x: x.to_cbor("bytes")
-            )
+            sorted_mint_policies = sorted(self.mint.keys(), key=lambda x: x.to_cbor())
         else:
             sorted_mint_policies = []
 
@@ -811,7 +809,7 @@ class TransactionBuilder:
 
         witness = self._build_fake_witness_set()
         tx = Transaction(tx_body, witness, True, self.auxiliary_data)
-        size = len(tx.to_cbor("bytes"))
+        size = len(tx.to_cbor())
         if size > self.context.protocol_param.max_tx_size:
             raise InvalidTransactionException(
                 f"Transaction size ({size}) exceeds the max limit "
@@ -869,7 +867,7 @@ class TransactionBuilder:
 
         estimated_fee = fee(
             self.context,
-            len(self._build_full_fake_tx().to_cbor("bytes")),
+            len(self._build_full_fake_tx().to_cbor()),
             plutus_execution_units.steps,
             plutus_execution_units.mem,
         )
@@ -1130,14 +1128,14 @@ class TransactionBuilder:
 
             sorted_inputs = sorted(
                 self.inputs.copy(),
-                key=lambda i: (len(i.output.to_cbor()), -i.output.amount.coin),
+                key=lambda i: (len(i.output.to_cbor_hex()), -i.output.amount.coin),
             )
             _add_collateral_input(tmp_val, sorted_inputs)
 
             if tmp_val.coin < collateral_amount:
                 sorted_inputs = sorted(
                     self.context.utxos(collateral_return_address),
-                    key=lambda i: (len(i.output.to_cbor()), -i.output.amount.coin),
+                    key=lambda i: (len(i.output.to_cbor_hex()), -i.output.amount.coin),
                 )
                 _add_collateral_input(tmp_val, sorted_inputs)
 

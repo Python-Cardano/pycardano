@@ -41,7 +41,7 @@ def wait_for_tx(tx_id):
 def submit_tx(tx):
     print("############### Transaction created ###############")
     print(tx)
-    print(tx.to_cbor())
+    print(tx.to_cbor_hex())
     print("############### Submitting transaction ###############")
     chain_context.submit_tx(tx)
     wait_for_tx(str(tx.id))
