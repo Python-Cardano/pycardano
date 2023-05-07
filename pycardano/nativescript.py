@@ -58,7 +58,7 @@ class NativeScript(ArrayCBORSerializable):
             raise DeserializeException(f"Unknown script type indicator: {script_type}")
 
     def hash(self) -> ScriptHash:
-        cbor_bytes = cast(bytes, self.to_cbor("bytes"))
+        cbor_bytes = cast(bytes, self.to_cbor())
         return ScriptHash(
             blake2b(bytes(1) + cbor_bytes, SCRIPT_HASH_SIZE, encoder=RawEncoder)
         )

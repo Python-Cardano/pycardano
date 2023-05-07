@@ -933,7 +933,7 @@ def test_build_and_sign(chain_context):
         "a300818258203131313131313131313131313131313131313131313131313131313131313131"
         "00018282581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f41a0007"
         "a12082581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f41a004223"
-        "fb021a00028625" == tx_body.to_cbor()
+        "fb021a00028625" == tx_body.to_cbor_hex()
     )
 
 
@@ -1005,7 +1005,7 @@ def test_tx_builder_exact_fee_no_change(chain_context):
     }
 
     assert expected == tx.transaction_body.to_primitive()
-    assert tx.transaction_body.fee >= fee(chain_context, len(tx.to_cbor("bytes")))
+    assert tx.transaction_body.fee >= fee(chain_context, len(tx.to_cbor()))
 
 
 def test_tx_builder_certificates(chain_context):

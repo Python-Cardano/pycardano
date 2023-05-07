@@ -65,7 +65,7 @@ def home_page():
 @app.route("/build_tx", methods=["POST"])
 def build_tx():
     tx = build_transaction(request.json)
-    cbor_hex = tx.to_cbor()
+    cbor_hex = tx.to_cbor_hex()
     print(cbor_hex)
     return {"tx": cbor_hex}
 
@@ -75,7 +75,7 @@ def submit_tx():
     tx = compose_tx_and_witness(request.json)
     tx_id = tx.transaction_body.hash().hex()
     print(f"Transaction: \n {tx}")
-    print(f"Transaction cbor: {tx.to_cbor()}")
+    print(f"Transaction cbor: {tx.to_cbor_hex()}")
     print(f"Transaction ID: {tx_id}")
     chain_context.submit_tx(tx)
     return {"tx_id": tx_id}

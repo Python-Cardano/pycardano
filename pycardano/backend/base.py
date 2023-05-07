@@ -3,8 +3,8 @@
 from dataclasses import dataclass
 from typing import Dict, List, Union
 
-from pycardano.exception import InvalidArgumentException
 from pycardano.address import Address
+from pycardano.exception import InvalidArgumentException
 from pycardano.network import Network
 from pycardano.plutus import ExecutionUnits
 from pycardano.transaction import Transaction, UTxO
@@ -170,7 +170,7 @@ class ChainContext:
             :class:`TransactionFailedException`: When fails to submit the transaction to blockchain.
         """
         if isinstance(tx, Transaction):
-            return self.submit_tx_cbor(tx.to_cbor("bytes"))
+            return self.submit_tx_cbor(tx.to_cbor())
         elif isinstance(tx, bytes):
             return self.submit_tx_cbor(tx)
         else:
@@ -199,7 +199,7 @@ class ChainContext:
         Returns:
             List[ExecutionUnits]: A list of execution units calculated for each of the transaction's redeemers
         """
-        return self.evaluate_tx_cbor(tx.to_cbor("bytes"))
+        return self.evaluate_tx_cbor(tx.to_cbor())
 
     def evaluate_tx_cbor(self, cbor: Union[bytes, str]) -> Dict[str, ExecutionUnits]:
         """Evaluate execution units of a transaction.

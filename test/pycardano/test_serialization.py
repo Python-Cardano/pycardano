@@ -51,7 +51,7 @@ def test_array_cbor_serializable():
         test1: Test1
 
     t = Test2(c="c", test1=Test1(a="a"))
-    assert t.to_cbor() == "826163826161f6"
+    assert t.to_cbor_hex() == "826163826161f6"
     check_two_way_cbor(t)
 
 
@@ -78,7 +78,7 @@ def test_array_cbor_serializable_optional_field():
 
     t = Test2(c="c", test1=Test1(a="a"))
     assert t.test1.to_shallow_primitive() == ["a"]
-    assert t.to_cbor() == "826163816161"
+    assert t.to_cbor_hex() == "826163816161"
     check_two_way_cbor(t)
 
 
@@ -94,7 +94,7 @@ def test_map_cbor_serializable():
         test1: Test1 = field(default_factory=Test1)
 
     t = Test2(test1=Test1(a="a"))
-    assert t.to_cbor() == "a26163f6657465737431a261616161616260"
+    assert t.to_cbor_hex() == "a26163f6657465737431a261616161616260"
     check_two_way_cbor(t)
 
 
@@ -111,7 +111,7 @@ def test_map_cbor_serializable_custom_keys():
 
     t = Test2(test1=Test1(a="a"))
     assert t.to_primitive() == {"1": {"0": "a", "1": ""}}
-    assert t.to_cbor() == "a16131a261306161613160"
+    assert t.to_cbor_hex() == "a16131a261306161613160"
     check_two_way_cbor(t)
 
 
@@ -130,11 +130,11 @@ def test_dict_cbor_serializable():
     b[b"1"] = 3
     b[b"110"] = 1
 
-    assert a.to_cbor() == "a341310343313030024331313001"
+    assert a.to_cbor_hex() == "a341310343313030024331313001"
     check_two_way_cbor(a)
 
     # Make sure the cbor of a and b are exactly the same even when their items are inserted in different orders.
-    assert a.to_cbor() == b.to_cbor()
+    assert a.to_cbor_hex() == b.to_cbor_hex()
 
 
 def test_dict_complex_key_cbor_serializable():
@@ -150,7 +150,7 @@ def test_dict_complex_key_cbor_serializable():
     a[MyTest(0)] = 1
     a[MyTest(1)] = 2
 
-    assert a.to_cbor() == "a2810001810102"
+    assert a.to_cbor_hex() == "a2810001810102"
     check_two_way_cbor(a)
 
 
@@ -214,7 +214,7 @@ def test_wrong_primitive_type():
         a: str = ""
 
     with pytest.raises(TypeError):
-        Test1(a=1).to_cbor()
+        Test1(a=1).to_cbor_hex()
 
 
 def test_wrong_union_type():
@@ -223,7 +223,7 @@ def test_wrong_union_type():
         a: Union[str, int] = ""
 
     with pytest.raises(TypeError):
-        Test1(a=1.0).to_cbor()
+        Test1(a=1.0).to_cbor_hex()
 
 
 def test_wrong_optional_type():
@@ -232,7 +232,7 @@ def test_wrong_optional_type():
         a: Optional[str] = ""
 
     with pytest.raises(TypeError):
-        Test1(a=1.0).to_cbor()
+        Test1(a=1.0).to_cbor_hex()
 
 
 def test_wrong_list_type():
@@ -241,7 +241,7 @@ def test_wrong_list_type():
         a: List[str] = ""
 
     with pytest.raises(TypeError):
-        Test1(a=[1]).to_cbor()
+        Test1(a=[1]).to_cbor_hex()
 
 
 def test_wrong_dict_type():
@@ -250,7 +250,7 @@ def test_wrong_dict_type():
         a: Dict[str, int] = ""
 
     with pytest.raises(TypeError):
-        Test1(a={1: 1}).to_cbor()
+        Test1(a={1: 1}).to_cbor_hex()
 
 
 def test_wrong_tuple_type():
@@ -259,7 +259,7 @@ def test_wrong_tuple_type():
         a: Tuple[str, int] = ""
 
     with pytest.raises(TypeError):
-        Test1(a=(1, 1)).to_cbor()
+        Test1(a=(1, 1)).to_cbor_hex()
 
 
 def test_wrong_set_type():
@@ -268,7 +268,7 @@ def test_wrong_set_type():
         a: Set[str] = ""
 
     with pytest.raises(TypeError):
-        Test1(a={1}).to_cbor()
+        Test1(a={1}).to_cbor_hex()
 
 
 def test_wrong_nested_type():
@@ -282,7 +282,7 @@ def test_wrong_nested_type():
         b: Optional[Test1] = None
 
     with pytest.raises(TypeError):
-        Test2(a=1).to_cbor()
+        Test2(a=1).to_cbor_hex()
 
     with pytest.raises(TypeError):
-        Test2(a=Test1(a=1)).to_cbor()
+        Test2(a=Test1(a=1)).to_cbor_hex()

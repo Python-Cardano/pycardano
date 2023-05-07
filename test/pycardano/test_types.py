@@ -1,6 +1,6 @@
 import typeguard
 
-from pycardano.types import typechecked, check_type
+from pycardano.types import check_type, typechecked
 
 
 def test_types(monkeypatch):

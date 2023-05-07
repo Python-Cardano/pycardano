@@ -35,7 +35,7 @@ class TestPlutus(TestBase):
 
         print("############### Transaction created ###############")
         print(signed_tx)
-        print(signed_tx.to_cbor())
+        print(signed_tx.to_cbor_hex())
         print("############### Submitting transaction ###############")
         self.chain_context.submit_tx(signed_tx)
         time.sleep(3)
@@ -53,7 +53,7 @@ class TestPlutus(TestBase):
 
         print("############### Transaction created ###############")
         print(signed_tx)
-        print(signed_tx.to_cbor())
+        print(signed_tx.to_cbor_hex())
         print("############### Submitting transaction ###############")
         self.chain_context.submit_tx(signed_tx)
         time.sleep(3)
@@ -87,7 +87,7 @@ class TestPlutus(TestBase):
 
         print("############### Transaction created ###############")
         print(signed_tx)
-        print(signed_tx.to_cbor())
+        print(signed_tx.to_cbor_hex())
         print("############### Submitting transaction ###############")
         self.chain_context.submit_tx(signed_tx)
 
@@ -119,7 +119,7 @@ class TestPlutus(TestBase):
 
         print("############### Transaction created ###############")
         print(signed_tx)
-        print(signed_tx.to_cbor())
+        print(signed_tx.to_cbor_hex())
         print("############### Submitting transaction ###############")
         self.chain_context.submit_tx(signed_tx)
         time.sleep(3)
@@ -162,7 +162,7 @@ class TestPlutus(TestBase):
 
         print("############### Transaction created ###############")
         print(signed_tx)
-        print(signed_tx.to_cbor())
+        print(signed_tx.to_cbor_hex())
         print("############### Submitting transaction ###############")
         self.chain_context.submit_tx(signed_tx)
 
@@ -196,7 +196,7 @@ class TestPlutus(TestBase):
 
         print("############### Transaction created ###############")
         print(signed_tx)
-        print(signed_tx.to_cbor())
+        print(signed_tx.to_cbor_hex())
         print("############### Submitting transaction ###############")
         self.chain_context.submit_tx(signed_tx)
         time.sleep(3)
@@ -257,7 +257,7 @@ class TestPlutus(TestBase):
 
         print("############### Transaction created ###############")
         print(signed_tx)
-        print(signed_tx.to_cbor())
+        print(signed_tx.to_cbor_hex())
         print("############### Submitting transaction ###############")
         self.chain_context.submit_tx(signed_tx)
         time.sleep(3)
@@ -274,7 +274,7 @@ class TestPlutus(TestBase):
 
         print("############### Transaction created ###############")
         print(signed_tx)
-        print(signed_tx.to_cbor())
+        print(signed_tx.to_cbor_hex())
         print("############### Submitting transaction ###############")
         self.chain_context.submit_tx(signed_tx)
         time.sleep(3)
@@ -306,7 +306,7 @@ class TestPlutus(TestBase):
 
         print("############### Transaction created ###############")
         print(signed_tx)
-        print(signed_tx.to_cbor())
+        print(signed_tx.to_cbor_hex())
         print("############### Submitting transaction ###############")
         self.chain_context.submit_tx(signed_tx)
 

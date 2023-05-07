@@ -83,7 +83,7 @@ class Key(CBORSerializable):
             {
                 "type": self.key_type,
                 "description": self.description,
-                "cborHex": self.to_cbor(),
+                "cborHex": self.to_cbor_hex(),
             }
         )
 

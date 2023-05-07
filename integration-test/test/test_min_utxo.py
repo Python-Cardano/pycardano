@@ -98,7 +98,7 @@ class TestMint(TestBase):
 
         print("############### Transaction created ###############")
         print(signed_tx)
-        print(signed_tx.to_cbor())
+        print(signed_tx.to_cbor_hex())
 
         # Submit signed transaction to the network
         print("############### Submitting transaction ###############")

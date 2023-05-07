@@ -466,9 +466,7 @@ class UTxO(ArrayCBORSerializable):
         return pformat(vars(self))
 
     def __hash__(self):
-        return hash(
-            blake2b(self.input.to_cbor("bytes") + self.output.to_cbor("bytes"), 32)
-        )
+        return hash(blake2b(self.input.to_cbor() + self.output.to_cbor(), 32))
 
 
 class Withdrawals(DictCBORSerializable):
@@ -572,7 +570,7 @@ class TransactionBody(MapCBORSerializable):
     )
 
     def hash(self) -> bytes:
-        return blake2b(self.to_cbor(encoding="bytes"), TRANSACTION_HASH_SIZE, encoder=RawEncoder)  # type: ignore
+        return blake2b(self.to_cbor(), TRANSACTION_HASH_SIZE, encoder=RawEncoder)  # type: ignore
 
     @property
     def id(self) -> TransactionId:
