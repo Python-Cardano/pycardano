@@ -9,7 +9,7 @@ networks:
 services:
 
   cardano-node:
-    image: inputoutput/cardano-node:${CARDANO_NODE_VERSION:-1.35.3}
+    image: inputoutput/cardano-node:${CARDANO_NODE_VERSION:-1.35.7}
     entrypoint: bash
     environment:
       NETWORK: "${NETWORK:-local-alonzo}"
@@ -32,7 +32,7 @@ services:
         max-file: "10"
 
   cardano-pool:
-    image: inputoutput/cardano-node:${CARDANO_NODE_VERSION:-1.35.3}
+    image: inputoutput/cardano-node:${CARDANO_NODE_VERSION:-1.35.7}
     entrypoint: bash
     environment:
       NETWORK: "${NETWORK:-local-alonzo}"
@@ -52,14 +52,14 @@ services:
         max-file: "10"
 
   ogmios:
-    image: cardanosolutions/ogmios:v5.5.5_1.35.3
+    image: cardanosolutions/ogmios:latest
     environment:
       NETWORK: "${NETWORK:-local-alonzo}"
 
     command: [
       "--host", "0.0.0.0",
       "--node-socket", "/ipc/node.socket",
-      "--node-config", "/code/configs/${NETWORK:-local}/config.json"
+      "--node-config", "/code/configs/${NETWORK:-local-alonzo}/config.json"
     ]
     volumes:
       - .:/code
@@ -73,13 +73,13 @@ services:
         max-file: "10"
 
   kupo:
-    image: cardanosolutions/kupo:v2.1.0
+    image: cardanosolutions/kupo:v2.4.0
     environment:
       NETWORK: "${NETWORK:-local}"
 
     command: [
       "--node-socket", "/ipc/node.socket",
-      "--node-config", "/code/configs/${NETWORK:-local}/config.json",
+      "--node-config", "/code/configs/${NETWORK:-local-alonzo}/config.json",
       "--host", "0.0.0.0",
       "--since", "origin",
       "--match", "*",
