@@ -1,5 +1,6 @@
 import json
 import time
+from copy import deepcopy
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -7,6 +8,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import cbor2
 import requests
 import websocket
+from cachetools import Cache, LRUCache, TTLCache
 
 from pycardano.address import Address
 from pycardano.backend.base import (
@@ -49,6 +51,8 @@ class OgmiosChainContext(ChainContext):
     _last_chain_tip_fetch: float
     _genesis_param: Optional[GenesisParameters]
     _protocol_param: Optional[ProtocolParameters]
+    _utxo_cache: Cache
+    _datum_cache: Cache
 
     def __init__(
         self,
@@ -57,6 +61,8 @@ class OgmiosChainContext(ChainContext):
         compact_result=True,
         kupo_url=None,
         refetch_chain_tip_interval: Optional[float] = None,
+        utxo_cache_size: int = 10000,
+        datum_cache_size: int = 10000,
     ):
         self._ws_url = ws_url
         self._network = network
@@ -76,6 +82,11 @@ class OgmiosChainContext(ChainContext):
                 self.genesis_param.slot_length
                 / self.genesis_param.active_slots_coefficient
             )
+
+        self._utxo_cache = TTLCache(
+            ttl=self._refetch_chain_tip_interval, maxsize=utxo_cache_size
+        )
+        self._datum_cache = LRUCache(maxsize=datum_cache_size)
 
     def _request(self, method: OgmiosQueryType, args: JsonDict) -> Any:
         ws = websocket.WebSocket()
@@ -253,12 +264,44 @@ class OgmiosChainContext(ChainContext):
         Returns:
             List[UTxO]: A list of UTxOs.
         """
+        if (self.last_block_slot, address) in self._utxo_cache:
+            return deepcopy(self._utxo_cache[(self.last_block_slot, address)])
+
         if self._kupo_url:
             utxos = self._utxos_kupo(address)
         else:
             utxos = self._utxos_ogmios(address)
 
+        self._utxo_cache[(self.last_block_slot, address)] = deepcopy(utxos)
+
         return utxos
+
+    def _get_datum_from_kupo(self, datum_hash: str) -> Optional[RawCBOR]:
+        """Get datum from Kupo.
+
+        Args:
+            datum_hash (str): A datum hash.
+
+        Returns:
+            Optional[RawCBOR]: A datum.
+        """
+        datum = self._datum_cache.get(datum_hash, None)
+
+        if datum is not None or (datum is None and not self._is_chain_tip_updated()):
+            return datum
+
+        if self._kupo_url is None:
+            raise AssertionError(
+                "kupo_url object attribute has not been assigned properly."
+            )
+
+        kupo_datum_url = self._kupo_url + "/datums/" + datum_hash
+        datum_result = requests.get(kupo_datum_url).json()
+        if datum_result and datum_result["datum"] != datum_hash:
+            datum = RawCBOR(bytes.fromhex(datum_result["datum"]))
+
+        self._datum_cache[datum_hash] = datum
+        return datum
 
     def _utxos_kupo(self, address: str) -> List[UTxO]:
         """Get all UTxOs associated with an address with Kupo.
@@ -313,10 +356,8 @@ class OgmiosChainContext(ChainContext):
                     else None
                 )
                 if datum_hash and result.get("datum_type", "inline"):
-                    kupo_datum_url = self._kupo_url + "/datums/" + result["datum_hash"]
-                    datum_result = requests.get(kupo_datum_url).json()
-                    if datum_result and datum_result["datum"] != datum_hash:
-                        datum = RawCBOR(bytes.fromhex(datum_result["datum"]))
+                    datum = self._get_datum_from_kupo(result["datum_hash"])
+                    if datum is not None:
                         datum_hash = None
 
                 if not result["value"]["assets"]:

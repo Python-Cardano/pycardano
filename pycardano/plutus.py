@@ -670,7 +670,7 @@ class PlutusData(ArrayCBORSerializable):
         return self.__class__.from_cbor(self.to_cbor_hex())
 
 
-@dataclass
+@dataclass(repr=False)
 class RawPlutusData(CBORSerializable):
     data: CBORTag
 
