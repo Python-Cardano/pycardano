@@ -287,7 +287,9 @@ class OgmiosChainContext(ChainContext):
         """
         datum = self._datum_cache.get(datum_hash, None)
 
-        if datum is not None or (datum_hash in self._datum_cache and not self._is_chain_tip_updated()):
+        if datum is not None or (
+            datum_hash in self._datum_cache and not self._is_chain_tip_updated()
+        ):
             return datum
 
         if self._kupo_url is None:
