@@ -76,6 +76,7 @@ UTXOS = [
                     "126b8676446c84a5cd6e3259223b16a2314c5676b88ae1c1f8579a8f.744d494e": 762462,
                     "57fca08abbaddee36da742a839f7d83a7e1d2419f1507fcbf3916522.43484f43": 9945000,
                     "fc3ef8db4a16c1959fbabfcbc3fb7669bf315967ffef260ececc47a3.53484942": 1419813131821,
+                    "fc3ef8db4a16c1959fbabfcbc3fb7669bf315967ffef260ececc47a3": 1234,
                 },
             },
             "datum": None,
@@ -194,7 +195,8 @@ class TestOgmiosChainContext:
                     "43484f43": 9945000
                 },
                 "fc3ef8db4a16c1959fbabfcbc3fb7669bf315967ffef260ececc47a3": {
-                    "53484942": 1419813131821
+                    "53484942": 1419813131821,
+                    b"": 1234,
                 },
             }
         )
