@@ -1,6 +1,5 @@
 import json
 import time
-from copy import deepcopy
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -8,7 +7,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import cbor2
 import requests
 import websocket
-from cachetools import Cache, LRUCache, TTLCache
+from cachetools import Cache, LRUCache, TTLCache, func
 
 from pycardano.address import Address
 from pycardano.backend.base import (
@@ -214,9 +213,12 @@ class OgmiosChainContext(ChainContext):
     @property
     def genesis_param(self) -> GenesisParameters:
         """Get chain genesis parameters"""
-        if not self._genesis_param or self._is_chain_tip_updated():
-            self._genesis_param = self._fetch_genesis_param()
-        return self._genesis_param
+
+        @func.lru_cache(maxsize=10)
+        def _genesis_param_cache(slot) -> GenesisParameters:
+            return self._fetch_genesis_param()
+
+        return _genesis_param_cache(self.last_block_slot)
 
     def _fetch_genesis_param(self) -> GenesisParameters:
         result = self._query_genesis_config()
@@ -250,10 +252,11 @@ class OgmiosChainContext(ChainContext):
         return self._query_current_epoch()
 
     @property
+    @func.ttl_cache(ttl=1)
     def last_block_slot(self) -> int:
-        """Slot number of last block"""
         result = self._query_chain_tip()
-        return result["slot"]
+        slot = result["slot"]
+        return slot
 
     def _utxos(self, address: str) -> List[UTxO]:
         """Get all UTxOs associated with an address.
@@ -264,15 +267,16 @@ class OgmiosChainContext(ChainContext):
         Returns:
             List[UTxO]: A list of UTxOs.
         """
-        if (self.last_block_slot, address) in self._utxo_cache:
-            return deepcopy(self._utxo_cache[(self.last_block_slot, address)])
+        key = (self.last_block_slot, address)
+        if key in self._utxo_cache:
+            return self._utxo_cache[key]
 
         if self._kupo_url:
             utxos = self._utxos_kupo(address)
         else:
             utxos = self._utxos_ogmios(address)
 
-        self._utxo_cache[(self.last_block_slot, address)] = deepcopy(utxos)
+        self._utxo_cache[key] = utxos
 
         return utxos
 
@@ -287,9 +291,7 @@ class OgmiosChainContext(ChainContext):
         """
         datum = self._datum_cache.get(datum_hash, None)
 
-        if datum is not None or (
-            datum_hash in self._datum_cache and not self._is_chain_tip_updated()
-        ):
+        if datum is not None:
             return datum
 
         if self._kupo_url is None:
