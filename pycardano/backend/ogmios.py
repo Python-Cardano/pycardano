@@ -466,9 +466,9 @@ class OgmiosChainContext(ChainContext):
         script = output.get("script", None)
         if script:
             if "plutus:v2" in script:
-                script = PlutusV2Script(cbor2.loads(bytes.fromhex(script["plutus:v2"])))
+                script = PlutusV2Script(bytes.fromhex(script["plutus:v2"]))
             elif "plutus:v1" in script:
-                script = PlutusV1Script(cbor2.loads(bytes.fromhex(script["plutus:v1"])))
+                script = PlutusV1Script(bytes.fromhex(script["plutus:v1"]))
             else:
                 raise ValueError("Unknown plutus script type")
         datum_hash = (
