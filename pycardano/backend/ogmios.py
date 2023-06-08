@@ -297,11 +297,11 @@ class OgmiosChainContext(ChainContext):
                     script = requests.get(kupo_script_url).json()
                     if script["language"] == "plutus:v2":
                         script = PlutusV2Script(
-                            cbor2.loads(bytes.fromhex(script["script"]))
+                            bytes.fromhex(script["script"])
                         )
                     elif script["language"] == "plutus:v1":
                         script = PlutusV1Script(
-                            cbor2.loads(bytes.fromhex(script["script"]))
+                            bytes.fromhex(script["script"])
                         )
                     else:
                         raise ValueError("Unknown plutus script type")
