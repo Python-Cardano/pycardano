@@ -343,13 +343,9 @@ class OgmiosChainContext(ChainContext):
                     kupo_script_url = self._kupo_url + "/scripts/" + script_hash
                     script = requests.get(kupo_script_url).json()
                     if script["language"] == "plutus:v2":
-                        script = PlutusV2Script(
-                            bytes.fromhex(script["script"])
-                        )
+                        script = PlutusV2Script(bytes.fromhex(script["script"]))
                     elif script["language"] == "plutus:v1":
-                        script = PlutusV1Script(
-                            bytes.fromhex(script["script"])
-                        )
+                        script = PlutusV1Script(bytes.fromhex(script["script"]))
                     else:
                         raise ValueError("Unknown plutus script type")
 
