@@ -24,7 +24,7 @@ To calculate the hash of a datum, we can leverage the helper class `PlutusData`.
 Empty datum::
 
     >>> empty_datum = PlutusData()
-    >>> empty_datum.to_cbor()
+    >>> empty_datum.to_cbor_hex()
     'd87980'
 
 Sample datum with int, bytes, List and hashmap inputs::
@@ -39,7 +39,7 @@ Sample datum with int, bytes, List and hashmap inputs::
     ...     d: dict
 
     >>> datum = MyDatum(123, b"1234", IndefiniteList([4, 5, 6]), {1: b"1", 2: b"2"})
-    >>> datum.to_cbor()
+    >>> datum.to_cbor_hex()
     'd87a9f187b43333231ff'
 
 You can also wrap `PlutusData` within `PlutusData`::
@@ -55,7 +55,7 @@ You can also wrap `PlutusData` within `PlutusData`::
     >>> deadline = 1643235300000
     >>> other_datum = MyDatum(123, b"1234", IndefiniteList([4, 5, 6]), {1: b"1", 2: b"2"})
     >>> include_datum = InclusionDatum(key_hash, deadline, other_datum)
-    >>> include_datum.to_cbor()
+    >>> include_datum.to_cbor_hex()
     'd87a9f581cc2ff616e11299d9094ce0a7eb5b7284b705147a822f4ffbd471f971a1b0000017e9874d2a0d8668218829f187b44313233349f040506ffa2014131024132ffff'
 
 `PlutusData` supports conversion from/to JSON format, which
@@ -67,7 +67,7 @@ Similarly, redeemer can be serialized like following::
 
     >>> data = MyDatum(123, b"234", IndefiniteList([]), {1: b"1", 2: b"2"})
     >>> redeemer = Redeemer(data, ExecutionUnits(1000000, 1000000))
-    >>> redeemer.to_cbor()
+    >>> redeemer.to_cbor_hex()
     '840000d8668218829f187b433233349fffa2014131024132ff821a000f42401a000f4240'
 
 -----------------------
@@ -178,7 +178,7 @@ Note that we will just use the datatype defined in the contract, as it also uses
 Build, sign and submit the transaction:
 
    >>> signed_tx = builder.build_and_sign([payment_skey], giver_address)
-   >>> context.submit_tx(signed_tx.to_cbor())
+   >>> context.submit_tx(signed_tx.to_cbor_hex())
 
 Step 6
 
@@ -219,7 +219,7 @@ Now lets try to resubmit this::
 
     >>> signed_tx = builder.build_and_sign([payment_skey_2], taker_address)
 
-    >>> context.submit_tx(signed_tx.to_cbor())
+    >>> context.submit_tx(signed_tx.to_cbor_hex())
 
 The funds locked in script address is successfully retrieved to the taker address.
 

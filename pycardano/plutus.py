@@ -455,7 +455,7 @@ class PlutusData(ArrayCBORSerializable):
         ...     a: int
         ...     b: bytes
         >>> test = Test(123, b"321")
-        >>> test.to_cbor()
+        >>> test.to_cbor_hex()
         'd87a9f187b43333231ff'
         >>> assert test == Test.from_cbor("d87a9f187b43333231ff")
     """
@@ -667,10 +667,10 @@ class PlutusData(ArrayCBORSerializable):
         return cls.from_dict(obj)
 
     def __deepcopy__(self, memo):
-        return self.__class__.from_cbor(self.to_cbor())
+        return self.__class__.from_cbor(self.to_cbor_hex())
 
 
-@dataclass
+@dataclass(repr=False)
 class RawPlutusData(CBORSerializable):
     data: CBORTag
 
@@ -696,7 +696,7 @@ class RawPlutusData(CBORSerializable):
         return cls(value)
 
     def __deepcopy__(self, memo):
-        return self.__class__.from_cbor(self.to_cbor())
+        return self.__class__.from_cbor(self.to_cbor_hex())
 
 
 Datum = Union[PlutusData, dict, int, bytes, IndefiniteList, RawCBOR, RawPlutusData]

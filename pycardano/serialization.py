@@ -25,14 +25,12 @@ from typing import (
 )
 
 from cbor2 import CBOREncoder, CBORSimpleValue, CBORTag, dumps, loads, undefined
+from frozendict import frozendict
+from frozenlist import FrozenList
 from pprintpp import pformat
 
-from pycardano.exception import (
-    DeserializeException,
-    InvalidArgumentException,
-    SerializeException,
-)
-from pycardano.types import typechecked, check_type
+from pycardano.exception import DeserializeException, SerializeException
+from pycardano.types import check_type, typechecked
 
 __all__ = [
     "default_encoder",
@@ -56,6 +54,10 @@ def _identity(x):
 class IndefiniteList(UserList):
     def __init__(self, li: Primitive):  # type: ignore
         super().__init__(li)  # type: ignore
+
+
+class IndefiniteFrozenList(FrozenList, IndefiniteList):  # type: ignore
+    pass
 
 
 @dataclass
@@ -87,6 +89,9 @@ Primitive = Union[
     CBORTag,
     set,
     frozenset,
+    frozendict,
+    FrozenList,
+    IndefiniteFrozenList,
 ]
 
 PRIMITIVE_TYPES = (
@@ -111,6 +116,9 @@ PRIMITIVE_TYPES = (
     CBORTag,
     set,
     frozenset,
+    frozendict,
+    FrozenList,
+    IndefiniteFrozenList,
 )
 """
 A list of types that could be encoded by
@@ -149,10 +157,20 @@ def default_encoder(
     encoder: CBOREncoder, value: Union[CBORSerializable, IndefiniteList]
 ):
     """A fallback function that encodes CBORSerializable to CBOR"""
-    assert isinstance(value, (CBORSerializable, IndefiniteList, RawCBOR)), (
+    assert isinstance(
+        value,
+        (
+            CBORSerializable,
+            IndefiniteList,
+            RawCBOR,
+            FrozenList,
+            IndefiniteFrozenList,
+            frozendict,
+        ),
+    ), (
         f"Type of input value is not CBORSerializable, " f"got {type(value)} instead."
     )
-    if isinstance(value, IndefiniteList):
+    if isinstance(value, (IndefiniteList, IndefiniteFrozenList)):
         # Currently, cbor2 doesn't support indefinite list, therefore we need special
         # handling here to explicitly write header (b'\x9f'), each body item, and footer (b'\xff') to
         # the output bytestring.
@@ -162,6 +180,10 @@ def default_encoder(
         encoder.write(b"\xff")
     elif isinstance(value, RawCBOR):
         encoder.write(value.cbor)
+    elif isinstance(value, FrozenList):
+        encoder.encode(list(value))
+    elif isinstance(value, frozendict):
+        encoder.encode(dict(value))
     else:
         encoder.encode(value.to_validated_primitive())
 
@@ -214,46 +236,42 @@ class CBORSerializable:
                 CBOR primitive types.
         """
         result = self.to_shallow_primitive()
-        container_types = (
-            dict,
-            OrderedDict,
-            defaultdict,
-            set,
-            frozenset,
-            tuple,
-            list,
-            CBORTag,
-            IndefiniteList,
-        )
 
-        def _helper(value):
+        def _dfs(value, freeze=False):
             if isinstance(value, CBORSerializable):
-                return value.to_primitive()
-            elif isinstance(value, container_types):
-                return _dfs(value)
-            else:
-                return value
-
-        def _dfs(value):
-            if isinstance(value, (dict, OrderedDict, defaultdict)):
-                new_result = type(value)()
+                return _dfs(value.to_primitive(), freeze)
+            elif isinstance(value, (dict, OrderedDict, defaultdict)):
+                _dict = type(value)()
                 if hasattr(value, "default_factory"):
-                    new_result.setdefault(value.default_factory)
+                    _dict.setdefault(value.default_factory)
                 for k, v in value.items():
-                    new_result[_helper(k)] = _helper(v)
-                return new_result
+                    _dict[_dfs(k, freeze=True)] = _dfs(v, freeze)
+                if freeze:
+                    return frozendict(_dict)
+                return _dict
             elif isinstance(value, set):
-                return {_helper(v) for v in value}
-            elif isinstance(value, frozenset):
-                return frozenset({_helper(v) for v in value})
+                _set = set(_dfs(v, freeze=True) for v in value)
+                if freeze:
+                    return frozenset(_set)
+                return _set
             elif isinstance(value, tuple):
-                return tuple([_helper(k) for k in value])
+                return tuple(_dfs(v, freeze) for v in value)
             elif isinstance(value, list):
-                return [_helper(k) for k in value]
+                _list = [_dfs(v, freeze) for v in value]
+                if freeze:
+                    fl = FrozenList(_list)
+                    fl.freeze()
+                    return fl
+                return _list
             elif isinstance(value, IndefiniteList):
-                return IndefiniteList([_helper(k) for k in value])
+                _list = [_dfs(v, freeze) for v in value]
+                if freeze:
+                    fl = IndefiniteFrozenList(_list)
+                    fl.freeze()
+                    return fl
+                return IndefiniteList(_list)
             elif isinstance(value, CBORTag):
-                return CBORTag(value.tag, _helper(value.value))
+                return CBORTag(value.tag, _dfs(value.value, freeze))
             else:
                 return value
 
@@ -279,7 +297,7 @@ class CBORSerializable:
                 return _check_recursive(value, type_hint.__args__[0])
             elif origin is Union:
                 return any(_check_recursive(value, arg) for arg in type_hint.__args__)
-            elif origin is Dict or isinstance(value, dict):
+            elif origin is Dict or isinstance(value, (dict, frozendict)):
                 key_type, value_type = type_hint.__args__
                 return all(
                     _check_recursive(k, key_type) and _check_recursive(v, value_type)
@@ -337,14 +355,11 @@ class CBORSerializable:
             f"'from_primitive()' is not implemented by {cls.__name__}."
         )
 
-    def to_cbor(self, encoding: str = "hex") -> Union[str, bytes]:
-        """Encode a Python object into CBOR format.
-
-        Args:
-            encoding (str): Encoding to use. Choose from "hex" or "bytes".
+    def to_cbor(self) -> bytes:
+        """Encode a Python object into CBOR bytes.
 
         Returns:
-            Union[str, bytes]: CBOR encoded in a hex string if encoding is hex (default) or bytes if encoding is bytes.
+            bytes: Python object encoded in cbor bytes.
 
         Examples:
             >>> class Test(CBORSerializable):
@@ -362,22 +377,18 @@ class CBORSerializable:
             ...     def __repr__(self):
             ...         return f"Test({self.number1}, {self.number2})"
             >>> a = Test(1, 2)
-            >>> a.to_cbor()
+            >>> a.to_cbor().hex()
             '820102'
         """
-        valid_encodings = ("hex", "bytes")
+        return dumps(self, default=default_encoder)
 
-        # Make sure encoding is selected correctly before proceeding further.
-        if encoding not in ("hex", "bytes"):
-            raise InvalidArgumentException(
-                f"Invalid encoding: {encoding}. Please choose from {valid_encodings}"
-            )
+    def to_cbor_hex(self) -> str:
+        """Encode a Python object into CBOR hex.
 
-        cbor = dumps(self, default=default_encoder)
-        if encoding == "hex":
-            return cbor.hex()
-        else:
-            return cbor
+        Returns:
+            str: Python object encoded in cbor hex string.
+        """
+        return self.to_cbor().hex()
 
     @classmethod
     def from_cbor(cls, payload: Union[str, bytes]) -> CBORSerializable:
@@ -408,7 +419,7 @@ class CBORSerializable:
             ...     def __repr__(self):
             ...         return f"Test({self.number1}, {self.number2})"
             >>> a = Test(1, 2)
-            >>> cbor_hex = a.to_cbor()
+            >>> cbor_hex = a.to_cbor_hex()
             >>> print(Test.from_cbor(cbor_hex))
             Test(1, 2)
 
@@ -435,7 +446,7 @@ class CBORSerializable:
             >>> b = TestParent(3, a)
             >>> b
             TestParent(3, Test(1, 2))
-            >>> cbor_hex = b.to_cbor()
+            >>> cbor_hex = b.to_cbor_hex()
             >>> cbor_hex
             '8203820102'
             >>> print(TestParent.from_cbor(cbor_hex))
@@ -557,7 +568,7 @@ class ArrayCBORSerializable(CBORSerializable):
         >>> t = Test2(c="c", test1=Test1(a="a"))
         >>> t
         Test2(c='c', test1=Test1(a='a', b=None))
-        >>> cbor_hex = t.to_cbor() # doctest: +SKIP
+        >>> cbor_hex = t.to_cbor_hex() # doctest: +SKIP
         >>> cbor_hex # doctest: +SKIP
         '826163826161f6'
         >>> Test2.from_cbor(cbor_hex) # doctest: +SKIP
@@ -586,7 +597,7 @@ class ArrayCBORSerializable(CBORSerializable):
         Test2(c='c', test1=Test1(a='a', b=None))
         >>> t.to_primitive() # Notice below that attribute "b" is not included in converted primitive.
         ['c', ['a']]
-        >>> cbor_hex = t.to_cbor() # doctest: +SKIP
+        >>> cbor_hex = t.to_cbor_hex() # doctest: +SKIP
         >>> cbor_hex # doctest: +SKIP
         '826163816161'
         >>> Test2.from_cbor(cbor_hex) # doctest: +SKIP
@@ -673,7 +684,7 @@ class MapCBORSerializable(CBORSerializable):
         Test2(c=None, test1=Test1(a='a', b=''))
         >>> t.to_primitive()
         {'c': None, 'test1': {'a': 'a', 'b': ''}}
-        >>> cbor_hex = t.to_cbor() # doctest: +SKIP
+        >>> cbor_hex = t.to_cbor_hex() # doctest: +SKIP
         >>> cbor_hex # doctest: +SKIP
         'a26163f6657465737431a261616161616260'
         >>> Test2.from_cbor(cbor_hex) # doctest: +SKIP
@@ -697,7 +708,7 @@ class MapCBORSerializable(CBORSerializable):
         Test2(c=None, test1=Test1(a='a', b=''))
         >>> t.to_primitive()
         {'1': {'0': 'a', '1': ''}}
-        >>> cbor_hex = t.to_cbor() # doctest: +SKIP
+        >>> cbor_hex = t.to_cbor_hex() # doctest: +SKIP
         >>> cbor_hex # doctest: +SKIP
         'a16131a261306161613160'
         >>> Test2.from_cbor(cbor_hex) # doctest: +SKIP
@@ -828,7 +839,7 @@ class DictCBORSerializable(CBORSerializable):
         # Sort keys in a map according to https://datatracker.ietf.org/doc/html/rfc7049#section-3.9
         def _get_sortable_val(key):
             if isinstance(key, CBORSerializable):
-                cbor_bytes = key.to_cbor("bytes")
+                cbor_bytes = key.to_cbor()
             else:
                 cbor_bytes = dumps(key)
             return len(cbor_bytes), cbor_bytes

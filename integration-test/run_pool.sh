@@ -21,7 +21,9 @@ done
     --certificate-file /code/keys/pool/stake.cert \
     --certificate-file /code/keys/pool/pool-registration.cert \
     --certificate-file /code/keys/pool/delegation.cert \
-    --witness-override 3
+    --witness-override 3 \
+    --invalid-hereafter 100000000000000 \
+    --alonzo-era
 
   cat tx.raw
 

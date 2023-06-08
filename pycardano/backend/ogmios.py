@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import cbor2
 import requests
 import websocket
+from cachetools import Cache, LRUCache, TTLCache, func
 
 from pycardano.address import Address
 from pycardano.backend.base import (
@@ -49,6 +50,8 @@ class OgmiosChainContext(ChainContext):
     _last_chain_tip_fetch: float
     _genesis_param: Optional[GenesisParameters]
     _protocol_param: Optional[ProtocolParameters]
+    _utxo_cache: Cache
+    _datum_cache: Cache
 
     def __init__(
         self,
@@ -57,6 +60,8 @@ class OgmiosChainContext(ChainContext):
         compact_result=True,
         kupo_url=None,
         refetch_chain_tip_interval: Optional[float] = None,
+        utxo_cache_size: int = 10000,
+        datum_cache_size: int = 10000,
     ):
         self._ws_url = ws_url
         self._network = network
@@ -76,6 +81,11 @@ class OgmiosChainContext(ChainContext):
                 self.genesis_param.slot_length
                 / self.genesis_param.active_slots_coefficient
             )
+
+        self._utxo_cache = TTLCache(
+            ttl=self._refetch_chain_tip_interval, maxsize=utxo_cache_size
+        )
+        self._datum_cache = LRUCache(maxsize=datum_cache_size)
 
     def _request(self, method: OgmiosQueryType, args: JsonDict) -> Any:
         ws = websocket.WebSocket()
@@ -203,9 +213,12 @@ class OgmiosChainContext(ChainContext):
     @property
     def genesis_param(self) -> GenesisParameters:
         """Get chain genesis parameters"""
-        if not self._genesis_param or self._is_chain_tip_updated():
-            self._genesis_param = self._fetch_genesis_param()
-        return self._genesis_param
+
+        @func.lru_cache(maxsize=10)
+        def _genesis_param_cache(slot) -> GenesisParameters:
+            return self._fetch_genesis_param()
+
+        return _genesis_param_cache(self.last_block_slot)
 
     def _fetch_genesis_param(self) -> GenesisParameters:
         result = self._query_genesis_config()
@@ -239,10 +252,11 @@ class OgmiosChainContext(ChainContext):
         return self._query_current_epoch()
 
     @property
+    @func.ttl_cache(ttl=1)
     def last_block_slot(self) -> int:
-        """Slot number of last block"""
         result = self._query_chain_tip()
-        return result["slot"]
+        slot = result["slot"]
+        return slot
 
     def _utxos(self, address: str) -> List[UTxO]:
         """Get all UTxOs associated with an address.
@@ -253,12 +267,45 @@ class OgmiosChainContext(ChainContext):
         Returns:
             List[UTxO]: A list of UTxOs.
         """
+        key = (self.last_block_slot, address)
+        if key in self._utxo_cache:
+            return self._utxo_cache[key]
+
         if self._kupo_url:
             utxos = self._utxos_kupo(address)
         else:
             utxos = self._utxos_ogmios(address)
 
+        self._utxo_cache[key] = utxos
+
         return utxos
+
+    def _get_datum_from_kupo(self, datum_hash: str) -> Optional[RawCBOR]:
+        """Get datum from Kupo.
+
+        Args:
+            datum_hash (str): A datum hash.
+
+        Returns:
+            Optional[RawCBOR]: A datum.
+        """
+        datum = self._datum_cache.get(datum_hash, None)
+
+        if datum is not None:
+            return datum
+
+        if self._kupo_url is None:
+            raise AssertionError(
+                "kupo_url object attribute has not been assigned properly."
+            )
+
+        kupo_datum_url = self._kupo_url + "/datums/" + datum_hash
+        datum_result = requests.get(kupo_datum_url).json()
+        if datum_result and datum_result["datum"] != datum_hash:
+            datum = RawCBOR(bytes.fromhex(datum_result["datum"]))
+
+        self._datum_cache[datum_hash] = datum
+        return datum
 
     def _utxos_kupo(self, address: str) -> List[UTxO]:
         """Get all UTxOs associated with an address with Kupo.
@@ -313,10 +360,8 @@ class OgmiosChainContext(ChainContext):
                     else None
                 )
                 if datum_hash and result.get("datum_type", "inline"):
-                    kupo_datum_url = self._kupo_url + "/datums/" + result["datum_hash"]
-                    datum_result = requests.get(kupo_datum_url).json()
-                    if datum_result and datum_result["datum"] != datum_hash:
-                        datum = RawCBOR(bytes.fromhex(datum_result["datum"]))
+                    datum = self._get_datum_from_kupo(result["datum_hash"])
+                    if datum is not None:
                         datum_hash = None
 
                 if not result["value"]["assets"]:
@@ -362,7 +407,15 @@ class OgmiosChainContext(ChainContext):
         return len(results) > 0
 
     def _extract_asset_info(self, asset_hash: str) -> Tuple[str, ScriptHash, AssetName]:
-        policy_hex, asset_name_hex = asset_hash.split(".")
+        split_result = asset_hash.split(".")
+
+        if len(split_result) == 1:
+            policy_hex, asset_name_hex = split_result[0], ""
+        elif len(split_result) == 2:
+            policy_hex, asset_name_hex = split_result
+        else:
+            raise ValueError(f"Unable to parse asset hash: {asset_hash}")
+
         policy = ScriptHash.from_primitive(policy_hex)
         asset_name = AssetName.from_primitive(asset_name_hex)
 

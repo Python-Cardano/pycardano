@@ -258,4 +258,6 @@ You can support us by 1) sponsoring through Github, or 2) donating ADA to our AD
   <a href="https://github.com/CardanoDur"><img width="50" src="https://avatars.githubusercontent.com/u/1000466?s=50&v=4"/></a>
   <a href="https://github.com/huths0lo"><img width="50" src="https://avatars.githubusercontent.com/u/78839856?s=50&v=4"/></a>
   <a href="https://github.com/markrufino"><img width="50" src="https://avatars.githubusercontent.com/u/30117352?v=4"/></a>
+  <a href="https://github.com/OpShin"><img width="50" src="https://avatars.githubusercontent.com/u/102762047?s=200&v=4"/></a>
+  <a href="https://github.com/aada-finance"><img width="50" src="https://avatars.githubusercontent.com/u/89693711?v=4"/></a>
 </p>
