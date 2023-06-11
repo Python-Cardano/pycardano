@@ -16,6 +16,7 @@ from pycardano.backend.base import (
     GenesisParameters,
     ProtocolParameters,
 )
+from pycardano.backend.blockfrost import _try_fix_script
 from pycardano.exception import TransactionFailedException
 from pycardano.hash import DatumHash, ScriptHash
 from pycardano.network import Network
