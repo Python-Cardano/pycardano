@@ -291,6 +291,21 @@ class TransactionBuilder:
             self._minting_script_to_redeemers.append((script, redeemer))
         return self
 
+    def add_native_script(self, script: NativeScript) -> TransactionBuilder:
+        """Add a native script to this transaction
+
+        Args:
+            script (NativeScript): Script to be added.
+
+        Returns:
+            TransactionBuilder: The current transaction builder.
+        """
+        if isinstance(self.native_scripts, list):
+            self.native_scripts.append(script)
+        else:
+            self.native_scripts = [script]
+        return self
+
     def add_input_address(self, address: Union[Address, str]) -> TransactionBuilder:
         """Add an address to transaction's input address.
         Unlike :meth:`add_input`, which deterministically adds a UTxO to the transaction's inputs, `add_input_address`
