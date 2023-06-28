@@ -752,7 +752,8 @@ class TransactionBuilder:
                 )
 
         for script, redeemer in self._minting_script_to_redeemers:
-            redeemer.index = sorted_mint_policies.index(script_hash(script))
+            if redeemer is not None:
+                redeemer.index = sorted_mint_policies.index(script_hash(script))
 
         self.redeemers.sort(key=lambda r: r.index)
 

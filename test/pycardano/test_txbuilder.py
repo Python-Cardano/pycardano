@@ -858,6 +858,28 @@ def test_add_minting_script(chain_context):
     assert [plutus_script] == witness.plutus_v1_script
 
 
+def test_add_minting_script_only(chain_context):
+    tx_builder = TransactionBuilder(chain_context)
+    tx_in1 = TransactionInput.from_primitive(
+        ["18cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad21431590f7e6643438ef", 0]
+    )
+    plutus_script = PlutusV1Script(b"dummy test script")
+    script_hash = plutus_script_hash(plutus_script)
+    script_address = Address(script_hash)
+    utxo1 = UTxO(tx_in1, TransactionOutput(script_address, 10000000))
+    mint = MultiAsset.from_primitive({script_hash.payload: {b"TestToken": 1}})
+    tx_builder.mint = mint
+    tx_builder.add_input(utxo1)
+    tx_builder.add_minting_script(plutus_script)
+    receiver = Address.from_primitive(
+        "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    )
+    tx_builder.add_output(TransactionOutput(receiver, Value(5000000, mint)))
+    tx_body = tx_builder.build(change_address=receiver)
+    witness = tx_builder.build_witness_set()
+    assert [plutus_script] == witness.plutus_v1_script
+
+
 def test_add_minting_script_wrong_redeemer_type(chain_context):
     tx_builder = TransactionBuilder(chain_context)
     plutus_script = PlutusV1Script(b"dummy test script")
