@@ -311,3 +311,22 @@ class TestPlutus(TestBase):
         self.chain_context.submit_tx(signed_tx)
 
         self.assert_output(taker_address, take_output)
+
+    @retry(tries=TEST_RETRIES, backoff=1.5, delay=6, jitter=(0, 4))
+    @pytest.mark.post_alonzo
+    def test_transaction_chaining(self):
+        giver_address = Address(self.payment_vkey.hash(), network=self.NETWORK)
+        builder = TransactionBuilder(self.chain_context)
+        builder.add_input_address(giver_address)
+        builder.add_output(TransactionOutput(giver_address, 50000000))
+        tx1 = builder.build_and_sign([self.payment_skey], giver_address)
+
+        utxo_to_spend = UTxO(TransactionInput(tx1.id, 0), tx1.transaction_body.outputs[0])
+
+        builder = TransactionBuilder(self.chain_context)
+        builder.add_input(utxo_to_spend)
+        builder.add_output(TransactionOutput(giver_address, 25000000))
+        tx2 = builder.build_and_sign([self.payment_skey], giver_address)
+
+        self.chain_context.submit_tx(tx1)
+        self.chain_context.submit_tx(tx2)
