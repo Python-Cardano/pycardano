@@ -561,9 +561,11 @@ def test_wallet_init():
     )
 
     # try different networks
-    wallet_preprod = Wallet(name="payment", network="preprod", keys_dir=keys_dir)
-    wallet_preview = Wallet(name="payment", network="preview", keys_dir=keys_dir)
-    wallet_testnet = Wallet(name="payment", network="testnet", keys_dir=keys_dir)
+    with blockfrost_patch:
+        wallet_mainnet = Wallet(name="payment", network="mainnet", keys_dir=keys_dir)
+        wallet_preprod = Wallet(name="payment", network="preprod", keys_dir=keys_dir)
+        wallet_preview = Wallet(name="payment", network="preview", keys_dir=keys_dir)
+        wallet_testnet = Wallet(name="payment", network="testnet", keys_dir=keys_dir)
 
     assert wallet_preprod.address == wallet_preview.address
 
