@@ -1850,6 +1850,9 @@ def get_stake_info(
     if isinstance(stake_address, str):
         stake_address = Address.from_primitive(stake_address)
 
+    if not type(stake_address) == Address:
+        raise TypeError(f"Address {stake_address} is not a valid stake address.")
+
     if not stake_address.staking_part:
         raise TypeError(f"Address {stake_address} has no staking part.")
 
@@ -1870,6 +1873,9 @@ def get_stake_address(address: Union[str, Address]) -> Address:
     """
     if isinstance(address, str):
         address = Address.from_primitive(address)
+
+    if not type(address) == Address:
+        raise TypeError(f"Address {address} is not a valid address.")
 
     return Address.from_primitive(
         bytes.fromhex(f"e{address.network.value}" + str(address.staking_part))
