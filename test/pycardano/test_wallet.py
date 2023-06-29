@@ -13,7 +13,7 @@ from blockfrost.utils import convert_json_to_object
 
 from pycardano.address import Address, VerificationKeyHash
 from pycardano.backend.blockfrost import BlockFrostChainContext
-from pycardano.nativescript import ScriptAll, ScriptPubkey, InvalidBefore
+from pycardano.nativescript import InvalidBefore, ScriptAll, ScriptPubkey
 from pycardano.wallet import (
     Ada,
     Lovelace,
@@ -308,7 +308,6 @@ def test_policy(chain_context):
         temp_policy.generate_minting_policy(
             signers=WALLET, expiration=datetime.datetime.now()
         )
-
 
     # test policy with expiration
     exp_filepath = policy_dir / f"expiring.script"
