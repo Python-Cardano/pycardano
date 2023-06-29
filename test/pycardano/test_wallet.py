@@ -557,6 +557,7 @@ def test_wallet_init():
     not_my_wallet = Wallet(
         name="theirs",
         address="addr1q8xrqjtlfluk9axpmjj5enh0uw0cduwhz7txsqyl36m3uk2g9z3d4kaf0j5l6rxunxt43x28pssehhqds2x05mwld45s399sr7",
+        context="null",
     )
 
     # try different networks
