@@ -281,10 +281,14 @@ def test_policy(chain_context):
         policy_dir=third_policy_dir,
     )
     assert their_policy.policy_id == policy.policy_id
-    
+
     # test a policy with more than one condition
-    after_script = ScriptAll([ScriptPubkey(WALLET.verification_key.hash()), InvalidBefore(1000)])
-    after_policy = TokenPolicy(name="after", script=after_script, policy_dir=str(policy_dir))
+    after_script = ScriptAll(
+        [ScriptPubkey(WALLET.verification_key.hash()), InvalidBefore(1000)]
+    )
+    after_policy = TokenPolicy(
+        name="after", script=after_script, policy_dir=str(policy_dir)
+    )
     assert after_policy.required_signatures == [WALLET.verification_key.hash()]
 
     # try loading an already existing policy
