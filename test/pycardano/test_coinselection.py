@@ -45,7 +45,6 @@ def assert_request_fulfilled(request: List[TransactionOutput], selected: List[UT
 
 
 class TestLargestFirst:
-
     selector = LargestFirstSelector()
 
     def test_ada_only(self, chain_context):

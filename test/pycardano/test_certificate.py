@@ -1,5 +1,6 @@
 from pycardano.address import Address
 from pycardano.certificate import (
+    PoolKeyHash,
     StakeCredential,
     StakeDelegation,
     StakeDeregistration,
@@ -16,7 +17,7 @@ def test_stake_credential():
     stake_credential = StakeCredential(TEST_ADDR.staking_part)
 
     assert (
-        stake_credential.to_cbor()
+        stake_credential.to_cbor_hex()
         == "8200581c4828a2dadba97ca9fd0cdc99975899470c219bdc0d828cfa6ddf6d69"
     )
 
@@ -26,7 +27,7 @@ def test_stake_registration():
     stake_registration = StakeRegistration(stake_credential)
 
     assert (
-        stake_registration.to_cbor()
+        stake_registration.to_cbor_hex()
         == "82008200581c4828a2dadba97ca9fd0cdc99975899470c219bdc0d828cfa6ddf6d69"
     )
 
@@ -36,17 +37,19 @@ def test_stake_deregistration():
     stake_deregistration = StakeDeregistration(stake_credential)
 
     assert (
-        stake_deregistration.to_cbor()
+        stake_deregistration.to_cbor_hex()
         == "82018200581c4828a2dadba97ca9fd0cdc99975899470c219bdc0d828cfa6ddf6d69"
     )
 
 
 def test_stake_delegation():
     stake_credential = StakeCredential(TEST_ADDR.staking_part)
-    stake_delegation = StakeDelegation(stake_credential, b"1" * POOL_KEY_HASH_SIZE)
+    stake_delegation = StakeDelegation(
+        stake_credential, PoolKeyHash(b"1" * POOL_KEY_HASH_SIZE)
+    )
 
     assert (
-        stake_delegation.to_cbor()
+        stake_delegation.to_cbor_hex()
         == "83028200581c4828a2dadba97ca9fd0cdc99975899470c219bdc0d828cfa6ddf"
         "6d69581c31313131313131313131313131313131313131313131313131313131"
     )

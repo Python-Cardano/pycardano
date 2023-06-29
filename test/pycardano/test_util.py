@@ -21,7 +21,6 @@ def test_min_lovelace_ada_only_2(chain_context):
 
 
 class TestMinLoveLaceMultiAsset:
-
     # Tests copied from: https://github.com/input-output-hk/cardano-ledger/blob/master/doc/explanations/min-utxo-alonzo.rst#example-min-ada-value-calculations-and-current-constants
 
     def test_min_lovelace_multi_asset_1(self, chain_context):
@@ -147,7 +146,8 @@ class TestMinLoveLaceMultiAsset:
 
 def test_script_data_hash():
     unit = PlutusData()
-    redeemers = [Redeemer(RedeemerTag.SPEND, unit, ExecutionUnits(1000000, 1000000))]
+    redeemers = [Redeemer(unit, ExecutionUnits(1000000, 1000000))]
+    redeemers[0].tag = RedeemerTag.SPEND
     assert ScriptDataHash.from_primitive(
         "032d812ee0731af78fe4ec67e4d30d16313c09e6fb675af28f825797e8b5621d"
     ) == script_data_hash(redeemers=redeemers, datums=[unit])

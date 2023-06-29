@@ -1,31 +1,64 @@
 # FortyTwo
 
-This example implements the off-chain code of forty-two, a sample program in week2 of Plutus-Pioneer-Program. 
-The original Plutus script cound be found [here](https://github.com/input-output-hk/plutus-pioneer-program/blob/6be7484d4b8cffaef4faae30588c7fb826bcf5a3/code/week02/src/Week02/Typed.hs).
-The compiled Plutus core cbor hex is stored in file [fortytwo.plutus](fortytwo.plutus) in this folder.
+This example implements the off-chain code of forty-two v2 in Plutus. 
 
 FortyTwo is a simple smart contract that could be unlocked only by a redeemer of Integer value 42.
-[forty_two.py](forty_two.py) contains the code of two transactions: 1) a giver sending 10 ADA to a script address, 
-and 2) a taker spend the ADA locked in that script address. 
+[forty_two.py](forty_two.py) contains the code of three transactions: 
+  1) a giver creates an inline script and send it to herself, which cannot be spent by anybody else 
+  2) the giver send some ADA to script address
+  3) the taker spend the script address with a redeemer of 42 and a reference to the inline script 
 
-Below is the visualization of the lifecycle of UTxOs involved:
-
+Below is the visualization of the lifecycle of UTxOs involved. The entity enclosed in the parenthesis is the owner of the UTxO.
 
 ```
- 
-                   Giver Tx                                           Taker Tx
-                 ┌-----------┐                            ┌-----------------------------┐  
-                 |           |                            |                             |                          
-                 |  Spend    |                            |  Spend with Redeemer (42)   |                          
-  UTxO (X ADA) ━━━━━━━┳━━━━━━━━━ Script UTxO (10 ADA) ━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━ UTxO (5 ADA)           
-                 |    ┃      |                            |                 ┃           |                          
-                 |    ┗━━━━━━━━━ Change UTxO (X-10 ADA)   |                 ┗━━━━━━━━━━━━━━ Change UTxO (~4.7 ADA) 
-                 |  Tx Fee   |                            |                             |                          
-                 |(~0.16 ADA)|                            |                             |
-                 |           |      Taker's Collateral ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ Taker's Collateral 
-                 └-----------┘          UTxO (5 ADA)      |                             |     UTxO (5 ADA)                                                  
-                                                          |      Tx fee (~0.3 ADA)      |                           
-                                                          └-----------------------------┘
 
+┌─────────────────────────────────────────────────────────────────────────┐
+│                                                                         │
+│  ┌─────────────────────────┐       ┌─────────────────────────┐          │
+│  │                         │       │                         │          │
+│  │    Initial UTxO         │       │   Change UTxO           │          │
+│  │                         ├───────┤                         │          │
+│  │    (Giver)              │       │   (Giver)               │          │
+│  │                         │       │                         │          │
+│  └────────────┬────────────┘       └─────────────────────────┘          │
+│               │                                                         │
+│               │                                                         │
+│               │                    ┌─────────────────────────┐          │
+│               │                    │                         │          │
+│               │                    │   Inline script UTxO    │          │
+│               └────────────────────┤                         ├────────┐ │
+│                                    │   (Giver)               │        │ │
+│                                    │                         │        │ │
+│   Tx1                              └─────────────────────────┘        │ │
+│                                                                       │ │
+└───────────────────────────────────────────────────────────────────────┼─┘
+                                                                        │
+┌────────────────────────────────────────────────────────────────┐      │
+│                                                                │      │
+│  ┌─────────────────────────┐       ┌─────────────────────────┐ │      │
+│  │                         │       │                         │ │      │
+│  │    Give UTxO            │       │   Locked UTxO           │ │      │
+│  │                         ├───────┤                         │ │      │
+│  │    (Giver)              │       │   (Script)              │ │      │
+│  │                         │       │                         │ │      │
+│  └─────────────────────────┘       └─────────────┬───────────┘ │      │
+│                                                  │             │      │
+│   Tx2                                            │             │      │
+└──────────────────────────────────────────────────┼─────────────┘      │
+                                                   │                    │
+                                  ┌────────────────┼────────────────────┼─────────────────┐
+                                  │                │                    │                 │
+                                  │  ┌─────────────┴───────────┐        │                 │
+                                  │  │                         │        │                 │
+                                  │  │   Taken UTxO            │        │                 │
+                                  │  │                         │◄───────┘                 │
+                                  │  │   (Taker)               │                          │
+                                  │  │                         │    Refer to script UTxO  │
+                                  │  └─────────────────────────┘                          │
+                                  │                                                       │
+                                  │                                                       │
+                                  │   Tx3                                                 │
+                                  │                                                       │
+                                  └───────────────────────────────────────────────────────┘
                                                                         
 ```

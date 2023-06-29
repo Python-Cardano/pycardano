@@ -21,8 +21,8 @@ sys.path.insert(0, os.path.abspath("../../"))
 # -- Project information -----------------------------------------------------
 
 project = "PyCardano"
-copyright = "2021, JerryC"
-author = "JerryC"
+copyright = "2023, Jerry"
+author = "Jerry"
 
 
 # -- General configuration ---------------------------------------------------

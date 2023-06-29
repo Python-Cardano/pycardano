@@ -66,7 +66,7 @@ class TestMint(TestBase):
 
         # Add minting script with an empty datum and a minting redeemer
         builder.add_minting_script(
-            anymint_script, redeemer=Redeemer(RedeemerTag.MINT, MyPlutusData(a=42))
+            anymint_script, redeemer=Redeemer(MyPlutusData(a=42))
         )
 
         # Set nft we want to mint
@@ -98,10 +98,10 @@ class TestMint(TestBase):
 
         print("############### Transaction created ###############")
         print(signed_tx)
-        print(signed_tx.to_cbor())
+        print(signed_tx.to_cbor_hex())
 
         # Submit signed transaction to the network
         print("############### Submitting transaction ###############")
-        self.chain_context.submit_tx(signed_tx.to_cbor())
+        self.chain_context.submit_tx(signed_tx)
 
         self.assert_output(address, nft_output)

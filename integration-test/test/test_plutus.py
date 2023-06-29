@@ -12,7 +12,6 @@ from .base import TEST_RETRIES, TestBase
 class TestPlutus(TestBase):
     @retry(tries=TEST_RETRIES, backoff=1.5, delay=6, jitter=(0, 4))
     def test_plutus_v1(self):
-
         # ----------- Giver give ---------------
 
         with open("./plutus_scripts/fortytwo.plutus", "r") as f:
@@ -36,9 +35,9 @@ class TestPlutus(TestBase):
 
         print("############### Transaction created ###############")
         print(signed_tx)
-        print(signed_tx.to_cbor())
+        print(signed_tx.to_cbor_hex())
         print("############### Submitting transaction ###############")
-        self.chain_context.submit_tx(signed_tx.to_cbor())
+        self.chain_context.submit_tx(signed_tx)
         time.sleep(3)
 
         # ----------- Fund taker a collateral UTxO ---------------
@@ -54,16 +53,16 @@ class TestPlutus(TestBase):
 
         print("############### Transaction created ###############")
         print(signed_tx)
-        print(signed_tx.to_cbor())
+        print(signed_tx.to_cbor_hex())
         print("############### Submitting transaction ###############")
-        self.chain_context.submit_tx(signed_tx.to_cbor())
+        self.chain_context.submit_tx(signed_tx)
         time.sleep(3)
 
         # ----------- Taker take ---------------
 
-        redeemer = Redeemer(RedeemerTag.SPEND, 42)
+        redeemer = Redeemer(42)
 
-        utxo_to_spend = self.chain_context.utxos(str(script_address))[0]
+        utxo_to_spend = self.chain_context.utxos(script_address)[0]
 
         taker_address = Address(self.extended_payment_vkey.hash(), network=self.NETWORK)
 
@@ -76,7 +75,7 @@ class TestPlutus(TestBase):
         builder.add_output(take_output)
 
         non_nft_utxo = None
-        for utxo in self.chain_context.utxos(str(taker_address)):
+        for utxo in self.chain_context.utxos(taker_address):
             # multi_asset should be empty for collateral utxo
             if not utxo.output.amount.multi_asset:
                 non_nft_utxo = utxo
@@ -88,16 +87,15 @@ class TestPlutus(TestBase):
 
         print("############### Transaction created ###############")
         print(signed_tx)
-        print(signed_tx.to_cbor())
+        print(signed_tx.to_cbor_hex())
         print("############### Submitting transaction ###############")
-        self.chain_context.submit_tx(signed_tx.to_cbor())
+        self.chain_context.submit_tx(signed_tx)
 
         self.assert_output(taker_address, take_output)
 
     @retry(tries=TEST_RETRIES, backoff=1.5, delay=6, jitter=(0, 4))
     @pytest.mark.post_alonzo
     def test_plutus_v2_datum_hash(self):
-
         # ----------- Giver give ---------------
 
         with open("./plutus_scripts/fortytwoV2.plutus", "r") as f:
@@ -121,19 +119,19 @@ class TestPlutus(TestBase):
 
         print("############### Transaction created ###############")
         print(signed_tx)
-        print(signed_tx.to_cbor())
+        print(signed_tx.to_cbor_hex())
         print("############### Submitting transaction ###############")
-        self.chain_context.submit_tx(signed_tx.to_cbor())
+        self.chain_context.submit_tx(signed_tx)
         time.sleep(3)
 
         # ----------- Taker take ---------------
 
-        redeemer = Redeemer(RedeemerTag.SPEND, 42)
+        redeemer = Redeemer(42)
 
         utxo_to_spend = None
 
         # Speed the utxo that doesn't have datum/datum_hash or script attached
-        for utxo in self.chain_context.utxos(str(script_address)):
+        for utxo in self.chain_context.utxos(script_address):
             if not utxo.output.script and (
                 utxo.output.datum_hash == datum_hash(datum)
                 or utxo.output.datum == datum
@@ -152,7 +150,7 @@ class TestPlutus(TestBase):
         builder.add_output(take_output)
 
         non_nft_utxo = None
-        for utxo in self.chain_context.utxos(str(taker_address)):
+        for utxo in self.chain_context.utxos(taker_address):
             # multi_asset should be empty for collateral utxo
             if not utxo.output.amount.multi_asset:
                 non_nft_utxo = utxo
@@ -164,16 +162,15 @@ class TestPlutus(TestBase):
 
         print("############### Transaction created ###############")
         print(signed_tx)
-        print(signed_tx.to_cbor())
+        print(signed_tx.to_cbor_hex())
         print("############### Submitting transaction ###############")
-        self.chain_context.submit_tx(signed_tx.to_cbor())
+        self.chain_context.submit_tx(signed_tx)
 
         self.assert_output(taker_address, take_output)
 
     @retry(tries=TEST_RETRIES, backoff=1.5, delay=6, jitter=(0, 4))
     @pytest.mark.post_alonzo
     def test_plutus_v2_inline_script_inline_datum(self):
-
         # ----------- Giver give ---------------
 
         with open("./plutus_scripts/fortytwoV2.plutus", "r") as f:
@@ -199,19 +196,19 @@ class TestPlutus(TestBase):
 
         print("############### Transaction created ###############")
         print(signed_tx)
-        print(signed_tx.to_cbor())
+        print(signed_tx.to_cbor_hex())
         print("############### Submitting transaction ###############")
-        self.chain_context.submit_tx(signed_tx.to_cbor())
+        self.chain_context.submit_tx(signed_tx)
         time.sleep(3)
 
         # ----------- Taker take ---------------
 
-        redeemer = Redeemer(RedeemerTag.SPEND, 42)
+        redeemer = Redeemer(42)
 
         utxo_to_spend = None
 
         # Speed the utxo that has both inline script and inline datum
-        for utxo in self.chain_context.utxos(str(script_address)):
+        for utxo in self.chain_context.utxos(script_address):
             if utxo.output.datum and utxo.output.script:
                 utxo_to_spend = utxo
                 break
@@ -228,16 +225,15 @@ class TestPlutus(TestBase):
 
         print("############### Transaction created ###############")
         print(signed_tx)
-        print(signed_tx.to_cbor())
+        print(signed_tx)
         print("############### Submitting transaction ###############")
-        self.chain_context.submit_tx(signed_tx.to_cbor())
+        self.chain_context.submit_tx(signed_tx)
 
         self.assert_output(taker_address, take_output)
 
     @retry(tries=TEST_RETRIES, backoff=1.5, delay=6, jitter=(0, 4))
     @pytest.mark.post_alonzo
     def test_plutus_v2_ref_script(self):
-
         # ----------- Create a reference script ---------------
 
         with open("./plutus_scripts/fortytwoV2.plutus", "r") as f:
@@ -261,9 +257,9 @@ class TestPlutus(TestBase):
 
         print("############### Transaction created ###############")
         print(signed_tx)
-        print(signed_tx.to_cbor())
+        print(signed_tx.to_cbor_hex())
         print("############### Submitting transaction ###############")
-        self.chain_context.submit_tx(signed_tx.to_cbor())
+        self.chain_context.submit_tx(signed_tx)
         time.sleep(3)
 
         # ----------- Send ADA to the same script address without datum or script ---------------
@@ -278,19 +274,19 @@ class TestPlutus(TestBase):
 
         print("############### Transaction created ###############")
         print(signed_tx)
-        print(signed_tx.to_cbor())
+        print(signed_tx.to_cbor_hex())
         print("############### Submitting transaction ###############")
-        self.chain_context.submit_tx(signed_tx.to_cbor())
+        self.chain_context.submit_tx(signed_tx)
         time.sleep(3)
 
         # ----------- Taker take ---------------
 
-        redeemer = Redeemer(RedeemerTag.SPEND, 42)
+        redeemer = Redeemer(42)
 
         utxo_to_spend = None
 
         # Spend the utxo that doesn't have datum/datum_hash or script attached
-        for utxo in self.chain_context.utxos(str(script_address)):
+        for utxo in self.chain_context.utxos(script_address):
             if not utxo.output.script and (
                 utxo.output.datum_hash == datum_hash(datum)
                 or datum_hash(utxo.output.datum) == datum_hash(datum)
@@ -310,8 +306,8 @@ class TestPlutus(TestBase):
 
         print("############### Transaction created ###############")
         print(signed_tx)
-        print(signed_tx.to_cbor())
+        print(signed_tx.to_cbor_hex())
         print("############### Submitting transaction ###############")
-        self.chain_context.submit_tx(signed_tx.to_cbor())
+        self.chain_context.submit_tx(signed_tx)
 
         self.assert_output(taker_address, take_output)

@@ -11,14 +11,13 @@ from .base import TEST_RETRIES, TestBase
 class TestDelegation(TestBase):
     @retry(tries=TEST_RETRIES, backoff=1.5, delay=6, jitter=(0, 4))
     def test_stake_delegation(self):
-
         address = Address(
             self.payment_key_pair.verification_key.hash(),
             self.stake_key_pair.verification_key.hash(),
             self.NETWORK,
         )
 
-        utxos = self.chain_context.utxos(str(address))
+        utxos = self.chain_context.utxos(address)
 
         if not utxos:
             giver_address = Address(self.payment_vkey.hash(), network=self.NETWORK)
@@ -32,9 +31,9 @@ class TestDelegation(TestBase):
 
             print("############### Transaction created ###############")
             print(signed_tx)
-            print(signed_tx.to_cbor())
+            print(signed_tx.to_cbor_hex())
             print("############### Submitting transaction ###############")
-            self.chain_context.submit_tx(signed_tx.to_cbor())
+            self.chain_context.submit_tx(signed_tx)
 
             time.sleep(3)
 
@@ -59,9 +58,9 @@ class TestDelegation(TestBase):
 
             print("############### Transaction created ###############")
             print(signed_tx)
-            print(signed_tx.to_cbor())
+            print(signed_tx.to_cbor_hex())
             print("############### Submitting transaction ###############")
-            self.chain_context.submit_tx(signed_tx.to_cbor())
+            self.chain_context.submit_tx(signed_tx)
 
         time.sleep(8)
 
@@ -85,6 +84,6 @@ class TestDelegation(TestBase):
 
         print("############### Transaction created ###############")
         print(signed_tx)
-        print(signed_tx.to_cbor())
+        print(signed_tx.to_cbor_hex())
         print("############### Submitting transaction ###############")
-        self.chain_context.submit_tx(signed_tx.to_cbor())
+        self.chain_context.submit_tx(signed_tx)

@@ -1,4 +1,5 @@
 """Build a transaction using transaction builder"""
+from blockfrost import ApiUrls
 
 from pycardano import *
 
@@ -17,8 +18,10 @@ svk = StakeVerificationKey.from_signing_key(ssk)
 # Derive an address from payment verification key and stake verification key
 address = Address(pvk.hash(), svk.hash(), network)
 
-# Create a BlockFrost chain context
-context = BlockFrostChainContext("your_blockfrost_project_id", network)
+# Create a BlockFrost chain context. In this example, we will use preprod network.
+context = BlockFrostChainContext(
+    "your_blockfrost_project_id", base_url=ApiUrls.preprod.value
+)
 
 # Create a transaction builder
 builder = TransactionBuilder(context)
@@ -28,7 +31,7 @@ builder = TransactionBuilder(context)
 builder.add_input_address(address)
 
 # Get all UTxOs currently sitting at this address
-utxos = context.utxos(str(address))
+utxos = context.utxos(address)
 
 # We can also tell the builder to include a specific UTxO in the transaction.
 # Similarly, "add_input" could be called multiple times.
@@ -79,4 +82,4 @@ builder.add_output(
 signed_tx = builder.build_and_sign([psk], change_address=address)
 
 # Submit signed transaction to the network
-context.submit_tx(signed_tx.to_cbor())
+context.submit_tx(signed_tx)

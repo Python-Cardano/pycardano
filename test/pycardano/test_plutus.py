@@ -1,8 +1,11 @@
+import copy
+import unittest
 from dataclasses import dataclass
 from test.pycardano.util import check_two_way_cbor
-from typing import Union
+from typing import Dict, List, Union
 
 import pytest
+from cbor2 import CBORTag
 
 from pycardano.exception import DeserializeException, SerializeException
 from pycardano.plutus import (
@@ -40,6 +43,18 @@ class LargestTest(PlutusData):
 
 
 @dataclass
+class DictTest(PlutusData):
+    CONSTR_ID = 3
+
+    a: Dict[int, LargestTest]
+
+
+@dataclass
+class ListTest(PlutusData):
+    a: List[LargestTest]
+
+
+@dataclass
 class VestingParam(PlutusData):
     CONSTR_ID = 1
 
@@ -67,7 +82,7 @@ def test_plutus_data():
     assert (
         "d87a9f581cc2ff616e11299d9094ce0a7eb5b7284b705147a822f4ffbd471f971a1b0000017e9"
         "874d2a0d905019fd8668218829f187b44313233349f040506ffa2014131024132ffffd9050280ff"
-        == my_vesting.to_cbor()
+        == my_vesting.to_cbor_hex()
     )
     check_two_way_cbor(my_vesting)
 
@@ -93,6 +108,51 @@ def test_plutus_data_json():
     )
 
     assert my_vesting == VestingParam.from_json(encoded_json)
+
+
+def test_plutus_data_json_list():
+    test = ListTest([LargestTest(), LargestTest()])
+    encoded_json = test.to_json(separators=(",", ":"))
+
+    assert (
+        '{"constructor":0,"fields":[{"list":[{"constructor":9,"fields":[]},{"constructor":9,"fields":[]}]}]}'
+        == encoded_json
+    )
+
+    assert test == ListTest.from_json(encoded_json)
+
+
+def test_plutus_data_cbor_list():
+    test = ListTest([LargestTest(), LargestTest()])
+
+    encoded_cbor = test.to_cbor_hex()
+
+    assert "d8799f82d9050280d9050280ff" == encoded_cbor
+
+    assert test == ListTest.from_cbor(encoded_cbor)
+
+
+def test_plutus_data_json_dict():
+    test = DictTest({0: LargestTest(), 1: LargestTest()})
+
+    encoded_json = test.to_json(separators=(",", ":"))
+
+    assert (
+        '{"constructor":3,"fields":[{"map":[{"v":{"constructor":9,"fields":[]},"k":{"int":0}},{"v":{"constructor":9,"fields":[]},"k":{"int":1}}]}]}'
+        == encoded_json
+    )
+
+    assert test == DictTest.from_json(encoded_json)
+
+
+def test_plutus_data_cbor_dict():
+    test = DictTest({0: LargestTest(), 1: LargestTest()})
+
+    encoded_cbor = test.to_cbor_hex()
+
+    assert "d87c9fa200d905028001d9050280ff" == encoded_cbor
+
+    assert test == DictTest.from_cbor(encoded_cbor)
 
 
 def test_plutus_data_to_json_wrong_type():
@@ -150,22 +210,33 @@ def test_plutus_data_hash():
     )
 
 
+def test_execution_units_bool():
+    assert ExecutionUnits(
+        1000000, 1000000
+    ), "ExecutionUnits should be true when its value is not 0"
+    assert not ExecutionUnits(
+        0, 0
+    ), "ExecutionUnits should be false when its value is 0"
+
+
 def test_redeemer():
     data = MyTest(123, b"234", IndefiniteList([4, 5, 6]), {1: b"1", 2: b"2"})
-    redeemer = MyRedeemer(RedeemerTag.SPEND, data, ExecutionUnits(1000000, 1000000))
+    redeemer = MyRedeemer(data, ExecutionUnits(1000000, 1000000))
+    redeemer.tag = RedeemerTag.SPEND
     assert (
         "840000d8668218829f187b433233349f040506ffa2014131024132ff821a000f42401a000f4240"
-        == redeemer.to_cbor()
+        == redeemer.to_cbor_hex()
     )
     check_two_way_cbor(redeemer)
 
 
 def test_redeemer_empty_datum():
     data = MyTest(123, b"234", IndefiniteList([]), {1: b"1", 2: b"2"})
-    redeemer = MyRedeemer(RedeemerTag.SPEND, data, ExecutionUnits(1000000, 1000000))
+    redeemer = MyRedeemer(data, ExecutionUnits(1000000, 1000000))
+    redeemer.tag = RedeemerTag.SPEND
     assert (
         "840000d8668218829f187b433233349fffa2014131024132ff821a000f42401a000f4240"
-        == redeemer.to_cbor()
+        == redeemer.to_cbor_hex()
     )
     check_two_way_cbor(redeemer)
 
@@ -185,7 +256,7 @@ def test_cost_model():
         "7e2318760001011a000242201a00067e2318760001011a0025cea81971f704001a00014"
         "1bb041a000249f019138800011a000249f018201a000302590001011a000249f018201a"
         "000249f018201a000249f018201a000249f018201a000249f018201a000249f018201a0"
-        "00249f018201a00330da70101ff" == COST_MODELS.to_cbor()
+        "00249f018201a00330da70101ff" == COST_MODELS.to_cbor_hex()
     )
 
 
@@ -213,5 +284,35 @@ def test_raw_plutus_data():
         "140d8799f00a1401a004c7a20ffffffff"
     )
     raw_plutus_data = RawPlutusData.from_cbor(raw_plutus_cbor)
-    assert raw_plutus_data.to_cbor() == raw_plutus_cbor
+    assert raw_plutus_data.to_cbor_hex() == raw_plutus_cbor
     check_two_way_cbor(raw_plutus_data)
+
+
+def test_clone_raw_plutus_data():
+    tag = RawPlutusData(CBORTag(121, [1000]))
+
+    cloned_tag = copy.deepcopy(tag)
+    assert cloned_tag == tag
+    assert cloned_tag.to_cbor_hex() == tag.to_cbor_hex()
+
+    tag.data.value = [1001]
+
+    assert cloned_tag != tag
+
+
+def test_clone_plutus_data():
+    key_hash = bytes.fromhex("c2ff616e11299d9094ce0a7eb5b7284b705147a822f4ffbd471f971a")
+    deadline = 1643235300000
+    testa = BigTest(MyTest(123, b"1234", IndefiniteList([4, 5, 6]), {1: b"1", 2: b"2"}))
+    testb = LargestTest()
+    my_vesting = VestingParam(
+        beneficiary=key_hash, deadline=deadline, testa=testa, testb=testb
+    )
+
+    cloned_vesting = copy.deepcopy(my_vesting)
+    assert cloned_vesting == my_vesting
+    assert cloned_vesting.to_cbor_hex() == my_vesting.to_cbor_hex()
+
+    my_vesting.deadline = 1643235300001
+
+    assert cloned_vesting != my_vesting

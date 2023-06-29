@@ -45,7 +45,7 @@ class TestBase:
 
     @retry(tries=TEST_RETRIES, delay=3)
     def assert_output(self, target_address, target_output):
-        utxos = self.chain_context.utxos(str(target_address))
+        utxos = self.chain_context.utxos(target_address)
         found = False
 
         for utxo in utxos:
@@ -67,7 +67,7 @@ class TestBase:
 
         print("############### Transaction created ###############")
         print(signed_tx)
-        print(signed_tx.to_cbor())
+        print(signed_tx.to_cbor_hex())
         print("############### Submitting transaction ###############")
-        self.chain_context.submit_tx(signed_tx.to_cbor())
+        self.chain_context.submit_tx(signed_tx)
         self.assert_output(target_address, target_output=output)

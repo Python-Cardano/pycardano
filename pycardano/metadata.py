@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, ClassVar, List, Type, Union
+from typing import Any, ClassVar, List, Optional, Type, Union
 
 from cbor2 import CBORTag
 from nacl.encoding import RawEncoder
@@ -16,10 +16,11 @@ from pycardano.serialization import (
     DictCBORSerializable,
     MapCBORSerializable,
     Primitive,
+    limit_primitive_type,
     list_hook,
 )
 
-__all__ = ["Metadata", "ShellayMarryMetadata", "AlonzoMetadata", "AuxiliaryData"]
+__all__ = ["Metadata", "ShelleyMarryMetadata", "AlonzoMetadata", "AuxiliaryData"]
 
 
 class Metadata(DictCBORSerializable):
@@ -67,9 +68,9 @@ class Metadata(DictCBORSerializable):
 
 
 @dataclass
-class ShellayMarryMetadata(ArrayCBORSerializable):
+class ShelleyMarryMetadata(ArrayCBORSerializable):
     metadata: Metadata
-    native_scripts: List[NativeScript] = field(
+    native_scripts: Optional[List[NativeScript]] = field(
         default=None, metadata={"object_hook": list_hook(NativeScript)}
     )
 
@@ -78,12 +79,14 @@ class ShellayMarryMetadata(ArrayCBORSerializable):
 class AlonzoMetadata(MapCBORSerializable):
     TAG: ClassVar[int] = 259
 
-    metadata: Metadata = field(default=None, metadata={"optional": True, "key": 0})
-    native_scripts: List[NativeScript] = field(
+    metadata: Optional[Metadata] = field(
+        default=None, metadata={"optional": True, "key": 0}
+    )
+    native_scripts: Optional[List[NativeScript]] = field(
         default=None,
         metadata={"optional": True, "key": 1, "object_hook": list_hook(NativeScript)},
     )
-    plutus_scripts: List[bytes] = field(
+    plutus_scripts: Optional[List[bytes]] = field(
         default=None, metadata={"optional": True, "key": 2}
     )
 
@@ -91,6 +94,7 @@ class AlonzoMetadata(MapCBORSerializable):
         return CBORTag(AlonzoMetadata.TAG, super(AlonzoMetadata, self).to_primitive())
 
     @classmethod
+    @limit_primitive_type(CBORTag)
     def from_primitive(cls: Type[AlonzoMetadata], value: CBORTag) -> AlonzoMetadata:
         if not hasattr(value, "tag"):
             raise DeserializeException(
@@ -105,23 +109,23 @@ class AlonzoMetadata(MapCBORSerializable):
 
 @dataclass
 class AuxiliaryData(CBORSerializable):
-    data: Union[Metadata, ShellayMarryMetadata, AlonzoMetadata]
+    data: Union[Metadata, ShelleyMarryMetadata, AlonzoMetadata]
 
     def to_primitive(self) -> Primitive:
         return self.data.to_primitive()
 
     @classmethod
     def from_primitive(cls: Type[AuxiliaryData], value: Primitive) -> AuxiliaryData:
-        for t in [AlonzoMetadata, ShellayMarryMetadata, Metadata]:
+        for t in [AlonzoMetadata, ShelleyMarryMetadata, Metadata]:
             # The schema of metadata in different eras are mutually exclusive, so we can try deserializing
             # them one by one without worrying about mismatch.
             try:
-                return AuxiliaryData(t.from_primitive(value))
+                return AuxiliaryData(t.from_primitive(value))  # type: ignore
             except DeserializeException:
                 pass
         raise DeserializeException(f"Couldn't parse auxiliary data: {value}")
 
     def hash(self) -> AuxiliaryDataHash:
         return AuxiliaryDataHash(
-            blake2b(self.to_cbor("bytes"), AUXILIARY_DATA_HASH_SIZE, encoder=RawEncoder)
+            blake2b(self.to_cbor(), AUXILIARY_DATA_HASH_SIZE, encoder=RawEncoder)  # type: ignore
         )

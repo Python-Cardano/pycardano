@@ -2,7 +2,7 @@ import pytest
 
 from pycardano.address import Address, PointerAddress
 from pycardano.crypto.bip32 import HDWallet
-from pycardano.key import PaymentVerificationKey
+from pycardano.key import ExtendedSigningKey, PaymentVerificationKey
 from pycardano.network import Network
 
 # Tests copied from: https://github.com/Emurgo/cardano-serialization-lib/blob/master/rust/src/address.rs
@@ -280,6 +280,31 @@ def test_payment_address_24_base():
 
     assert (
         Address(spend_vk.hash(), stake_vk.hash(), network=Network.MAINNET).encode()
+        == "addr1qyy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmn8k8ttq8f3gag0h89aepvx3xf69g0l9pf80tqv7cve0l33sdn8p3d"
+    )
+
+
+def test_payment_address_24_base_2():
+    hdwallet = HDWallet.from_mnemonic(MNEMONIC_24)
+    hdwallet_spend = hdwallet.derive_from_path("m/1852'/1815'/0'/0/0")
+    spend_extended_sk = ExtendedSigningKey.from_hdwallet(hdwallet_spend)
+    spend_extended_vk = spend_extended_sk.to_verification_key()
+
+    hdwallet_stake = hdwallet.derive_from_path("m/1852'/1815'/0'/2/0")
+    stake_extended_sk = ExtendedSigningKey.from_hdwallet(hdwallet_stake)
+    stake_extended_vk = stake_extended_sk.to_verification_key()
+
+    assert (
+        Address(
+            spend_extended_vk.hash(), stake_extended_vk.hash(), network=Network.TESTNET
+        ).encode()
+        == "addr_test1qqy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmn8k8ttq8f3gag0h89aepvx3xf69g0l9pf80tqv7cve0l33sw96paj"
+    )
+
+    assert (
+        Address(
+            spend_extended_vk.hash(), stake_extended_vk.hash(), network=Network.MAINNET
+        ).encode()
         == "addr1qyy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmn8k8ttq8f3gag0h89aepvx3xf69g0l9pf80tqv7cve0l33sdn8p3d"
     )
 

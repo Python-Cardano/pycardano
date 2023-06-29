@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./logo.png" height=200 width=200 />
+  <img src="./.github/logo.png" height=200 width=200 />
 </p>
 
 ---
@@ -76,6 +76,7 @@ To learn more details, go to the [DApp page](https://github.com/cffls/pycardano/
 ```python
 """Build a transaction using transaction builder"""
 
+from blockfrost import ApiUrls
 from pycardano import *
 
 # Use testnet
@@ -94,7 +95,7 @@ svk = StakeVerificationKey.from_signing_key(ssk)
 address = Address(pvk.hash(), svk.hash(), network)
 
 # Create a BlockFrost chain context
-context = BlockFrostChainContext("your_blockfrost_project_id", network)
+context = BlockFrostChainContext("your_blockfrost_project_id", base_url=ApiUrls.preprod.value)
 
 # Create a transaction builder
 builder = TransactionBuilder(context)
@@ -104,7 +105,7 @@ builder = TransactionBuilder(context)
 builder.add_input_address(address)
 
 # Get all UTxOs currently sitting at this address
-utxos = context.utxos(str(address))
+utxos = context.utxos(address)
 
 # We can also tell the builder to include a specific UTxO in the transaction.
 # Similarly, "add_input" could be called multiple times.
@@ -155,7 +156,7 @@ builder.add_output(
 signed_tx = builder.build_and_sign([psk], change_address=address)
 
 # Submit signed transaction to the network
-context.submit_tx(signed_tx.to_cbor())
+context.submit_tx(signed_tx)
 
 ```
 </details>
@@ -237,12 +238,26 @@ Build docs and open the docs in browser:
 
 </details>
 
+## Donation and Sponsor
+If you find this project helpful, please consider donate or sponsor us. Your donation and sponsor will allow us to
+ spend more time on improving PyCardano and adding more features in the future.
+
+You can support us by 1) sponsoring through Github, or 2) donating ADA to our ADA Handle `pycardano` or to the address below:
+
+[`addr1vxa4qadv7hk2dd3jtz9rep7sp92lkgwzefwkmsy3qkglq5qzv8c0d`](https://cardanoscan.io/address/61bb5075acf5eca6b632588a3c87d00955fb21c2ca5d6dc0910591f050)
+
+<p>
+  <img src="./.github/donate_addr.png" height=150 width=150/>
+</p>
+
+
 ## Sponsors :heart:
 
 <p align="left">
-  <a href="https://www.blockery.io/"><img src="https://avatars.githubusercontent.com/u/97766045?s=50&v=4"/></a>
   <a href="https://github.com/KtorZ"><img src="https://avatars.githubusercontent.com/u/5680256?s=50&v=4"/></a>
-  <a href="https://github.com/lacepool"><img src="https://avatars.githubusercontent.com/u/79309785?s=50&v=4"/></a>
-  <a href="https://github.com/muppetADA"><img width="50" src="https://avatars.githubusercontent.com/u/115075316?s=50&v=4"/></a>
   <a href="https://github.com/CardanoDur"><img width="50" src="https://avatars.githubusercontent.com/u/1000466?s=50&v=4"/></a>
+  <a href="https://github.com/huths0lo"><img width="50" src="https://avatars.githubusercontent.com/u/78839856?s=50&v=4"/></a>
+  <a href="https://github.com/markrufino"><img width="50" src="https://avatars.githubusercontent.com/u/30117352?v=4"/></a>
+  <a href="https://github.com/OpShin"><img width="50" src="https://avatars.githubusercontent.com/u/102762047?s=200&v=4"/></a>
+  <a href="https://github.com/aada-finance"><img width="50" src="https://avatars.githubusercontent.com/u/89693711?v=4"/></a>
 </p>

@@ -4,6 +4,135 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.8.1] - 2023-04-06
+
+This patch contains a number of bug fixes to `v0.8.0`.
+
+**Implemented enhancements:**
+
+- Only upload code cov once in CI [\#190](https://github.com/Python-Cardano/pycardano/pull/190) ([cffls](https://github.com/cffls))
+
+**Fixed bugs:**
+
+- PyCardano does not correctly load nested PlutusData from cbor where the keys are unions of PlutusData [\#193](https://github.com/Python-Cardano/pycardano/issues/193)
+- \[Bug fix\] Return a value directly if its type is 'Any' on deserializing [\#195](https://github.com/Python-Cardano/pycardano/pull/195) ([cffls](https://github.com/cffls))
+- Fix recursive deserialization of cbor bytes [\#194](https://github.com/Python-Cardano/pycardano/pull/194) ([nielstron](https://github.com/nielstron))
+- Fix error when adding multiple redeemers [\#192](https://github.com/Python-Cardano/pycardano/pull/192) ([cffls](https://github.com/cffls))
+- Fix redeemer initalization [\#189](https://github.com/Python-Cardano/pycardano/pull/189) ([nielstron](https://github.com/nielstron))
+
+
+## [0.8.0] - 2023-03-29
+
+This patch contains a number of bug fixes and enhancements.
+
+**Implemented enhancements and bug fixes:**
+
+- Allow str addresses as change address in txbuilder [\#187](https://github.com/Python-Cardano/pycardano/issues/187)
+- Include API responses in submit\_tx method [\#185](https://github.com/Python-Cardano/pycardano/issues/185)
+- Specification of the Redeemer Tag necessary? [\#177](https://github.com/Python-Cardano/pycardano/issues/177)
+- Error when submit NFT minting tx [\#165](https://github.com/Python-Cardano/pycardano/issues/165)
+- Add error handling to blockfrost submit\_tx method [\#188](https://github.com/Python-Cardano/pycardano/pull/188) ([bhatt-deep](https://github.com/bhatt-deep))
+- Get UTxO from Transaction ID and Index [\#186](https://github.com/Python-Cardano/pycardano/pull/186) ([juliusfrost](https://github.com/juliusfrost))
+- Reference UTxOs are UTxOs \(not TransactionInputs\) [\#181](https://github.com/Python-Cardano/pycardano/pull/181) ([nielstron](https://github.com/nielstron))
+- Add support for complex dictionary types [\#180](https://github.com/Python-Cardano/pycardano/pull/180) ([nielstron](https://github.com/nielstron))
+- Add functions to automatically add required signers and validity range [\#179](https://github.com/Python-Cardano/pycardano/pull/179) ([nielstron](https://github.com/nielstron))
+- Remove the need to specify the RedeemerTag [\#178](https://github.com/Python-Cardano/pycardano/pull/178) ([nielstron](https://github.com/nielstron))
+- Fix timezone info for Ogmios backend [\#176](https://github.com/Python-Cardano/pycardano/pull/176) ([juliusfrost](https://github.com/juliusfrost))
+- Correctly parse List\[X\] annotated objects [\#170](https://github.com/Python-Cardano/pycardano/pull/170) ([nielstron](https://github.com/nielstron))
+- Fixed the plutus script returned by blockfrost https://github.com/Python-Cardano/pycardano/commit/eabd61305ff4c52b8cd4dce3c54171f8e98cb7cf ([cffls](https://github.com/cffls))
+- Change plutus example to inline datum and inline script https://github.com/Python-Cardano/pycardano/commit/f5542b45066d1f17d2546be90531898b1ab63d7d. ([cffls](https://github.com/cffls))
+- [Bug fix] Force set timezone in system start unix to utc https://github.com/Python-Cardano/pycardano/commit/7771a3cc715ea7fb59900947d70b182db59e84ad ([cffls](https://github.com/cffls))
+
+**Closed issues:**
+
+- Verification and Signing Keys Bug [\#184](https://github.com/Python-Cardano/pycardano/issues/184)
+- Error: The seed must be exactly 32 bytes long [\#159](https://github.com/Python-Cardano/pycardano/issues/159)
+- Move to hashlib for hashing [\#153](https://github.com/Python-Cardano/pycardano/issues/153)
+
+**Merged pull requests:**
+
+- Update tutorial with renamed smart contract language [\#183](https://github.com/Python-Cardano/pycardano/pull/183) ([nielstron](https://github.com/nielstron))
+- Bump blockfrost-python from 0.5.2 to 0.5.3 [\#162](https://github.com/Python-Cardano/pycardano/pull/162) ([dependabot[bot]](https://github.com/apps/dependabot))
+
+
+## [0.7.3] - 2023-02-05
+
+**Implemented enhancements:**
+
+- CIP-0008: Allow for signing with stake key directly [\#154](https://github.com/Python-Cardano/pycardano/pull/154) ([thaddeusdiamond](https://github.com/thaddeusdiamond))
+- Generalize the "plutus" section and introduce alternative languages [\#145](https://github.com/Python-Cardano/pycardano/pull/145) ([nielstron](https://github.com/nielstron))
+- Switch the Plutus introduction to eopsin [\#144](https://github.com/Python-Cardano/pycardano/pull/144) ([nielstron](https://github.com/nielstron))
+- Fix static typing [\#139](https://github.com/Python-Cardano/pycardano/pull/139) ([cffls](https://github.com/cffls))
+
+**Fixed bugs:**
+
+- Default to preprod testnet with blockfrost [\#143](https://github.com/Python-Cardano/pycardano/pull/143) ([nielstron](https://github.com/nielstron))
+
+**Closed issues:**
+
+- Docs for adding arbitrary datum value to .add\_output method [\#116](https://github.com/Python-Cardano/pycardano/issues/116)
+
+**Merged pull requests:**
+
+- Fix typo in documentation pointing to Network.PREPROD [\#152](https://github.com/Python-Cardano/pycardano/pull/152) ([nielstron](https://github.com/nielstron))
+- Bump pytest from 7.2.0 to 7.2.1 [\#150](https://github.com/Python-Cardano/pycardano/pull/150) ([dependabot[bot]](https://github.com/apps/dependabot))
+- Fix typo that broke link formatting in the plutus introduction [\#149](https://github.com/Python-Cardano/pycardano/pull/149) ([nielstron](https://github.com/nielstron))
+- Remove mention of pyaiken in plutus docs [\#147](https://github.com/Python-Cardano/pycardano/pull/147) ([nielstron](https://github.com/nielstron))
+- Rename plutus sample contract name to correct "Gift contract" [\#146](https://github.com/Python-Cardano/pycardano/pull/146) ([nielstron](https://github.com/nielstron))
+- Bump isort from 5.10.1 to 5.11.4 [\#142](https://github.com/Python-Cardano/pycardano/pull/142) ([dependabot[bot]](https://github.com/apps/dependabot))
+- Bump mypy from 0.990 to 0.991 [\#133](https://github.com/Python-Cardano/pycardano/pull/133) ([dependabot[bot]](https://github.com/apps/dependabot))
+
+
+## [0.7.2] - 2022-12-03
+
+**Implemented enhancements:**
+
+- Modified IndefiniteList as subclass of UserList. [\#138](https://github.com/Python-Cardano/pycardano/pull/138) ([bhatt-deep](https://github.com/bhatt-deep))
+- Slight modification ExtendedSigningKey creation from HDWallet [\#132](https://github.com/Python-Cardano/pycardano/pull/132) ([henryyuanheng-wang](https://github.com/henryyuanheng-wang))
+
+**Fixed bugs:**
+
+- Move execution unit estimation to the very last part of tx building [\#136](https://github.com/Python-Cardano/pycardano/pull/136) ([cffls](https://github.com/cffls))
+
+
+## [0.7.1] - 2022-11-23
+
+A major improvement of this version is the enforcement of static typing on some modules. Special thanks to [daehan-koreapool](https://github.com/daehan-koreapool)!
+
+**Implemented enhancements:**
+
+- Feature request: address.balance\(\) helper function [\#115](https://github.com/Python-Cardano/pycardano/issues/115)
+- Improve address type hint [\#130](https://github.com/Python-Cardano/pycardano/pull/130) ([daehan-koreapool](https://github.com/daehan-koreapool))
+- Enhance nativescript.py type hint [\#129](https://github.com/Python-Cardano/pycardano/pull/129) ([daehan-koreapool](https://github.com/daehan-koreapool))
+- Attempt to improve liskov substitution principle error [\#128](https://github.com/Python-Cardano/pycardano/pull/128) ([daehan-koreapool](https://github.com/daehan-koreapool))
+- Support utxo query with kupo for Vasil [\#121](https://github.com/Python-Cardano/pycardano/pull/121) ([henryyuanheng-wang](https://github.com/henryyuanheng-wang))
+- Improve base + blockfrost module maintainability [\#120](https://github.com/Python-Cardano/pycardano/pull/120) ([daehan-koreapool](https://github.com/daehan-koreapool))
+- Refactor ogmios.py module maintainability [\#114](https://github.com/Python-Cardano/pycardano/pull/114) ([daehan-koreapool](https://github.com/daehan-koreapool))
+- Improve bip32.py type hint [\#107](https://github.com/Python-Cardano/pycardano/pull/107) ([daehan-koreapool](https://github.com/daehan-koreapool))
+- Testing more types of HDWallet derived Cardano addresses [\#103](https://github.com/Python-Cardano/pycardano/pull/103) ([daehan-koreapool](https://github.com/daehan-koreapool))
+- Fixing inconsistency between generated entropy value type and the expected HDWallet.entropy value type [\#101](https://github.com/Python-Cardano/pycardano/pull/101) ([daehan-koreapool](https://github.com/daehan-koreapool))
+- Improve Ogmios backend module [\#111](https://github.com/Python-Cardano/pycardano/pull/111) ([daehan-koreapool](https://github.com/daehan-koreapool))
+
+**Fixed bugs:**
+
+- decodeVerKeyDSIGN: wrong length, expected 32 bytes but got 0 [\#113](https://github.com/Python-Cardano/pycardano/issues/113)
+
+**Closed issues:**
+
+- Document how to add reference\_inputs when using TransactionBuilder [\#118](https://github.com/Python-Cardano/pycardano/issues/118)
+- config option to choose local cardano-node for transactions [\#102](https://github.com/Python-Cardano/pycardano/issues/102)
+
+**Merged pull requests:**
+
+- Bump websocket-client from 1.4.1 to 1.4.2 [\#126](https://github.com/Python-Cardano/pycardano/pull/126) ([dependabot[bot]](https://github.com/apps/dependabot))
+- Bump sphinx-rtd-theme from 1.0.0 to 1.1.1 [\#125](https://github.com/Python-Cardano/pycardano/pull/125) ([dependabot[bot]](https://github.com/apps/dependabot))
+- provide examples for adding transaction properties [\#119](https://github.com/Python-Cardano/pycardano/pull/119) ([peterVG](https://github.com/peterVG))
+- Update variable name so it matches downstream code [\#117](https://github.com/Python-Cardano/pycardano/pull/117) ([peterVG](https://github.com/peterVG))
+- Bump pytest from 7.1.3 to 7.2.0 [\#110](https://github.com/Python-Cardano/pycardano/pull/110) ([dependabot[bot]](https://github.com/apps/dependabot))
+- Bump pytest-xdist from 2.5.0 to 3.0.2 [\#109](https://github.com/Python-Cardano/pycardano/pull/109) ([dependabot[bot]](https://github.com/apps/dependabot))
+- Add python3.11 to CI [\#108](https://github.com/Python-Cardano/pycardano/pull/108) ([cffls](https://github.com/cffls))
+
+
 ## [0.7.0] - 2022-10-16
 
 ### Added

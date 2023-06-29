@@ -20,7 +20,9 @@ app = Flask(__name__)
 block_forst_project_id = os.environ.get("BLOCKFROST_ID")
 
 # Use BlockFrostChainContext for simplicity. You can also implement your own chain context.
-chain_context = BlockFrostChainContext(block_forst_project_id, network=Network.TESTNET)
+chain_context = BlockFrostChainContext(
+    block_forst_project_id, base_url="https://cardano-preview.blockfrost.io/api"
+)
 
 
 def build_transaction(data):
@@ -63,7 +65,7 @@ def home_page():
 @app.route("/build_tx", methods=["POST"])
 def build_tx():
     tx = build_transaction(request.json)
-    cbor_hex = tx.to_cbor()
+    cbor_hex = tx.to_cbor_hex()
     print(cbor_hex)
     return {"tx": cbor_hex}
 
@@ -73,7 +75,7 @@ def submit_tx():
     tx = compose_tx_and_witness(request.json)
     tx_id = tx.transaction_body.hash().hex()
     print(f"Transaction: \n {tx}")
-    print(f"Transaction cbor: {tx.to_cbor()}")
+    print(f"Transaction cbor: {tx.to_cbor_hex()}")
     print(f"Transaction ID: {tx_id}")
-    chain_context.submit_tx(tx.to_cbor())
+    chain_context.submit_tx(tx)
     return {"tx_id": tx_id}

@@ -10,7 +10,12 @@ from nacl.hash import blake2b
 
 from pycardano.exception import DeserializeException
 from pycardano.hash import SCRIPT_HASH_SIZE, ScriptHash, VerificationKeyHash
-from pycardano.serialization import ArrayCBORSerializable, Primitive, list_hook
+from pycardano.serialization import (
+    ArrayCBORSerializable,
+    Primitive,
+    limit_primitive_type,
+    list_hook,
+)
 from pycardano.types import JsonDict
 
 __all__ = [
@@ -30,22 +35,12 @@ class NativeScript(ArrayCBORSerializable):
     json_field: ClassVar[str]
 
     @classmethod
+    @limit_primitive_type(list)
     def from_primitive(
-        cls: Type[NativeScript], value: Primitive
+        cls: Type[NativeScript], value: list
     ) -> Union[
         ScriptPubkey, ScriptAll, ScriptAny, ScriptNofK, InvalidBefore, InvalidHereAfter
     ]:
-        if not isinstance(
-            value,
-            (
-                list,
-                tuple,
-            ),
-        ):
-            raise DeserializeException(
-                f"A list or a tuple is required for deserialization: {str(value)}"
-            )
-
         script_type: int = value[0]
         if script_type == ScriptPubkey._TYPE:
             return super(NativeScript, ScriptPubkey).from_primitive(value[1:])
@@ -63,7 +58,7 @@ class NativeScript(ArrayCBORSerializable):
             raise DeserializeException(f"Unknown script type indicator: {script_type}")
 
     def hash(self) -> ScriptHash:
-        cbor_bytes = cast(bytes, self.to_cbor("bytes"))
+        cbor_bytes = cast(bytes, self.to_cbor())
         return ScriptHash(
             blake2b(bytes(1) + cbor_bytes, SCRIPT_HASH_SIZE, encoder=RawEncoder)
         )

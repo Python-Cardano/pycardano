@@ -2,7 +2,7 @@
 
 from typing import Type, TypeVar, Union
 
-from pycardano.serialization import CBORSerializable
+from pycardano.serialization import CBORSerializable, limit_primitive_type
 
 __all__ = [
     "VERIFICATION_KEY_HASH_SIZE",
@@ -67,6 +67,7 @@ class ConstrainedBytes(CBORSerializable):
         return self.payload
 
     @classmethod
+    @limit_primitive_type(bytes, str)
     def from_primitive(cls: Type[T], value: Union[bytes, str]) -> T:
         if isinstance(value, str):
             value = bytes.fromhex(value)

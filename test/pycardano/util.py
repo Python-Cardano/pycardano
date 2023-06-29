@@ -14,12 +14,11 @@ TEST_ADDR = "addr_test1vr2p8st5t5cxqglyjky7vk98k7jtfhdpvhl4e97cezuhn0cqcexl7"
 
 
 def check_two_way_cbor(serializable: CBORSerializable):
-    restored = serializable.from_cbor(serializable.to_cbor())
+    restored = serializable.from_cbor(serializable.to_cbor_hex())
     assert restored == serializable
 
 
 class FixedChainContext(ChainContext):
-
     _protocol_param = ProtocolParameters(
         min_fee_constant=155381,
         min_fee_coefficient=44,
@@ -92,7 +91,7 @@ class FixedChainContext(ChainContext):
         return 300
 
     @property
-    def slot(self) -> int:
+    def last_block_slot(self) -> int:
         """Current slot number"""
         return 2000
 
@@ -101,7 +100,7 @@ class FixedChainContext(ChainContext):
         """Slot number of last block"""
         return 2000
 
-    def utxos(self, address: str) -> List[UTxO]:
+    def _utxos(self, address: str) -> List[UTxO]:
         """Get all UTxOs associated with an address.
 
         Args:
@@ -118,7 +117,7 @@ class FixedChainContext(ChainContext):
         )
         return [UTxO(tx_in1, tx_out1), UTxO(tx_in2, tx_out2)]
 
-    def submit_tx(self, cbor: Union[bytes, str]):
+    def submit_tx_cbor(self, cbor: Union[bytes, str]):
         """Submit a transaction to the blockchain.
 
         Args:
@@ -130,7 +129,7 @@ class FixedChainContext(ChainContext):
         """
         pass
 
-    def evaluate_tx(self, cbor: Union[bytes, str]) -> Dict[str, ExecutionUnits]:
+    def evaluate_tx_cbor(self, cbor: Union[bytes, str]) -> Dict[str, ExecutionUnits]:
         return {"spend:0": ExecutionUnits(399882, 175940720)}
 
 

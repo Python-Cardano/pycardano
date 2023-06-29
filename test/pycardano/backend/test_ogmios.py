@@ -1,3 +1,7 @@
+from unittest.mock import patch
+
+import pytest
+
 from pycardano.backend.base import GenesisParameters, ProtocolParameters
 from pycardano.backend.ogmios import OgmiosChainContext
 from pycardano.network import Network
@@ -72,6 +76,7 @@ UTXOS = [
                     "126b8676446c84a5cd6e3259223b16a2314c5676b88ae1c1f8579a8f.744d494e": 762462,
                     "57fca08abbaddee36da742a839f7d83a7e1d2419f1507fcbf3916522.43484f43": 9945000,
                     "fc3ef8db4a16c1959fbabfcbc3fb7669bf315967ffef260ececc47a3.53484942": 1419813131821,
+                    "fc3ef8db4a16c1959fbabfcbc3fb7669bf315967ffef260ececc47a3": 1234,
                 },
             },
             "datum": None,
@@ -80,22 +85,42 @@ UTXOS = [
 ]
 
 
-class TestOgmiosChainContext:
-    chain_context = OgmiosChainContext("", Network.TESTNET)
-
-    def override_request(method, args):
-        if args["query"] == "currentProtocolParameters":
-            return PROTOCOL_RESULT
-        elif args["query"] == "genesisConfig":
-            return GENESIS_RESULT
-        elif "utxo" in args["query"]:
-            return UTXOS
+def override_request(method, args):
+    if args["query"] == "currentProtocolParameters":
+        return PROTOCOL_RESULT
+    elif args["query"] == "genesisConfig":
+        return GENESIS_RESULT
+    elif "utxo" in args["query"]:
+        query = args["query"]["utxo"][0]
+        if isinstance(query, dict):
+            for utxo in UTXOS:
+                if (
+                    utxo[0]["txId"] == query["txId"]
+                    and utxo[0]["index"] == query["index"]
+                ):
+                    return [utxo]
+            return []
         else:
-            return None
+            return UTXOS
+    elif "chainTip" in args["query"]:
+        return {"slot": 100000000}
+    else:
+        return None
 
-    chain_context._request = override_request
 
-    def test_protocol_param(self):
+@pytest.fixture
+def chain_context():
+    with patch(
+        "pycardano.backend.ogmios.OgmiosChainContext._request",
+        side_effect=override_request,
+    ):
+        context = OgmiosChainContext("", Network.TESTNET)
+        context._request = override_request
+    return context
+
+
+class TestOgmiosChainContext:
+    def test_protocol_param(self, chain_context):
         assert (
             ProtocolParameters(
                 min_fee_constant=155381,
@@ -127,10 +152,10 @@ class TestOgmiosChainContext:
                 coins_per_utxo_byte=1,
                 cost_models={},
             )
-            == self.chain_context.protocol_param
+            == chain_context.protocol_param
         )
 
-    def test_genesis(self):
+    def test_genesis(self, chain_context):
         assert (
             GenesisParameters(
                 active_slots_coefficient=0.1,
@@ -144,12 +169,11 @@ class TestOgmiosChainContext:
                 max_kes_evolutions=60000000,
                 security_param=1000000000,
             )
-            == self.chain_context.genesis_param
+            == chain_context.genesis_param
         )
 
-    def test_utxo(self):
-
-        results = self.chain_context.utxos(
+    def test_utxo(self, chain_context):
+        results = chain_context.utxos(
             "addr_test1qraen6hr9zs5yae8cxnhlkh7rk2nfl7rnpg0xvmel3a0xf70v3kz6ee7mtq86x6gmrnw8j7kuf485902akkr7tlcx24qemz34a"
         )
 
@@ -171,7 +195,24 @@ class TestOgmiosChainContext:
                     "43484f43": 9945000
                 },
                 "fc3ef8db4a16c1959fbabfcbc3fb7669bf315967ffef260ececc47a3": {
-                    "53484942": 1419813131821
+                    "53484942": 1419813131821,
+                    b"": 1234,
                 },
             }
         )
+
+    def test_utxo_by_tx_id(self, chain_context):
+        utxo = chain_context.utxo_by_tx_id(
+            "3a42f652bd8dee788577e8c39b6217db3df659c33b10a2814c20fb66089ca167",
+            1,
+        )
+        assert utxo.input == TransactionInput.from_primitive(
+            ["3a42f652bd8dee788577e8c39b6217db3df659c33b10a2814c20fb66089ca167", 1]
+        )
+        assert utxo.output.amount == 764295183
+
+        not_utxo = chain_context.utxo_by_tx_id(
+            "3a42f652bd8dee788577e8c39b6217db3df659c33b10a2814c20fb66089ca167",
+            2,
+        )
+        assert not_utxo is None

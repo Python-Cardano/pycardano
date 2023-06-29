@@ -105,16 +105,18 @@ To use a transaction builder, we first need to create a chain context, so the bu
 search proper transaction inputs to use. Currently, the available chain context is
 `BlockFrostChainContext <../api/pycardano.backend.base.html#pycardano.backend.blockfrost.BlockFrostChainContext>`_ ::
 
-    >>> from pycardano import BlockFrostChainContext, Network
+    >>> from blockfrost import ApiUrls
+    >>> from pycardano import BlockFrostChainContext
     >>> network = Network.TESTNET
-    >>> context = BlockFrostChainContext("your_blockfrost_project_id", network)
+    >>> context = BlockFrostChainContext("your_blockfrost_project_id", base_url=ApiUrls.preprod.value)
 
 
 Step 2
 
 Read signing key into the program and generate its corresponding verification key::
 
-    >>> from pycardano import PaymentSigningKey, PaymentVerificationKey, Address
+    >>> from pycardano import PaymentSigningKey, PaymentVerificationKey, Address, Network
+    >>> network = Network.TESTNET
     >>> sk = PaymentSigningKey.load("path/to/payment.skey")
     >>> vk = PaymentVerificationKey.from_signing_key(sk)
     >>> address = Address(pvk.hash(), svk.hash(), network)
@@ -145,7 +147,7 @@ Step 6
 Add additional transaction information as needed:
 
     >>> builder.ttl = 3600
-    >>> builder.reference_inputs.add(tx_in)
+    >>> builder.reference_inputs.add(utxo)
 
 Step 7
 
@@ -176,5 +178,5 @@ Transaction submission
 Once we have a signed transaction, it could be submitted to the network. The easiest way to do so is through a chain
 context::
 
-    >>> context.submit_tx(signed_tx.to_cbor())
+    >>> context.submit_tx(signed_tx.to_cbor_hex())
 

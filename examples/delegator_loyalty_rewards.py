@@ -41,7 +41,7 @@ print(
 )
 
 # Create a BlockFrost chain context
-context = BlockFrostChainContext(BLOCK_FROST_PROJECT_ID, network)
+context = BlockFrostChainContext(BLOCK_FROST_PROJECT_ID, base_url=ApiUrls.mainnet.value)
 
 api = BlockFrostApi(BLOCK_FROST_PROJECT_ID, ApiUrls.mainnet.value)
 
@@ -101,5 +101,5 @@ print(signed_tx)
 
 print("#### Transaction id ####")
 print(signed_tx.id)
-context.submit_tx(signed_tx.to_cbor())
+context.submit_tx(signed_tx)
 print("Transaction successfully submitted!")

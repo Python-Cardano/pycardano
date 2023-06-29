@@ -8,6 +8,8 @@ This example is inspired by https://developers.cardano.org/docs/native-tokens/mi
 """
 import pathlib
 
+from blockfrost import ApiUrls
+
 from pycardano import *
 
 # Copy your BlockFrost project ID below. Go to https://blockfrost.io/ for more information.
@@ -16,8 +18,7 @@ NETWORK = Network.TESTNET
 
 chain_context = BlockFrostChainContext(
     project_id=BLOCK_FROST_PROJECT_ID,
-    network=NETWORK,
-    base_url="https://cardano-preprod.blockfrost.io/api",
+    base_url=ApiUrls.preprod.value,
 )
 
 """Preparation"""
@@ -167,8 +168,8 @@ signed_tx = builder.build_and_sign([payment_skey, policy_skey], change_address=a
 
 print("############### Transaction created ###############")
 print(signed_tx)
-print(signed_tx.to_cbor())
+print(signed_tx.to_cbor_hex())
 
 # Submit signed transaction to the network
 print("############### Submitting transaction ###############")
-chain_context.submit_tx(signed_tx.to_cbor())
+chain_context.submit_tx(signed_tx)

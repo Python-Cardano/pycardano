@@ -132,11 +132,11 @@ class TestMint(TestBase):
 
         print("############### Transaction created ###############")
         print(signed_tx)
-        print(signed_tx.to_cbor())
+        print(signed_tx.to_cbor_hex())
 
         # Submit signed transaction to the network
         print("############### Submitting transaction ###############")
-        self.chain_context.submit_tx(signed_tx.to_cbor())
+        self.chain_context.submit_tx(signed_tx)
 
         self.assert_output(address, nft_output)
 
@@ -158,11 +158,11 @@ class TestMint(TestBase):
 
         print("############### Transaction created ###############")
         print(signed_tx)
-        print(signed_tx.to_cbor())
+        print(signed_tx.to_cbor_hex())
 
         # Submit signed transaction to the network
         print("############### Submitting transaction ###############")
-        self.chain_context.submit_tx(signed_tx.to_cbor())
+        self.chain_context.submit_tx(signed_tx)
 
         self.assert_output(address, nft_to_send)
 
@@ -214,9 +214,7 @@ class TestMint(TestBase):
         builder.add_input_address(address)
 
         # Add minting script with an empty datum and a minting redeemer
-        builder.add_minting_script(
-            forty_two_script, redeemer=Redeemer(RedeemerTag.MINT, 42)
-        )
+        builder.add_minting_script(forty_two_script, redeemer=Redeemer(42))
 
         # Set nft we want to mint
         builder.mint = my_nft
@@ -235,7 +233,7 @@ class TestMint(TestBase):
         self.fund(address, self.payment_skey, address)
 
         non_nft_utxo = None
-        for utxo in self.chain_context.utxos(str(address)):
+        for utxo in self.chain_context.utxos(address):
             # multi_asset should be empty for collateral utxo
             if not utxo.output.amount.multi_asset:
                 non_nft_utxo = utxo
@@ -249,11 +247,11 @@ class TestMint(TestBase):
 
         print("############### Transaction created ###############")
         print(signed_tx)
-        print(signed_tx.to_cbor())
+        print(signed_tx.to_cbor_hex())
 
         # Submit signed transaction to the network
         print("############### Submitting transaction ###############")
-        self.chain_context.submit_tx(signed_tx.to_cbor())
+        self.chain_context.submit_tx(signed_tx)
 
         self.assert_output(address, nft_output)
 
@@ -311,7 +309,7 @@ class TestMint(TestBase):
 
         # Add minting script with an empty datum and a minting redeemer
         builder.add_minting_script(
-            anymint_script, redeemer=Redeemer(RedeemerTag.MINT, MyPlutusData(a=42))
+            anymint_script, redeemer=Redeemer(MyPlutusData(a=42))
         )
 
         # Set nft we want to mint
@@ -336,10 +334,10 @@ class TestMint(TestBase):
 
         print("############### Transaction created ###############")
         print(signed_tx)
-        print(signed_tx.to_cbor())
+        print(signed_tx.to_cbor_hex())
 
         # Submit signed transaction to the network
         print("############### Submitting transaction ###############")
-        self.chain_context.submit_tx(signed_tx.to_cbor())
+        self.chain_context.submit_tx(signed_tx)
 
         self.assert_output(address, nft_output)

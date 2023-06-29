@@ -26,7 +26,7 @@ def test_transaction_input():
     tx_id_hex = "732bfd67e66be8e8288349fcaaa2294973ef6271cc189a239bb431275401b8e5"
     tx_in = TransactionInput(TransactionId(bytes.fromhex(tx_id_hex)), 0)
     assert (
-        tx_in.to_cbor()
+        tx_in.to_cbor_hex()
         == "825820732bfd67e66be8e8288349fcaaa2294973ef6271cc189a239bb431275401b8e500"
     )
     check_two_way_cbor(tx_in)
@@ -38,7 +38,17 @@ def test_transaction_output():
     )
     output = TransactionOutput(addr, 100000000000)
     assert (
-        output.to_cbor()
+        output.to_cbor_hex()
+        == "82581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f41b000000174876e800"
+    )
+    check_two_way_cbor(output)
+
+
+def test_transaction_output_str_address():
+    addr = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    output = TransactionOutput(addr, 100000000000)
+    assert (
+        output.to_cbor_hex()
         == "82581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f41b000000174876e800"
     )
     check_two_way_cbor(output)
@@ -51,7 +61,7 @@ def test_transaction_output_inline_datum():
     datum = 42
     output = TransactionOutput(addr, 100000000000, datum=datum)
     assert (
-        output.to_cbor()
+        output.to_cbor_hex()
         == "a300581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f4011b000000174876e800028201d81842182a"
     )
     check_two_way_cbor(output)
@@ -67,7 +77,7 @@ def test_transaction_output_datum_hash_inline_plutus_script():
         addr, 100000000000, datum_hash=datum_hash(datum), script=script
     )
     assert (
-        output.to_cbor()
+        output.to_cbor_hex()
         == "a400581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f4011b000000174876"
         "e80002820058209e1199a988ba72ffd6e9c269cadb3b53b5f360ff99f112d9b2ee30c4d74ad88b03d8"
         "184f82014c6d6167696320736372697074"
@@ -82,7 +92,7 @@ def test_transaction_output_inline_plutus_script_v1():
     script = PlutusV1Script(b"magic script")
     output = TransactionOutput(addr, 100000000000, script=script)
     assert (
-        output.to_cbor()
+        output.to_cbor_hex()
         == "a300581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f401"
         "1b000000174876e80003d8184f82014c6d6167696320736372697074"
     )
@@ -96,7 +106,7 @@ def test_transaction_output_inline_plutus_script_v2():
     script = PlutusV2Script(b"magic script")
     output = TransactionOutput(addr, 100000000000, script=script)
     assert (
-        output.to_cbor()
+        output.to_cbor_hex()
         == "a300581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5"
         "f4011b000000174876e80003d8184f82024c6d6167696320736372697074"
     )
@@ -110,7 +120,7 @@ def test_transaction_output_inline_native_script():
     script = ScriptPubkey(addr.payment_part)
     output = TransactionOutput(addr, 100000000000, script=script)
     assert (
-        output.to_cbor()
+        output.to_cbor_hex()
         == "a300581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5"
         "f4011b000000174876e80003d818582282008200581cf6532850e1bccee9c72a"
         "9113ad98bcc5dbb30d2ac960262444f6e5f4"
@@ -124,7 +134,7 @@ def test_invalid_transaction_output():
     )
     output = TransactionOutput(addr, -100000000000)
     with pytest.raises(InvalidDataException):
-        output.to_cbor()
+        output.to_cbor_hex()
 
     value = Value.from_primitive(
         [
@@ -137,7 +147,7 @@ def test_invalid_transaction_output():
     )
     output = TransactionOutput(addr, value)
     with pytest.raises(InvalidDataException):
-        output.to_cbor()
+        output.to_cbor_hex()
 
 
 def make_transaction_body():
@@ -162,7 +172,7 @@ def make_transaction_body():
 def test_transaction_body():
     tx_body = make_transaction_body()
     assert (
-        tx_body.to_cbor()
+        tx_body.to_cbor_hex()
         == "a50081825820732bfd67e66be8e8288349fcaaa2294973ef6271cc189a239bb431275401b8e"
         "500018282581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f41b00"
         "0000174876e80082581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e"
@@ -438,6 +448,6 @@ def test_inline_datum_serdes():
         datum=TestDatum(1, b"test"),
     )
 
-    cbor = output.to_cbor()
+    cbor = output.to_cbor_hex()
 
-    assert cbor == TransactionOutput.from_cbor(cbor).to_cbor()
+    assert cbor == TransactionOutput.from_cbor(cbor).to_cbor_hex()

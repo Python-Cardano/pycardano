@@ -1,11 +1,11 @@
 """Transaction witness."""
 
 from dataclasses import dataclass, field
-from typing import Any, List, Union
+from typing import Any, List, Optional, Union
 
 from pycardano.key import ExtendedVerificationKey, VerificationKey
 from pycardano.nativescript import NativeScript
-from pycardano.plutus import RawPlutusData, Redeemer
+from pycardano.plutus import PlutusV1Script, PlutusV2Script, RawPlutusData, Redeemer
 from pycardano.serialization import (
     ArrayCBORSerializable,
     MapCBORSerializable,
@@ -29,7 +29,7 @@ class VerificationKeyWitness(ArrayCBORSerializable):
 
 @dataclass(repr=False)
 class TransactionWitnessSet(MapCBORSerializable):
-    vkey_witnesses: List[VerificationKeyWitness] = field(
+    vkey_witnesses: Optional[List[VerificationKeyWitness]] = field(
         default=None,
         metadata={
             "optional": True,
@@ -38,30 +38,30 @@ class TransactionWitnessSet(MapCBORSerializable):
         },
     )
 
-    native_scripts: List[NativeScript] = field(
+    native_scripts: Optional[List[NativeScript]] = field(
         default=None,
         metadata={"optional": True, "key": 1, "object_hook": list_hook(NativeScript)},
     )
 
     # TODO: Add bootstrap witness (byron) support
-    bootstrap_witness: List[Any] = field(
+    bootstrap_witness: Optional[List[Any]] = field(
         default=None, metadata={"optional": True, "key": 2}
     )
 
-    plutus_v1_script: List[bytes] = field(
+    plutus_v1_script: Optional[List[PlutusV1Script]] = field(
         default=None, metadata={"optional": True, "key": 3}
     )
 
-    plutus_v2_script: List[bytes] = field(
+    plutus_v2_script: Optional[List[PlutusV2Script]] = field(
         default=None, metadata={"optional": True, "key": 6}
     )
 
-    plutus_data: List[Any] = field(
+    plutus_data: Optional[List[Any]] = field(
         default=None,
         metadata={"optional": True, "key": 4, "object_hook": list_hook(RawPlutusData)},
     )
 
-    redeemer: List[Redeemer] = field(
+    redeemer: Optional[List[Redeemer]] = field(
         default=None,
         metadata={"optional": True, "key": 5, "object_hook": list_hook(Redeemer)},
     )

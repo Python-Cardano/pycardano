@@ -40,6 +40,7 @@ from pycardano.plutus import (
     PlutusV2Script,
     Redeemer,
     RedeemerTag,
+    ScriptType,
     datum_hash,
     script_hash,
 )
@@ -87,33 +88,37 @@ class TransactionBuilder:
     execution_step_buffer: float = 0.2
     """Additional amount of execution step (in ratio) that will be added on top of estimation"""
 
-    ttl: int = field(default=None)
+    ttl: Optional[int] = field(default=None)
 
-    validity_start: int = field(default=None)
+    validity_start: Optional[int] = field(default=None)
 
-    auxiliary_data: AuxiliaryData = field(default=None)
+    auxiliary_data: Optional[AuxiliaryData] = field(default=None)
 
-    native_scripts: List[NativeScript] = field(default=None)
+    native_scripts: Optional[List[NativeScript]] = field(default=None)
 
-    mint: MultiAsset = field(default=None)
+    mint: Optional[MultiAsset] = field(default=None)
 
-    required_signers: List[VerificationKeyHash] = field(default=None)
+    required_signers: Optional[List[VerificationKeyHash]] = field(default=None)
 
     collaterals: List[UTxO] = field(default_factory=lambda: [])
 
-    certificates: List[Certificate] = field(default=None)
+    certificates: Optional[List[Certificate]] = field(default=None)
 
-    withdrawals: Withdrawals = field(default=None)
+    withdrawals: Optional[Withdrawals] = field(default=None)
 
-    reference_inputs: Set[TransactionInput] = field(
+    reference_inputs: Set[Union[UTxO, TransactionInput]] = field(
         init=False, default_factory=lambda: set()
     )
 
     _inputs: List[UTxO] = field(init=False, default_factory=lambda: [])
 
+    _potential_inputs: List[UTxO] = field(init=False, default_factory=lambda: [])
+
     _excluded_inputs: List[UTxO] = field(init=False, default_factory=lambda: [])
 
-    _input_addresses: List[Address] = field(init=False, default_factory=lambda: [])
+    _input_addresses: List[Union[Address, str]] = field(
+        init=False, default_factory=lambda: []
+    )
 
     _outputs: List[TransactionOutput] = field(init=False, default_factory=lambda: [])
 
@@ -121,19 +126,19 @@ class TransactionBuilder:
 
     _datums: Dict[DatumHash, Datum] = field(init=False, default_factory=lambda: {})
 
-    _collateral_return: TransactionOutput = field(init=False, default=None)
+    _collateral_return: Optional[TransactionOutput] = field(init=False, default=None)
 
-    _total_collateral: int = field(init=False, default=None)
+    _total_collateral: Optional[int] = field(init=False, default=None)
 
     _inputs_to_redeemers: Dict[UTxO, Redeemer] = field(
         init=False, default_factory=lambda: {}
     )
 
-    _minting_script_to_redeemers: List[Tuple[bytes, Redeemer]] = field(
+    _minting_script_to_redeemers: List[Tuple[ScriptType, Optional[Redeemer]]] = field(
         init=False, default_factory=lambda: []
     )
 
-    _inputs_to_scripts: Dict[UTxO, bytes] = field(
+    _inputs_to_scripts: Dict[UTxO, ScriptType] = field(
         init=False, default_factory=lambda: {}
     )
 
@@ -141,7 +146,7 @@ class TransactionBuilder:
         Union[NativeScript, PlutusV1Script, PlutusV2Script]
     ] = field(init=False, default_factory=lambda: [])
 
-    _should_estimate_execution_units: bool = field(init=False, default=None)
+    _should_estimate_execution_units: Optional[bool] = field(init=False, default=None)
 
     def add_input(self, utxo: UTxO) -> TransactionBuilder:
         """Add a specific UTxO to transaction's inputs.
@@ -163,7 +168,7 @@ class TransactionBuilder:
                 self._should_estimate_execution_units = True
                 redeemer.ex_units = ExecutionUnits(0, 0)
         else:
-            if not self._should_estimate_execution_units and redeemer.ex_units is None:
+            if not self._should_estimate_execution_units and not redeemer.ex_units:
                 raise InvalidArgumentException(
                     f"All redeemers need to provide execution units if the firstly "
                     f"added redeemer specifies execution units. \n"
@@ -171,7 +176,7 @@ class TransactionBuilder:
                     f"New redeemer: {redeemer}"
                 )
             if self._should_estimate_execution_units:
-                if redeemer.ex_units is not None:
+                if redeemer.ex_units:
                     raise InvalidArgumentException(
                         f"No redeemer should provide execution units if the firstly "
                         f"added redeemer didn't provide execution units. \n"
@@ -208,33 +213,45 @@ class TransactionBuilder:
                 f"Expect the output address of utxo to be script type, "
                 f"but got {utxo.output.address.address_type} instead."
             )
-        if utxo.output.datum_hash and utxo.output.datum_hash != datum_hash(datum):
+
+        if (
+            utxo.output.datum_hash
+            and datum is not None
+            and utxo.output.datum_hash != datum_hash(datum)
+        ):
             raise InvalidArgumentException(
                 f"Datum hash in transaction output is {utxo.output.datum_hash}, "
                 f"but actual datum hash from input datum is {datum_hash(datum)}."
             )
 
-        if datum:
+        if datum is not None:
             self.datums[datum_hash(datum)] = datum
 
         if redeemer:
+            if redeemer.tag is not None and redeemer.tag != RedeemerTag.SPEND:
+                raise InvalidArgumentException(
+                    f"Expect the redeemer tag's type to be {RedeemerTag.SPEND}, "
+                    f"but got {redeemer.tag} instead."
+                )
+            redeemer.tag = RedeemerTag.SPEND
             self._consolidate_redeemer(redeemer)
             self._inputs_to_redeemers[utxo] = redeemer
 
         if utxo.output.script:
             self._inputs_to_scripts[utxo] = utxo.output.script
-            self.reference_inputs.add(utxo.input)
+            self.reference_inputs.add(utxo)
             self._reference_scripts.append(utxo.output.script)
         elif not script:
-            for i in self.context.utxos(str(utxo.output.address)):
+            for i in self.context.utxos(utxo.output.address):
                 if i.output.script:
                     self._inputs_to_scripts[utxo] = i.output.script
-                    self.reference_inputs.add(i.input)
+                    self.reference_inputs.add(i)
                     self._reference_scripts.append(i.output.script)
                     break
         elif isinstance(script, UTxO):
+            assert script.output.script is not None
             self._inputs_to_scripts[utxo] = script.output.script
-            self.reference_inputs.add(script.input)
+            self.reference_inputs.add(script)
             self._reference_scripts.append(script.output.script)
         else:
             self._inputs_to_scripts[utxo] = script
@@ -257,16 +274,18 @@ class TransactionBuilder:
             TransactionBuilder: Current transaction builder.
         """
         if redeemer:
-            if redeemer.tag != RedeemerTag.MINT:
+            if redeemer.tag is not None and redeemer.tag != RedeemerTag.MINT:
                 raise InvalidArgumentException(
                     f"Expect the redeemer tag's type to be {RedeemerTag.MINT}, "
                     f"but got {redeemer.tag} instead."
                 )
+            redeemer.tag = RedeemerTag.MINT
             self._consolidate_redeemer(redeemer)
 
         if isinstance(script, UTxO):
+            assert script.output.script is not None
             self._minting_script_to_redeemers.append((script.output.script, redeemer))
-            self.reference_inputs.add(script.input)
+            self.reference_inputs.add(script)
             self._reference_scripts.append(script.output.script)
         else:
             self._minting_script_to_redeemers.append((script, redeemer))
@@ -303,16 +322,20 @@ class TransactionBuilder:
         Returns:
             TransactionBuilder: Current transaction builder.
         """
-        if datum:
+        if datum is not None:
             tx_out.datum_hash = datum_hash(datum)
         self.outputs.append(tx_out)
-        if add_datum_to_witness:
+        if datum is not None and add_datum_to_witness:
             self.datums[datum_hash(datum)] = datum
         return self
 
     @property
     def inputs(self) -> List[UTxO]:
         return self._inputs
+
+    @property
+    def potential_inputs(self) -> List[UTxO]:
+        return self._potential_inputs
 
     @property
     def excluded_inputs(self) -> List[UTxO]:
@@ -339,8 +362,9 @@ class TransactionBuilder:
         self._fee = fee
 
     @property
-    def all_scripts(self) -> List[bytes]:
-        scripts = {}
+    def all_scripts(self) -> List[ScriptType]:
+        scripts: Dict[ScriptHash, ScriptType] = {}
+        s: ScriptType
 
         if self.native_scripts:
             for s in self.native_scripts:
@@ -355,8 +379,11 @@ class TransactionBuilder:
         return list(scripts.values())
 
     @property
-    def scripts(self) -> List[bytes]:
-        scripts = {script_hash(s): s for s in self.all_scripts}
+    def scripts(self) -> List[ScriptType]:
+        scripts: Dict[ScriptHash, ScriptType] = {
+            script_hash(s): s for s in self.all_scripts
+        }
+        s: ScriptType
 
         for s in self._reference_scripts:
             if script_hash(s) in scripts:
@@ -370,8 +397,8 @@ class TransactionBuilder:
 
     @property
     def redeemers(self) -> List[Redeemer]:
-        return list(self._inputs_to_redeemers.values()) + [
-            r for _, r in self._minting_script_to_redeemers
+        return [r for r in self._inputs_to_redeemers.values() if r is not None] + [
+            r for _, r in self._minting_script_to_redeemers if r is not None
         ]
 
     @property
@@ -438,7 +465,7 @@ class TransactionBuilder:
                     f"Not enough ADA left for change: {change.coin} but needs "
                     f"{min_lovelace_post_alonzo(TransactionOutput(address, change), self.context)}"
                 )
-            lovelace_change = change.coin
+            lovelace_change = Value(change.coin)
             change_output_arr.append(TransactionOutput(address, lovelace_change))
 
         # If there are multi asset in the change
@@ -495,11 +522,8 @@ class TransactionBuilder:
                 self._outputs += changes
 
         if change_address:
-
             if merge_change:
-
                 for idx, output in enumerate(original_outputs):
-
                     # Find any transaction outputs which already contain the change address
                     if change_address == output.address:
                         if change_output_index is None or output.lovelace == 0:
@@ -572,7 +596,7 @@ class TransactionBuilder:
         )
         attempt_amount.coin = required_lovelace
 
-        return len(attempt_amount.to_cbor("bytes")) > max_val_size
+        return len(attempt_amount.to_cbor()) > max_val_size
 
     def _pack_tokens_for_change(
         self,
@@ -582,10 +606,11 @@ class TransactionBuilder:
     ) -> List[MultiAsset]:
         multi_asset_arr = []
         base_coin = Value(coin=change_estimator.coin)
+        change_address = change_address or Address(FAKE_VKEY.hash())
         output = TransactionOutput(change_address, base_coin)
 
         # iteratively add tokens to output
-        for (policy_id, assets) in change_estimator.multi_asset.items():
+        for policy_id, assets in change_estimator.multi_asset.items():
             temp_multi_asset = MultiAsset()
             temp_value = Value(coin=0)
             temp_assets = Asset()
@@ -631,7 +656,7 @@ class TransactionBuilder:
             )
             updated_amount.coin = required_lovelace
 
-            if len(updated_amount.to_cbor("bytes")) > max_val_size:
+            if len(updated_amount.to_cbor()) > max_val_size:
                 output.amount = old_amount
                 break
 
@@ -651,7 +676,6 @@ class TransactionBuilder:
         return results
 
     def _certificate_vkey_hashes(self) -> Set[VerificationKeyHash]:
-
         results = set()
 
         def _check_and_add_vkey(stake_credential: StakeCredential):
@@ -675,7 +699,6 @@ class TransactionBuilder:
         return self.context.protocol_param.key_deposit * len(results)
 
     def _withdrawal_vkey_hashes(self) -> Set[VerificationKeyHash]:
-
         results = set()
 
         if self.withdrawals:
@@ -709,9 +732,7 @@ class TransactionBuilder:
         # https://hydra.iohk.io/build/13099856/download/1/alonzo-changes.pdf
 
         if self.mint:
-            sorted_mint_policies = sorted(
-                self.mint.keys(), key=lambda x: x.to_cbor("bytes")
-            )
+            sorted_mint_policies = sorted(self.mint.keys(), key=lambda x: x.to_cbor())
         else:
             sorted_mint_policies = []
 
@@ -731,7 +752,8 @@ class TransactionBuilder:
                 )
 
         for script, redeemer in self._minting_script_to_redeemers:
-            redeemer.index = sorted_mint_policies.index(script_hash(script))
+            if redeemer is not None:
+                redeemer.index = sorted_mint_policies.index(script_hash(script))
 
         self.redeemers.sort(key=lambda r: r.index)
 
@@ -755,7 +777,11 @@ class TransactionBuilder:
             withdraws=self.withdrawals,
             collateral_return=self._collateral_return,
             total_collateral=self._total_collateral,
-            reference_inputs=list(self.reference_inputs) or None,
+            reference_inputs=[
+                i.input if isinstance(i, UTxO) else i for i in self.reference_inputs
+            ]
+            if self.reference_inputs
+            else None,
         )
         return tx_body
 
@@ -784,7 +810,7 @@ class TransactionBuilder:
 
         witness = self._build_fake_witness_set()
         tx = Transaction(tx_body, witness, True, self.auxiliary_data)
-        size = len(tx.to_cbor("bytes"))
+        size = len(tx.to_cbor())
         if size > self.context.protocol_param.max_tx_size:
             raise InvalidTransactionException(
                 f"Transaction size ({size}) exceeds the max limit "
@@ -801,15 +827,17 @@ class TransactionBuilder:
             TransactionWitnessSet: A transaction witness set without verification key witnesses.
         """
 
-        native_scripts = []
-        plutus_v1_scripts = []
-        plutus_v2_scripts = []
+        native_scripts: List[NativeScript] = []
+        plutus_v1_scripts: List[PlutusV1Script] = []
+        plutus_v2_scripts: List[PlutusV2Script] = []
 
         for script in self.scripts:
             if isinstance(script, NativeScript):
                 native_scripts.append(script)
-            elif isinstance(script, PlutusV1Script) or type(script) is bytes:
+            elif isinstance(script, PlutusV1Script):
                 plutus_v1_scripts.append(script)
+            elif type(script) is bytes:
+                plutus_v1_scripts.append(PlutusV1Script(script))
             elif isinstance(script, PlutusV2Script):
                 plutus_v2_scripts.append(script)
             else:
@@ -840,7 +868,7 @@ class TransactionBuilder:
 
         estimated_fee = fee(
             self.context,
-            len(self._build_full_fake_tx().to_cbor("bytes")),
+            len(self._build_full_fake_tx().to_cbor()),
             plutus_execution_units.steps,
             plutus_execution_units.mem,
         )
@@ -852,6 +880,9 @@ class TransactionBuilder:
         change_address: Optional[Address] = None,
         merge_change: Optional[bool] = False,
         collateral_change_address: Optional[Address] = None,
+        auto_validity_start_offset: Optional[int] = None,
+        auto_ttl_offset: Optional[int] = None,
+        auto_required_signers: Optional[bool] = None,
     ) -> TransactionBody:
         """Build a transaction body from all constraints set through the builder.
 
@@ -861,14 +892,41 @@ class TransactionBuilder:
             merge_change (Optional[bool]): If the change address match one of the transaction output, the change amount
                 will be directly added to that transaction output, instead of being added as a separate output.
             collateral_change_address (Optional[Address]): Address to which collateral changes will be returned.
+            auto_validity_start_offset (Optional[int]): Automatically set the validity start interval of the transaction
+                to the current slot number + the given offset (default -1000).
+                A manually set validity start will always take precedence.
+            auto_ttl_offset (Optional[int]): Automatically set the validity end interval (ttl) of the transaction
+                to the current slot number + the given offset (default 10_000).
+                A manually set ttl will always take precedence.
+            auto_required_signers (Optional[bool]): Automatically add all pubkeyhashes of transaction inputs
+                to required signatories (default only for Smart Contract transactions).
+                Manually set required signers will always take precedence.
 
         Returns:
             TransactionBody: A transaction body.
         """
-        self._update_execution_units(
-            change_address, merge_change, collateral_change_address
-        )
         self._ensure_no_input_exclusion_conflict()
+
+        # only automatically set the validity interval and required signers if scripts are involved
+        is_smart = bool(self.scripts)
+
+        # Automatically set the validity range to a tight value around transaction creation
+        if (
+            is_smart or auto_validity_start_offset is not None
+        ) and self.validity_start is None:
+            last_slot = self.context.last_block_slot
+            # If None is provided, the default value is -1000
+            if auto_validity_start_offset is None:
+                auto_validity_start_offset = -1000
+            self.validity_start = max(0, last_slot + auto_validity_start_offset)
+
+        if (is_smart or auto_ttl_offset is not None) and self.ttl is None:
+            last_slot = self.context.last_block_slot
+            # If None is provided, the default value is 10_000
+            if auto_ttl_offset is None:
+                auto_ttl_offset = 10_000
+            self.ttl = max(0, last_slot + auto_ttl_offset)
+
         selected_utxos = []
         selected_amount = Value()
         for i in self.inputs:
@@ -931,27 +989,38 @@ class TransactionBuilder:
             lambda p, n, v: v > 0
         )
 
+        # Create a set of all seen utxos in addition to other utxo lists.
+        # We need this set to avoid adding the same utxo twice.
+        # The reason of not turning all utxo lists into sets is that we want to keep the order of utxos and make
+        # utxo selection deterministic.
+        seen_utxos = set(selected_utxos)
+
         # When there are positive coin or native asset quantity in unfulfilled Value
         if Value() < unfulfilled_amount:
             additional_utxo_pool = []
             additional_amount = Value()
+
+            for utxo in self.potential_inputs:
+                additional_amount += utxo.output.amount
+                seen_utxos.add(utxo)
+                additional_utxo_pool.append(utxo)
+
             for address in self.input_addresses:
-                for utxo in self.context.utxos(str(address)):
-                    if (
-                        utxo not in selected_utxos
-                        and utxo not in self.excluded_inputs
-                        and not utxo.output.datum_hash  # UTxO with datum should be added by using `add_script_input`
-                        and not utxo.output.datum
-                        and not utxo.output.script
-                    ):
+                for utxo in self.context.utxos(address):
+                    if utxo not in seen_utxos and utxo not in self.excluded_inputs:
                         additional_utxo_pool.append(utxo)
                         additional_amount += utxo.output.amount
+                        seen_utxos.add(utxo)
 
-            for i, selector in enumerate(self.utxo_selectors):
+            for index, selector in enumerate(self.utxo_selectors):
                 try:
                     selected, _ = selector.select(
                         additional_utxo_pool,
-                        [TransactionOutput(None, unfulfilled_amount)],
+                        [
+                            TransactionOutput(
+                                Address(FAKE_VKEY.hash()), unfulfilled_amount
+                            )
+                        ],
                         self.context,
                         include_max_fee=False,
                         respect_min_utxo=not can_merge_change,
@@ -963,7 +1032,7 @@ class TransactionBuilder:
                     break
 
                 except UTxOSelectionException as e:
-                    if i < len(self.utxo_selectors) - 1:
+                    if index < len(self.utxo_selectors) - 1:
                         logger.info(e)
                         logger.info(f"{selector} failed. Trying next selector.")
                     else:
@@ -996,9 +1065,21 @@ class TransactionBuilder:
 
         self.inputs[:] = selected_utxos[:]
 
+        # Automatically set the required signers for smart transactions
+        if (
+            is_smart and auto_required_signers is not False
+        ) and self.required_signers is None:
+            # Collect all signatories from explicitly defined
+            # transaction inputs and collateral inputs, and input addresses
+            self.required_signers = list(self._input_vkey_hashes())
+
         self._set_redeemer_index()
 
         self._set_collateral_return(collateral_change_address or change_address)
+
+        self._update_execution_units(
+            change_address, merge_change, collateral_change_address
+        )
 
         self._add_change_and_fee(change_address, merge_change=merge_change)
 
@@ -1006,7 +1087,7 @@ class TransactionBuilder:
 
         return tx_body
 
-    def _set_collateral_return(self, collateral_return_address: Address):
+    def _set_collateral_return(self, collateral_return_address: Optional[Address]):
         """Calculate and set the change returned from the collateral inputs.
 
         Args:
@@ -1048,14 +1129,14 @@ class TransactionBuilder:
 
             sorted_inputs = sorted(
                 self.inputs.copy(),
-                key=lambda i: (len(i.output.to_cbor()), -i.output.amount.coin),
+                key=lambda i: (len(i.output.to_cbor_hex()), -i.output.amount.coin),
             )
             _add_collateral_input(tmp_val, sorted_inputs)
 
             if tmp_val.coin < collateral_amount:
                 sorted_inputs = sorted(
-                    self.context.utxos(str(collateral_return_address)),
-                    key=lambda i: (len(i.output.to_cbor()), -i.output.amount.coin),
+                    self.context.utxos(collateral_return_address),
+                    key=lambda i: (len(i.output.to_cbor_hex()), -i.output.amount.coin),
                 )
                 _add_collateral_input(tmp_val, sorted_inputs)
 
@@ -1089,7 +1170,7 @@ class TransactionBuilder:
     def _update_execution_units(
         self,
         change_address: Optional[Address] = None,
-        merge_change: bool = False,
+        merge_change: Optional[bool] = False,
         collateral_change_address: Optional[Address] = None,
     ):
         if self._should_estimate_execution_units:
@@ -1097,8 +1178,14 @@ class TransactionBuilder:
                 change_address, merge_change, collateral_change_address
             )
             for r in self.redeemers:
+                assert (
+                    r.tag is not None
+                ), "Expected tag of redeemer to be set, but found None"
                 key = f"{r.tag.name.lower()}:{r.index}"
-                if key not in estimated_execution_units:
+                if (
+                    key not in estimated_execution_units
+                    or estimated_execution_units[key] is None
+                ):
                     raise TransactionBuilderException(
                         f"Cannot find execution unit for redeemer: {r} "
                         f"in estimated execution units: {estimated_execution_units}"
@@ -1114,9 +1201,9 @@ class TransactionBuilder:
     def _estimate_execution_units(
         self,
         change_address: Optional[Address] = None,
-        merge_change: bool = False,
+        merge_change: Optional[bool] = False,
         collateral_change_address: Optional[Address] = None,
-    ):
+    ) -> Dict[str, ExecutionUnits]:
         # Create a deep copy of current builder, so we won't mess up current builder's internal states
         tmp_builder = TransactionBuilder(self.context)
         for f in fields(self):
@@ -1132,7 +1219,7 @@ class TransactionBuilder:
             tx_body, witness_set, auxiliary_data=tmp_builder.auxiliary_data
         )
 
-        return self.context.evaluate_tx(tx.to_cbor())
+        return self.context.evaluate_tx(tx)
 
     def build_and_sign(
         self,
@@ -1140,6 +1227,9 @@ class TransactionBuilder:
         change_address: Optional[Address] = None,
         merge_change: Optional[bool] = False,
         collateral_change_address: Optional[Address] = None,
+        auto_validity_start_offset: Optional[int] = None,
+        auto_ttl_offset: Optional[int] = None,
+        auto_required_signers: Optional[bool] = None,
     ) -> Transaction:
         """Build a transaction body from all constraints set through the builder and sign the transaction with
         provided signing keys.
@@ -1152,20 +1242,37 @@ class TransactionBuilder:
             merge_change (Optional[bool]): If the change address match one of the transaction output, the change amount
                 will be directly added to that transaction output, instead of being added as a separate output.
             collateral_change_address (Optional[Address]): Address to which collateral changes will be returned.
+            auto_validity_start_offset (Optional[int]): Automatically set the validity start interval of the transaction
+                to the current slot number + the given offset (default -1000).
+                A manually set validity start will always take precedence.
+            auto_ttl_offset (Optional[int]): Automatically set the validity end interval (ttl) of the transaction
+                to the current slot number + the given offset (default 10_000).
+                A manually set ttl will always take precedence.
+            auto_required_signers (Optional[bool]): Automatically add all pubkeyhashes of transaction inputs
+                and the given signers to required signatories (default only for Smart Contract transactions).
+                Manually set required signers will always take precedence.
 
         Returns:
             Transaction: A signed transaction.
         """
+        # The given signers should be required signers if they weren't added yet
+        if auto_required_signers and self.scripts and not self.required_signers:
+            self.required_signers = [
+                s.to_verification_key().hash() for s in signing_keys
+            ]
 
         tx_body = self.build(
             change_address=change_address,
             merge_change=merge_change,
             collateral_change_address=collateral_change_address,
+            auto_validity_start_offset=auto_validity_start_offset,
+            auto_ttl_offset=auto_ttl_offset,
+            auto_required_signers=auto_required_signers,
         )
         witness_set = self.build_witness_set()
         witness_set.vkey_witnesses = []
 
-        for signing_key in signing_keys:
+        for signing_key in set(signing_keys):
             signature = signing_key.sign(tx_body.hash())
             witness_set.vkey_witnesses.append(
                 VerificationKeyWitness(signing_key.to_verification_key(), signature)

@@ -9,7 +9,7 @@ from pycardano.metadata import (
     AlonzoMetadata,
     AuxiliaryData,
     Metadata,
-    ShellayMarryMetadata,
+    ShelleyMarryMetadata,
 )
 from pycardano.nativescript import (
     InvalidBefore,
@@ -46,7 +46,7 @@ def test_shelley_marry_metadata():
     script = generate_script()
     m = Metadata(M_PRIMITIVE)
 
-    shelley_marry_m = ShellayMarryMetadata(m, [script])
+    shelley_marry_m = ShelleyMarryMetadata(m, [script])
 
     check_two_way_cbor(shelley_marry_m)
 
@@ -76,7 +76,7 @@ def test_auxiliary_data():
     plutus_scripts = [b"fake_script"]
 
     m = Metadata(M_PRIMITIVE)
-    shelley_marry_m = ShellayMarryMetadata(m, [script])
+    shelley_marry_m = ShelleyMarryMetadata(m, [script])
     alonzo_m = AlonzoMetadata(m, [script], plutus_scripts)
 
     check_two_way_cbor(AuxiliaryData(m))

@@ -1,3 +1,4 @@
+import copy
 from dataclasses import replace
 from test.pycardano.test_key import SK
 from test.pycardano.util import chain_context
@@ -122,6 +123,33 @@ def test_tx_builder_with_certain_input(chain_context):
     assert expected == tx_body.to_primitive()
 
 
+def test_tx_builder_with_potential_inputs(chain_context):
+    tx_builder = TransactionBuilder(chain_context, [RandomImproveMultiAsset([0, 0])])
+    sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    sender_address = Address.from_primitive(sender)
+
+    utxos = chain_context.utxos(sender)
+
+    tx_builder.potential_inputs.extend(utxos)
+
+    for i in range(20):
+        utxo = copy.deepcopy(utxos[0])
+        utxo.input.index = i + 100
+        tx_builder.potential_inputs.append(utxo)
+
+    assert len(tx_builder.potential_inputs) > 1
+
+    tx_builder.add_output(
+        TransactionOutput.from_primitive(
+            [sender, [5000000, {b"1111111111111111111111111111": {b"Token1": 1}}]]
+        )
+    )
+
+    tx_body = tx_builder.build(change_address=sender_address)
+
+    assert len(tx_body.inputs) < len(tx_builder.potential_inputs)
+
+
 def test_tx_builder_multi_asset(chain_context):
     tx_builder = TransactionBuilder(chain_context)
     sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
@@ -178,7 +206,9 @@ def test_tx_builder_raises_utxo_selection(chain_context):
     )
 
     with pytest.raises(UTxOSelectionException) as e:
-        tx_body = tx_builder.build(change_address=sender_address)
+        tx_body = tx_builder.build(
+            change_address=sender_address,
+        )
 
     # The unfulfilled amount includes requested (991000000) and estimated fees (161277)
     assert "Unfulfilled amount:\n {\n  'coin': 991161277" in e.value.args[0]
@@ -301,7 +331,7 @@ def test_tx_builder_mint_multi_asset(chain_context):
 
     tx_builder = TransactionBuilder(chain_context)
     sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
-    sender_address = Address.from_primitive(sender)
+    sender_address: Address = Address.from_primitive(sender)
 
     # Add sender address as input
     mint = {policy_id.payload: {b"Token1": 1}}
@@ -328,14 +358,16 @@ def test_tx_builder_mint_multi_asset(chain_context):
             [
                 sender_address.to_primitive(),
                 [
-                    5811267,
+                    5809683,
                     {b"1111111111111111111111111111": {b"Token1": 1, b"Token2": 2}},
                 ],
             ],
         ],
-        2: 188733,
+        2: 190317,
         3: 123456789,
+        8: 1000,
         9: mint,
+        14: [sender_address.payment_part.to_primitive()],
     }
 
     assert expected == tx_body.to_primitive()
@@ -455,15 +487,11 @@ def test_add_script_input(chain_context):
             script_address, Value(10000000, mint), datum_hash=datum.hash()
         ),
     )
-    redeemer1 = Redeemer(
-        RedeemerTag.SPEND, PlutusData(), ExecutionUnits(1000000, 1000000)
-    )
-    redeemer2 = Redeemer(
-        RedeemerTag.MINT, PlutusData(), ExecutionUnits(1000000, 1000000)
-    )
+    redeemer1 = Redeemer(PlutusData(), ExecutionUnits(1000000, 1000000))
+    redeemer2 = Redeemer(PlutusData(), ExecutionUnits(5000000, 1000000))
     tx_builder.mint = mint
     tx_builder.add_script_input(utxo1, plutus_script, datum, redeemer1)
-    tx_builder.add_script_input(utxo2, plutus_script, datum, redeemer2)
+    tx_builder.add_minting_script(plutus_script, redeemer2)
     receiver = Address.from_primitive(
         "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
     )
@@ -490,9 +518,7 @@ def test_add_script_input_no_script(chain_context):
             script_address, 10000000, datum_hash=datum.hash(), script=plutus_script
         ),
     )
-    redeemer = Redeemer(
-        RedeemerTag.SPEND, PlutusData(), ExecutionUnits(1000000, 1000000)
-    )
+    redeemer = Redeemer(PlutusData(), ExecutionUnits(1000000, 1000000))
     tx_builder.add_script_input(utxo1, datum=datum, redeemer=redeemer)
     receiver = Address.from_primitive(
         "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
@@ -534,9 +560,7 @@ def test_add_script_input_find_script(chain_context):
 
         mock_utxos.return_value = original_utxos + [existing_script_utxo]
 
-        redeemer = Redeemer(
-            RedeemerTag.SPEND, PlutusData(), ExecutionUnits(1000000, 1000000)
-        )
+        redeemer = Redeemer(PlutusData(), ExecutionUnits(1000000, 1000000))
         tx_builder.add_script_input(utxo1, datum=datum, redeemer=redeemer)
         receiver = Address.from_primitive(
             "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
@@ -573,9 +597,7 @@ def test_add_script_input_with_script_from_specified_utxo(chain_context):
         TransactionOutput(script_address, 1234567, script=plutus_script),
     )
 
-    redeemer = Redeemer(
-        RedeemerTag.SPEND, PlutusData(), ExecutionUnits(1000000, 1000000)
-    )
+    redeemer = Redeemer(PlutusData(), ExecutionUnits(1000000, 1000000))
     tx_builder.add_script_input(
         utxo1, script=existing_script_utxo, datum=datum, redeemer=redeemer
     )
@@ -589,6 +611,89 @@ def test_add_script_input_with_script_from_specified_utxo(chain_context):
     assert [redeemer] == witness.redeemer
     assert witness.plutus_v2_script is None
     assert [existing_script_utxo.input] == tx_body.reference_inputs
+
+
+def test_add_script_input_multiple_redeemers(chain_context):
+    tx_builder = TransactionBuilder(chain_context)
+    tx_in1 = TransactionInput.from_primitive(
+        ["18cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad21431590f7e6643438ef", 0]
+    )
+    tx_in2 = TransactionInput.from_primitive(
+        ["18cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad21431590f7e6643438ef", 1]
+    )
+    plutus_script = PlutusV2Script(b"dummy test script")
+    script_hash = plutus_script_hash(plutus_script)
+    script_address = Address(script_hash)
+    datum = PlutusData()
+    utxo1 = UTxO(
+        tx_in1, TransactionOutput(script_address, 10000000, datum_hash=datum.hash())
+    )
+
+    existing_script_utxo = UTxO(
+        TransactionInput.from_primitive(
+            [
+                "41cb004bec7051621b19b46aea28f0657a586a05ce2013152ea9b9f1a5614cc7",
+                1,
+            ]
+        ),
+        TransactionOutput(script_address, 1234567, script=plutus_script),
+    )
+
+    utxo2 = UTxO(
+        tx_in2, TransactionOutput(script_address, 10000000, datum_hash=datum.hash())
+    )
+
+    existing_script_utxo = UTxO(
+        TransactionInput.from_primitive(
+            [
+                "41cb004bec7051621b19b46aea28f0657a586a05ce2013152ea9b9f1a5614cc7",
+                1,
+            ]
+        ),
+        TransactionOutput(script_address, 1234567, script=plutus_script),
+    )
+
+    tx_builder.add_script_input(
+        utxo1, script=existing_script_utxo, datum=datum, redeemer=Redeemer(PlutusData())
+    )
+
+    tx_builder.add_script_input(
+        utxo2, script=existing_script_utxo, datum=datum, redeemer=Redeemer(PlutusData())
+    )
+
+    pytest.raises(
+        InvalidArgumentException,
+        tx_builder.add_script_input,
+        utxo2,
+        script=existing_script_utxo,
+        datum=datum,
+        redeemer=Redeemer(PlutusData(), ExecutionUnits(1000000, 1000000)),
+    )
+
+    tx_builder = TransactionBuilder(chain_context)
+
+    tx_builder.add_script_input(
+        utxo1,
+        script=existing_script_utxo,
+        datum=datum,
+        redeemer=Redeemer(PlutusData(), ExecutionUnits(1000000, 1000000)),
+    )
+
+    tx_builder.add_script_input(
+        utxo2,
+        script=existing_script_utxo,
+        datum=datum,
+        redeemer=Redeemer(PlutusData(), ExecutionUnits(1000000, 1000000)),
+    )
+
+    pytest.raises(
+        InvalidArgumentException,
+        tx_builder.add_script_input,
+        utxo2,
+        script=existing_script_utxo,
+        datum=datum,
+        redeemer=Redeemer(PlutusData()),
+    )
 
 
 def test_add_minting_script_from_specified_utxo(chain_context):
@@ -609,9 +714,7 @@ def test_add_minting_script_from_specified_utxo(chain_context):
 
     mint = MultiAsset.from_primitive({script_hash.payload: {b"TestToken": 1}})
 
-    redeemer = Redeemer(
-        RedeemerTag.MINT, PlutusData(), ExecutionUnits(1000000, 1000000)
-    )
+    redeemer = Redeemer(PlutusData(), ExecutionUnits(1000000, 1000000))
     tx_builder.add_minting_script(existing_script_utxo, redeemer=redeemer)
     receiver = Address.from_primitive(
         "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
@@ -662,9 +765,7 @@ def test_collateral_return(chain_context):
 
         mock_utxos.return_value = original_utxos + [existing_script_utxo]
 
-        redeemer = Redeemer(
-            RedeemerTag.SPEND, PlutusData(), ExecutionUnits(1000000, 1000000)
-        )
+        redeemer = Redeemer(PlutusData(), ExecutionUnits(1000000, 1000000))
         tx_builder.add_script_input(utxo1, datum=datum, redeemer=redeemer)
         receiver = Address.from_primitive(
             "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
@@ -700,16 +801,14 @@ def test_wrong_redeemer_execution_units(chain_context):
             script_address, Value(10000000, mint), datum_hash=datum.hash()
         ),
     )
-    redeemer1 = Redeemer(RedeemerTag.SPEND, PlutusData())
-    redeemer2 = Redeemer(RedeemerTag.MINT, PlutusData())
-    redeemer3 = Redeemer(
-        RedeemerTag.MINT, PlutusData(), ExecutionUnits(1000000, 1000000)
-    )
+    redeemer1 = Redeemer(PlutusData())
+    redeemer2 = Redeemer(PlutusData())
+    redeemer3 = Redeemer(PlutusData(), ExecutionUnits(1000000, 1000000))
     tx_builder.mint = mint
     tx_builder.add_script_input(utxo1, plutus_script, datum, redeemer1)
-    tx_builder.add_script_input(utxo1, plutus_script, datum, redeemer2)
+    tx_builder.add_minting_script(plutus_script, redeemer2)
     with pytest.raises(InvalidArgumentException):
-        tx_builder.add_script_input(utxo2, plutus_script, datum, redeemer3)
+        tx_builder.add_minting_script(plutus_script, redeemer3)
 
 
 def test_all_redeemer_should_provide_execution_units(chain_context):
@@ -728,10 +827,8 @@ def test_all_redeemer_should_provide_execution_units(chain_context):
         tx_in1, TransactionOutput(script_address, 10000000, datum_hash=datum.hash())
     )
     mint = MultiAsset.from_primitive({script_hash.payload: {b"TestToken": 1}})
-    redeemer1 = Redeemer(
-        RedeemerTag.SPEND, PlutusData(), ExecutionUnits(1000000, 1000000)
-    )
-    redeemer2 = Redeemer(RedeemerTag.MINT, PlutusData())
+    redeemer1 = Redeemer(PlutusData(), ExecutionUnits(1000000, 1000000))
+    redeemer2 = Redeemer(PlutusData())
     tx_builder.mint = mint
     tx_builder.add_script_input(utxo1, plutus_script, datum, redeemer1)
     with pytest.raises(InvalidArgumentException):
@@ -748,9 +845,7 @@ def test_add_minting_script(chain_context):
     script_address = Address(script_hash)
     utxo1 = UTxO(tx_in1, TransactionOutput(script_address, 10000000))
     mint = MultiAsset.from_primitive({script_hash.payload: {b"TestToken": 1}})
-    redeemer1 = Redeemer(
-        RedeemerTag.MINT, PlutusData(), ExecutionUnits(1000000, 1000000)
-    )
+    redeemer1 = Redeemer(PlutusData(), ExecutionUnits(1000000, 1000000))
     tx_builder.mint = mint
     tx_builder.add_input(utxo1)
     tx_builder.add_minting_script(plutus_script, redeemer1)
@@ -763,12 +858,33 @@ def test_add_minting_script(chain_context):
     assert [plutus_script] == witness.plutus_v1_script
 
 
+def test_add_minting_script_only(chain_context):
+    tx_builder = TransactionBuilder(chain_context)
+    tx_in1 = TransactionInput.from_primitive(
+        ["18cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad21431590f7e6643438ef", 0]
+    )
+    plutus_script = PlutusV1Script(b"dummy test script")
+    script_hash = plutus_script_hash(plutus_script)
+    script_address = Address(script_hash)
+    utxo1 = UTxO(tx_in1, TransactionOutput(script_address, 10000000))
+    mint = MultiAsset.from_primitive({script_hash.payload: {b"TestToken": 1}})
+    tx_builder.mint = mint
+    tx_builder.add_input(utxo1)
+    tx_builder.add_minting_script(plutus_script)
+    receiver = Address.from_primitive(
+        "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    )
+    tx_builder.add_output(TransactionOutput(receiver, Value(5000000, mint)))
+    tx_body = tx_builder.build(change_address=receiver)
+    witness = tx_builder.build_witness_set()
+    assert [plutus_script] == witness.plutus_v1_script
+
+
 def test_add_minting_script_wrong_redeemer_type(chain_context):
     tx_builder = TransactionBuilder(chain_context)
     plutus_script = PlutusV1Script(b"dummy test script")
-    redeemer1 = Redeemer(
-        RedeemerTag.SPEND, PlutusData(), ExecutionUnits(1000000, 1000000)
-    )
+    redeemer1 = Redeemer(PlutusData(), ExecutionUnits(1000000, 1000000))
+    redeemer1.tag = RedeemerTag.SPEND
 
     with pytest.raises(InvalidArgumentException):
         tx_builder.add_minting_script(plutus_script, redeemer1)
@@ -827,7 +943,10 @@ def test_build_and_sign(chain_context):
     tx_builder2.add_input_address(sender).add_output(
         TransactionOutput.from_primitive([sender, 500000])
     )
-    tx = tx_builder2.build_and_sign([SK], change_address=sender_address)
+    tx = tx_builder2.build_and_sign(
+        [SK],
+        change_address=sender_address,
+    )
 
     assert tx.transaction_witness_set.vkey_witnesses == [
         VerificationKeyWitness(SK.to_verification_key(), SK.sign(tx_body.hash()))
@@ -836,7 +955,7 @@ def test_build_and_sign(chain_context):
         "a300818258203131313131313131313131313131313131313131313131313131313131313131"
         "00018282581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f41a0007"
         "a12082581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f41a004223"
-        "fb021a00028625" == tx_body.to_cbor()
+        "fb021a00028625" == tx_body.to_cbor_hex()
     )
 
 
@@ -853,7 +972,7 @@ def test_estimate_execution_unit(chain_context):
         tx_in1, TransactionOutput(script_address, 10000000, datum_hash=datum.hash())
     )
     mint = MultiAsset.from_primitive({script_hash.payload: {b"TestToken": 1}})
-    redeemer1 = Redeemer(RedeemerTag.SPEND, PlutusData())
+    redeemer1 = Redeemer(PlutusData())
     tx_builder.mint = mint
     tx_builder.add_script_input(utxo1, plutus_script, datum, redeemer1)
     receiver = Address.from_primitive(
@@ -908,7 +1027,7 @@ def test_tx_builder_exact_fee_no_change(chain_context):
     }
 
     assert expected == tx.transaction_body.to_primitive()
-    assert tx.transaction_body.fee >= fee(chain_context, len(tx.to_cbor("bytes")))
+    assert tx.transaction_body.fee >= fee(chain_context, len(tx.to_cbor()))
 
 
 def test_tx_builder_certificates(chain_context):
@@ -1002,7 +1121,10 @@ def test_tx_builder_no_output(chain_context):
 
     tx_builder.add_input(utxo1)
 
-    tx_body = tx_builder.build(change_address=sender_address, merge_change=True)
+    tx_body = tx_builder.build(
+        change_address=sender_address,
+        merge_change=True,
+    )
 
     expected = {
         0: [[b"11111111111111111111111111111111", 3]],
@@ -1029,7 +1151,10 @@ def test_tx_builder_merge_change_to_output(chain_context):
     tx_builder.add_input(utxo1)
     tx_builder.add_output(TransactionOutput.from_primitive([sender, 10000]))
 
-    tx_body = tx_builder.build(change_address=sender_address, merge_change=True)
+    tx_body = tx_builder.build(
+        change_address=sender_address,
+        merge_change=True,
+    )
 
     expected = {
         0: [[b"11111111111111111111111111111111", 3]],
@@ -1060,7 +1185,10 @@ def test_tx_builder_merge_change_to_output_2(chain_context):
     tx_builder.add_output(TransactionOutput.from_primitive([receiver, 10000]))
     tx_builder.add_output(TransactionOutput.from_primitive([sender, 0]))
 
-    tx_body = tx_builder.build(change_address=sender_address, merge_change=True)
+    tx_body = tx_builder.build(
+        change_address=sender_address,
+        merge_change=True,
+    )
 
     expected = {
         0: [[b"11111111111111111111111111111111", 3]],
@@ -1089,7 +1217,10 @@ def test_tx_builder_merge_change_to_zero_amount_output(chain_context):
     tx_builder.add_input(utxo1)
     tx_builder.add_output(TransactionOutput.from_primitive([sender, 0]))
 
-    tx_body = tx_builder.build(change_address=sender_address, merge_change=True)
+    tx_body = tx_builder.build(
+        change_address=sender_address,
+        merge_change=True,
+    )
 
     expected = {
         0: [[b"11111111111111111111111111111111", 3]],
@@ -1116,7 +1247,10 @@ def test_tx_builder_merge_change_smaller_than_min_utxo(chain_context):
     tx_builder.add_input(utxo1)
     tx_builder.add_output(TransactionOutput.from_primitive([sender, 9800000]))
 
-    tx_body = tx_builder.build(change_address=sender_address, merge_change=True)
+    tx_body = tx_builder.build(
+        change_address=sender_address,
+        merge_change=True,
+    )
 
     expected = {
         0: [[b"11111111111111111111111111111111", 3]],

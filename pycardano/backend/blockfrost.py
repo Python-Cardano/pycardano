@@ -1,10 +1,11 @@
 import os
 import tempfile
 import time
+import warnings
 from typing import Dict, List, Optional, Union
 
 import cbor2
-from blockfrost import ApiUrls, BlockFrostApi
+from blockfrost import ApiError, ApiUrls, BlockFrostApi
 from blockfrost.utils import Namespace
 
 from pycardano.address import Address
@@ -18,7 +19,7 @@ from pycardano.exception import TransactionFailedException
 from pycardano.hash import SCRIPT_HASH_SIZE, DatumHash, ScriptHash
 from pycardano.nativescript import NativeScript
 from pycardano.network import Network
-from pycardano.plutus import ExecutionUnits, PlutusV1Script, PlutusV2Script
+from pycardano.plutus import ExecutionUnits, PlutusV1Script, PlutusV2Script, script_hash
 from pycardano.serialization import RawCBOR
 from pycardano.transaction import (
     Asset,
@@ -34,12 +35,26 @@ from pycardano.types import JsonDict
 __all__ = ["BlockFrostChainContext"]
 
 
+def _try_fix_script(
+    scripth: str, script: Union[PlutusV1Script, PlutusV2Script]
+) -> Union[PlutusV1Script, PlutusV2Script]:
+    if str(script_hash(script)) == scripth:
+        return script
+    else:
+        new_script = script.__class__(cbor2.loads(script))
+        if str(script_hash(new_script)) == scripth:
+            return new_script
+        else:
+            raise ValueError("Cannot recover script from hash.")
+
+
 class BlockFrostChainContext(ChainContext):
     """A `BlockFrost <https://blockfrost.io/>`_ API wrapper for the client code to interact with.
 
     Args:
         project_id (str): A BlockFrost project ID obtained from https://blockfrost.io.
         network (Network): Network to use.
+        base_url (str): Base URL for the BlockFrost API. Defaults to the preprod url.
     """
 
     api: BlockFrostApi
@@ -49,14 +64,24 @@ class BlockFrostChainContext(ChainContext):
     _protocol_param: Optional[ProtocolParameters] = None
 
     def __init__(
-        self, project_id: str, network: Network = Network.TESTNET, base_url: str = ""
+        self,
+        project_id: str,
+        network: Optional[Network] = None,
+        base_url: str = ApiUrls.preprod.value,
     ):
-        self._network = network
+        if network is not None:
+            warnings.warn(
+                "`network` argument will be deprecated in the future. Directly passing `base_url` is recommended."
+            )
+            self._network = network
+        else:
+            self._network = Network.TESTNET
+
         self._project_id = project_id
         self._base_url = (
             base_url
             if base_url
-            else ApiUrls.testnet.value
+            else ApiUrls.preprod.value
             if self.network == Network.TESTNET
             else ApiUrls.mainnet.value
         )
@@ -140,21 +165,29 @@ class BlockFrostChainContext(ChainContext):
     ) -> Union[PlutusV1Script, PlutusV2Script, NativeScript]:
         script_type = self.api.script(script_hash).type
         if script_type == "plutusV1":
-            return PlutusV1Script(
-                cbor2.loads(bytes.fromhex(self.api.script_cbor(script_hash).cbor))
+            v1script = PlutusV1Script(
+                bytes.fromhex(self.api.script_cbor(script_hash).cbor)
             )
+            return _try_fix_script(script_hash, v1script)
         elif script_type == "plutusV2":
-            return PlutusV2Script(
-                cbor2.loads(bytes.fromhex(self.api.script_cbor(script_hash).cbor))
+            v2script = PlutusV2Script(
+                bytes.fromhex(self.api.script_cbor(script_hash).cbor)
             )
+            return _try_fix_script(script_hash, v2script)
         else:
             script_json: JsonDict = self.api.script_json(
                 script_hash, return_type="json"
             )["json"]
             return NativeScript.from_dict(script_json)
 
-    def utxos(self, address: str) -> List[UTxO]:
-        results = self.api.address_utxos(address, gather_pages=True)
+    def _utxos(self, address: str) -> List[UTxO]:
+        try:
+            results = self.api.address_utxos(address, gather_pages=True)
+        except ApiError as e:
+            if e.status_code == 404:
+                return []
+            else:
+                raise e
 
         utxos = []
 
@@ -210,15 +243,33 @@ class BlockFrostChainContext(ChainContext):
 
         return utxos
 
-    def submit_tx(self, cbor: Union[bytes, str]):
+    def submit_tx_cbor(self, cbor: Union[bytes, str]) -> str:
+        """Submit a transaction.
+
+        Args:
+            cbor (Union[bytes, str]): The serialized transaction to be submitted.
+
+        Returns:
+            str: The transaction hash.
+
+        Raises:
+            :class:`TransactionFailedException`: When fails to submit the transaction.
+        """
         if isinstance(cbor, str):
             cbor = bytes.fromhex(cbor)
         with tempfile.NamedTemporaryFile(delete=False) as f:
             f.write(cbor)
-        self.api.transaction_submit(f.name)
+        try:
+            response = self.api.transaction_submit(f.name)
+        except ApiError as e:
+            os.remove(f.name)
+            raise TransactionFailedException(
+                f"Failed to submit transaction. Error code: {e.status_code}. Error message: {e.message}"
+            ) from e
         os.remove(f.name)
+        return response
 
-    def evaluate_tx(self, cbor: Union[bytes, str]) -> Dict[str, ExecutionUnits]:
+    def evaluate_tx_cbor(self, cbor: Union[bytes, str]) -> Dict[str, ExecutionUnits]:
         """Evaluate execution units of a transaction.
 
         Args:

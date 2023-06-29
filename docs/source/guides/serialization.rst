@@ -34,7 +34,7 @@ Examples::
     ...     outputs=[output1, output2],
     ...     fee=fee
     ... )
-    >>> cbor_hex = tx_body.to_cbor()
+    >>> cbor_hex = tx_body.to_cbor_hex()
     a50081825820732bfd67e66be8e8288349fcaaa2294973ef6271cc189a239bb431275401b8e500018282581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f41b000000174876e80082581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f41b000000ba43b4b7f7021a000288090d800e80
 
     >>> restored_tx_body = TransactionBody.from_cbor(cbor_hex)

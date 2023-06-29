@@ -13,6 +13,8 @@ from pycardano.address import Address
 from pycardano.key import (
     PaymentVerificationKey,
     SigningKey,
+    StakeExtendedSigningKey,
+    StakeSigningKey,
     StakeVerificationKey,
     VerificationKey,
 )
@@ -27,7 +29,9 @@ def sign(
     attach_cose_key: bool = False,
     network: Network = Network.MAINNET,
 ) -> Union[str, dict]:
-    """Sign an arbitrary message with a payment key following CIP-0008.
+    """Sign an arbitrary message with a payment or stake key following CIP-0008.
+    Note that a stake key passed in must be of type StakeSigningKey or
+    StakeExtendedSigningKey to be detected.
 
     Args:
         message (str): Message to be signed
@@ -43,11 +47,22 @@ def sign(
     # derive the verification key
     verification_key = VerificationKey.from_signing_key(signing_key)
 
+    if isinstance(signing_key, StakeSigningKey) or isinstance(
+        signing_key, StakeExtendedSigningKey
+    ):
+        address = Address(
+            payment_part=None, staking_part=verification_key.hash(), network=network
+        )
+    else:
+        address = Address(
+            payment_part=verification_key.hash(), staking_part=None, network=network
+        )
+
     # create the message object, attach verification key to the header
     msg = Sign1Message(
         phdr={
             Algorithm: EdDSA,
-            "address": Address(verification_key.hash(), network=network).to_primitive(),
+            "address": address.to_primitive(),
         },
         payload=message.encode("utf-8"),
     )
@@ -119,18 +134,23 @@ def verify(
     if attach_cose_key:
         # The cose key is attached as a dict object which contains the verification key
         # the headers of the signature are emtpy
+        assert isinstance(
+            signed_message, dict
+        ), "signed_message must be a dict if attach_cose_key is True"
         key = signed_message.get("key")
-        signed_message = signed_message.get("signature")
+        signed_message = signed_message.get("signature")  # type: ignore
 
     else:
         key = ""  # key will be extracted later from the payload headers
 
     # Add back the "D2" header byte and decode
+    assert isinstance(
+        signed_message, str
+    ), "signed_message must be a hex string at this point"
     decoded_message = CoseMessage.decode(bytes.fromhex("d2" + signed_message))
 
     # generate/extract the cose key
     if not attach_cose_key:
-
         # get the verification key from the headers
         verification_key = decoded_message.phdr[KID]
 
@@ -146,6 +166,9 @@ def verify(
 
     else:
         # i,e key is sent separately
+        assert isinstance(
+            key, str
+        ), "key must be a hex string if attach_cose_key is True"
         cose_key = CoseKey.decode(bytes.fromhex(key))
         verification_key = cose_key[OKPKpX]
 
