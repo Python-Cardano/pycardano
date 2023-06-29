@@ -145,7 +145,7 @@ blockfrost_patch = patch.object(
     lambda _: 300,
 )
 
+
 # mock API error
 def mock_blockfrost_api_error():
-
     return ApiError(response=Mock(status_code=404, text="Mock Error"))

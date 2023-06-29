@@ -74,7 +74,6 @@ def create_royalty_metadata(royalty_address: str, royalty_percent: str):
 
 
 def launch():
-
     logger = logging.getLogger(__name__)
 
     logger.info("Welcome to the royalty NFT generation script!")
@@ -104,7 +103,6 @@ def launch():
     time.sleep(2)
 
     while not DONE:
-
         loop_start_time = dt.datetime.now(dt.timezone.utc)
         logger.info(f"Starting loop {loop_start_time}")
 
@@ -112,7 +110,6 @@ def launch():
         tmp_wallet.get_utxo_creators()
 
         for utxo in tmp_wallet.utxos:
-
             # check whether or not to mint
             can_mint = False
             if wallet.Lovelace(utxo.output.amount.coin) == CODED_AMOUNT:
@@ -126,7 +123,6 @@ def launch():
                 )
 
             if can_mint:
-
                 ORIGINAL_SENDER = utxo.creator
                 logger.info(
                     f"Original sender of {CODED_AMOUNT.ada} ADA is {ORIGINAL_SENDER}"
@@ -169,7 +165,6 @@ def launch():
                     can_burn = True
 
             if can_burn:
-
                 # get original sender
                 utxo_info = tmp_wallet.context.api.transaction_utxos(
                     str(utxo.input.transaction_id)
@@ -212,5 +207,4 @@ def launch():
 
 
 if __name__ == "__main__":
-
     launch()

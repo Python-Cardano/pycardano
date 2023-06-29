@@ -72,7 +72,6 @@ class Amount:
     _amount_type: str = "lovelace"
 
     def __post_init__(self):
-
         if self._amount_type == "lovelace":
             self._lovelace = int(self._amount)
             self._ada = self._amount / 1000000
@@ -249,7 +248,6 @@ class Lovelace(Amount):
     """Stores an amount of Lovelace and automatically handles most currency math."""
 
     def __init__(self, amount: int = 0):
-
         if not isinstance(amount, int):
             raise TypeError("Lovelace must be an integer.")
 
@@ -303,7 +301,6 @@ class TokenPolicy:
     policy_dir: Union[str, Path] = field(repr=False, default=Path("./priv/policies"))
 
     def __post_init__(self):
-
         # streamline inputs
         if isinstance(self.policy_dir, str):
             self.policy_dir = Path(self.policy_dir)
@@ -454,7 +451,6 @@ class TokenPolicy:
 
     @staticmethod
     def _get_pub_key_hash(signer: Union["Wallet", Address]):
-
         if isinstance(signer, Wallet):  # TODO: This isinstance is not working
             if signer.verification_key:
                 return signer.verification_key.hash()
@@ -486,7 +482,6 @@ class Token:
     metadata: Optional[dict] = field(default_factory=dict, compare=False)
 
     def __post_init__(self):
-
         if not isinstance(self.amount, int):
             raise TypeError("Expected token amount to be of type: integer.")
 
@@ -512,7 +507,6 @@ class Token:
 
         if isinstance(to_check, dict):
             for key, value in to_check.items():
-
                 if len(str(key)) > 64:
                     raise MetadataFormattingException(
                         f"Metadata key is too long (> 64 characters): {key}\nConsider splitting into an array of "
@@ -529,7 +523,6 @@ class Token:
                     )
 
         elif isinstance(to_check, list):
-
             for item in to_check:
                 self._check_metadata(to_check=item)
 
@@ -597,7 +590,6 @@ class Output:
     tokens: Optional[Union[Token, List[Token]]] = None
 
     def __post_init__(self):
-
         if isinstance(self.amount, int):
             self.amount = Lovelace(self.amount)
 
@@ -680,7 +672,6 @@ class Wallet:
     context: Optional[BlockFrostChainContext] = field(repr=False, default=None)
 
     def __post_init__(self):
-
         # convert address into pycardano format
         if isinstance(self.address, str):
             self.address = Address.from_primitive(self.address)
@@ -735,12 +726,10 @@ class Wallet:
 
     @property
     def payment_address(self):
-
         return Address(payment_part=self.address.payment_part, network=self._network)
 
     @property
     def stake_address(self):
-
         if self.stake_signing_key or self.address.staking_part:
             return Address(
                 staking_part=self.address.staking_part, network=self._network
@@ -869,13 +858,10 @@ class Wallet:
         tokens = {}
 
         for utxo in self.utxos:
-
             for script_hash, assets in utxo.output.amount.multi_asset.items():
-
                 policy_id = str(script_hash)
 
                 for asset, amount in assets.items():
-
                     asset_name = asset.to_primitive().decode("utf-8")
 
                     if not tokens.get(policy_id):
@@ -936,7 +922,6 @@ class Wallet:
 
         # calculate total ada
         if self.utxos:
-
             self.lovelace = Lovelace(
                 sum([utxo.output.amount.coin for utxo in self.utxos])
             )
@@ -956,7 +941,6 @@ class Wallet:
             self.ada = Ada(0)
 
     def to_address(self):
-
         return Address(
             payment_part=self.address.payment_part,
             staking_part=self.address.staking_part,
@@ -1112,7 +1096,6 @@ class Wallet:
         to: Union[str, Address],
         **kwargs,
     ) -> Union[str, TransactionBody]:
-
         """Send all of the contents (ADA and tokens) of the wallet to a single recipient.
         The current wallet will be left completely empty
 
@@ -1494,7 +1477,6 @@ class Wallet:
         all_assets = MultiAsset()
 
         for policy_hash, tokens in mints_dict.items():
-
             mint_assets = Asset()
             assets = Asset()
             for token in tokens.values():
@@ -1705,7 +1687,6 @@ class Wallet:
                             output_policies[token.policy_id][token.name] = token.amount
 
                     for policy, token_info in output_policies.items():
-
                         asset = Asset()
 
                         for token_name, token_amount in token_info.items():
@@ -1923,7 +1904,6 @@ def check_metadata(to_check: Union[dict, list, str], top_level: bool = False):
 
     if isinstance(to_check, dict):
         for key, value in to_check.items():
-
             if len(str(key)) > 64:
                 raise MetadataFormattingException(
                     f"Metadata key is too long (> 64 characters): {key}\nConsider splitting into an array of shorter "
@@ -1940,7 +1920,6 @@ def check_metadata(to_check: Union[dict, list, str], top_level: bool = False):
                 )
 
     elif isinstance(to_check, list):
-
         for item in to_check:
             if len(str(item)) > 64:
                 raise MetadataFormattingException(

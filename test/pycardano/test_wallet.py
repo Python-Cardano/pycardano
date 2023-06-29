@@ -26,7 +26,6 @@ from pycardano.wallet import (
 
 
 def test_load_wallet():
-
     w = Wallet(
         name="payment",
         keys_dir=str(pathlib.Path(__file__).parent / "../resources/keys"),
@@ -208,7 +207,6 @@ def test_amount_math():
 
 
 def test_wallet_sign_data():
-
     assert (
         str(WALLET.address)
         == "addr1q8xrqjtlfluk9axpmjj5enh0uw0cduwhz7txsqyl36m3uk2g9z3d4kaf0j5l6rxunxt43x28pssehhqds2x05mwld45s399sr7"
@@ -224,7 +222,6 @@ def test_wallet_sign_data():
 
 
 def test_policy(chain_context):
-
     policy_dir = pathlib.Path(__file__).parent / "../resources/policy"
 
     script_filepath = policy_dir / f"testToken.script"
@@ -429,7 +426,6 @@ def test_policy(chain_context):
 
 
 def test_token():
-
     script = ScriptAll([ScriptPubkey(WALLET.verification_key.hash())])
 
     policy = TokenPolicy(name="testToken", script=script)
@@ -449,7 +445,6 @@ def test_token():
 
 
 def test_metadata():
-
     script = ScriptAll([ScriptPubkey(WALLET.verification_key.hash())])
 
     policy = TokenPolicy(name="testToken", script=script)
@@ -508,9 +503,7 @@ def test_metadata():
 
     # test for no onchain metadata
     with blockfrost_patch:
-
         with patch.object(BlockFrostApi, "asset") as mock_asset:
-
             mock_asset.side_effect = mock_blockfrost_api_error()
 
             onchain_meta = test_token.get_on_chain_metadata(
@@ -521,7 +514,6 @@ def test_metadata():
 
 
 def test_outputs():
-
     output1 = Output(address=WALLET, amount=5000000)
     output2 = Output(address=WALLET, amount=Lovelace(5000000))
     output3 = Output(address=WALLET, amount=Ada(5))
@@ -545,7 +537,6 @@ def test_outputs():
 
 
 def test_wallet_init():
-
     keys_dir = str(pathlib.Path(__file__).parent / "../resources/keys")
 
     wallet = Wallet(
