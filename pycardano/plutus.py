@@ -12,6 +12,7 @@ import cbor2
 from cbor2 import CBORTag
 from nacl.encoding import RawEncoder
 from nacl.hash import blake2b
+from hashlib import sha256
 
 from pycardano.exception import DeserializeException
 from pycardano.hash import DATUM_HASH_SIZE, SCRIPT_HASH_SIZE, DatumHash, ScriptHash
@@ -46,6 +47,10 @@ __all__ = [
     "script_hash",
 ]
 
+# taken from https://stackoverflow.com/a/13624858
+class classproperty(property):
+    def __get__(self, owner_self, owner_cls):
+        return self.fget(owner_cls)
 
 class CostModels(DictCBORSerializable):
     KEY_TYPE = int
@@ -460,9 +465,18 @@ class PlutusData(ArrayCBORSerializable):
         >>> assert test == Test.from_cbor("d87a9f187b43333231ff")
     """
 
-    CONSTR_ID: ClassVar[int] = 0
-    """Constructor ID of this plutus data.
-       It is primarily used by Plutus core to reconstruct a data structure from serialized CBOR bytes."""
+
+    @classproperty
+    def CONSTR_ID(cls):
+        """
+        Constructor ID of this plutus data.
+        It is primarily used by Plutus core to reconstruct a data structure from serialized CBOR bytes.
+        The default implementation is an almost unique, deterministic constructor ID in the range 1 - 2^32 based
+        on class attributes, types and class name.
+        """
+        det_string = cls.__name__ + "*" + "*".join([f"{f.name}~{f.type}" for f in fields(cls)])
+        det_hash = sha256(det_string.encode("utf8")).hexdigest()
+        return int(det_hash, 16) % 2**32
 
     def __post_init__(self):
         valid_types = (PlutusData, dict, IndefiniteList, int, bytes)
