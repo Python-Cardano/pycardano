@@ -6,7 +6,7 @@ import inspect
 import json
 from dataclasses import dataclass, field, fields
 from enum import Enum
-from typing import Any, ClassVar, Optional, Type, Union
+from typing import Any, Optional, Type, Union
 
 import cbor2
 from cbor2 import CBORTag
@@ -47,10 +47,12 @@ __all__ = [
     "script_hash",
 ]
 
+
 # taken from https://stackoverflow.com/a/13624858
 class classproperty(property):
     def __get__(self, owner_self, owner_cls):
         return self.fget(owner_cls)
+
 
 class CostModels(DictCBORSerializable):
     KEY_TYPE = int
@@ -465,7 +467,6 @@ class PlutusData(ArrayCBORSerializable):
         >>> assert test == Test.from_cbor("d87a9f187b43333231ff")
     """
 
-
     @classproperty
     def CONSTR_ID(cls):
         """
@@ -474,7 +475,9 @@ class PlutusData(ArrayCBORSerializable):
         The default implementation is an almost unique, deterministic constructor ID in the range 1 - 2^32 based
         on class attributes, types and class name.
         """
-        det_string = cls.__name__ + "*" + "*".join([f"{f.name}~{f.type}" for f in fields(cls)])
+        det_string = (
+            cls.__name__ + "*" + "*".join([f"{f.name}~{f.type}" for f in fields(cls)])
+        )
         det_hash = sha256(det_string.encode("utf8")).hexdigest()
         return int(det_hash, 16) % 2**32
 
