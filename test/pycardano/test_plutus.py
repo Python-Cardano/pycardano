@@ -1,9 +1,7 @@
 import copy
-import pipes
 import subprocess
 import sys
 import tempfile
-import unittest
 from dataclasses import dataclass
 from test.pycardano.util import check_two_way_cbor
 from typing import Dict, List, Union
@@ -11,7 +9,7 @@ from typing import Dict, List, Union
 import pytest
 from cbor2 import CBORTag
 
-from pycardano.exception import DeserializeException, SerializeException
+from pycardano.exception import DeserializeException
 from pycardano.plutus import (
     COST_MODELS,
     ExecutionUnits,
