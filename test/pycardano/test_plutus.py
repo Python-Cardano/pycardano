@@ -317,3 +317,32 @@ def test_clone_plutus_data():
     my_vesting.deadline = 1643235300001
 
     assert cloned_vesting != my_vesting
+
+def test_unique_constr_ids():
+
+    @dataclass
+    class A(PlutusData):
+        pass
+
+    @dataclass
+    class B(PlutusData):
+        pass
+
+    assert A.CONSTR_ID != B.CONSTR_ID, "Different classes (different names) have same default constructor ID"
+    B_tmp = B
+
+    @dataclass
+    class B(PlutusData):
+        a: int
+        b: bytes
+
+    assert B_tmp.CONSTR_ID != B.CONSTR_ID, "Different classes (different fields) have same default constructor ID"
+
+    B_tmp = B
+
+    @dataclass
+    class B(PlutusData):
+        a: bytes
+        b: bytes
+
+    assert B_tmp.CONSTR_ID != B.CONSTR_ID, "Different classes (different field types) have same default constructor ID"
