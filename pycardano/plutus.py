@@ -838,7 +838,9 @@ def script_hash(script: ScriptType) -> ScriptHash:
     else:
         raise TypeError(f"Unexpected script type: {type(script)}")
 
+
 @dataclass
 class Unit(PlutusData):
-    """ The default "Unit type" with a 0 constructor ID """
+    """The default "Unit type" with a 0 constructor ID"""
+
     CONSTR_ID = 0
