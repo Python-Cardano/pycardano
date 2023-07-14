@@ -1,4 +1,8 @@
 import copy
+import pipes
+import subprocess
+import sys
+import tempfile
 import unittest
 from dataclasses import dataclass
 from test.pycardano.util import check_two_way_cbor
@@ -318,8 +322,8 @@ def test_clone_plutus_data():
 
     assert cloned_vesting != my_vesting
 
-def test_unique_constr_ids():
 
+def test_unique_constr_ids():
     @dataclass
     class A(PlutusData):
         pass
@@ -328,7 +332,9 @@ def test_unique_constr_ids():
     class B(PlutusData):
         pass
 
-    assert A.CONSTR_ID != B.CONSTR_ID, "Different classes (different names) have same default constructor ID"
+    assert (
+        A.CONSTR_ID != B.CONSTR_ID
+    ), "Different classes (different names) have same default constructor ID"
     B_tmp = B
 
     @dataclass
@@ -336,7 +342,9 @@ def test_unique_constr_ids():
         a: int
         b: bytes
 
-    assert B_tmp.CONSTR_ID != B.CONSTR_ID, "Different classes (different fields) have same default constructor ID"
+    assert (
+        B_tmp.CONSTR_ID != B.CONSTR_ID
+    ), "Different classes (different fields) have same default constructor ID"
 
     B_tmp = B
 
@@ -345,4 +353,48 @@ def test_unique_constr_ids():
         a: bytes
         b: bytes
 
-    assert B_tmp.CONSTR_ID != B.CONSTR_ID, "Different classes (different field types) have same default constructor ID"
+    assert (
+        B_tmp.CONSTR_ID != B.CONSTR_ID
+    ), "Different classes (different field types) have same default constructor ID"
+
+
+def test_deterministic_constr_ids_local():
+    @dataclass
+    class A(PlutusData):
+        a: int
+        b: bytes
+
+    A_tmp = A
+
+    @dataclass
+    class A(PlutusData):
+        a: int
+        b: bytes
+
+    assert (
+        A_tmp.CONSTR_ID == A.CONSTR_ID
+    ), "Same class has different default constructor ID"
+
+
+def test_deterministic_constr_ids_global():
+    code = """
+from dataclasses import dataclass
+from pycardano import PlutusData
+
+@dataclass
+class A(PlutusData):
+    a: int
+    b: bytes
+
+print(A.CONSTR_ID)
+"""
+    tmpfile = tempfile.TemporaryFile()
+    tmpfile.write(code.encode("utf8"))
+    tmpfile.seek(0)
+    res = subprocess.run([sys.executable], stdin=tmpfile, capture_output=True).stdout
+    tmpfile.seek(0)
+    res2 = subprocess.run([sys.executable], stdin=tmpfile, capture_output=True).stdout
+
+    assert (
+        res == res2
+    ), "Same class has different default constructor id in two consecutive runs"
