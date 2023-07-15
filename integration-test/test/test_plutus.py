@@ -26,7 +26,7 @@ class TestPlutus(TestBase):
 
         builder = TransactionBuilder(self.chain_context)
         builder.add_input_address(giver_address)
-        datum = PlutusData()  # A Unit type "()" in Haskell
+        datum = Unit()  # A Unit type "()" in Haskell
         builder.add_output(
             TransactionOutput(script_address, 50000000, datum_hash=datum_hash(datum))
         )
