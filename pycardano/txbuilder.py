@@ -953,12 +953,13 @@ class TransactionBuilder:
         for o in self.outputs:
             requested_amount += o.amount
 
-        for pid, m in self.mint.items():
-            for tkn, am in m.items():
-                if am < 0:
-                    requested_amount += Value(
-                        multi_asset=MultiAsset({pid: Asset({tkn: -am})})
-                    )
+        if self.mint:
+            for pid, m in self.mint.items():
+                for tkn, am in m.items():
+                    if am < 0:
+                        requested_amount += Value(
+                            multi_asset=MultiAsset({pid: Asset({tkn: -am})})
+                        )
 
         # Include min fees associated as part of requested amount
         requested_amount += self._estimate_fee()
