@@ -6,13 +6,13 @@ import inspect
 import json
 from dataclasses import dataclass, field, fields
 from enum import Enum
+from hashlib import sha256
 from typing import Any, Optional, Type, Union
 
 import cbor2
 from cbor2 import CBORTag
 from nacl.encoding import RawEncoder
 from nacl.hash import blake2b
-from hashlib import sha256
 
 from pycardano.exception import DeserializeException
 from pycardano.hash import DATUM_HASH_SIZE, SCRIPT_HASH_SIZE, DatumHash, ScriptHash
@@ -476,11 +476,16 @@ class PlutusData(ArrayCBORSerializable):
         The default implementation is an almost unique, deterministic constructor ID in the range 1 - 2^32 based
         on class attributes, types and class name.
         """
-        det_string = (
-            cls.__name__ + "*" + "*".join([f"{f.name}~{f.type}" for f in fields(cls)])
-        )
-        det_hash = sha256(det_string.encode("utf8")).hexdigest()
-        return int(det_hash, 16) % 2**32
+        if not hasattr(cls, "_CONSTR_ID"):
+            det_string = (
+                cls.__name__
+                + "*"
+                + "*".join([f"{f.name}~{f.type}" for f in fields(cls)])
+            )
+            det_hash = sha256(det_string.encode("utf8")).hexdigest()
+            setattr(cls, "_CONSTR_ID", int(det_hash, 16) % 2**32)
+
+        return cls._CONSTR_ID
 
     def __post_init__(self):
         valid_types = (PlutusData, dict, IndefiniteList, int, bytes)
