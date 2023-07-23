@@ -476,16 +476,17 @@ class PlutusData(ArrayCBORSerializable):
         The default implementation is an almost unique, deterministic constructor ID in the range 1 - 2^32 based
         on class attributes, types and class name.
         """
-        if not hasattr(cls, "_CONSTR_ID"):
+        k = f"_CONSTR_ID_{cls.__name__}"
+        if not hasattr(cls, k):
             det_string = (
                 cls.__name__
                 + "*"
                 + "*".join([f"{f.name}~{f.type}" for f in fields(cls)])
             )
             det_hash = sha256(det_string.encode("utf8")).hexdigest()
-            setattr(cls, "_CONSTR_ID", int(det_hash, 16) % 2**32)
+            setattr(cls, k, int(det_hash, 16) % 2**32)
 
-        return cls._CONSTR_ID
+        return getattr(cls, k)
 
     def __post_init__(self):
         valid_types = (PlutusData, dict, IndefiniteList, int, bytes)
