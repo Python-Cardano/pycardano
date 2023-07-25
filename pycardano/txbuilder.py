@@ -934,7 +934,13 @@ class TransactionBuilder:
             selected_amount += i.output.amount
 
         if self.mint:
-            selected_amount.multi_asset += self.mint
+            # Add positive minted amounts to the selected amount (=source)
+            for pid, m in self.mint.items():
+                for tkn, am in m.items():
+                    if am < 0:
+                        selected_amount += Value(
+                            multi_asset=MultiAsset({pid: Asset({tkn: am})})
+                        )
 
         if self.withdrawals:
             for v in self.withdrawals.values():
@@ -954,6 +960,7 @@ class TransactionBuilder:
             requested_amount += o.amount
 
         if self.mint:
+            # Add negative minted amounts to the requested amount (=sink)
             for pid, m in self.mint.items():
                 for tkn, am in m.items():
                     if am < 0:
