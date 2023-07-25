@@ -937,7 +937,7 @@ class TransactionBuilder:
             # Add positive minted amounts to the selected amount (=source)
             for pid, m in self.mint.items():
                 for tkn, am in m.items():
-                    if am < 0:
+                    if am > 0:
                         selected_amount += Value(
                             multi_asset=MultiAsset({pid: Asset({tkn: am})})
                         )
