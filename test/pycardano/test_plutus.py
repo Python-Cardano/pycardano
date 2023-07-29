@@ -207,7 +207,7 @@ def test_plutus_data_from_json_wrong_data_structure_type():
 def test_plutus_data_hash():
     assert (
         bytes.fromhex(
-            "19d31e4f3aa9b03ad93b64c8dd2cc822d247c21e2c22762b7b08e6cadfeddb47"
+            "923918e403bf43c34b4ef6b48eb2ee04babed17320d8d1b9ff9ad086e86f44ec"
         )
         == PlutusData().hash().payload
     )
@@ -324,10 +324,12 @@ def test_clone_plutus_data():
 def test_unique_constr_ids():
     @dataclass
     class A(PlutusData):
+        AUTO_ID = True
         pass
 
     @dataclass
     class B(PlutusData):
+        AUTO_ID = True
         pass
 
     assert (
@@ -337,6 +339,7 @@ def test_unique_constr_ids():
 
     @dataclass
     class B(PlutusData):
+        AUTO_ID = True
         a: int
         b: bytes
 
@@ -348,6 +351,7 @@ def test_unique_constr_ids():
 
     @dataclass
     class B(PlutusData):
+        AUTO_ID = True
         a: bytes
         b: bytes
 
@@ -359,6 +363,7 @@ def test_unique_constr_ids():
 def test_deterministic_constr_ids_local():
     @dataclass
     class A(PlutusData):
+        AUTO_ID = True
         a: int
         b: bytes
 
@@ -366,6 +371,7 @@ def test_deterministic_constr_ids_local():
 
     @dataclass
     class A(PlutusData):
+        AUTO_ID = True
         a: int
         b: bytes
 
@@ -381,6 +387,7 @@ from pycardano import PlutusData
 
 @dataclass
 class A(PlutusData):
+    AUTO_ID = True
     a: int
     b: bytes
 

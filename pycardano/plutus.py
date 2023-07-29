@@ -7,7 +7,7 @@ import json
 from dataclasses import dataclass, field, fields
 from enum import Enum
 from hashlib import sha256
-from typing import Any, Optional, Type, Union
+from typing import Any, ClassVar, Optional, Type, Union
 
 import cbor2
 from cbor2 import CBORTag
@@ -468,6 +468,9 @@ class PlutusData(ArrayCBORSerializable):
         >>> assert test == Test.from_cbor("d87a9f187b43333231ff")
     """
 
+    AUTO_ID: ClassVar[bool] = False
+    """Enables automatic assignment of a deterministic constructor id (CONSTR_ID) for the Plutus data if set to True."""
+
     @classproperty
     def CONSTR_ID(cls):
         """
@@ -476,6 +479,9 @@ class PlutusData(ArrayCBORSerializable):
         The default implementation is an almost unique, deterministic constructor ID in the range 1 - 2^32 based
         on class attributes, types and class name.
         """
+        if not cls.AUTO_ID:
+            return 0
+
         k = f"_CONSTR_ID_{cls.__name__}"
         if not hasattr(cls, k):
             det_string = (
