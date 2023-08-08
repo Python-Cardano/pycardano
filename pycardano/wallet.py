@@ -1241,10 +1241,19 @@ class Wallet:
                 inputs = utxos
         else:
             inputs = [self]
+            
+        # if token amounts are negative, remove them from the outputs
+        if not isinstance(mints, list):
+            mints = [mints]
+        
+        tokens = []
+        for mint in mints:
+            if mint.amount > 0:
+                tokens.append(mint)
 
         return self.transact(
             inputs=inputs,
-            outputs=Output(to, amount, tokens=mints),
+            outputs=Output(to, amount, tokens=tokens),
             mints=mints,
             **kwargs,
         )
