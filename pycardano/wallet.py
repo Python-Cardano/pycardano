@@ -1311,7 +1311,7 @@ class Wallet:
 
         return self.transact(
             inputs=inputs,
-            outputs=Output(change_address, attach_amount, tokens=tokens),
+            outputs=Output(change_address, attach_amount),
             mints=tokens,
             **kwargs,
         )
