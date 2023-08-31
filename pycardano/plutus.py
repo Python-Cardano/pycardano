@@ -6,7 +6,8 @@ import inspect
 import json
 from dataclasses import dataclass, field, fields
 from enum import Enum
-from typing import Any, ClassVar, Optional, Type, Union
+from hashlib import sha256
+from typing import Any, Optional, Type, Union
 
 import cbor2
 from cbor2 import CBORTag
@@ -44,7 +45,14 @@ __all__ = [
     "datum_hash",
     "plutus_script_hash",
     "script_hash",
+    "Unit",
 ]
+
+
+# taken from https://stackoverflow.com/a/13624858
+class classproperty(property):
+    def __get__(self, owner_self, owner_cls):
+        return self.fget(owner_cls)
 
 
 class CostModels(DictCBORSerializable):
@@ -460,9 +468,25 @@ class PlutusData(ArrayCBORSerializable):
         >>> assert test == Test.from_cbor("d87a9f187b43333231ff")
     """
 
-    CONSTR_ID: ClassVar[int] = 0
-    """Constructor ID of this plutus data.
-       It is primarily used by Plutus core to reconstruct a data structure from serialized CBOR bytes."""
+    @classproperty
+    def CONSTR_ID(cls):
+        """
+        Constructor ID of this plutus data.
+        It is primarily used by Plutus core to reconstruct a data structure from serialized CBOR bytes.
+        The default implementation is an almost unique, deterministic constructor ID in the range 1 - 2^32 based
+        on class attributes, types and class name.
+        """
+        k = f"_CONSTR_ID_{cls.__name__}"
+        if not hasattr(cls, k):
+            det_string = (
+                cls.__name__
+                + "*"
+                + "*".join([f"{f.name}~{f.type}" for f in fields(cls)])
+            )
+            det_hash = sha256(det_string.encode("utf8")).hexdigest()
+            setattr(cls, k, int(det_hash, 16) % 2**32)
+
+        return getattr(cls, k)
 
     def __post_init__(self):
         valid_types = (PlutusData, dict, IndefiniteList, int, bytes)
@@ -820,3 +844,10 @@ def script_hash(script: ScriptType) -> ScriptHash:
         )
     else:
         raise TypeError(f"Unexpected script type: {type(script)}")
+
+
+@dataclass
+class Unit(PlutusData):
+    """The default "Unit type" with a 0 constructor ID"""
+
+    CONSTR_ID = 0
