@@ -4,7 +4,6 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-import cbor2
 import requests
 import websocket
 from cachetools import Cache, LRUCache, TTLCache, func
