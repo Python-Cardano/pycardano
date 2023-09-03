@@ -321,7 +321,9 @@ class TestPlutus(TestBase):
         builder.add_output(TransactionOutput(giver_address, 50000000))
         tx1 = builder.build_and_sign([self.payment_skey], giver_address)
 
-        utxo_to_spend = UTxO(TransactionInput(tx1.id, 0), tx1.transaction_body.outputs[0])
+        utxo_to_spend = UTxO(
+            TransactionInput(tx1.id, 0), tx1.transaction_body.outputs[0]
+        )
 
         builder = TransactionBuilder(self.chain_context)
         builder.add_input(utxo_to_spend)
@@ -330,3 +332,42 @@ class TestPlutus(TestBase):
 
         self.chain_context.submit_tx(tx1)
         self.chain_context.submit_tx(tx2)
+
+    @retry(tries=TEST_RETRIES, backoff=1.5, delay=6, jitter=(0, 4))
+    @pytest.mark.post_alonzo
+    def test_get_plutus_script(self):
+        # ----------- Giver give ---------------
+        with open("./plutus_scripts/fortytwoV2.plutus", "r") as f:
+            script_hex = f.read()
+            forty_two_script = PlutusV2Script(cbor2.loads(bytes.fromhex(script_hex)))
+
+        script_hash = plutus_script_hash(forty_two_script)
+
+        script_address = Address(script_hash, network=self.NETWORK)
+
+        giver_address = Address(self.payment_vkey.hash(), network=self.NETWORK)
+
+        builder = TransactionBuilder(self.chain_context)
+        builder.add_input_address(giver_address)
+        builder.add_output(
+            TransactionOutput(script_address, 50000000, script=forty_two_script)
+        )
+
+        signed_tx = builder.build_and_sign([self.payment_skey], giver_address)
+
+        print("############### Transaction created ###############")
+        print(signed_tx)
+        print(signed_tx.to_cbor_hex())
+        print("############### Submitting transaction ###############")
+        self.chain_context.submit_tx(signed_tx)
+        time.sleep(3)
+
+        utxos = self.chain_context.utxos(script_address)
+
+        assert utxos[0].output.script == forty_two_script
+
+
+class TestPlutusOgmiosOnly(TestPlutus):
+    @classmethod
+    def setup_class(cls):
+        cls.chain_context._kupo_url = None
