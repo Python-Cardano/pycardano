@@ -160,29 +160,6 @@ def limit_primitive_type(*allowed_types):
 CBORBase = TypeVar("CBORBase", bound="CBORSerializable")
 
 
-def plutus_encoder(
-    encoder: CBOREncoder, value: Union[CBORSerializable, IndefiniteList]
-):
-    """Overload for default_encoder to properly break up bytestrings."""
-    if isinstance(value, (IndefiniteList, IndefiniteFrozenList)):
-        # Currently, cbor2 doesn't support indefinite list, therefore we need special
-        # handling here to explicitly write header (b'\x9f'), each body item, and footer (b'\xff') to
-        # the output bytestring.
-        encoder.write(b"\x9f")
-        for item in value:
-            if isinstance(item, bytes) and len(item) > 64:
-                encoder.write(b"\x5f")
-                for i in range(0, len(item), 64):
-                    imax = min(i + 64, len(item))
-                    encoder.encode(item[i:imax])
-                encoder.write(b"\xff")
-            else:
-                encoder.encode(item)
-        encoder.write(b"\xff")
-    else:
-        default_encoder(encoder, value)
-
-
 def default_encoder(
     encoder: CBOREncoder, value: Union[CBORSerializable, IndefiniteList]
 ):
