@@ -56,13 +56,6 @@ class IndefiniteList(UserList):
         super().__init__(li)  # type: ignore
 
 
-class MetadataIndefiniteList(UserList):
-    """Dummy class to catch special requirements for PlutusData encoding."""
-
-    def __init__(self, li: Primitive):  # type: ignore
-        super().__init__(li)  # type: ignore
-
-
 class IndefiniteFrozenList(FrozenList, IndefiniteList):  # type: ignore
     pass
 
@@ -173,24 +166,17 @@ def default_encoder(
             FrozenList,
             IndefiniteFrozenList,
             frozendict,
-            MetadataIndefiniteList,
         ),
     ), (
         f"Type of input value is not CBORSerializable, " f"got {type(value)} instead."
     )
-    if isinstance(
-        value, (IndefiniteList, IndefiniteFrozenList, MetadataIndefiniteList)
-    ):
+    if isinstance(value, (IndefiniteList, IndefiniteFrozenList)):
         # Currently, cbor2 doesn't support indefinite list, therefore we need special
         # handling here to explicitly write header (b'\x9f'), each body item, and footer (b'\xff') to
         # the output bytestring.
         encoder.write(b"\x9f")
         for item in value:
-            if (
-                isinstance(value, MetadataIndefiniteList)
-                and isinstance(item, bytes)
-                and len(item) > 64
-            ):
+            if isinstance(item, bytes) and len(item) > 64:
                 encoder.write(b"\x5f")
                 for i in range(0, len(item), 64):
                     imax = min(i + 64, len(item))
@@ -532,13 +518,6 @@ def _restore_typed_primitive(
             return IndefiniteList(v)
         except TypeError:
             raise DeserializeException(f"Can not initialize IndefiniteList from {v}")
-    elif isclass(t) and issubclass(t, MetadataIndefiniteList):
-        try:
-            return MetadataIndefiniteList(v)
-        except TypeError:
-            raise DeserializeException(
-                f"Can not initialize MetadataIndefiniteList from {v}"
-            )
     elif hasattr(t, "__origin__") and (t.__origin__ is dict):
         t_args = t.__args__
         if len(t_args) != 2:

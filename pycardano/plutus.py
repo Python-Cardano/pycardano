@@ -22,7 +22,6 @@ from pycardano.serialization import (
     CBORSerializable,
     DictCBORSerializable,
     IndefiniteList,
-    MetadataIndefiniteList,
     Primitive,
     RawCBOR,
     default_encoder,
@@ -490,7 +489,7 @@ class PlutusData(ArrayCBORSerializable):
         return getattr(cls, k)
 
     def __post_init__(self):
-        valid_types = (PlutusData, dict, MetadataIndefiniteList, int, bytes)
+        valid_types = (PlutusData, dict, IndefiniteList, int, bytes)
         for f in fields(self):
             if inspect.isclass(f.type) and not issubclass(f.type, valid_types):
                 raise TypeError(
@@ -500,7 +499,7 @@ class PlutusData(ArrayCBORSerializable):
     def to_shallow_primitive(self) -> CBORTag:
         primitives: Primitive = super().to_shallow_primitive()
         if primitives:
-            primitives = MetadataIndefiniteList(primitives)
+            primitives = IndefiniteList(primitives)
         tag = get_tag(self.CONSTR_ID)
         if tag:
             return CBORTag(tag, primitives)
@@ -554,7 +553,7 @@ class PlutusData(ArrayCBORSerializable):
                 return {"int": obj}
             elif isinstance(obj, bytes):
                 return {"bytes": obj.hex()}
-            elif isinstance(obj, MetadataIndefiniteList) or isinstance(obj, list):
+            elif isinstance(obj, IndefiniteList) or isinstance(obj, list):
                 return {"list": [_dfs(item) for item in obj]}
             elif isinstance(obj, dict):
                 return {"map": [{"v": _dfs(v), "k": _dfs(k)} for k, v in obj.items()]}
@@ -670,7 +669,7 @@ class PlutusData(ArrayCBORSerializable):
                 elif "bytes" in obj:
                     return bytes.fromhex(obj["bytes"])
                 elif "list" in obj:
-                    return MetadataIndefiniteList([_dfs(item) for item in obj["list"]])
+                    return IndefiniteList([_dfs(item) for item in obj["list"]])
                 else:
                     raise DeserializeException(f"Unexpected data structure: {obj}")
             else:
@@ -702,12 +701,12 @@ class RawPlutusData(CBORSerializable):
     def to_primitive(self) -> CBORTag:
         def _dfs(obj):
             if isinstance(obj, list) and obj:
-                return MetadataIndefiniteList([_dfs(item) for item in obj])
+                return IndefiniteList([_dfs(item) for item in obj])
             elif isinstance(obj, dict):
                 return {_dfs(k): _dfs(v) for k, v in obj.items()}
             elif isinstance(obj, CBORTag) and isinstance(obj.value, list) and obj.value:
                 if obj.tag != 102:
-                    value = MetadataIndefiniteList([_dfs(item) for item in obj.value])
+                    value = IndefiniteList([_dfs(item) for item in obj.value])
                 else:
                     value = [_dfs(item) for item in obj.value]
                 return CBORTag(tag=obj.tag, value=value)
@@ -724,9 +723,7 @@ class RawPlutusData(CBORSerializable):
         return self.__class__.from_cbor(self.to_cbor_hex())
 
 
-Datum = Union[
-    PlutusData, dict, int, bytes, MetadataIndefiniteList, RawCBOR, RawPlutusData
-]
+Datum = Union[PlutusData, dict, int, bytes, IndefiniteList, RawCBOR, RawPlutusData]
 """Plutus Datum type. A Union type that contains all valid datum types."""
 
 
