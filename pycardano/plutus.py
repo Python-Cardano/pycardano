@@ -463,9 +463,9 @@ def id_map(cls, skip_constructor=False):
             prefix = "union"
         else:
             raise TypeError(f"Unexpected parameterized type for automatic constructor generation: {cls}")
-        return prefix + "(" + ",".join(id_map(a) for a in cls.__args__) + ")"
+        return prefix + "<" + ",".join(id_map(a) for a in cls.__args__) + ">"
     if issubclass(cls, PlutusData):
-        return "constructor:" + cls.__name__ + "(" + (str(cls.CONSTR_ID) if not skip_constructor else "_") + ";" + ",".join(f.name + ":" + id_map(f.type) for f in fields(cls)) + ")"
+        return "cons[" + cls.__name__ + "](" + (str(cls.CONSTR_ID) if not skip_constructor else "_") + ";" + ",".join(f.name + ":" + id_map(f.type) for f in fields(cls)) + ")"
     if cls == RawCBOR or cls == RawPlutusData:
         return "any"
     raise TypeError(f"Unexpected type for automatic constructor generation: {cls}")

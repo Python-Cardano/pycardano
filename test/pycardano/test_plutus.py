@@ -17,9 +17,9 @@ from pycardano.plutus import (
     RawPlutusData,
     Redeemer,
     RedeemerTag,
-    plutus_script_hash,
+    plutus_script_hash, id_map,
 )
-from pycardano.serialization import IndefiniteList
+from pycardano.serialization import IndefiniteList, RawCBOR
 
 
 @dataclass
@@ -396,3 +396,27 @@ print(A.CONSTR_ID)
     assert (
         res == res2
     ), "Same class has different default constructor id in two consecutive runs"
+
+def test_id_map_supports_all():
+    @dataclass
+    class A(PlutusData):
+        CONSTR_ID = 0
+        a: int
+        b: bytes
+        c: List[int]
+
+    @dataclass
+    class C(PlutusData):
+        x: RawPlutusData
+        y: RawCBOR
+
+    @dataclass
+    class B(PlutusData):
+        a: int
+        c: A
+        d: Dict[bytes, C]
+        e: Union[A, C]
+
+    s = id_map(B, skip_constructor=True)
+    assert s == "cons[B](_;a:int,c:cons[A](0;a:int,b:bytes,c:list<int>),d:dict<bytes,cons[C](3081122523;x:any,y:any)>,e:union<cons[A](0;a:int,b:bytes,c:list<int>),cons[C](3081122523;x:any,y:any)>)"
+    assert B.CONSTR_ID == 2561434002
