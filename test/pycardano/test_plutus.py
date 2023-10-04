@@ -18,7 +18,8 @@ from pycardano.plutus import (
     Redeemer,
     RedeemerTag,
     plutus_script_hash,
-    id_map, Datum,
+    id_map,
+    Datum,
 )
 from pycardano.serialization import IndefiniteList, RawCBOR
 

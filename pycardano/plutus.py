@@ -449,7 +449,10 @@ def get_tag(constr_id: int) -> Optional[int]:
 
 
 def id_map(cls, skip_constructor=False):
-    """Constructs a unique representation of a PlutusData type definition. Intended for automatic constructor generation."""
+    """
+    Constructs a unique representation of a PlutusData type definition.
+    Intended for automatic constructor generation.
+    """
     if cls == bytes:
         return "bytes"
     if cls == int:
