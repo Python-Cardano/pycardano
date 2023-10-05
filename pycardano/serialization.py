@@ -68,6 +68,12 @@ class ByteString:
     def __hash__(self):
         return hash(self.value)
 
+    def __eq__(self, other: Union[bytes, ByteString]):
+        if isinstance(other, ByteString):
+            return self.value == other.value
+        else:
+            return self.value == other
+
 
 @dataclass
 class RawCBOR:
