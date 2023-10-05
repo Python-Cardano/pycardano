@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 import typing
 from collections import OrderedDict, UserList, defaultdict
+from collections.abc import Sequence
 from copy import deepcopy
 from dataclasses import Field, dataclass, fields
 from datetime import datetime
@@ -58,6 +59,14 @@ class IndefiniteList(UserList):
 
 class IndefiniteFrozenList(FrozenList, IndefiniteList):  # type: ignore
     pass
+
+
+@dataclass
+class ByteString:
+    value: bytes
+
+    def __hash__(self):
+        return hash(self.value)
 
 
 @dataclass
@@ -160,6 +169,7 @@ def default_encoder(
     assert isinstance(
         value,
         (
+            ByteString,
             CBORSerializable,
             IndefiniteList,
             RawCBOR,
@@ -176,15 +186,17 @@ def default_encoder(
         # the output bytestring.
         encoder.write(b"\x9f")
         for item in value:
-            if isinstance(item, bytes) and len(item) > 64:
-                encoder.write(b"\x5f")
-                for i in range(0, len(item), 64):
-                    imax = min(i + 64, len(item))
-                    encoder.encode(item[i:imax])
-                encoder.write(b"\xff")
-            else:
-                encoder.encode(item)
+            encoder.encode(item)
         encoder.write(b"\xff")
+    elif isinstance(value, ByteString):
+        if len(value.value) > 64:
+            encoder.write(b"\x5f")
+            for i in range(0, len(value.value), 64):
+                imax = min(i + 64, len(value.value))
+                encoder.encode(value.value[i:imax])
+            encoder.write(b"\xff")
+        else:
+            encoder.encode(value.value)
     elif isinstance(value, RawCBOR):
         encoder.write(value.cbor)
     elif isinstance(value, FrozenList):
@@ -247,6 +259,8 @@ class CBORSerializable:
         def _dfs(value, freeze=False):
             if isinstance(value, CBORSerializable):
                 return _dfs(value.to_primitive(), freeze)
+            elif isinstance(value, bytes):
+                return ByteString(value)
             elif isinstance(value, (dict, OrderedDict, defaultdict)):
                 _dict = type(value)()
                 if hasattr(value, "default_factory"):
