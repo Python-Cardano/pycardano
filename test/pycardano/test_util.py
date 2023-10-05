@@ -149,7 +149,7 @@ def test_script_data_hash():
     redeemers = [Redeemer(unit, ExecutionUnits(1000000, 1000000))]
     redeemers[0].tag = RedeemerTag.SPEND
     assert ScriptDataHash.from_primitive(
-        "032d812ee0731af78fe4ec67e4d30d16313c09e6fb675af28f825797e8b5621d"
+        "b11ed6f6046df925b6409b850ac54a829cd1e7603145c9aaf765885d8ec64da7"
     ) == script_data_hash(redeemers=redeemers, datums=[unit])
 
 
