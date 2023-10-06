@@ -21,7 +21,6 @@ from pycardano.key import (
     StakeExtendedSigningKey,
     StakeSigningKey,
     StakeVerificationKey,
-    VerificationKey,
 )
 from pycardano.network import Network
 
