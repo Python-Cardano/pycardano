@@ -169,14 +169,14 @@ class CardanoCliChainContext(ChainContext):
         return genesis_json
 
     def _get_min_utxo(self) -> int:
-        params = self._query_genesis_config()
-        if "minUTxOValue" in params:
+        params = self._query_current_protocol_params()
+        if "minUTxOValue" in params and params["minUTxOValue"] is not None:
             return params["minUTxOValue"]
-        elif "lovelacePerUTxOWord" in params:
+        elif "lovelacePerUTxOWord" in params and params["lovelacePerUTxOWord"] is not None:
             return params["lovelacePerUTxOWord"]
-        elif "utxoCostPerWord" in params:
+        elif "utxoCostPerWord" in params and params["utxoCostPerWord"] is not None:
             return params["utxoCostPerWord"]
-        elif "utxoCostPerByte" in params:
+        elif "utxoCostPerByte" in params and params["utxoCostPerByte"] is not None:
             return params["utxoCostPerByte"]
 
     def _parse_cost_models(self, cli_result: JsonDict) -> Dict[str, Dict[str, int]]:
@@ -346,7 +346,7 @@ class CardanoCliChainContext(ChainContext):
 
                     policy_id = vals[i + 2].split(".")[0]
                     asset_hex_name = vals[i + 2].split(".")[1]
-                    quantity = vals[i + 1]
+                    quantity = int(vals[i + 1])
 
                     policy = ScriptHash.from_primitive(policy_id)
                     asset_name = AssetName.from_primitive(asset_hex_name)
