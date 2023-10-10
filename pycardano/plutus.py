@@ -14,11 +14,12 @@ from cbor2 import CBORTag
 from nacl.encoding import RawEncoder
 from nacl.hash import blake2b
 
-from pycardano.exception import DeserializeException
+from pycardano.exception import DeserializeException, InvalidArgumentException
 from pycardano.hash import DATUM_HASH_SIZE, SCRIPT_HASH_SIZE, DatumHash, ScriptHash
 from pycardano.nativescript import NativeScript
 from pycardano.serialization import (
     ArrayCBORSerializable,
+    ByteString,
     CBORSerializable,
     DictCBORSerializable,
     IndefiniteList,
@@ -468,6 +469,8 @@ class PlutusData(ArrayCBORSerializable):
         >>> assert test == Test.from_cbor("d87a9f187b43333231ff")
     """
 
+    MAX_BYTES_SIZE = 64
+
     @classproperty
     def CONSTR_ID(cls):
         """
@@ -483,17 +486,25 @@ class PlutusData(ArrayCBORSerializable):
                 + "*"
                 + "*".join([f"{f.name}~{f.type}" for f in fields(cls)])
             )
+            print(det_string)
             det_hash = sha256(det_string.encode("utf8")).hexdigest()
             setattr(cls, k, int(det_hash, 16) % 2**32)
 
         return getattr(cls, k)
 
     def __post_init__(self):
-        valid_types = (PlutusData, dict, IndefiniteList, int, bytes)
+        valid_types = (PlutusData, dict, IndefiniteList, int, ByteString, bytes)
         for f in fields(self):
             if inspect.isclass(f.type) and not issubclass(f.type, valid_types):
                 raise TypeError(
                     f"Invalid field type: {f.type}. A field in PlutusData should be one of {valid_types}"
+                )
+
+            data = getattr(self, f.name)
+            if isinstance(data, bytes) and len(data) > 64:
+                raise InvalidArgumentException(
+                    f"The size of {data} exceeds {self.MAX_BYTES_SIZE} bytes. "
+                    "Use pycardano.serialization.ByteString for long bytes."
                 )
 
     def to_shallow_primitive(self) -> CBORTag:
@@ -553,6 +564,8 @@ class PlutusData(ArrayCBORSerializable):
                 return {"int": obj}
             elif isinstance(obj, bytes):
                 return {"bytes": obj.hex()}
+            elif isinstance(obj, ByteString):
+                return {"bytes": obj.value.hex()}
             elif isinstance(obj, IndefiniteList) or isinstance(obj, list):
                 return {"list": [_dfs(item) for item in obj]}
             elif isinstance(obj, dict):
@@ -667,7 +680,10 @@ class PlutusData(ArrayCBORSerializable):
                 elif "int" in obj:
                     return obj["int"]
                 elif "bytes" in obj:
-                    return bytes.fromhex(obj["bytes"])
+                    if len(obj["bytes"]) > 64:
+                        return ByteString(bytes.fromhex(obj["bytes"]))
+                    else:
+                        return bytes.fromhex(obj["bytes"])
                 elif "list" in obj:
                     return IndefiniteList([_dfs(item) for item in obj["list"]])
                 else:

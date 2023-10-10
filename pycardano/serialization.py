@@ -5,7 +5,6 @@ from __future__ import annotations
 import re
 import typing
 from collections import OrderedDict, UserList, defaultdict
-from collections.abc import Sequence
 from copy import deepcopy
 from dataclasses import Field, dataclass, fields
 from datetime import datetime
@@ -265,8 +264,6 @@ class CBORSerializable:
         def _dfs(value, freeze=False):
             if isinstance(value, CBORSerializable):
                 return _dfs(value.to_primitive(), freeze)
-            elif isinstance(value, bytes):
-                return ByteString(value)
             elif isinstance(value, (dict, OrderedDict, defaultdict)):
                 _dict = type(value)()
                 if hasattr(value, "default_factory"):
