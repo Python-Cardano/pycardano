@@ -486,7 +486,6 @@ class PlutusData(ArrayCBORSerializable):
                 + "*"
                 + "*".join([f"{f.name}~{f.type}" for f in fields(cls)])
             )
-            print(det_string)
             det_hash = sha256(det_string.encode("utf8")).hexdigest()
             setattr(cls, k, int(det_hash, 16) % 2**32)
 
