@@ -92,7 +92,7 @@ def sign(
     msg.key = cose_key  # attach the key to the message
 
     if isinstance(signing_key, ExtendedSigningKey):
-        message = [
+        _message = [
             msg.phdr_encoded,
             msg.uhdr_encoded,
             msg.payload,
@@ -100,7 +100,7 @@ def sign(
         ]
 
         encoded = dumps(
-            CBORTag(msg.cbor_tag, message), default=msg._custom_cbor_encoder
+            CBORTag(msg.cbor_tag, _message), default=msg._custom_cbor_encoder
         )
 
     else:
