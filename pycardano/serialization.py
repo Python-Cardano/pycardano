@@ -67,11 +67,13 @@ class ByteString:
     def __hash__(self):
         return hash(self.value)
 
-    def __eq__(self, other: Union[bytes, ByteString]):
+    def __eq__(self, other: object):
         if isinstance(other, ByteString):
             return self.value == other.value
-        else:
+        elif isinstance(other, bytes):
             return self.value == other
+        else:
+            return False
 
 
 @dataclass
