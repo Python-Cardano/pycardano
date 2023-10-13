@@ -19,7 +19,7 @@ from pycardano.plutus import (
     RedeemerTag,
     plutus_script_hash,
 )
-from pycardano.serialization import IndefiniteList
+from pycardano.serialization import ByteString, IndefiniteList
 
 
 @dataclass
@@ -396,3 +396,25 @@ print(A.CONSTR_ID)
     assert (
         res == res2
     ), "Same class has different default constructor id in two consecutive runs"
+
+
+def test_plutus_data_long_bytes():
+    @dataclass
+    class A(PlutusData):
+        a: ByteString
+
+    quote = (
+        "The line separating good and evil passes ... right through every human heart."
+    )
+
+    quote_hex = (
+        "d866821a8e5890cf9f5f5840546865206c696e652073657061726174696e6720676f6f6420616"
+        "e64206576696c20706173736573202e2e2e207269676874207468726f7567682065766572794d"
+        "2068756d616e2068656172742effff"
+    )
+
+    A_tmp = A(ByteString(quote.encode()))
+
+    assert (
+        A_tmp.to_cbor_hex() == quote_hex
+    ), "Long metadata bytestring is encoded incorrectly."
