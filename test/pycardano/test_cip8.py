@@ -10,7 +10,6 @@ from pycardano.key import (
 )
 from pycardano.network import Network
 
-
 EXTENDED_SK = ExtendedSigningKey.from_json(
     """{
         "type": "PaymentExtendedSigningKeyShelley_ed25519_bip32",
@@ -170,7 +169,7 @@ def test_extended_sign_and_verify():
         network=Network.TESTNET,
     )
 
-    verification = verify(signed_message, extended=True)
+    verification = verify(signed_message)
     assert verification["verified"]
     assert verification["message"] == "Pycardano is cool."
     assert verification["signing_address"].payment_part == EXTENDED_VK.hash()

@@ -1,7 +1,6 @@
 from typing import Optional, Union
 
 from cbor2 import CBORTag, dumps
-
 from cose.algorithms import EdDSA
 from cose.headers import KID, Algorithm
 from cose.keys import CoseKey
@@ -14,10 +13,10 @@ from cose.messages import CoseMessage, Sign1Message
 from pycardano.address import Address
 from pycardano.crypto import BIP32ED25519PublicKey
 from pycardano.key import (
-    PaymentVerificationKey,
-    SigningKey,
     ExtendedSigningKey,
     ExtendedVerificationKey,
+    PaymentVerificationKey,
+    SigningKey,
     StakeExtendedSigningKey,
     StakeSigningKey,
     StakeVerificationKey,
@@ -129,7 +128,6 @@ def sign(
 def verify(
     signed_message: Union[str, dict],
     attach_cose_key: Optional[bool] = None,
-    extended=False,
 ) -> dict:
     """Verify the signature of a COSESign1 message and decode its contents following CIP-0008.
     Supports messages signed by browser wallets or `Message.sign()`.
@@ -196,7 +194,7 @@ def verify(
     # attach the key to the decoded message
     decoded_message.key = cose_key
 
-    if extended:
+    if len(verification_key) > 32:
         vk = BIP32ED25519PublicKey(
             public_key=verification_key[:32], chain_code=verification_key[32:]
         )
