@@ -6,18 +6,20 @@ import inspect
 import json
 from dataclasses import dataclass, field, fields
 from enum import Enum
-from typing import Any, ClassVar, Optional, Type, Union
+from hashlib import sha256
+from typing import Any, Optional, Type, Union
 
 import cbor2
 from cbor2 import CBORTag
 from nacl.encoding import RawEncoder
 from nacl.hash import blake2b
 
-from pycardano.exception import DeserializeException
+from pycardano.exception import DeserializeException, InvalidArgumentException
 from pycardano.hash import DATUM_HASH_SIZE, SCRIPT_HASH_SIZE, DatumHash, ScriptHash
 from pycardano.nativescript import NativeScript
 from pycardano.serialization import (
     ArrayCBORSerializable,
+    ByteString,
     CBORSerializable,
     DictCBORSerializable,
     IndefiniteList,
@@ -44,7 +46,14 @@ __all__ = [
     "datum_hash",
     "plutus_script_hash",
     "script_hash",
+    "Unit",
 ]
+
+
+# taken from https://stackoverflow.com/a/13624858
+class classproperty(property):
+    def __get__(self, owner_self, owner_cls):
+        return self.fget(owner_cls)
 
 
 class CostModels(DictCBORSerializable):
@@ -460,16 +469,41 @@ class PlutusData(ArrayCBORSerializable):
         >>> assert test == Test.from_cbor("d87a9f187b43333231ff")
     """
 
-    CONSTR_ID: ClassVar[int] = 0
-    """Constructor ID of this plutus data.
-       It is primarily used by Plutus core to reconstruct a data structure from serialized CBOR bytes."""
+    MAX_BYTES_SIZE = 64
+
+    @classproperty
+    def CONSTR_ID(cls):
+        """
+        Constructor ID of this plutus data.
+        It is primarily used by Plutus core to reconstruct a data structure from serialized CBOR bytes.
+        The default implementation is an almost unique, deterministic constructor ID in the range 1 - 2^32 based
+        on class attributes, types and class name.
+        """
+        k = f"_CONSTR_ID_{cls.__name__}"
+        if not hasattr(cls, k):
+            det_string = (
+                cls.__name__
+                + "*"
+                + "*".join([f"{f.name}~{f.type}" for f in fields(cls)])
+            )
+            det_hash = sha256(det_string.encode("utf8")).hexdigest()
+            setattr(cls, k, int(det_hash, 16) % 2**32)
+
+        return getattr(cls, k)
 
     def __post_init__(self):
-        valid_types = (PlutusData, dict, IndefiniteList, int, bytes)
+        valid_types = (PlutusData, dict, IndefiniteList, int, ByteString, bytes)
         for f in fields(self):
             if inspect.isclass(f.type) and not issubclass(f.type, valid_types):
                 raise TypeError(
                     f"Invalid field type: {f.type}. A field in PlutusData should be one of {valid_types}"
+                )
+
+            data = getattr(self, f.name)
+            if isinstance(data, bytes) and len(data) > 64:
+                raise InvalidArgumentException(
+                    f"The size of {data} exceeds {self.MAX_BYTES_SIZE} bytes. "
+                    "Use pycardano.serialization.ByteString for long bytes."
                 )
 
     def to_shallow_primitive(self) -> CBORTag:
@@ -529,6 +563,8 @@ class PlutusData(ArrayCBORSerializable):
                 return {"int": obj}
             elif isinstance(obj, bytes):
                 return {"bytes": obj.hex()}
+            elif isinstance(obj, ByteString):
+                return {"bytes": obj.value.hex()}
             elif isinstance(obj, IndefiniteList) or isinstance(obj, list):
                 return {"list": [_dfs(item) for item in obj]}
             elif isinstance(obj, dict):
@@ -643,7 +679,10 @@ class PlutusData(ArrayCBORSerializable):
                 elif "int" in obj:
                     return obj["int"]
                 elif "bytes" in obj:
-                    return bytes.fromhex(obj["bytes"])
+                    if len(obj["bytes"]) > 64:
+                        return ByteString(bytes.fromhex(obj["bytes"]))
+                    else:
+                        return bytes.fromhex(obj["bytes"])
                 elif "list" in obj:
                     return IndefiniteList([_dfs(item) for item in obj["list"]])
                 else:
@@ -820,3 +859,10 @@ def script_hash(script: ScriptType) -> ScriptHash:
         )
     else:
         raise TypeError(f"Unexpected script type: {type(script)}")
+
+
+@dataclass
+class Unit(PlutusData):
+    """The default "Unit type" with a 0 constructor ID"""
+
+    CONSTR_ID = 0

@@ -1,5 +1,7 @@
 import copy
-import unittest
+import subprocess
+import sys
+import tempfile
 from dataclasses import dataclass
 from test.pycardano.util import check_two_way_cbor
 from typing import Dict, List, Union
@@ -7,7 +9,7 @@ from typing import Dict, List, Union
 import pytest
 from cbor2 import CBORTag
 
-from pycardano.exception import DeserializeException, SerializeException
+from pycardano.exception import DeserializeException
 from pycardano.plutus import (
     COST_MODELS,
     ExecutionUnits,
@@ -17,7 +19,7 @@ from pycardano.plutus import (
     RedeemerTag,
     plutus_script_hash,
 )
-from pycardano.serialization import IndefiniteList
+from pycardano.serialization import ByteString, IndefiniteList
 
 
 @dataclass
@@ -51,6 +53,7 @@ class DictTest(PlutusData):
 
 @dataclass
 class ListTest(PlutusData):
+    CONSTR_ID = 0
     a: List[LargestTest]
 
 
@@ -204,7 +207,7 @@ def test_plutus_data_from_json_wrong_data_structure_type():
 def test_plutus_data_hash():
     assert (
         bytes.fromhex(
-            "923918e403bf43c34b4ef6b48eb2ee04babed17320d8d1b9ff9ad086e86f44ec"
+            "19d31e4f3aa9b03ad93b64c8dd2cc822d247c21e2c22762b7b08e6cadfeddb47"
         )
         == PlutusData().hash().payload
     )
@@ -316,3 +319,102 @@ def test_clone_plutus_data():
     my_vesting.deadline = 1643235300001
 
     assert cloned_vesting != my_vesting
+
+
+def test_unique_constr_ids():
+    @dataclass
+    class A(PlutusData):
+        pass
+
+    @dataclass
+    class B(PlutusData):
+        pass
+
+    assert (
+        A.CONSTR_ID != B.CONSTR_ID
+    ), "Different classes (different names) have same default constructor ID"
+    B_tmp = B
+
+    @dataclass
+    class B(PlutusData):
+        a: int
+        b: bytes
+
+    assert (
+        B_tmp.CONSTR_ID != B.CONSTR_ID
+    ), "Different classes (different fields) have same default constructor ID"
+
+    B_tmp = B
+
+    @dataclass
+    class B(PlutusData):
+        a: bytes
+        b: bytes
+
+    assert (
+        B_tmp.CONSTR_ID != B.CONSTR_ID
+    ), "Different classes (different field types) have same default constructor ID"
+
+
+def test_deterministic_constr_ids_local():
+    @dataclass
+    class A(PlutusData):
+        a: int
+        b: bytes
+
+    A_tmp = A
+
+    @dataclass
+    class A(PlutusData):
+        a: int
+        b: bytes
+
+    assert (
+        A_tmp.CONSTR_ID == A.CONSTR_ID
+    ), "Same class has different default constructor ID"
+
+
+def test_deterministic_constr_ids_global():
+    code = """
+from dataclasses import dataclass
+from pycardano import PlutusData
+
+@dataclass
+class A(PlutusData):
+    a: int
+    b: bytes
+
+print(A.CONSTR_ID)
+"""
+    tmpfile = tempfile.TemporaryFile()
+    tmpfile.write(code.encode("utf8"))
+    tmpfile.seek(0)
+    res = subprocess.run([sys.executable], stdin=tmpfile, capture_output=True).stdout
+    tmpfile.seek(0)
+    res2 = subprocess.run([sys.executable], stdin=tmpfile, capture_output=True).stdout
+
+    assert (
+        res == res2
+    ), "Same class has different default constructor id in two consecutive runs"
+
+
+def test_plutus_data_long_bytes():
+    @dataclass
+    class A(PlutusData):
+        a: ByteString
+
+    quote = (
+        "The line separating good and evil passes ... right through every human heart."
+    )
+
+    quote_hex = (
+        "d866821a8e5890cf9f5f5840546865206c696e652073657061726174696e6720676f6f6420616"
+        "e64206576696c20706173736573202e2e2e207269676874207468726f7567682065766572794d"
+        "2068756d616e2068656172742effff"
+    )
+
+    A_tmp = A(ByteString(quote.encode()))
+
+    assert (
+        A_tmp.to_cbor_hex() == quote_hex
+    ), "Long metadata bytestring is encoded incorrectly."

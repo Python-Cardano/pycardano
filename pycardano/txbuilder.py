@@ -1150,6 +1150,13 @@ class TransactionBuilder:
 
             if tmp_val.coin < collateral_amount:
                 sorted_inputs = sorted(
+                    self.potential_inputs,
+                    key=lambda i: (len(i.output.to_cbor_hex()), -i.output.amount.coin),
+                )
+                _add_collateral_input(tmp_val, sorted_inputs)
+
+            if tmp_val.coin < collateral_amount:
+                sorted_inputs = sorted(
                     self.context.utxos(collateral_return_address),
                     key=lambda i: (len(i.output.to_cbor_hex()), -i.output.amount.coin),
                 )

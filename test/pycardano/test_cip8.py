@@ -1,11 +1,31 @@
 from pycardano.cip.cip8 import sign, verify
+from pycardano.crypto.bip32 import BIP32ED25519PrivateKey, HDWallet
 from pycardano.key import (
+    ExtendedSigningKey,
+    ExtendedVerificationKey,
     PaymentSigningKey,
     PaymentVerificationKey,
     StakeSigningKey,
     StakeVerificationKey,
 )
 from pycardano.network import Network
+
+EXTENDED_SK = ExtendedSigningKey.from_json(
+    """{
+        "type": "PaymentExtendedSigningKeyShelley_ed25519_bip32",
+        "description": "Payment Signing Key",
+        "cborHex": "5880e8428867ab9cc9304379a3ce0c238a592bd6d2349d2ebaf8a6ed2c6d2974a15ad59c74b6d8fa3edd032c6261a73998b7deafe983b6eeaff8b6fb3fab06bdf8019b693a62bce7a3cad1b9c02d22125767201c65db27484bb67d3cee7df7288d62c099ac0ce4a215355b149fd3114a2a7ef0438f01f8872c4487a61b469e26aae4"
+    }"""
+)
+
+EXTENDED_VK = ExtendedVerificationKey.from_json(
+    """{
+        "type": "PaymentExtendedVerificationKeyShelley_ed25519_bip32",
+        "description": "Payment Verification Key",
+        "cborHex": "58409b693a62bce7a3cad1b9c02d22125767201c65db27484bb67d3cee7df7288d62c099ac0ce4a215355b149fd3114a2a7ef0438f01f8872c4487a61b469e26aae4"
+    }"""
+)
+
 
 SK = PaymentSigningKey.from_json(
     """{
@@ -136,6 +156,33 @@ def test_sign_and_verify():
     assert verification["verified"]
     assert verification["message"] == "Pycardano is cool."
     assert verification["signing_address"].payment_part == VK.hash()
+
+
+def test_extended_sign_and_verify():
+    # try first with no cose key attached
+
+    message = "Pycardano is cool."
+    signed_message = sign(
+        message,
+        signing_key=EXTENDED_SK,
+        attach_cose_key=False,
+        network=Network.TESTNET,
+    )
+
+    verification = verify(signed_message)
+    assert verification["verified"]
+    assert verification["message"] == "Pycardano is cool."
+    assert verification["signing_address"].payment_part == EXTENDED_VK.hash()
+
+    # try again but attach cose key
+    signed_message = sign(
+        message, signing_key=EXTENDED_SK, attach_cose_key=True, network=Network.TESTNET
+    )
+
+    verification = verify(signed_message)
+    assert verification["verified"]
+    assert verification["message"] == "Pycardano is cool."
+    assert verification["signing_address"].payment_part == EXTENDED_VK.hash()
 
 
 def test_sign_and_verify_stake():
