@@ -405,7 +405,8 @@ def test_id_map_supports_all():
         CONSTR_ID = 0
         a: int
         b: bytes
-        c: List[int]
+        c: ByteString
+        d: List[int]
 
     @dataclass
     class C(PlutusData):
@@ -424,7 +425,7 @@ def test_id_map_supports_all():
     s = id_map(B)
     assert (
         s
-        == "cons[B](1013743048;a:int,c:cons[A](0;a:int,b:bytes,c:list<int>),d:map<bytes,cons[C](892310804;x:any,y:any,z:any,w:list)>,e:union<cons[A](0;a:int,b:bytes,c:list<int>),cons[C](892310804;x:any,y:any,z:any,w:list)>)"
+        == "cons[B](3809077817;a:int,c:cons[A](0;a:int,b:bytes,c:bytes,d:list<int>),d:map<bytes,cons[C](892310804;x:any,y:any,z:any,w:list)>,e:union<cons[A](0;a:int,b:bytes,c:bytes,d:list<int>),cons[C](892310804;x:any,y:any,z:any,w:list)>)"
     )
 
 
@@ -438,9 +439,7 @@ def test_plutus_data_long_bytes():
         "The line separating good and evil passes ... right through every human heart."
     )
 
-    quote_hex = (
-        "d8799f5f5840546865206c696e652073657061726174696e6720676f6f6420616e64206576696c20706173736573202e2e2e207269676874207468726f7567682065766572794d2068756d616e2068656172742effff"
-    )
+    quote_hex = "d8799f5f5840546865206c696e652073657061726174696e6720676f6f6420616e64206576696c20706173736573202e2e2e207269676874207468726f7567682065766572794d2068756d616e2068656172742effff"
 
     A_tmp = A(ByteString(quote.encode()))
 
