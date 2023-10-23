@@ -373,6 +373,46 @@ def test_tx_builder_mint_multi_asset(chain_context):
     assert expected == tx_body.to_primitive()
 
 
+def test_tx_builder_burn_multi_asset(chain_context):
+    vk1 = VerificationKey.from_cbor(
+        "58206443a101bdb948366fc87369336224595d36d8b0eee5602cba8b81a024e58473"
+    )
+    vk2 = VerificationKey.from_cbor(
+        "58206443a101bdb948366fc87369336224595d36d8b0eee5602cba8b81a024e58475"
+    )
+    spk1 = ScriptPubkey(key_hash=vk1.hash())
+    spk2 = ScriptPubkey(key_hash=vk2.hash())
+    before = InvalidHereAfter(123456789)
+    after = InvalidBefore(123456780)
+    script = ScriptAll([before, after, spk1, ScriptAll([spk1, spk2])])
+    policy_id = script.hash()
+
+    tx_builder = TransactionBuilder(chain_context)
+    sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    sender_address: Address = Address.from_primitive(sender)
+
+    # Add sender address as input
+    to_burn = MultiAsset.from_primitive({policy_id.payload: {b"Token1": -1}})
+    tx_input = TransactionInput.from_primitive([b"1" * 32, 123])
+    tx_builder.potential_inputs.append(
+        UTxO(
+            tx_input,
+            TransactionOutput.from_primitive(
+                [sender, [2000000, {policy_id.payload: {b"Token1": 1}}]]
+            ),
+        )
+    )
+    tx_builder.add_input_address(sender).add_output(
+        TransactionOutput.from_primitive([sender, 3000000])
+    ).add_output(TransactionOutput.from_primitive([sender, 2000000]))
+
+    tx_builder.mint = to_burn
+
+    tx_body = tx_builder.build(change_address=sender_address)
+
+    assert tx_input in tx_body.inputs
+
+
 def test_tx_add_change_split_nfts(chain_context):
     # Set the max value size to be very small for testing purpose
     param = {"max_val_size": 50}
