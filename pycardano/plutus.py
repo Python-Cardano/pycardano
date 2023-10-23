@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import inspect
 import json
+import typing
 from dataclasses import dataclass, field, fields
 from enum import Enum
 from hashlib import sha256
@@ -448,6 +449,45 @@ def get_tag(constr_id: int) -> Optional[int]:
         return None
 
 
+def id_map(cls, skip_constructor=False):
+    """
+    Constructs a unique representation of a PlutusData type definition.
+    Intended for automatic constructor generation.
+    """
+    if cls == bytes or cls == ByteString:
+        return "bytes"
+    if cls == int:
+        return "int"
+    if cls == RawCBOR or cls == RawPlutusData or cls == Datum:
+        return "any"
+    if cls == IndefiniteList:
+        return "list"
+    if hasattr(cls, "__origin__"):
+        origin = getattr(cls, "__origin__")
+        if origin == list:
+            prefix = "list"
+        elif origin == dict:
+            prefix = "map"
+        elif origin == typing.Union:
+            prefix = "union"
+        else:
+            raise TypeError(
+                f"Unexpected parameterized type for automatic constructor generation: {cls}"
+            )
+        return prefix + "<" + ",".join(id_map(a) for a in cls.__args__) + ">"
+    if issubclass(cls, PlutusData):
+        return (
+            "cons["
+            + cls.__name__
+            + "]("
+            + (str(cls.CONSTR_ID) if not skip_constructor else "_")
+            + ";"
+            + ",".join(f.name + ":" + id_map(f.type) for f in fields(cls))
+            + ")"
+        )
+    raise TypeError(f"Unexpected type for automatic constructor generation: {cls}")
+
+
 @dataclass(repr=False)
 class PlutusData(ArrayCBORSerializable):
     """
@@ -481,11 +521,7 @@ class PlutusData(ArrayCBORSerializable):
         """
         k = f"_CONSTR_ID_{cls.__name__}"
         if not hasattr(cls, k):
-            det_string = (
-                cls.__name__
-                + "*"
-                + "*".join([f"{f.name}~{f.type}" for f in fields(cls)])
-            )
+            det_string = id_map(cls, skip_constructor=True)
             det_hash = sha256(det_string.encode("utf8")).hexdigest()
             setattr(cls, k, int(det_hash, 16) % 2**32)
 
