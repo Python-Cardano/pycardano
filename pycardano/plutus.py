@@ -454,7 +454,7 @@ def id_map(cls, skip_constructor=False):
     Constructs a unique representation of a PlutusData type definition.
     Intended for automatic constructor generation.
     """
-    if cls == bytes:
+    if cls == bytes or cls == ByteString:
         return "bytes"
     if cls == int:
         return "int"

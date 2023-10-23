@@ -431,6 +431,7 @@ def test_id_map_supports_all():
 def test_plutus_data_long_bytes():
     @dataclass
     class A(PlutusData):
+        CONSTR_ID = 0
         a: ByteString
 
     quote = (
@@ -438,9 +439,7 @@ def test_plutus_data_long_bytes():
     )
 
     quote_hex = (
-        "d866821a8e5890cf9f5f5840546865206c696e652073657061726174696e6720676f6f6420616"
-        "e64206576696c20706173736573202e2e2e207269676874207468726f7567682065766572794d"
-        "2068756d616e2068656172742effff"
+        "d8799f5f5840546865206c696e652073657061726174696e6720676f6f6420616e64206576696c20706173736573202e2e2e207269676874207468726f7567682065766572794d2068756d616e2068656172742effff"
     )
 
     A_tmp = A(ByteString(quote.encode()))
