@@ -916,14 +916,7 @@ def to_plutus_schema(cls: Type[Datum]) -> dict:
     Returns:
         dict: a dict representing the schema of this class.
     """
-
-    if issubclass(cls, bytes) or issubclass(cls, ByteString):
-        return {"dataType": "bytes"}
-    elif issubclass(cls, int):
-        return {"dataType": "integer"}
-    elif issubclass(cls, IndefiniteList) or issubclass(cls, list):
-        return {"dataType": "list"}
-    elif hasattr(cls, "__origin__") and cls.__origin__ is list:
+    if hasattr(cls, "__origin__") and cls.__origin__ is list:
         return {
             "dataType": "list",
             **(
@@ -953,6 +946,8 @@ def to_plutus_schema(cls: Type[Datum]) -> dict:
     elif issubclass(cls, PlutusData):
         fields = []
         for field_value in cls.__dataclass_fields__.values():
+            if field_value.name == "CONSTR_ID":
+                continue
             field_schema = to_plutus_schema(field_value.type)
             field_schema["title"] = field_value.name
             fields.append(field_schema)
@@ -961,5 +956,11 @@ def to_plutus_schema(cls: Type[Datum]) -> dict:
             "index": cls.CONSTR_ID,
             "fields": fields,
         }
+    elif issubclass(cls, bytes) or issubclass(cls, ByteString):
+        return {"dataType": "bytes"}
+    elif issubclass(cls, int):
+        return {"dataType": "integer"}
+    elif issubclass(cls, IndefiniteList) or issubclass(cls, list):
+        return {"dataType": "list"}
     else:
         return {}

@@ -21,6 +21,7 @@ from pycardano.plutus import (
     id_map,
     Datum,
     Unit,
+    to_plutus_schema,
 )
 from pycardano.serialization import IndefiniteList, RawCBOR, ByteString
 
@@ -446,3 +447,125 @@ def test_plutus_data_long_bytes():
     assert (
         A_tmp.to_cbor_hex() == quote_hex
     ), "Long metadata bytestring is encoded incorrectly."
+
+
+def test_to_plutus_schema_basic():
+    @dataclass
+    class A(PlutusData):
+        CONSTR_ID = 0
+        a: int
+        b: bytes
+        c: ByteString
+        d: List[int]
+
+    @dataclass
+    class C(PlutusData):
+        x: RawPlutusData
+        y: RawCBOR
+        z: Datum
+        w: IndefiniteList
+
+    @dataclass
+    class B(PlutusData):
+        a: int
+        c: A
+        d: Dict[bytes, C]
+        e: Union[A, C]
+
+    schema = to_plutus_schema(B)
+    assert schema == {
+        "dataType": "constructor",
+        "index": 3809077817,
+        "fields": [
+            {"dataType": "integer", "title": "a"},
+            {
+                "dataType": "constructor",
+                "index": 0,
+                "fields": [
+                    {"dataType": "integer", "title": "a"},
+                    {"dataType": "bytes", "title": "b"},
+                    {"dataType": "bytes", "title": "c"},
+                    {
+                        "dataType": "list",
+                        "items": {"dataType": "integer"},
+                        "title": "d",
+                    },
+                ],
+                "title": "c",
+            },
+            {
+                "dataType": "map",
+                "keys": {"dataType": "bytes"},
+                "values": {
+                    "dataType": "constructor",
+                    "index": 892310804,
+                    "fields": [
+                        {"title": "x"},
+                        {"title": "y"},
+                        {
+                            "anyOf": [
+                                {
+                                    "dataType": "constructor",
+                                    "index": 3577940042,
+                                    "fields": [],
+                                },
+                                {},
+                                {"dataType": "integer"},
+                                {"dataType": "bytes"},
+                                {"dataType": "list"},
+                                {},
+                                {},
+                            ],
+                            "title": "z",
+                        },
+                        {"dataType": "list", "title": "w"},
+                    ],
+                },
+                "title": "d",
+            },
+            {
+                "anyOf": [
+                    {
+                        "dataType": "constructor",
+                        "index": 0,
+                        "fields": [
+                            {"dataType": "integer", "title": "a"},
+                            {"dataType": "bytes", "title": "b"},
+                            {"dataType": "bytes", "title": "c"},
+                            {
+                                "dataType": "list",
+                                "items": {"dataType": "integer"},
+                                "title": "d",
+                            },
+                        ],
+                    },
+                    {
+                        "dataType": "constructor",
+                        "index": 892310804,
+                        "fields": [
+                            {"title": "x"},
+                            {"title": "y"},
+                            {
+                                "anyOf": [
+                                    {
+                                        "dataType": "constructor",
+                                        "index": 3577940042,
+                                        "fields": [],
+                                    },
+                                    {},
+                                    {"dataType": "integer"},
+                                    {"dataType": "bytes"},
+                                    {"dataType": "list"},
+                                    {},
+                                    {},
+                                ],
+                                "title": "z",
+                            },
+                            {"dataType": "list", "title": "w"},
+                        ],
+                    },
+                ],
+                "title": "e",
+            },
+        ],
+    }
