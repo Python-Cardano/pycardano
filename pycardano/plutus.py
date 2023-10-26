@@ -902,3 +902,56 @@ class Unit(PlutusData):
     """The default "Unit type" with a 0 constructor ID"""
 
     CONSTR_ID = 0
+
+
+def to_plutus_schema(cls: Type[Datum]) -> dict:
+    """
+    Convert to a dictionary representing a json schema according to CIP 57 Plutus Blueprint
+    Reference of the core structure:
+    https://cips.cardano.org/cips/cip57/#corevocabulary
+
+    Args:
+        **kwargs: Extra key word arguments to be passed to `json.dumps()`
+
+    Returns:
+        dict: a dict representing the schema of this class.
+    """
+
+    if issubclass(cls, bytes) or issubclass(cls, ByteString):
+        return {"dataType": "bytes"}
+    elif issubclass(cls, int):
+        return {"dataType": "integer"}
+    elif issubclass(cls, IndefiniteList) or issubclass(cls, list):
+        return {"dataType": "list"}
+    elif hasattr(cls, "__origin__") and cls.__origin__ is list:
+        return {
+            "dataType": "list",
+            **(
+                {"items": to_plutus_schema(cls.__args__[0])}
+                if hasattr(cls, "__args__")
+                else {}
+            ),
+        }
+    elif hasattr(cls, "__origin__") and cls.__origin__ is dict:
+        return {
+            "dataType": "map",
+            **(
+                {
+                    "keys": to_plutus_schema(cls.__args__[0]),
+                    "values": to_plutus_schema(cls.__args__[1]),
+                }
+                if hasattr(cls, "__args__")
+                else {}
+            ),
+        }
+    elif hasattr(cls, "__origin__") and cls.__origin__ is Union:
+        return {
+            "anyOf": [to_plutus_schema(t) for t in cls.__args__]
+            if hasattr(cls, "__args__")
+            else []
+        }
+    elif issubclass(cls, PlutusData):
+        fields = []
+        pass
+    else:
+        return {}
