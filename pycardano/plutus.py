@@ -952,6 +952,14 @@ def to_plutus_schema(cls: Type[Datum]) -> dict:
         }
     elif issubclass(cls, PlutusData):
         fields = []
-        pass
+        for field_value in cls.__dataclass_fields__.values():
+            field_schema = to_plutus_schema(field_value.type)
+            field_schema["title"] = field_value.name
+            fields.append(field_schema)
+        return {
+            "dataType": "constructor",
+            "index": cls.CONSTR_ID,
+            "fields": fields,
+        }
     else:
         return {}
