@@ -13,6 +13,7 @@ from typing import Optional, List, Dict, Union
 
 from cachetools import Cache, LRUCache, TTLCache, func
 
+from pycardano import Network
 from pycardano.address import Address
 from pycardano.backend.base import (
     ALONZO_COINS_PER_UTXO_WORD,
@@ -75,9 +76,9 @@ class CardanoCliNetwork(Enum):
 
 
 class CardanoCliChainContext(ChainContext):
-    _binary: Optional[Path]
+    _binary: Path
     _socket: Optional[Path]
-    _config_file: Optional[Path]
+    _config_file: Path
     _mode: Mode
     _network: CardanoCliNetwork
     _last_known_block_slot: int
@@ -191,6 +192,7 @@ class CardanoCliChainContext(ChainContext):
             return params["utxoCostPerWord"]
         elif "utxoCostPerByte" in params and params["utxoCostPerByte"] is not None:
             return params["utxoCostPerByte"]
+        raise ValueError("Cannot determine minUTxOValue, invalid protocol params")
 
     def _parse_cost_models(self, cli_result: JsonDict) -> Dict[str, Dict[str, int]]:
         cli_cost_models = cli_result.get("costModels", {})
@@ -289,9 +291,11 @@ class CardanoCliChainContext(ChainContext):
         )
 
     @property
-    def network(self) -> CardanoCliNetwork:
+    def network(self) -> Network:
         """Cet current network"""
-        return self._network
+        if self._network == CardanoCliNetwork.MAINNET:
+            return Network.MAINNET
+        return Network.TESTNET
 
     @property
     def epoch(self) -> int:
