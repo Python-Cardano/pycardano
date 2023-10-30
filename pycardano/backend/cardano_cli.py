@@ -20,7 +20,11 @@ from pycardano.backend.base import (
     GenesisParameters,
     ProtocolParameters,
 )
-from pycardano.exception import TransactionFailedException, CardanoCliError, PyCardanoException
+from pycardano.exception import (
+    TransactionFailedException,
+    CardanoCliError,
+    PyCardanoException,
+)
 from pycardano.hash import DatumHash, ScriptHash
 from pycardano.transaction import (
     Asset,
@@ -84,14 +88,14 @@ class CardanoCliChainContext(ChainContext):
     _datum_cache: Cache
 
     def __init__(
-            self,
-            binary: Path,
-            socket: Path,
-            config_file: Path,
-            network: CardanoCliNetwork,
-            refetch_chain_tip_interval: Optional[float] = None,
-            utxo_cache_size: int = 10000,
-            datum_cache_size: int = 10000,
+        self,
+        binary: Path,
+        socket: Path,
+        config_file: Path,
+        network: CardanoCliNetwork,
+        refetch_chain_tip_interval: Optional[float] = None,
+        utxo_cache_size: int = 10000,
+        datum_cache_size: int = 10000,
     ):
         if not binary.exists() or not binary.is_file():
             raise CardanoCliError(f"cardano-cli binary file not found: {binary}")
@@ -124,8 +128,8 @@ class CardanoCliChainContext(ChainContext):
         self._protocol_param = None
         if refetch_chain_tip_interval is None:
             self._refetch_chain_tip_interval = (
-                    self.genesis_param.slot_length
-                    / self.genesis_param.active_slots_coefficient
+                self.genesis_param.slot_length
+                / self.genesis_param.active_slots_coefficient
             )
 
         self._utxo_cache = TTLCache(
@@ -153,7 +157,9 @@ class CardanoCliChainContext(ChainContext):
         return json.loads(result)
 
     def _query_current_protocol_params(self) -> JsonDict:
-        result = self._run_command(["query", "protocol-parameters"] + self._network.value)
+        result = self._run_command(
+            ["query", "protocol-parameters"] + self._network.value
+        )
         return json.loads(result)
 
     def _query_genesis_config(self) -> JsonDict:
@@ -161,9 +167,13 @@ class CardanoCliChainContext(ChainContext):
             raise CardanoCliError(f"Cardano config file not found: {self._config_file}")
         with open(self._config_file, encoding="utf-8") as config_file:
             config_json = json.load(config_file)
-            shelly_genesis_file = self._config_file.parent / config_json["ShelleyGenesisFile"]
+            shelly_genesis_file = (
+                self._config_file.parent / config_json["ShelleyGenesisFile"]
+            )
         if not shelly_genesis_file.exists() or not shelly_genesis_file.is_file():
-            raise CardanoCliError(f"Shelly Genesis file not found: {shelly_genesis_file}")
+            raise CardanoCliError(
+                f"Shelly Genesis file not found: {shelly_genesis_file}"
+            )
         with open(shelly_genesis_file, encoding="utf-8") as genesis_file:
             genesis_json = json.load(genesis_file)
         return genesis_json
@@ -172,7 +182,10 @@ class CardanoCliChainContext(ChainContext):
         params = self._query_current_protocol_params()
         if "minUTxOValue" in params and params["minUTxOValue"] is not None:
             return params["minUTxOValue"]
-        elif "lovelacePerUTxOWord" in params and params["lovelacePerUTxOWord"] is not None:
+        elif (
+            "lovelacePerUTxOWord" in params
+            and params["lovelacePerUTxOWord"] is not None
+        ):
             return params["lovelacePerUTxOWord"]
         elif "utxoCostPerWord" in params and params["utxoCostPerWord"] is not None:
             return params["utxoCostPerWord"]
@@ -206,8 +219,12 @@ class CardanoCliChainContext(ChainContext):
     def _fetch_protocol_param(self) -> ProtocolParameters:
         result = self._query_current_protocol_params()
         return ProtocolParameters(
-            min_fee_constant=result["minFeeConstant"] if "minFeeConstant" in result else result["txFeeFixed"],
-            min_fee_coefficient=result["minFeeCoefficient"] if "minFeeCoefficient" in result else result["txFeePerByte"],
+            min_fee_constant=result["minFeeConstant"]
+            if "minFeeConstant" in result
+            else result["txFeeFixed"],
+            min_fee_coefficient=result["minFeeCoefficient"]
+            if "minFeeCoefficient" in result
+            else result["txFeePerByte"],
             max_block_size=result["maxBlockBodySize"],
             max_tx_size=result["maxTxSize"],
             max_block_header_size=result["maxBlockHeaderSize"],
@@ -222,8 +239,12 @@ class CardanoCliChainContext(ChainContext):
             protocol_minor_version=result["protocolVersion"]["minor"],
             min_utxo=self._get_min_utxo(),
             min_pool_cost=result["minPoolCost"],
-            price_mem=result["executionUnitPrices"]["priceMemory"] if "executionUnitPrices" in result else result["executionPrices"]["priceMemory"],
-            price_step=result["executionUnitPrices"]["priceSteps"] if "executionUnitPrices" in result else result["executionPrices"]["priceSteps"],
+            price_mem=result["executionUnitPrices"]["priceMemory"]
+            if "executionUnitPrices" in result
+            else result["executionPrices"]["priceMemory"],
+            price_step=result["executionUnitPrices"]["priceSteps"]
+            if "executionUnitPrices" in result
+            else result["executionPrices"]["priceSteps"],
             max_tx_ex_mem=result["maxTxExecutionUnits"]["memory"],
             max_tx_ex_steps=result["maxTxExecutionUnits"]["steps"],
             max_block_ex_mem=result["maxBlockExecutionUnits"]["memory"],
@@ -309,7 +330,9 @@ class CardanoCliChainContext(ChainContext):
         if key in self._utxo_cache:
             return self._utxo_cache[key]
 
-        result = self._run_command(["query", "utxo", "--address", address] + self._network.value)
+        result = self._run_command(
+            ["query", "utxo", "--address", address] + self._network.value
+        )
         raw_utxos = result.split("\n")[2:]
 
         # Parse the UTXOs into a list of dict objects
@@ -326,12 +349,13 @@ class CardanoCliChainContext(ChainContext):
                 "type": vals[3],
             }
 
-            tx_in = TransactionInput.from_primitive([utxo_dict["tx_hash"], int(utxo_dict["tx_ix"])])
+            tx_in = TransactionInput.from_primitive(
+                [utxo_dict["tx_hash"], int(utxo_dict["tx_ix"])]
+            )
             lovelace_amount = utxo_dict["lovelaces"]
 
             tx_out = TransactionOutput(
-                Address.from_primitive(address),
-                amount=Value(coin=int(lovelace_amount))
+                Address.from_primitive(address), amount=Value(coin=int(lovelace_amount))
             )
 
             extra = [i for i, j in enumerate(vals) if j == "+"]
@@ -351,9 +375,7 @@ class CardanoCliChainContext(ChainContext):
                     policy = ScriptHash.from_primitive(policy_id)
                     asset_name = AssetName.from_primitive(asset_hex_name)
 
-                    multi_assets.setdefault(policy, Asset())[
-                        asset_name
-                    ] = quantity
+                    multi_assets.setdefault(policy, Asset())[asset_name] = quantity
 
                     tx_out.amount = Value(lovelace_amount, multi_assets)
 
@@ -385,7 +407,7 @@ class CardanoCliChainContext(ChainContext):
             tx_json = {
                 "type": f"Witnessed Tx {self.era}Era",
                 "description": "Generated by PyCardano",
-                "cborHex": cbor
+                "cborHex": cbor,
             }
 
             tmp_tx_file.write(json.dumps(tx_json))
@@ -393,14 +415,23 @@ class CardanoCliChainContext(ChainContext):
             tmp_tx_file.flush()
 
             try:
-                self._run_command(["transaction", "submit", "--tx-file", tmp_tx_file.name] + self._network.value)
+                self._run_command(
+                    ["transaction", "submit", "--tx-file", tmp_tx_file.name]
+                    + self._network.value
+                )
             except CardanoCliError as err:
-                raise TransactionFailedException("Failed to submit transaction") from err
+                raise TransactionFailedException(
+                    "Failed to submit transaction"
+                ) from err
 
             # Get the transaction ID
             try:
-                txid = self._run_command(["transaction", "txid", "--tx-file", tmp_tx_file.name])
+                txid = self._run_command(
+                    ["transaction", "txid", "--tx-file", tmp_tx_file.name]
+                )
             except CardanoCliError as err:
-                raise PyCardanoException(f"Unable to get transaction id for {tmp_tx_file.name}") from err
+                raise PyCardanoException(
+                    f"Unable to get transaction id for {tmp_tx_file.name}"
+                ) from err
 
         return txid

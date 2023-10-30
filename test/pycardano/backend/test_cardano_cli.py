@@ -5,8 +5,15 @@ from unittest.mock import patch
 
 import pytest
 
-from pycardano import CardanoCliChainContext, ProtocolParameters, ALONZO_COINS_PER_UTXO_WORD, CardanoCliNetwork, \
-    GenesisParameters, TransactionInput, MultiAsset
+from pycardano import (
+    CardanoCliChainContext,
+    ProtocolParameters,
+    ALONZO_COINS_PER_UTXO_WORD,
+    CardanoCliNetwork,
+    GenesisParameters,
+    TransactionInput,
+    MultiAsset,
+)
 
 QUERY_TIP_RESULT = {
     "block": 1460093,
@@ -16,7 +23,7 @@ QUERY_TIP_RESULT = {
     "slot": 41008115,
     "slotInEpoch": 313715,
     "slotsToEpochEnd": 118285,
-    "syncProgress": "100.00"
+    "syncProgress": "100.00",
 }
 
 QUERY_PROTOCOL_PARAMETERS_RESULT = {
@@ -188,7 +195,7 @@ QUERY_PROTOCOL_PARAMETERS_RESULT = {
             32,
             57996947,
             18975,
-            10
+            10,
         ],
         "PlutusV2": [
             205665,
@@ -365,26 +372,17 @@ QUERY_PROTOCOL_PARAMETERS_RESULT = {
             10,
             38887044,
             32947,
-            10
-        ]
+            10,
+        ],
     },
     "decentralization": None,
-    "executionUnitPrices": {
-        "priceMemory": 5.77e-2,
-        "priceSteps": 7.21e-5
-    },
+    "executionUnitPrices": {"priceMemory": 5.77e-2, "priceSteps": 7.21e-5},
     "extraPraosEntropy": None,
     "maxBlockBodySize": 90112,
-    "maxBlockExecutionUnits": {
-        "memory": 62000000,
-        "steps": 20000000000
-    },
+    "maxBlockExecutionUnits": {"memory": 62000000, "steps": 20000000000},
     "maxBlockHeaderSize": 1100,
     "maxCollateralInputs": 3,
-    "maxTxExecutionUnits": {
-        "memory": 14000000,
-        "steps": 10000000000
-    },
+    "maxTxExecutionUnits": {"memory": 14000000, "steps": 10000000000},
     "maxTxSize": 16384,
     "maxValueSize": 5000,
     "minPoolCost": 340000000,
@@ -392,10 +390,7 @@ QUERY_PROTOCOL_PARAMETERS_RESULT = {
     "monetaryExpansion": 3.0e-3,
     "poolPledgeInfluence": 0.3,
     "poolRetireMaxEpoch": 18,
-    "protocolVersion": {
-        "major": 8,
-        "minor": 0
-    },
+    "protocolVersion": {"major": 8, "minor": 0},
     "stakeAddressDeposit": 2000000,
     "stakePoolDeposit": 500000000,
     "stakePoolTargetNum": 500,
@@ -403,7 +398,7 @@ QUERY_PROTOCOL_PARAMETERS_RESULT = {
     "txFeeFixed": 155381,
     "txFeePerByte": 44,
     "utxoCostPerByte": 4310,
-    "utxoCostPerWord": None
+    "utxoCostPerWord": None,
 }
 
 QUERY_UTXO_RESULT = """                           TxHash                                 TxIx        Amount
@@ -446,14 +441,15 @@ def chain_context(genesis_file, config_file):
         The CardanoCliChainContext
     """
     with patch(
-            "pycardano.backend.cardano_cli.CardanoCliChainContext._run_command",
-            side_effect=override_run_command,
+        "pycardano.backend.cardano_cli.CardanoCliChainContext._run_command",
+        side_effect=override_run_command,
     ):
         context = CardanoCliChainContext(
             binary=Path("cardano-cli"),
             socket=Path("node.socket"),
             config_file=config_file,
-            network=CardanoCliNetwork.PREPROD)
+            network=CardanoCliNetwork.PREPROD,
+        )
         context._run_command = override_run_command
     return context
 
@@ -461,56 +457,90 @@ def chain_context(genesis_file, config_file):
 class TestCardanoCliChainContext:
     def test_protocol_param(self, chain_context):
         assert (
-                ProtocolParameters(
-                    min_fee_constant=QUERY_PROTOCOL_PARAMETERS_RESULT["txFeeFixed"],
-                    min_fee_coefficient=QUERY_PROTOCOL_PARAMETERS_RESULT["txFeePerByte"],
-                    max_block_size=QUERY_PROTOCOL_PARAMETERS_RESULT["maxBlockBodySize"],
-                    max_tx_size=QUERY_PROTOCOL_PARAMETERS_RESULT["maxTxSize"],
-                    max_block_header_size=QUERY_PROTOCOL_PARAMETERS_RESULT["maxBlockHeaderSize"],
-                    key_deposit=QUERY_PROTOCOL_PARAMETERS_RESULT["stakeAddressDeposit"],
-                    pool_deposit=QUERY_PROTOCOL_PARAMETERS_RESULT["stakePoolDeposit"],
-                    pool_influence=QUERY_PROTOCOL_PARAMETERS_RESULT["poolPledgeInfluence"],
-                    monetary_expansion=QUERY_PROTOCOL_PARAMETERS_RESULT["monetaryExpansion"],
-                    treasury_expansion=QUERY_PROTOCOL_PARAMETERS_RESULT["treasuryCut"],
-                    decentralization_param=QUERY_PROTOCOL_PARAMETERS_RESULT.get("decentralization", 0),
-                    extra_entropy=QUERY_PROTOCOL_PARAMETERS_RESULT.get("extraPraosEntropy", ""),
-                    protocol_major_version=int(QUERY_PROTOCOL_PARAMETERS_RESULT["protocolVersion"]["major"]),
-                    protocol_minor_version=int(QUERY_PROTOCOL_PARAMETERS_RESULT["protocolVersion"]["minor"]),
-                    min_utxo=QUERY_PROTOCOL_PARAMETERS_RESULT["utxoCostPerByte"],
-                    min_pool_cost=QUERY_PROTOCOL_PARAMETERS_RESULT["minPoolCost"],
-                    price_mem=float(QUERY_PROTOCOL_PARAMETERS_RESULT["executionUnitPrices"]["priceMemory"]),
-                    price_step=float(QUERY_PROTOCOL_PARAMETERS_RESULT["executionUnitPrices"]["priceSteps"]),
-                    max_tx_ex_mem=int(QUERY_PROTOCOL_PARAMETERS_RESULT["maxTxExecutionUnits"]["memory"]),
-                    max_tx_ex_steps=int(QUERY_PROTOCOL_PARAMETERS_RESULT["maxTxExecutionUnits"]["steps"]),
-                    max_block_ex_mem=int(QUERY_PROTOCOL_PARAMETERS_RESULT["maxBlockExecutionUnits"]["memory"]),
-                    max_block_ex_steps=int(QUERY_PROTOCOL_PARAMETERS_RESULT["maxBlockExecutionUnits"]["steps"]),
-                    max_val_size=QUERY_PROTOCOL_PARAMETERS_RESULT["maxValueSize"],
-                    collateral_percent=QUERY_PROTOCOL_PARAMETERS_RESULT["collateralPercentage"],
-                    max_collateral_inputs=QUERY_PROTOCOL_PARAMETERS_RESULT["maxCollateralInputs"],
-                    coins_per_utxo_word=QUERY_PROTOCOL_PARAMETERS_RESULT.get(
-                        "coinsPerUtxoWord", ALONZO_COINS_PER_UTXO_WORD
-                    ),
-                    coins_per_utxo_byte=QUERY_PROTOCOL_PARAMETERS_RESULT.get("coinsPerUtxoByte", 0),
-                    cost_models=QUERY_PROTOCOL_PARAMETERS_RESULT["costModels"],
-                )
-                == chain_context.protocol_param
+            ProtocolParameters(
+                min_fee_constant=QUERY_PROTOCOL_PARAMETERS_RESULT["txFeeFixed"],
+                min_fee_coefficient=QUERY_PROTOCOL_PARAMETERS_RESULT["txFeePerByte"],
+                max_block_size=QUERY_PROTOCOL_PARAMETERS_RESULT["maxBlockBodySize"],
+                max_tx_size=QUERY_PROTOCOL_PARAMETERS_RESULT["maxTxSize"],
+                max_block_header_size=QUERY_PROTOCOL_PARAMETERS_RESULT[
+                    "maxBlockHeaderSize"
+                ],
+                key_deposit=QUERY_PROTOCOL_PARAMETERS_RESULT["stakeAddressDeposit"],
+                pool_deposit=QUERY_PROTOCOL_PARAMETERS_RESULT["stakePoolDeposit"],
+                pool_influence=QUERY_PROTOCOL_PARAMETERS_RESULT["poolPledgeInfluence"],
+                monetary_expansion=QUERY_PROTOCOL_PARAMETERS_RESULT[
+                    "monetaryExpansion"
+                ],
+                treasury_expansion=QUERY_PROTOCOL_PARAMETERS_RESULT["treasuryCut"],
+                decentralization_param=QUERY_PROTOCOL_PARAMETERS_RESULT.get(
+                    "decentralization", 0
+                ),
+                extra_entropy=QUERY_PROTOCOL_PARAMETERS_RESULT.get(
+                    "extraPraosEntropy", ""
+                ),
+                protocol_major_version=int(
+                    QUERY_PROTOCOL_PARAMETERS_RESULT["protocolVersion"]["major"]
+                ),
+                protocol_minor_version=int(
+                    QUERY_PROTOCOL_PARAMETERS_RESULT["protocolVersion"]["minor"]
+                ),
+                min_utxo=QUERY_PROTOCOL_PARAMETERS_RESULT["utxoCostPerByte"],
+                min_pool_cost=QUERY_PROTOCOL_PARAMETERS_RESULT["minPoolCost"],
+                price_mem=float(
+                    QUERY_PROTOCOL_PARAMETERS_RESULT["executionUnitPrices"][
+                        "priceMemory"
+                    ]
+                ),
+                price_step=float(
+                    QUERY_PROTOCOL_PARAMETERS_RESULT["executionUnitPrices"][
+                        "priceSteps"
+                    ]
+                ),
+                max_tx_ex_mem=int(
+                    QUERY_PROTOCOL_PARAMETERS_RESULT["maxTxExecutionUnits"]["memory"]
+                ),
+                max_tx_ex_steps=int(
+                    QUERY_PROTOCOL_PARAMETERS_RESULT["maxTxExecutionUnits"]["steps"]
+                ),
+                max_block_ex_mem=int(
+                    QUERY_PROTOCOL_PARAMETERS_RESULT["maxBlockExecutionUnits"]["memory"]
+                ),
+                max_block_ex_steps=int(
+                    QUERY_PROTOCOL_PARAMETERS_RESULT["maxBlockExecutionUnits"]["steps"]
+                ),
+                max_val_size=QUERY_PROTOCOL_PARAMETERS_RESULT["maxValueSize"],
+                collateral_percent=QUERY_PROTOCOL_PARAMETERS_RESULT[
+                    "collateralPercentage"
+                ],
+                max_collateral_inputs=QUERY_PROTOCOL_PARAMETERS_RESULT[
+                    "maxCollateralInputs"
+                ],
+                coins_per_utxo_word=QUERY_PROTOCOL_PARAMETERS_RESULT.get(
+                    "coinsPerUtxoWord", ALONZO_COINS_PER_UTXO_WORD
+                ),
+                coins_per_utxo_byte=QUERY_PROTOCOL_PARAMETERS_RESULT.get(
+                    "coinsPerUtxoByte", 0
+                ),
+                cost_models=QUERY_PROTOCOL_PARAMETERS_RESULT["costModels"],
+            )
+            == chain_context.protocol_param
         )
 
     def test_genesis(self, chain_context, genesis_json):
         assert (
-                GenesisParameters(
-                    active_slots_coefficient=genesis_json["activeSlotsCoeff"],
-                    update_quorum=genesis_json["updateQuorum"],
-                    max_lovelace_supply=genesis_json["maxLovelaceSupply"],
-                    network_magic=genesis_json["networkMagic"],
-                    epoch_length=genesis_json["epochLength"],
-                    system_start=genesis_json["systemStart"],
-                    slots_per_kes_period=genesis_json["slotsPerKESPeriod"],
-                    slot_length=genesis_json["slotLength"],
-                    max_kes_evolutions=genesis_json["maxKESEvolutions"],
-                    security_param=genesis_json["securityParam"],
-                )
-                == chain_context.genesis_param
+            GenesisParameters(
+                active_slots_coefficient=genesis_json["activeSlotsCoeff"],
+                update_quorum=genesis_json["updateQuorum"],
+                max_lovelace_supply=genesis_json["maxLovelaceSupply"],
+                network_magic=genesis_json["networkMagic"],
+                epoch_length=genesis_json["epochLength"],
+                system_start=genesis_json["systemStart"],
+                slots_per_kes_period=genesis_json["slotsPerKESPeriod"],
+                slot_length=genesis_json["slotLength"],
+                max_kes_evolutions=genesis_json["maxKESEvolutions"],
+                security_param=genesis_json["securityParam"],
+            )
+            == chain_context.genesis_param
         )
 
     def test_utxo(self, chain_context):
@@ -536,8 +566,9 @@ class TestCardanoCliChainContext:
         )
 
     def test_submit_tx(self, chain_context):
-        results = chain_context.submit_tx(
-            "testcborhexfromtransaction"
-        )
+        results = chain_context.submit_tx("testcborhexfromtransaction")
 
-        assert results == "270be16fa17cdb3ef683bf2c28259c978d4b7088792074f177c8efda247e23f7"
+        assert (
+            results
+            == "270be16fa17cdb3ef683bf2c28259c978d4b7088792074f177c8efda247e23f7"
+        )
