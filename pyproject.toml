@@ -39,7 +39,7 @@ cachetools = "^5.3.0"
 [tool.poetry.dev-dependencies]
 Sphinx = "^4.3.2"
 sphinx-rtd-theme = "^1.1.1"
-pytest = "^7.2.1"
+pytest = "^7.4.3"
 pytest-cov = "^4.0.0"
 flake8 = "^5.0.4"
 isort = "^5.11.4"
