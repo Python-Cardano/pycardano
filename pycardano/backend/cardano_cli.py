@@ -45,15 +45,6 @@ from pycardano.types import JsonDict
 __all__ = ["CardanoCliChainContext", "CardanoCliNetwork"]
 
 
-class Mode(str, Enum):
-    """
-    Mode enumeration.
-    """
-
-    ONLINE = "online"
-    OFFLINE = "offline"
-
-
 def network_magic(magic_number: int) -> List[str]:
     """
     Returns the network magic number for the cardano-cli
@@ -83,7 +74,6 @@ class CardanoCliChainContext(ChainContext):
     _binary: Path
     _socket: Optional[Path]
     _config_file: Path
-    _mode: Mode
     _network: CardanoCliNetwork
     _last_known_block_slot: int
     _last_chain_tip_fetch: float
@@ -114,10 +104,8 @@ class CardanoCliChainContext(ChainContext):
 
             self._socket = socket
             os.environ["CARDANO_NODE_SOCKET_PATH"] = self._socket.as_posix()
-            self._mode = Mode.ONLINE
         except CardanoCliError:
             self._socket = None
-            self._mode = Mode.OFFLINE
 
         self._binary = binary
         self._network = network
