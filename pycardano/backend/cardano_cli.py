@@ -13,7 +13,11 @@ from typing import Optional, List, Dict, Union
 
 from cachetools import Cache, LRUCache, TTLCache, func
 
-from pycardano import Network
+from pycardano.serialization import RawCBOR
+from pycardano.nativescript import NativeScript
+from pycardano.plutus import PlutusV2Script, PlutusV1Script
+
+from pycardano.network import Network
 from pycardano.address import Address
 from pycardano.backend.base import (
     ALONZO_COINS_PER_UTXO_WORD,
@@ -194,7 +198,8 @@ class CardanoCliChainContext(ChainContext):
             return params["utxoCostPerByte"]
         raise ValueError("Cannot determine minUTxOValue, invalid protocol params")
 
-    def _parse_cost_models(self, cli_result: JsonDict) -> Dict[str, Dict[str, int]]:
+    @staticmethod
+    def _parse_cost_models(cli_result: JsonDict) -> Dict[str, Dict[str, int]]:
         cli_cost_models = cli_result.get("costModels", {})
 
         cost_models = {}
@@ -211,7 +216,7 @@ class CardanoCliChainContext(ChainContext):
         return cost_models
 
     def _is_chain_tip_updated(self):
-        # fetch at most every twenty seconds!
+        # fetch at almost every twenty seconds!
         if time.time() - self._last_chain_tip_fetch < self._refetch_chain_tip_interval:
             return False
         self._last_chain_tip_fetch = time.time()
@@ -321,6 +326,29 @@ class CardanoCliChainContext(ChainContext):
         """
         return self._run_command(["version"])
 
+    @staticmethod
+    def _get_script(
+        reference_script: dict,
+    ) -> Union[PlutusV1Script, PlutusV2Script, NativeScript]:
+        """
+        Get a script object from a reference script dictionary.
+        Args:
+            reference_script:
+
+        Returns:
+
+        """
+        script_type = reference_script["script"]["type"]
+        script_json: JsonDict = reference_script["script"]
+        if script_type == "PlutusScriptV1":
+            v1script = PlutusV1Script(bytes.fromhex(script_json["cborHex"]))
+            return v1script
+        elif script_type == "PlutusScriptV2":
+            v2script = PlutusV2Script(bytes.fromhex(script_json["cborHex"]))
+            return v2script
+        else:
+            return NativeScript.from_dict(script_json)
+
     def _utxos(self, address: str) -> List[UTxO]:
         """Get all UTxOs associated with an address.
 
@@ -335,57 +363,61 @@ class CardanoCliChainContext(ChainContext):
             return self._utxo_cache[key]
 
         result = self._run_command(
-            ["query", "utxo", "--address", address] + self._network.value
+            ["query", "utxo", "--address", address, "--out-file", "/dev/stdout"]
+            + self._network.value
         )
-        raw_utxos = result.split("\n")[2:]
 
-        # Parse the UTXOs into a list of dict objects
+        raw_utxos = json.loads(result)
+
         utxos = []
-        for utxo_line in raw_utxos:
-            if len(utxo_line) == 0:
-                continue
+        for tx_hash in raw_utxos.keys():
+            tx_id, tx_idx = tx_hash.split("#")
+            utxo = raw_utxos[tx_hash]
+            tx_in = TransactionInput.from_primitive([tx_id, int(tx_idx)])
 
-            vals = utxo_line.split()
-            utxo_dict = {
-                "tx_hash": vals[0],
-                "tx_ix": vals[1],
-                "lovelaces": int(vals[2]),
-                "type": vals[3],
-            }
+            value = Value()
+            multi_asset = MultiAsset()
+            for asset in utxo["value"].keys():
+                if asset == "lovelace":
+                    value.coin = utxo["value"][asset]
+                else:
+                    policy_id = asset
+                    policy = ScriptHash.from_primitive(policy_id)
 
-            tx_in = TransactionInput.from_primitive(
-                [utxo_dict["tx_hash"], int(utxo_dict["tx_ix"])]
+                    for asset_hex_name in utxo["value"][asset].keys():
+                        asset_name = AssetName.from_primitive(asset_hex_name)
+                        amount = utxo["value"][asset][asset_hex_name]
+                        multi_asset.setdefault(policy, Asset())[asset_name] = amount
+
+            value.multi_asset = multi_asset
+
+            datum_hash = (
+                DatumHash.from_primitive(utxo["datumhash"])
+                if utxo.get("datumhash") and utxo.get("inlineDatum") is None
+                else None
             )
-            lovelace_amount = utxo_dict["lovelaces"]
+
+            datum = None
+
+            if utxo.get("datum"):
+                datum = RawCBOR(bytes.fromhex(utxo["datum"]))
+            elif utxo.get("inlineDatumhash"):
+                datum = utxo["inlineDatum"]
+
+            script = None
+
+            if utxo.get("referenceScript"):
+                script = self._get_script(utxo["referenceScript"])
 
             tx_out = TransactionOutput(
-                Address.from_primitive(address), amount=Value(coin=int(lovelace_amount))
+                Address.from_primitive(utxo["address"]),
+                amount=value,
+                datum_hash=datum_hash,
+                datum=datum,
+                script=script,
             )
 
-            extra = [i for i, j in enumerate(vals) if j == "+"]
-            for i in extra:
-                if "TxOutDatumNone" in vals[i + 1]:
-                    continue
-                elif "TxOutDatumHash" in vals[i + 1] and "Data" in vals[i + 2]:
-                    datum_hash = DatumHash.from_primitive(vals[i + 3])
-                    tx_out.datum_hash = datum_hash
-                else:
-                    multi_assets = MultiAsset()
-
-                    policy_id = vals[i + 2].split(".")[0]
-                    asset_hex_name = vals[i + 2].split(".")[1]
-                    quantity = int(vals[i + 1])
-
-                    policy = ScriptHash.from_primitive(policy_id)
-                    asset_name = AssetName.from_primitive(asset_hex_name)
-
-                    multi_assets.setdefault(policy, Asset())[asset_name] = quantity
-
-                    tx_out.amount = Value(lovelace_amount, multi_assets)
-
-            utxo = UTxO(input=tx_in, output=tx_out)
-
-            utxos.append(utxo)
+            utxos.append(UTxO(tx_in, tx_out))
 
         self._utxo_cache[key] = utxos
 

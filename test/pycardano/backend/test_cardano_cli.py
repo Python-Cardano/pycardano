@@ -401,11 +401,7 @@ QUERY_PROTOCOL_PARAMETERS_RESULT = {
     "utxoCostPerWord": None,
 }
 
-QUERY_UTXO_RESULT = """                           TxHash                                 TxIx        Amount
---------------------------------------------------------------------------------------
-270be16fa17cdb3ef683bf2c28259c978d4b7088792074f177c8efda247e23f7     0        1000000 lovelace + TxOutDatumNone
-270be16fa17cdb3ef683bf2c28259c978d4b7088792074f177c8efda247e23f7     1        9498624998 lovelace + 1000000000 328a60495759e0d8e244eca5b85b2467d142c8a755d6cd0592dff47b.6d656c636f696e
-"""
+QUERY_UTXO_RESULT = '{"fbaa018740241abb935240051134914389c3f94647d8bd6c30cb32d3fdb799bf#0": {"address": "addr1x8nz307k3sr60gu0e47cmajssy4fmld7u493a4xztjrll0aj764lvrxdayh2ux30fl0ktuh27csgmpevdu89jlxppvrswgxsta", "datum": null, "inlineDatum": {"constructor": 0, "fields": [{"constructor": 0, "fields": [{"bytes": "2e11e7313e00ccd086cfc4f1c3ebed4962d31b481b6a153c23601c0f"}, {"bytes": "636861726c69335f6164615f6e6674"}]}, {"constructor": 0, "fields": [{"bytes": ""}, {"bytes": ""}]}, {"constructor": 0, "fields": [{"bytes": "8e51398904a5d3fc129fbf4f1589701de23c7824d5c90fdb9490e15a"}, {"bytes": "434841524c4933"}]}, {"constructor": 0, "fields": [{"bytes": "d8d46a3e430fab5dc8c5a0a7fc82abbf4339a89034a8c804bb7e6012"}, {"bytes": "636861726c69335f6164615f6c71"}]}, {"int": 997}, {"list": [{"bytes": "4dd98a2ef34bc7ac3858bbcfdf94aaa116bb28ca7e01756140ba4d19"}]}, {"int": 10000000000}]}, "inlineDatumhash": "c56003cba9cfcf2f73cf6a5f4d6354d03c281bcd2bbd7a873d7475faa10a7123", "referenceScript": null, "value": {"2e11e7313e00ccd086cfc4f1c3ebed4962d31b481b6a153c23601c0f": {"636861726c69335f6164615f6e6674": 1}, "8e51398904a5d3fc129fbf4f1589701de23c7824d5c90fdb9490e15a": {"434841524c4933": 1367726755}, "d8d46a3e430fab5dc8c5a0a7fc82abbf4339a89034a8c804bb7e6012": {"636861726c69335f6164615f6c71": 9223372035870126880}, "lovelace": 708864940}}}'
 
 
 def override_run_command(cmd: List[str]):
@@ -549,19 +545,28 @@ class TestCardanoCliChainContext:
         )
 
         assert results[0].input == TransactionInput.from_primitive(
-            ["270be16fa17cdb3ef683bf2c28259c978d4b7088792074f177c8efda247e23f7", 0]
+            ["fbaa018740241abb935240051134914389c3f94647d8bd6c30cb32d3fdb799bf", 0]
         )
-        assert results[0].output.amount == 1000000
+        assert results[0].output.amount.coin == 708864940
 
-        assert results[1].input == TransactionInput.from_primitive(
-            ["270be16fa17cdb3ef683bf2c28259c978d4b7088792074f177c8efda247e23f7", 1]
+        assert (
+            str(results[0].output.address)
+            == "addr1x8nz307k3sr60gu0e47cmajssy4fmld7u493a4xztjrll0aj764lvrxdayh2ux30fl0ktuh27csgmpevdu89jlxppvrswgxsta"
         )
-        assert results[1].output.amount.coin == 9498624998
-        assert results[1].output.amount.multi_asset == MultiAsset.from_primitive(
+
+        assert isinstance(results[0].output.datum, dict)
+
+        assert results[0].output.amount.multi_asset == MultiAsset.from_primitive(
             {
-                "328a60495759e0d8e244eca5b85b2467d142c8a755d6cd0592dff47b": {
-                    "6d656c636f696e": 1000000000
-                }
+                "2e11e7313e00ccd086cfc4f1c3ebed4962d31b481b6a153c23601c0f": {
+                    "636861726c69335f6164615f6e6674": 1
+                },
+                "8e51398904a5d3fc129fbf4f1589701de23c7824d5c90fdb9490e15a": {
+                    "434841524c4933": 1367726755
+                },
+                "d8d46a3e430fab5dc8c5a0a7fc82abbf4339a89034a8c804bb7e6012": {
+                    "636861726c69335f6164615f6c71": 9223372035870126880
+                },
             }
         )
 
