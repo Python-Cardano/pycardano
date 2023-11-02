@@ -254,11 +254,6 @@ class CardanoCliChainContext(ChainContext):
             cost_models=self._parse_cost_models(result),
         )
 
-    @staticmethod
-    def _fraction_parser(fraction: str) -> float:
-        x, y = fraction.split("/")
-        return int(x) / int(y)
-
     @property
     def protocol_param(self) -> ProtocolParameters:
         """Get current protocol parameters"""
