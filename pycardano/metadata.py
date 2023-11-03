@@ -41,6 +41,7 @@ class Metadata(DictCBORSerializable):
                 if len(data) > self.MAX_ITEM_SIZE:
                     raise InvalidArgumentException(
                         f"The size of {data} exceeds {self.MAX_ITEM_SIZE} bytes."
+                        "Use pycardano.serialization.ByteString for long bytes."
                     )
             elif isinstance(data, str):
                 if len(data.encode("utf-8")) > self.MAX_ITEM_SIZE:

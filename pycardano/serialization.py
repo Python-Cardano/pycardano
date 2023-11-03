@@ -61,6 +61,22 @@ class IndefiniteFrozenList(FrozenList, IndefiniteList):  # type: ignore
 
 
 @dataclass
+class ByteString:
+    value: bytes
+
+    def __hash__(self):
+        return hash(self.value)
+
+    def __eq__(self, other: object):
+        if isinstance(other, ByteString):
+            return self.value == other.value
+        elif isinstance(other, bytes):
+            return self.value == other
+        else:
+            return False
+
+
+@dataclass
 class RawCBOR:
     """A wrapper class for bytes that represents a CBOR value."""
 
@@ -160,6 +176,7 @@ def default_encoder(
     assert isinstance(
         value,
         (
+            ByteString,
             CBORSerializable,
             IndefiniteList,
             RawCBOR,
@@ -178,6 +195,15 @@ def default_encoder(
         for item in value:
             encoder.encode(item)
         encoder.write(b"\xff")
+    elif isinstance(value, ByteString):
+        if len(value.value) > 64:
+            encoder.write(b"\x5f")
+            for i in range(0, len(value.value), 64):
+                imax = min(i + 64, len(value.value))
+                encoder.encode(value.value[i:imax])
+            encoder.write(b"\xff")
+        else:
+            encoder.encode(value.value)
     elif isinstance(value, RawCBOR):
         encoder.write(value.cbor)
     elif isinstance(value, FrozenList):
