@@ -533,6 +533,8 @@ def _restore_typed_primitive(
             raise DeserializeException(f"Expected type list but got {type(v)}")
         return IndefiniteList([_restore_typed_primitive(t, w) for w in v])
     elif isclass(t) and t == ByteString:
+        if not isinstance(v, bytes):
+            raise DeserializeException(f"Expected type bytes but got {type(v)}")
         return ByteString(v)
     elif isclass(t) and issubclass(t, IndefiniteList):
         try:
