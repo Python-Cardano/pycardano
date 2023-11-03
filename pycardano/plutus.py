@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import inspect
 import json
+import typing
 from dataclasses import dataclass, field, fields
 from enum import Enum
 from hashlib import sha256
@@ -14,11 +15,12 @@ from cbor2 import CBORTag
 from nacl.encoding import RawEncoder
 from nacl.hash import blake2b
 
-from pycardano.exception import DeserializeException
+from pycardano.exception import DeserializeException, InvalidArgumentException
 from pycardano.hash import DATUM_HASH_SIZE, SCRIPT_HASH_SIZE, DatumHash, ScriptHash
 from pycardano.nativescript import NativeScript
 from pycardano.serialization import (
     ArrayCBORSerializable,
+    ByteString,
     CBORSerializable,
     DictCBORSerializable,
     IndefiniteList,
@@ -447,6 +449,45 @@ def get_tag(constr_id: int) -> Optional[int]:
         return None
 
 
+def id_map(cls, skip_constructor=False):
+    """
+    Constructs a unique representation of a PlutusData type definition.
+    Intended for automatic constructor generation.
+    """
+    if cls == bytes or cls == ByteString:
+        return "bytes"
+    if cls == int:
+        return "int"
+    if cls == RawCBOR or cls == RawPlutusData or cls == Datum:
+        return "any"
+    if cls == IndefiniteList:
+        return "list"
+    if hasattr(cls, "__origin__"):
+        origin = getattr(cls, "__origin__")
+        if origin == list:
+            prefix = "list"
+        elif origin == dict:
+            prefix = "map"
+        elif origin == typing.Union:
+            prefix = "union"
+        else:
+            raise TypeError(
+                f"Unexpected parameterized type for automatic constructor generation: {cls}"
+            )
+        return prefix + "<" + ",".join(id_map(a) for a in cls.__args__) + ">"
+    if issubclass(cls, PlutusData):
+        return (
+            "cons["
+            + cls.__name__
+            + "]("
+            + (str(cls.CONSTR_ID) if not skip_constructor else "_")
+            + ";"
+            + ",".join(f.name + ":" + id_map(f.type) for f in fields(cls))
+            + ")"
+        )
+    raise TypeError(f"Unexpected type for automatic constructor generation: {cls}")
+
+
 @dataclass(repr=False)
 class PlutusData(ArrayCBORSerializable):
     """
@@ -468,6 +509,8 @@ class PlutusData(ArrayCBORSerializable):
         >>> assert test == Test.from_cbor("d87a9f187b43333231ff")
     """
 
+    MAX_BYTES_SIZE = 64
+
     @classproperty
     def CONSTR_ID(cls):
         """
@@ -478,22 +521,25 @@ class PlutusData(ArrayCBORSerializable):
         """
         k = f"_CONSTR_ID_{cls.__name__}"
         if not hasattr(cls, k):
-            det_string = (
-                cls.__name__
-                + "*"
-                + "*".join([f"{f.name}~{f.type}" for f in fields(cls)])
-            )
+            det_string = id_map(cls, skip_constructor=True)
             det_hash = sha256(det_string.encode("utf8")).hexdigest()
             setattr(cls, k, int(det_hash, 16) % 2**32)
 
         return getattr(cls, k)
 
     def __post_init__(self):
-        valid_types = (PlutusData, dict, IndefiniteList, int, bytes)
+        valid_types = (PlutusData, dict, IndefiniteList, int, ByteString, bytes)
         for f in fields(self):
             if inspect.isclass(f.type) and not issubclass(f.type, valid_types):
                 raise TypeError(
                     f"Invalid field type: {f.type}. A field in PlutusData should be one of {valid_types}"
+                )
+
+            data = getattr(self, f.name)
+            if isinstance(data, bytes) and len(data) > 64:
+                raise InvalidArgumentException(
+                    f"The size of {data} exceeds {self.MAX_BYTES_SIZE} bytes. "
+                    "Use pycardano.serialization.ByteString for long bytes."
                 )
 
     def to_shallow_primitive(self) -> CBORTag:
@@ -553,6 +599,8 @@ class PlutusData(ArrayCBORSerializable):
                 return {"int": obj}
             elif isinstance(obj, bytes):
                 return {"bytes": obj.hex()}
+            elif isinstance(obj, ByteString):
+                return {"bytes": obj.value.hex()}
             elif isinstance(obj, IndefiniteList) or isinstance(obj, list):
                 return {"list": [_dfs(item) for item in obj]}
             elif isinstance(obj, dict):
@@ -667,7 +715,10 @@ class PlutusData(ArrayCBORSerializable):
                 elif "int" in obj:
                     return obj["int"]
                 elif "bytes" in obj:
-                    return bytes.fromhex(obj["bytes"])
+                    if len(obj["bytes"]) > 64:
+                        return ByteString(bytes.fromhex(obj["bytes"]))
+                    else:
+                        return bytes.fromhex(obj["bytes"])
                 elif "list" in obj:
                     return IndefiniteList([_dfs(item) for item in obj["list"]])
                 else:

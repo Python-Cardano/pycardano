@@ -934,7 +934,13 @@ class TransactionBuilder:
             selected_amount += i.output.amount
 
         if self.mint:
-            selected_amount.multi_asset += self.mint
+            # Add positive minted amounts to the selected amount (=source)
+            for pid, m in self.mint.items():
+                for tkn, am in m.items():
+                    if am > 0:
+                        selected_amount += Value(
+                            multi_asset=MultiAsset({pid: Asset({tkn: am})})
+                        )
 
         if self.withdrawals:
             for v in self.withdrawals.values():
@@ -952,6 +958,15 @@ class TransactionBuilder:
         requested_amount = Value()
         for o in self.outputs:
             requested_amount += o.amount
+
+        if self.mint:
+            # Add negative minted amounts to the requested amount (=sink)
+            for pid, m in self.mint.items():
+                for tkn, am in m.items():
+                    if am < 0:
+                        requested_amount += Value(
+                            multi_asset=MultiAsset({pid: Asset({tkn: -am})})
+                        )
 
         # Include min fees associated as part of requested amount
         requested_amount += self._estimate_fee()
@@ -1132,6 +1147,13 @@ class TransactionBuilder:
                 key=lambda i: (len(i.output.to_cbor_hex()), -i.output.amount.coin),
             )
             _add_collateral_input(tmp_val, sorted_inputs)
+
+            if tmp_val.coin < collateral_amount:
+                sorted_inputs = sorted(
+                    self.potential_inputs,
+                    key=lambda i: (len(i.output.to_cbor_hex()), -i.output.amount.coin),
+                )
+                _add_collateral_input(tmp_val, sorted_inputs)
 
             if tmp_val.coin < collateral_amount:
                 sorted_inputs = sorted(
