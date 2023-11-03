@@ -11,7 +11,9 @@ from functools import partial
 from pathlib import Path
 from typing import Optional, List, Dict, Union
 
+import docker
 from cachetools import Cache, LRUCache, TTLCache, func
+from docker.errors import APIError
 
 from pycardano.serialization import RawCBOR
 from pycardano.nativescript import NativeScript
@@ -42,7 +44,7 @@ from pycardano.transaction import (
 )
 from pycardano.types import JsonDict
 
-__all__ = ["CardanoCliChainContext", "CardanoCliNetwork"]
+__all__ = ["CardanoCliChainContext", "CardanoCliNetwork", "DockerConfig"]
 
 
 def network_magic(magic_number: int) -> List[str]:
@@ -70,6 +72,22 @@ class CardanoCliNetwork(Enum):
     CUSTOM = partial(network_magic)
 
 
+class DockerConfig:
+    """
+    Docker configuration to use the cardano-cli in a Docker container
+    """
+
+    container_name: str
+    """ The name of the Docker container containing the cardano-cli"""
+
+    host_socket: Optional[Path]
+    """ The path to the Docker host socket file"""
+
+    def __init__(self, container_name: str, host_socket: Optional[Path] = None):
+        self.container_name = container_name
+        self.host_socket = host_socket
+
+
 class CardanoCliChainContext(ChainContext):
     _binary: Path
     _socket: Optional[Path]
@@ -81,6 +99,8 @@ class CardanoCliChainContext(ChainContext):
     _protocol_param: Optional[ProtocolParameters]
     _utxo_cache: Cache
     _datum_cache: Cache
+    _docker_config: Optional[DockerConfig]
+    _network_magic_number: Optional[int]
 
     def __init__(
         self,
@@ -91,21 +111,24 @@ class CardanoCliChainContext(ChainContext):
         refetch_chain_tip_interval: Optional[float] = None,
         utxo_cache_size: int = 10000,
         datum_cache_size: int = 10000,
+        docker_config: Optional[DockerConfig] = None,
+        network_magic_number: Optional[int] = None,
     ):
-        if not binary.exists() or not binary.is_file():
-            raise CardanoCliError(f"cardano-cli binary file not found: {binary}")
-
-        # Check the socket path file and set the CARDANO_NODE_SOCKET_PATH environment variable
-        try:
-            if not socket.exists():
+        if docker_config is None:
+            if not binary.exists() or not binary.is_file():
                 raise CardanoCliError(f"cardano-cli binary file not found: {binary}")
-            elif not socket.is_socket():
-                raise CardanoCliError(f"{socket} is not a socket file")
 
-            self._socket = socket
-            os.environ["CARDANO_NODE_SOCKET_PATH"] = self._socket.as_posix()
-        except CardanoCliError:
-            self._socket = None
+            # Check the socket path file and set the CARDANO_NODE_SOCKET_PATH environment variable
+            try:
+                if not socket.exists():
+                    raise CardanoCliError(f"cardano-node socket not found: {socket}")
+                elif not socket.is_socket():
+                    raise CardanoCliError(f"{socket} is not a socket file")
+
+                self._socket = socket
+                os.environ["CARDANO_NODE_SOCKET_PATH"] = self._socket.as_posix()
+            except CardanoCliError:
+                self._socket = None
 
         self._binary = binary
         self._network = network
@@ -129,29 +152,63 @@ class CardanoCliChainContext(ChainContext):
             ttl=self._refetch_chain_tip_interval, maxsize=utxo_cache_size
         )
         self._datum_cache = LRUCache(maxsize=datum_cache_size)
+        self._docker_config = docker_config
+        self._network_magic_number = network_magic_number
+
+    @property
+    def _network_args(self) -> List[str]:
+        if self._network is CardanoCliNetwork.CUSTOM:
+            return self._network.value(self._network_magic_number)
+        else:
+            return self._network.value
 
     def _run_command(self, cmd: List[str]) -> str:
         """
-        Runs the command in the cardano-cli
+        Runs the command in the cardano-cli. If the docker configuration is set, it will run the command in the
+        docker container.
 
         :param cmd: Command as a list of strings
         :return: The stdout if the command runs successfully
         """
         try:
-            result = subprocess.run(
-                [self._binary.as_posix()] + cmd, capture_output=True, check=True
-            )
-            return result.stdout.decode().strip()
+            if self._docker_config:
+                docker_config = self._docker_config
+                if docker_config.host_socket is None:
+                    client = docker.from_env()
+                else:
+                    client = docker.DockerClient(
+                        base_url=docker_config.host_socket.as_posix()
+                    )
+
+                container = client.containers.get(docker_config.container_name)
+
+                exec_result = container.exec_run(
+                    [self._binary.as_posix()] + cmd, stdout=True, stderr=True
+                )
+
+                if exec_result.exit_code == 0:
+                    output = exec_result.output.decode()
+                    return output
+                else:
+                    error = exec_result.output.decode()
+                    raise CardanoCliError(error)
+            else:
+                result = subprocess.run(
+                    [self._binary.as_posix()] + cmd, capture_output=True, check=True
+                )
+                return result.stdout.decode().strip()
         except subprocess.CalledProcessError as err:
             raise CardanoCliError(err.stderr.decode()) from err
+        except APIError as err:
+            raise CardanoCliError(err) from err
 
     def _query_chain_tip(self) -> JsonDict:
-        result = self._run_command(["query", "tip"] + self._network.value)
+        result = self._run_command(["query", "tip"] + self._network_args)
         return json.loads(result)
 
     def _query_current_protocol_params(self) -> JsonDict:
         result = self._run_command(
-            ["query", "protocol-parameters"] + self._network.value
+            ["query", "protocol-parameters"] + self._network_args
         )
         return json.loads(result)
 
@@ -347,7 +404,7 @@ class CardanoCliChainContext(ChainContext):
 
         result = self._run_command(
             ["query", "utxo", "--address", address, "--out-file", "/dev/stdout"]
-            + self._network.value
+            + self._network_args
         )
 
         raw_utxos = json.loads(result)
@@ -436,7 +493,7 @@ class CardanoCliChainContext(ChainContext):
             try:
                 self._run_command(
                     ["transaction", "submit", "--tx-file", tmp_tx_file.name]
-                    + self._network.value
+                    + self._network_args
                 )
             except CardanoCliError as err:
                 raise TransactionFailedException(
