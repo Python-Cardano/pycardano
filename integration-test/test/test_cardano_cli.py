@@ -25,7 +25,7 @@ class TestCardanoCli:
         config_file=configs_dir / network_env / "config.json",
         network=CardanoCliNetwork.CUSTOM,
         docker_config=DockerConfig(
-            container_name="cardano-node",
+            container_name="integration-test_cardano-node_1",
             host_socket=Path(host_socket) if host_socket else None,
         ),
         network_magic_number=int(network_magic),
