@@ -1,3 +1,4 @@
+from fractions import Fraction
 from pycardano.address import Address
 from pycardano.certificate import (
     StakeCredential,
@@ -21,7 +22,14 @@ from pycardano.hash import (
     RewardAccountHash,
     REWARD_ACCOUNT_HASH_SIZE,
 )
-from pycardano.stake_pool import PoolParams, PoolMetadata, MultiHostName, Fraction
+from pycardano.pool_params import (
+    PoolParams,
+    PoolMetadata,
+    MultiHostName,
+    # Fraction,
+    SingleHostAddr,
+    SingleHostName,
+)
 
 TEST_ADDR = Address.from_primitive(
     "stake_test1upyz3gk6mw5he20apnwfn96cn9rscgvmmsxc9r86dh0k66gswf59n"
@@ -117,7 +125,11 @@ def test_pool_registration():
         margin=Fraction(1, 50),
         reward_account=reward_account,
         pool_owners=[pool_owner],
-        relays=[MultiHostName(dns_name="relay1.example.com")],
+        relays=[
+            SingleHostAddr(port=3001, ipv4="192.168.0.1", ipv6="::1"),
+            SingleHostName(port=3001, dns_name="relay1.example.com"),
+            MultiHostName(dns_name="relay1.example.com"),
+        ],
         pool_metadata=PoolMetadata(
             url="https://meta1.example.com",
             pool_metadata_hash=PoolMetadataHash(b"1" * POOL_METADATA_HASH_SIZE),
@@ -129,11 +141,12 @@ def test_pool_registration():
 
     assert (
         pool_registration_cbor_hex
-        == "820389581c3131313131313131313131313131313131313131313131313131313158203131313131313131313131313131313"
-        "1313131313131313131313131313131311a05f5e1001a1443fd0064312f3530581d3131313131313131313131313131313131"
-        "31313131313131313131313181581c313131313131313131313131313131313131313131313131313131318182027272656c6"
-        "179312e6578616d706c652e636f6d82781968747470733a2f2f6d657461312e6578616d706c652e636f6d5820313131313131"
-        "3131313131313131313131313131313131313131313131313131"
+        == "8a03581c31313131313131313131313131313131313131313131313131313131582031313131313131313131313131313131313131"
+        "313131313131313131313131311a05f5e1001a1443fd00d81e82011832581d31313131313131313131313131313131313131313131"
+        "3131313131313181581c31313131313131313131313131313131313131313131313131313131838400190bb944c0a8000150000000"
+        "000000000000000000000000018301190bb97272656c6179312e6578616d706c652e636f6d82027272656c6179312e6578616d706c"
+        "652e636f6d82781968747470733a2f2f6d657461312e6578616d706c652e636f6d5820313131313131313131313131313131313131"
+        "3131313131313131313131313131"
     )
 
     assert PoolRegistration.from_cbor(pool_registration_cbor_hex) == pool_registration
