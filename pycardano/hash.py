@@ -14,6 +14,7 @@ __all__ = [
     "SCRIPT_DATA_HASH_SIZE",
     "VRF_KEY_HASH_SIZE",
     "POOL_METADATA_HASH_SIZE",
+    "REWARD_ACCOUNT_HASH_SIZE",
     "ConstrainedBytes",
     "VerificationKeyHash",
     "ScriptHash",
@@ -24,6 +25,7 @@ __all__ = [
     "PoolKeyHash",
     "PoolMetadataHash",
     "VrfKeyHash",
+    "RewardAccountHash",
 ]
 
 VERIFICATION_KEY_HASH_SIZE = 28
