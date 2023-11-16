@@ -14,10 +14,10 @@ __all__ = [
     "StakeDelegation",
     "PoolRegistration",
     "PoolRetirement",
-    "CertificateCBORSerializer"
+    "CertificateCBORSerializer",
 ]
 
-from pycardano.stake_pool import PoolParams
+from pycardano.pool_params import PoolParams
 
 unit_interval = Tuple[int, int]
 
@@ -110,6 +110,15 @@ class PoolRegistration(ArrayCBORSerializable):
     def __post_init__(self):
         self._CODE = 3
 
+    def to_primitive(self):
+        pool_params = self.pool_params.to_primitive()
+        if isinstance(pool_params, list):
+            return [
+                self._CODE,
+                *pool_params
+            ]
+        return super().to_primitive()
+
     @classmethod
     @limit_primitive_type(list)
     def from_primitive(
@@ -154,12 +163,11 @@ Certificate = Union[
 
 @dataclass(repr=False)
 class CertificateCBORSerializer(ArrayCBORSerializable):
-
     @classmethod
     @limit_primitive_type(list)
     def from_primitive(
         cls: Type[Certificate], values: Union[list, tuple]
-    ) -> Certificate:
+    ) -> Certificate | None:
         if values[0] == 0:
             return StakeRegistration.from_primitive(values)
         elif values[0] == 1:
@@ -170,3 +178,4 @@ class CertificateCBORSerializer(ArrayCBORSerializable):
             return PoolRegistration.from_primitive(values)
         elif values[0] == 4:
             return PoolRetirement.from_primitive(values)
+        return None
