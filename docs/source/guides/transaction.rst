@@ -178,5 +178,5 @@ Transaction submission
 Once we have a signed transaction, it could be submitted to the network. The easiest way to do so is through a chain
 context::
 
-    >>> context.submit_tx(signed_tx.to_cbor_hex())
+    >>> context.submit_tx(signed_tx)
 
