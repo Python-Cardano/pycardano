@@ -631,7 +631,7 @@ class PlutusData(ArrayCBORSerializable):
                 if "constructor" in obj:
                     if obj["constructor"] != cls.CONSTR_ID:
                         raise DeserializeException(
-                            f"Mismatch between constructors, expect: {cls.CONSTR_ID}, "
+                            f"Mismatch between constructors in class {cls.__name__}, expect: {cls.CONSTR_ID}, "
                             f"got: {obj['constructor']} instead."
                         )
                     converted_fields = []
