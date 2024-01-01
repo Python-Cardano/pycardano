@@ -22,6 +22,7 @@ services:
 
     volumes:
       - .:/code
+      - /tmp:/tmp
       - node-db:/data/db
       - node-ipc:/ipc
     ports:
