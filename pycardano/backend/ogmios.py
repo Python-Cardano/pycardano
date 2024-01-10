@@ -244,7 +244,7 @@ class OgmiosChainContext(ChainContext):
     @property
     def network(self) -> Network:
         """Get current network"""
-        return self.network
+        return self._network
 
     @property
     def epoch(self) -> int:
