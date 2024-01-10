@@ -1,8 +1,13 @@
 import pytest
 
 from pycardano.cip.cip14 import encode_asset
+from pycardano.hash import ScriptHash
+from pycardano.transaction import AssetName
 
 
+@pytest.mark.parametrize(
+    "input_types", [(str, str), (bytes, bytes), (ScriptHash, AssetName)]
+)
 @pytest.mark.parametrize(
     "asset",
     [
@@ -48,7 +53,18 @@ from pycardano.cip.cip14 import encode_asset
         },
     ],
 )
-def test_encode_asset(asset):
+def test_encode_asset(asset, input_types):
+    if isinstance(input_types[0], bytes):
+        policy_id = bytes.fromhex(asset["policy_id"])
+        asset_name = bytes.fromhex(asset["asset_name"])
+    elif isinstance(input_types[0], str):
+        policy_id = asset["policy_id"]
+        asset_name = asset["asset_name"]
+
+    if isinstance(input_types[0], ScriptHash):
+        policy_id = ScriptHash(policy_id)
+        asset_name = AssetName(asset_name)
+
     fingerprint = encode_asset(
         policy_id=asset["policy_id"], asset_name=asset["asset_name"]
     )
