@@ -300,4 +300,4 @@ def test_script_deserialize():
         script_2=PlutusV2Script(b"dummy test script"),
     )
 
-    datum.from_cbor(datum.to_cbor())
+    assert datum == datum.from_cbor(datum.to_cbor())
