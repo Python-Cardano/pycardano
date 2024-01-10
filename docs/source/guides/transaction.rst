@@ -86,7 +86,7 @@ Sign the transaction body hash and create a complete transaction::
     >>> signed_tx = Transaction(tx_body, TransactionWitnessSet(vkey_witnesses=vk_witnesses))
 
 
-A complete example could be found `here <https://github.com/cffls/pycardano/blob/main/examples/raw_transaction.py>`_.
+A complete example could be found `here <https://github.com/Python-Cardano/pycardano/blob/main/examples/raw_transaction.py>`_.
 
 Notice that, to create a transaction, we need to know which transaction input to use, the amount of changes to return
 to the sender, and the amount of fee to pay to the network, which is possible to calculate, but requiring
@@ -169,7 +169,7 @@ By using transaction builder, we no longer need to specify which UTxO to use as 
 transaction fee, because they are taken care by the transaction builder. Also, the code becomes much more concise.
 
 A more complex example of using transaction builder could be found
-in this `Github example <https://github.com/cffls/pycardano/blob/main/examples/tx_builder.py>`_.
+in this `Github example <https://github.com/Python-Cardano/pycardano/blob/main/examples/tx_builder.py>`_.
 
 ----------------------
 Transaction submission
