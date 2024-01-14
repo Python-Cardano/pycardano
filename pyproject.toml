@@ -18,7 +18,7 @@ documentation = "https://pycardano.readthedocs.io/en/latest/"
 keywords = ["python", "cardano", "blockchain", "crypto"]
 authors = ["Jerry <jerrycgh@gmail.com>"]
 readme = "README.md"
-repository = "https://github.com/cffls/pycardano"
+repository = "https://github.com/Python-Cardano/pycardano"
 license = "MIT"
 
 [tool.poetry.dependencies]
