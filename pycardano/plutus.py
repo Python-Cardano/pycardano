@@ -674,7 +674,7 @@ class PlutusData(ArrayCBORSerializable):
                             f_info.type, PlutusData
                         ):
                             converted_fields.append(f_info.type.from_dict(f))
-                        if f_info.type == Datum:
+                        elif f_info.type == Datum:
                             converted_fields.append(RawPlutusData.from_dict(f))
                         elif (
                             hasattr(f_info.type, "__origin__")
