@@ -239,12 +239,13 @@ def test_raw_plutus_data_json():
         CONSTR_ID = 2
         x: Datum
         y: Datum
+        z: int
 
-    c = C(RawPlutusData(testb.to_primitive()), RawCBOR(testa.to_cbor()))
+    c = C(RawPlutusData(testb.to_primitive()), RawCBOR(testa.to_cbor()), 1)
     encoded_json = c.to_json(separators=(",", ":"))
 
     assert (
-        '{"constructor":2,"fields":[{"constructor":9,"fields":[]},{"constructor":8,"fields":[{"constructor":130,"fields":[{"int":123},{"bytes":"31323334"},{"list":[{"int":4},{"int":5},{"int":6}]},{"map":[{"v":{"bytes":"31"},"k":{"int":1}},{"v":{"bytes":"32"},"k":{"int":2}}]}]}]}]}'
+        '{"constructor":2,"fields":[{"constructor":9,"fields":[]},{"constructor":8,"fields":[{"constructor":130,"fields":[{"int":123},{"bytes":"31323334"},{"list":[{"int":4},{"int":5},{"int":6}]},{"map":[{"v":{"bytes":"31"},"k":{"int":1}},{"v":{"bytes":"32"},"k":{"int":2}}]}]}]},{"int":1}]}'
         == encoded_json
     )
     assert encoded_json == C.from_json(encoded_json).to_json(separators=(",", ":"))
