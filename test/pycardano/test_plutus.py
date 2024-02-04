@@ -234,6 +234,21 @@ def test_raw_plutus_data_json():
         separators=(",", ":")
     )
 
+    @dataclass
+    class C(PlutusData):
+        CONSTR_ID = 2
+        x: Datum
+        y: Datum
+
+    c = C(RawPlutusData(testb.to_primitive()), RawCBOR(testa.to_cbor()))
+    encoded_json = c.to_json(separators=(",", ":"))
+
+    assert (
+        '{"constructor":2,"fields":[{"constructor":9,"fields":[]},{"constructor":8,"fields":[{"constructor":130,"fields":[{"int":123},{"bytes":"31323334"},{"list":[{"int":4},{"int":5},{"int":6}]},{"map":[{"v":{"bytes":"31"},"k":{"int":1}},{"v":{"bytes":"32"},"k":{"int":2}}]}]}]}]}'
+        == encoded_json
+    )
+    assert encoded_json == C.from_json(encoded_json).to_json(separators=(",", ":"))
+
 
 def test_plutus_data_hash():
     assert (

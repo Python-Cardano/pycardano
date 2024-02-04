@@ -599,14 +599,12 @@ class PlutusData(ArrayCBORSerializable):
     def hash(self) -> DatumHash:
         return datum_hash(self)
 
-    def to_json(self, **kwargs) -> str:
-        """Convert to a json string
-
-        Args:
-            **kwargs: Extra key word arguments to be passed to `json.dumps()`
+    def to_dict(self) -> dict:
+        """
+        Convert to a dictionary.
 
         Returns:
-            str: a JSON encoded PlutusData.
+            str: a dict PlutusData that can be JSON encoded.
         """
 
         def _dfs(obj):
@@ -631,13 +629,25 @@ class PlutusData(ArrayCBORSerializable):
                     "fields": [_dfs(getattr(obj, f.name)) for f in fields(obj)],
                 }
             elif isinstance(obj, RawPlutusData):
-                return obj.to_json()
+                return obj.to_dict()
             elif isinstance(obj, RawCBOR):
-                return RawPlutusData.from_cbor(obj.cbor).to_json()
+                return RawPlutusData.from_cbor(obj.cbor).to_dict()
             else:
                 raise TypeError(f"Unexpected type {type(obj)}")
 
-        return json.dumps(_dfs(self), **kwargs)
+        return _dfs(self)
+
+    def to_json(self, **kwargs) -> str:
+        """Convert to a json string
+
+        Args:
+            **kwargs: Extra key word arguments to be passed to `json.dumps()`
+
+        Returns:
+            str: a JSON encoded PlutusData.
+        """
+
+        return json.dumps(self.to_dict(), **kwargs)
 
     @classmethod
     def from_dict(cls: Type[PlutusData], data: dict) -> PlutusData:
@@ -664,6 +674,8 @@ class PlutusData(ArrayCBORSerializable):
                             f_info.type, PlutusData
                         ):
                             converted_fields.append(f_info.type.from_dict(f))
+                        if f_info.type == Datum:
+                            converted_fields.append(RawPlutusData.from_dict(f))
                         elif (
                             hasattr(f_info.type, "__origin__")
                             and f_info.type.__origin__ is Union
@@ -789,7 +801,14 @@ class RawPlutusData(CBORSerializable):
 
         return _dfs(self.data)
 
-    def to_json(self, **kwargs) -> str:
+    def to_dict(self) -> dict:
+        """
+        Convert to a dictionary.
+
+        Returns:
+            str: a dict RawPlutusData that can be JSON encoded.
+        """
+
         def _dfs(obj):
             if isinstance(obj, int):
                 return {"int": obj}
@@ -806,7 +825,19 @@ class RawPlutusData(CBORSerializable):
                 return {"constructor": constructor, "fields": [_dfs(f) for f in fields]}
             raise TypeError(f"Unexpected type {type(obj)}")
 
-        return json.dumps(_dfs(self.to_primitive()), **kwargs)
+        return _dfs(RawPlutusData.to_primitive(self))
+
+    def to_json(self, **kwargs) -> str:
+        """Convert to a json string
+
+        Args:
+            **kwargs: Extra key word arguments to be passed to `json.dumps()`
+
+        Returns:
+            str: a JSON encoded RawPlutusData.
+        """
+
+        return json.dumps(RawPlutusData.to_dict(self), **kwargs)
 
     @classmethod
     @limit_primitive_type(CBORTag)
