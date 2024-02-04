@@ -449,6 +449,26 @@ def get_tag(constr_id: int) -> Optional[int]:
         return None
 
 
+def get_constructor_id_and_fields(
+    raw_tag: CBORTag,
+) -> typing.Tuple[int, typing.List[Any]]:
+    tag = raw_tag.tag
+    if tag == 102:
+        if len(raw_tag.value) != 2:
+            raise DeserializeException(
+                f"Expect the length of value to be exactly 2, got {len(raw_tag.value)} instead."
+            )
+        return raw_tag.value[0], raw_tag.value[1]
+    else:
+        if 121 <= tag < 128:
+            constr = tag - 121
+        elif 1280 <= tag < 1536:
+            constr = tag - 1280 + 7
+        else:
+            raise DeserializeException(f"Unexpected tag for RawPlutusData: {tag}")
+        return constr, raw_tag.value
+
+
 def id_map(cls, skip_constructor=False):
     """
     Constructs a unique representation of a PlutusData type definition.
@@ -610,6 +630,10 @@ class PlutusData(ArrayCBORSerializable):
                     "constructor": obj.CONSTR_ID,
                     "fields": [_dfs(getattr(obj, f.name)) for f in fields(obj)],
                 }
+            elif isinstance(obj, RawPlutusData):
+                return obj.to_json()
+            elif isinstance(obj, RawCBOR):
+                return RawPlutusData.from_cbor(obj.cbor).to_json()
             else:
                 raise TypeError(f"Unexpected type {type(obj)}")
 
@@ -764,6 +788,25 @@ class RawPlutusData(CBORSerializable):
             return obj
 
         return _dfs(self.data)
+
+    def to_json(self, **kwargs) -> str:
+        def _dfs(obj):
+            if isinstance(obj, int):
+                return {"int": obj}
+            elif isinstance(obj, bytes):
+                return {"bytes": obj.hex()}
+            elif isinstance(obj, ByteString):
+                return {"bytes": obj.value.hex()}
+            elif isinstance(obj, IndefiniteList) or isinstance(obj, list):
+                return {"list": [_dfs(item) for item in obj]}
+            elif isinstance(obj, dict):
+                return {"map": [{"v": _dfs(v), "k": _dfs(k)} for k, v in obj.items()]}
+            elif isinstance(obj, CBORTag):
+                constructor, fields = get_constructor_id_and_fields(obj)
+                return {"constructor": constructor, "fields": [_dfs(f) for f in fields]}
+            raise TypeError(f"Unexpected type {type(obj)}")
+
+        return json.dumps(_dfs(self.to_primitive()), **kwargs)
 
     @classmethod
     @limit_primitive_type(CBORTag)
