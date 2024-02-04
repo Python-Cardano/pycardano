@@ -773,6 +773,9 @@ class RawPlutusData(CBORSerializable):
     def __deepcopy__(self, memo):
         return self.__class__.from_cbor(self.to_cbor_hex())
 
+    def __repr__(self):
+        return f"RawPlutusData(data={repr(self.data)})"
+
 
 Datum = Union[PlutusData, dict, int, bytes, IndefiniteList, RawCBOR, RawPlutusData]
 """Plutus Datum type. A Union type that contains all valid datum types."""
