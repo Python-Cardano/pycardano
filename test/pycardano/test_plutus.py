@@ -217,9 +217,8 @@ def test_raw_plutus_data_json():
         beneficiary=key_hash, deadline=deadline, testa=testa, testb=testb
     )
 
-    encoded_json = RawPlutusData(my_vesting.to_primitive()).to_json(
-        separators=(",", ":")
-    )
+    my_vesting_primitive = my_vesting.to_primitive()
+    encoded_json = RawPlutusData(my_vesting_primitive).to_json(separators=(",", ":"))
 
     assert (
         '{"constructor":1,"fields":[{"bytes":"c2ff616e11299d9094ce0a7eb5b7284b705147a822f4ffbd471f971a"},'
@@ -229,7 +228,11 @@ def test_raw_plutus_data_json():
         == encoded_json
     )
 
-    assert my_vesting == VestingParam.from_json(encoded_json)
+    # note that json encoding is lossy, so we can't compare the original object with the one decoded from json
+    # but we can compare the jsons
+    assert encoded_json == RawPlutusData.from_json(encoded_json).to_json(
+        separators=(",", ":")
+    )
 
 
 def test_plutus_data_hash():

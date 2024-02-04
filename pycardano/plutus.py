@@ -813,6 +813,61 @@ class RawPlutusData(CBORSerializable):
     def from_primitive(cls: Type[RawPlutusData], value: CBORTag) -> RawPlutusData:
         return cls(value)
 
+    @classmethod
+    def from_dict(cls: Type[RawPlutusData], data: dict) -> RawPlutusData:
+        """Convert a dictionary to RawPlutusData
+
+        Args:
+            data (dict): A dictionary.
+
+        Returns:
+            RawPlutusData: Restored RawPlutusData.
+        """
+
+        def _dfs(obj):
+            if isinstance(obj, dict):
+                if "constructor" in obj:
+                    converted_fields = []
+                    for f in obj["fields"]:
+                        converted_fields.append(_dfs(f))
+                    tag = get_tag(obj["constructor"])
+                    if tag is None:
+                        return CBORTag(
+                            102, [obj["constructor"], IndefiniteList(converted_fields)]
+                        )
+                    else:
+                        return CBORTag(tag, converted_fields)
+                elif "map" in obj:
+                    return {_dfs(pair["k"]): _dfs(pair["v"]) for pair in obj["map"]}
+                elif "int" in obj:
+                    return obj["int"]
+                elif "bytes" in obj:
+                    if len(obj["bytes"]) > 64:
+                        return ByteString(bytes.fromhex(obj["bytes"]))
+                    else:
+                        return bytes.fromhex(obj["bytes"])
+                elif "list" in obj:
+                    return IndefiniteList([_dfs(item) for item in obj["list"]])
+                else:
+                    raise DeserializeException(f"Unexpected data structure: {obj}")
+            else:
+                raise TypeError(f"Unexpected data type: {type(obj)}")
+
+        return cls(_dfs(data))
+
+    @classmethod
+    def from_json(cls: Type[RawPlutusData], data: str) -> RawPlutusData:
+        """Restore a json encoded string to a RawPlutusData.
+
+        Args:
+            data (str): An encoded json string.
+
+        Returns:
+            RawPlutusData: The restored RawPlutusData.
+        """
+        obj = json.loads(data)
+        return cls.from_dict(obj)
+
     def __deepcopy__(self, memo):
         return self.__class__.from_cbor(self.to_cbor_hex())
 
