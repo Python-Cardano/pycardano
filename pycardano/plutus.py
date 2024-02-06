@@ -826,6 +826,8 @@ class RawPlutusData(CBORSerializable):
             elif isinstance(obj, CBORTag):
                 constructor, fields = get_constructor_id_and_fields(obj)
                 return {"constructor": constructor, "fields": [_dfs(f) for f in fields]}
+            elif isinstance(obj, RawCBOR):
+                return RawPlutusData.from_cbor(obj.cbor).to_dict()
             raise TypeError(f"Unexpected type {type(obj)}")
 
         return _dfs(RawPlutusData.to_primitive(self))
