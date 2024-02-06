@@ -449,6 +449,26 @@ def get_tag(constr_id: int) -> Optional[int]:
         return None
 
 
+def get_constructor_id_and_fields(
+    raw_tag: CBORTag,
+) -> typing.Tuple[int, typing.List[Any]]:
+    tag = raw_tag.tag
+    if tag == 102:
+        if len(raw_tag.value) != 2:
+            raise DeserializeException(
+                f"Expect the length of value to be exactly 2, got {len(raw_tag.value)} instead."
+            )
+        return raw_tag.value[0], raw_tag.value[1]
+    else:
+        if 121 <= tag < 128:
+            constr = tag - 121
+        elif 1280 <= tag < 1536:
+            constr = tag - 1280 + 7
+        else:
+            raise DeserializeException(f"Unexpected tag for RawPlutusData: {tag}")
+        return constr, raw_tag.value
+
+
 def id_map(cls, skip_constructor=False):
     """
     Constructs a unique representation of a PlutusData type definition.
@@ -579,14 +599,12 @@ class PlutusData(ArrayCBORSerializable):
     def hash(self) -> DatumHash:
         return datum_hash(self)
 
-    def to_json(self, **kwargs) -> str:
-        """Convert to a json string
-
-        Args:
-            **kwargs: Extra key word arguments to be passed to `json.dumps()`
+    def to_dict(self) -> dict:
+        """
+        Convert to a dictionary.
 
         Returns:
-            str: a JSON encoded PlutusData.
+            str: a dict PlutusData that can be JSON encoded.
         """
 
         def _dfs(obj):
@@ -610,10 +628,26 @@ class PlutusData(ArrayCBORSerializable):
                     "constructor": obj.CONSTR_ID,
                     "fields": [_dfs(getattr(obj, f.name)) for f in fields(obj)],
                 }
+            elif isinstance(obj, RawPlutusData):
+                return obj.to_dict()
+            elif isinstance(obj, RawCBOR):
+                return RawPlutusData.from_cbor(obj.cbor).to_dict()
             else:
                 raise TypeError(f"Unexpected type {type(obj)}")
 
-        return json.dumps(_dfs(self), **kwargs)
+        return _dfs(self)
+
+    def to_json(self, **kwargs) -> str:
+        """Convert to a json string
+
+        Args:
+            **kwargs: Extra key word arguments to be passed to `json.dumps()`
+
+        Returns:
+            str: a JSON encoded PlutusData.
+        """
+
+        return json.dumps(self.to_dict(), **kwargs)
 
     @classmethod
     def from_dict(cls: Type[PlutusData], data: dict) -> PlutusData:
@@ -640,6 +674,8 @@ class PlutusData(ArrayCBORSerializable):
                             f_info.type, PlutusData
                         ):
                             converted_fields.append(f_info.type.from_dict(f))
+                        elif f_info.type == Datum:
+                            converted_fields.append(RawPlutusData.from_dict(f))
                         elif (
                             hasattr(f_info.type, "__origin__")
                             and f_info.type.__origin__ is Union
@@ -765,10 +801,103 @@ class RawPlutusData(CBORSerializable):
 
         return _dfs(self.data)
 
+    def to_dict(self) -> dict:
+        """
+        Convert to a dictionary.
+
+        Returns:
+            str: a dict RawPlutusData that can be JSON encoded.
+        """
+
+        def _dfs(obj):
+            if isinstance(obj, int):
+                return {"int": obj}
+            elif isinstance(obj, bytes):
+                return {"bytes": obj.hex()}
+            elif isinstance(obj, ByteString):
+                return {"bytes": obj.value.hex()}
+            elif isinstance(obj, IndefiniteList) or isinstance(obj, list):
+                return {"list": [_dfs(item) for item in obj]}
+            elif isinstance(obj, dict):
+                return {"map": [{"v": _dfs(v), "k": _dfs(k)} for k, v in obj.items()]}
+            elif isinstance(obj, CBORTag):
+                constructor, fields = get_constructor_id_and_fields(obj)
+                return {"constructor": constructor, "fields": [_dfs(f) for f in fields]}
+            raise TypeError(f"Unexpected type {type(obj)}")
+
+        return _dfs(RawPlutusData.to_primitive(self))
+
+    def to_json(self, **kwargs) -> str:
+        """Convert to a json string
+
+        Args:
+            **kwargs: Extra key word arguments to be passed to `json.dumps()`
+
+        Returns:
+            str: a JSON encoded RawPlutusData.
+        """
+
+        return json.dumps(RawPlutusData.to_dict(self), **kwargs)
+
     @classmethod
     @limit_primitive_type(CBORTag)
     def from_primitive(cls: Type[RawPlutusData], value: CBORTag) -> RawPlutusData:
         return cls(value)
+
+    @classmethod
+    def from_dict(cls: Type[RawPlutusData], data: dict) -> RawPlutusData:
+        """Convert a dictionary to RawPlutusData
+
+        Args:
+            data (dict): A dictionary.
+
+        Returns:
+            RawPlutusData: Restored RawPlutusData.
+        """
+
+        def _dfs(obj):
+            if isinstance(obj, dict):
+                if "constructor" in obj:
+                    converted_fields = []
+                    for f in obj["fields"]:
+                        converted_fields.append(_dfs(f))
+                    tag = get_tag(obj["constructor"])
+                    if tag is None:
+                        return CBORTag(
+                            102, [obj["constructor"], IndefiniteList(converted_fields)]
+                        )
+                    else:
+                        return CBORTag(tag, converted_fields)
+                elif "map" in obj:
+                    return {_dfs(pair["k"]): _dfs(pair["v"]) for pair in obj["map"]}
+                elif "int" in obj:
+                    return obj["int"]
+                elif "bytes" in obj:
+                    if len(obj["bytes"]) > 64:
+                        return ByteString(bytes.fromhex(obj["bytes"]))
+                    else:
+                        return bytes.fromhex(obj["bytes"])
+                elif "list" in obj:
+                    return IndefiniteList([_dfs(item) for item in obj["list"]])
+                else:
+                    raise DeserializeException(f"Unexpected data structure: {obj}")
+            else:
+                raise TypeError(f"Unexpected data type: {type(obj)}")
+
+        return cls(_dfs(data))
+
+    @classmethod
+    def from_json(cls: Type[RawPlutusData], data: str) -> RawPlutusData:
+        """Restore a json encoded string to a RawPlutusData.
+
+        Args:
+            data (str): An encoded json string.
+
+        Returns:
+            RawPlutusData: The restored RawPlutusData.
+        """
+        obj = json.loads(data)
+        return cls.from_dict(obj)
 
     def __deepcopy__(self, memo):
         return self.__class__.from_cbor(self.to_cbor_hex())
