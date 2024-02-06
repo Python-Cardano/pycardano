@@ -499,6 +499,8 @@ def override_run_command(cmd: List[str]):
         return json.dumps(QUERY_UTXO_RESULT)
     if "txid" in cmd:
         return "270be16fa17cdb3ef683bf2c28259c978d4b7088792074f177c8efda247e23f7"
+    if "version" in cmd:
+        return "cardano-cli 8.1.2 - linux-x86_64 - ghc-8.10\ngit rev d2d90b48c5577b4412d5c9c9968b55f8ab4b9767"
     else:
         return None
 
@@ -617,6 +619,9 @@ class TestCardanoCliChainContext:
             == chain_context.genesis_param
         )
 
+    def test_version(self, chain_context):
+        assert chain_context.version() == "cardano-cli 8.1.2 - linux-x86_64 - ghc-8.10\ngit rev d2d90b48c5577b4412d5c9c9968b55f8ab4b9767"
+
     def test_utxo(self, chain_context):
         results = chain_context.utxos(
             "addr_test1qqmnh90jyfaajul4h2mawrxz4rfx04hpaadstm6y8wr90kyhf4dqfm247jlvna83g5wx9veaymzl6g9t833grknh3yhqxhzh4n"
@@ -705,3 +710,6 @@ class TestCardanoCliChainContext:
             results
             == "270be16fa17cdb3ef683bf2c28259c978d4b7088792074f177c8efda247e23f7"
         )
+
+    def test_epoch(self, chain_context):
+        assert chain_context.epoch == 98
