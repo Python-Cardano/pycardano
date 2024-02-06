@@ -781,11 +781,14 @@ class PlutusData(ArrayCBORSerializable):
         return self.__class__.from_cbor(self.to_cbor_hex())
 
 
+RawDatum = Union[PlutusData, dict, int, bytes, IndefiniteList, RawCBOR, CBORTag]
+
+
 @dataclass(repr=False)
 class RawPlutusData(CBORSerializable):
-    data: CBORTag
+    data: RawDatum
 
-    def to_primitive(self) -> CBORTag:
+    def to_primitive(self) -> RawDatum:
         def _dfs(obj):
             if isinstance(obj, list) and obj:
                 return IndefiniteList([_dfs(item) for item in obj])
@@ -840,8 +843,8 @@ class RawPlutusData(CBORSerializable):
         return json.dumps(RawPlutusData.to_dict(self), **kwargs)
 
     @classmethod
-    @limit_primitive_type(CBORTag)
-    def from_primitive(cls: Type[RawPlutusData], value: CBORTag) -> RawPlutusData:
+    @limit_primitive_type(RawDatum)
+    def from_primitive(cls: Type[RawPlutusData], value: RawDatum) -> RawPlutusData:
         return cls(value)
 
     @classmethod
