@@ -437,7 +437,7 @@ class CardanoCliChainContext(ChainContext):
 
             datum_hash = (
                 DatumHash.from_primitive(utxo["datumhash"])
-                if utxo.get("datumhash") and utxo.get("inlineDatum") is None
+                if utxo.get("datumhash") is not None
                 else None
             )
 
