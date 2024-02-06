@@ -31,7 +31,7 @@ from pycardano.exception import (
 from pycardano.hash import DatumHash, ScriptHash
 from pycardano.nativescript import NativeScript
 from pycardano.network import Network
-from pycardano.plutus import PlutusV1Script, PlutusV2Script
+from pycardano.plutus import PlutusV1Script, PlutusV2Script, RawPlutusData
 from pycardano.serialization import RawCBOR
 from pycardano.transaction import (
     Asset,
@@ -446,7 +446,7 @@ class CardanoCliChainContext(ChainContext):
             if utxo.get("datum"):
                 datum = RawCBOR(bytes.fromhex(utxo["datum"]))
             elif utxo.get("inlineDatumhash"):
-                datum = utxo["inlineDatum"]
+                datum = RawPlutusData.from_dict(utxo["inlineDatum"])
 
             script = None
 
