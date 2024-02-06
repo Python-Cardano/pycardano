@@ -7,3 +7,8 @@ Implementation of Cardano Improvement Proposals (CIPs)
    :members:
    :undoc-members:
    :show-inheritance:
+
+.. automodule:: pycardano.cip.cip14
+   :members:
+   :undoc-members:
+   :show-inheritance:

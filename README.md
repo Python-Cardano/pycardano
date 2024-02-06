@@ -66,7 +66,7 @@ https://pycardano.readthedocs.io/en/latest/
 
 A full stack testnet DApp is hosted on replit: https://pycardano.cffls.repl.co/
 
-To learn more details, go to the [DApp page](https://github.com/cffls/pycardano/tree/main/examples/full_stack).
+To learn more details, go to the [DApp page](https://github.com/Python-Cardano/pycardano/tree/main/examples/full_stack).
 
 #### Transaction creation and signing
 
