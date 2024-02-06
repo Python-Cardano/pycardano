@@ -1,4 +1,6 @@
+import collections
 import time
+from typing import Dict, Union
 
 import cbor2
 import pytest
@@ -7,6 +9,7 @@ from retry import retry
 from pycardano import *
 
 from .base import TEST_RETRIES, TestBase
+from .test_cardano_cli import TestCardanoCli
 
 
 class TestPlutus(TestBase):
@@ -371,3 +374,22 @@ class TestPlutusOgmiosOnly(TestPlutus):
     @classmethod
     def setup_class(cls):
         cls.chain_context._kupo_url = None
+
+
+def evaluate_tx(tx: Transaction) -> Dict[str, ExecutionUnits]:
+    redeemers = tx.transaction_witness_set.redeemer
+    execution_units = {}
+
+    if redeemers:
+        for r in redeemers:
+            k = f"{r.tag.name.lower()}:{r.index}"
+            execution_units[k] = ExecutionUnits(1000000, 1000000000)
+
+    return execution_units
+
+
+class TestPlutusCardanoCLI(TestPlutus):
+    @classmethod
+    def setup_class(cls):
+        cls.chain_context = TestCardanoCli.chain_context
+        cls.chain_context.evaluate_tx = evaluate_tx

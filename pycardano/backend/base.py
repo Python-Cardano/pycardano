@@ -171,7 +171,7 @@ class ChainContext:
         """
         if isinstance(tx, Transaction):
             return self.submit_tx_cbor(tx.to_cbor())
-        elif isinstance(tx, bytes):
+        elif isinstance(tx, bytes) or isinstance(tx, str):
             return self.submit_tx_cbor(tx)
         else:
             raise InvalidArgumentException(

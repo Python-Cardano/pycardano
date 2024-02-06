@@ -2,4 +2,5 @@
 
 from .base import *
 from .blockfrost import *
+from .cardano_cli import *
 from .ogmios import *
