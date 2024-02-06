@@ -745,7 +745,7 @@ class PlutusData(ArrayCBORSerializable):
         return self.__class__.from_cbor(self.to_cbor_hex())
 
 
-@dataclass(repr=False)
+@dataclass(repr=True)
 class RawPlutusData(CBORSerializable):
     data: CBORTag
 
@@ -772,9 +772,6 @@ class RawPlutusData(CBORSerializable):
 
     def __deepcopy__(self, memo):
         return self.__class__.from_cbor(self.to_cbor_hex())
-
-    def __repr__(self):
-        return f"RawPlutusData(data={repr(self.data)})"
 
 
 Datum = Union[PlutusData, dict, int, bytes, IndefiniteList, RawCBOR, RawPlutusData]
