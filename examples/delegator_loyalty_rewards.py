@@ -82,7 +82,7 @@ auxiliary_data = AuxiliaryData(
                 674: {
                     "Title": f"Loyalty rewards for stake pool [{POOL_TICKER}] delegators",
                     "Rules": {"100K+": "50 ADA", "10K+": "10 ADA"},
-                    "Notes": "Created with https://github.com/cffls/pycardano.",
+                    "Notes": "Created with https://github.com/Python-Cardano/pycardano.",
                 }
             }
         )

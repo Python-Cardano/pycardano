@@ -12,14 +12,17 @@ from cbor2 import CBORTag
 from pycardano.exception import DeserializeException
 from pycardano.plutus import (
     COST_MODELS,
+    Datum,
     ExecutionUnits,
     PlutusData,
     RawPlutusData,
     Redeemer,
     RedeemerTag,
+    Unit,
+    id_map,
     plutus_script_hash,
 )
-from pycardano.serialization import IndefiniteList
+from pycardano.serialization import ByteString, IndefiniteList, RawCBOR
 
 
 @dataclass
@@ -206,10 +209,8 @@ def test_plutus_data_from_json_wrong_data_structure_type():
 
 def test_plutus_data_hash():
     assert (
-        bytes.fromhex(
-            "19d31e4f3aa9b03ad93b64c8dd2cc822d247c21e2c22762b7b08e6cadfeddb47"
-        )
-        == PlutusData().hash().payload
+        "923918e403bf43c34b4ef6b48eb2ee04babed17320d8d1b9ff9ad086e86f44ec"
+        == Unit().hash().payload.hex()
     )
 
 
@@ -396,3 +397,52 @@ print(A.CONSTR_ID)
     assert (
         res == res2
     ), "Same class has different default constructor id in two consecutive runs"
+
+
+def test_id_map_supports_all():
+    @dataclass
+    class A(PlutusData):
+        CONSTR_ID = 0
+        a: int
+        b: bytes
+        c: ByteString
+        d: List[int]
+
+    @dataclass
+    class C(PlutusData):
+        x: RawPlutusData
+        y: RawCBOR
+        z: Datum
+        w: IndefiniteList
+
+    @dataclass
+    class B(PlutusData):
+        a: int
+        c: A
+        d: Dict[bytes, C]
+        e: Union[A, C]
+
+    s = id_map(B)
+    assert (
+        s
+        == "cons[B](3809077817;a:int,c:cons[A](0;a:int,b:bytes,c:bytes,d:list<int>),d:map<bytes,cons[C](892310804;x:any,y:any,z:any,w:list)>,e:union<cons[A](0;a:int,b:bytes,c:bytes,d:list<int>),cons[C](892310804;x:any,y:any,z:any,w:list)>)"
+    )
+
+
+def test_plutus_data_long_bytes():
+    @dataclass
+    class A(PlutusData):
+        CONSTR_ID = 0
+        a: ByteString
+
+    quote = (
+        "The line separating good and evil passes ... right through every human heart."
+    )
+
+    quote_hex = "d8799f5f5840546865206c696e652073657061726174696e6720676f6f6420616e64206576696c20706173736573202e2e2e207269676874207468726f7567682065766572794d2068756d616e2068656172742effff"
+
+    A_tmp = A(ByteString(quote.encode()))
+
+    assert (
+        A_tmp.to_cbor_hex() == quote_hex
+    ), "Long metadata bytestring is encoded incorrectly."

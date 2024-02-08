@@ -67,7 +67,7 @@ class BlockFrostChainContext(ChainContext):
         self,
         project_id: str,
         network: Optional[Network] = None,
-        base_url: str = ApiUrls.preprod.value,
+        base_url: Optional[str] = None,
     ):
         if network is not None:
             warnings.warn(

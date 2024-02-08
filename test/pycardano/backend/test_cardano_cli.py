@@ -6,13 +6,13 @@ from unittest.mock import patch
 import pytest
 
 from pycardano import (
-    CardanoCliChainContext,
-    ProtocolParameters,
     ALONZO_COINS_PER_UTXO_WORD,
+    CardanoCliChainContext,
     CardanoCliNetwork,
     GenesisParameters,
-    TransactionInput,
     MultiAsset,
+    ProtocolParameters,
+    TransactionInput,
 )
 
 QUERY_TIP_RESULT = {

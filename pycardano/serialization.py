@@ -61,6 +61,22 @@ class IndefiniteFrozenList(FrozenList, IndefiniteList):  # type: ignore
 
 
 @dataclass
+class ByteString:
+    value: bytes
+
+    def __hash__(self):
+        return hash(self.value)
+
+    def __eq__(self, other: object):
+        if isinstance(other, ByteString):
+            return self.value == other.value
+        elif isinstance(other, bytes):
+            return self.value == other
+        else:
+            return False
+
+
+@dataclass
 class RawCBOR:
     """A wrapper class for bytes that represents a CBOR value."""
 
@@ -160,6 +176,7 @@ def default_encoder(
     assert isinstance(
         value,
         (
+            ByteString,
             CBORSerializable,
             IndefiniteList,
             RawCBOR,
@@ -178,6 +195,15 @@ def default_encoder(
         for item in value:
             encoder.encode(item)
         encoder.write(b"\xff")
+    elif isinstance(value, ByteString):
+        if len(value.value) > 64:
+            encoder.write(b"\x5f")
+            for i in range(0, len(value.value), 64):
+                imax = min(i + 64, len(value.value))
+                encoder.encode(value.value[i:imax])
+            encoder.write(b"\xff")
+        else:
+            encoder.encode(value.value)
     elif isinstance(value, RawCBOR):
         encoder.write(value.cbor)
     elif isinstance(value, FrozenList):
@@ -506,6 +532,15 @@ def _restore_typed_primitive(
         if not isinstance(v, list):
             raise DeserializeException(f"Expected type list but got {type(v)}")
         return IndefiniteList([_restore_typed_primitive(t, w) for w in v])
+    elif isclass(t) and t == ByteString:
+        if not isinstance(v, bytes):
+            raise DeserializeException(f"Expected type bytes but got {type(v)}")
+        return ByteString(v)
+    elif isclass(t) and t.__name__ in ["PlutusV1Script", "PlutusV2Script"]:
+        if not isinstance(v, bytes):
+            raise DeserializeException(f"Expected type bytes but got {type(v)}")
+        return t(v)
+
     elif isclass(t) and issubclass(t, IndefiniteList):
         try:
             return IndefiniteList(v)

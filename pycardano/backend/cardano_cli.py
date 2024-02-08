@@ -9,17 +9,13 @@ import time
 from enum import Enum
 from functools import partial
 from pathlib import Path
-from typing import Optional, List, Dict, Union
+from typing import Dict, List, Optional, Union
 
+import cbor2
 import docker
 from cachetools import Cache, LRUCache, TTLCache, func
 from docker.errors import APIError
 
-from pycardano.serialization import RawCBOR
-from pycardano.nativescript import NativeScript
-from pycardano.plutus import PlutusV2Script, PlutusV1Script
-
-from pycardano.network import Network
 from pycardano.address import Address
 from pycardano.backend.base import (
     ALONZO_COINS_PER_UTXO_WORD,
@@ -28,11 +24,15 @@ from pycardano.backend.base import (
     ProtocolParameters,
 )
 from pycardano.exception import (
-    TransactionFailedException,
     CardanoCliError,
     PyCardanoException,
+    TransactionFailedException,
 )
 from pycardano.hash import DatumHash, ScriptHash
+from pycardano.nativescript import NativeScript
+from pycardano.network import Network
+from pycardano.plutus import PlutusV1Script, PlutusV2Script
+from pycardano.serialization import RawCBOR
 from pycardano.transaction import (
     Asset,
     AssetName,
@@ -381,10 +381,14 @@ class CardanoCliChainContext(ChainContext):
         script_type = reference_script["script"]["type"]
         script_json: JsonDict = reference_script["script"]
         if script_type == "PlutusScriptV1":
-            v1script = PlutusV1Script(bytes.fromhex(script_json["cborHex"]))
+            v1script = PlutusV1Script(
+                cbor2.loads(bytes.fromhex(script_json["cborHex"]))
+            )
             return v1script
         elif script_type == "PlutusScriptV2":
-            v2script = PlutusV2Script(bytes.fromhex(script_json["cborHex"]))
+            v2script = PlutusV2Script(
+                cbor2.loads(bytes.fromhex(script_json["cborHex"]))
+            )
             return v2script
         else:
             return NativeScript.from_dict(script_json)
