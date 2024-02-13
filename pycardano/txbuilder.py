@@ -138,6 +138,10 @@ class TransactionBuilder:
         init=False, default_factory=lambda: []
     )
 
+    _withdrawal_script_to_redeemers: List[
+        Tuple[ScriptType, Optional[Redeemer]]
+    ] = field(init=False, default_factory=lambda: [])
+
     _inputs_to_scripts: Dict[UTxO, ScriptType] = field(
         init=False, default_factory=lambda: {}
     )
@@ -291,6 +295,40 @@ class TransactionBuilder:
             self._minting_script_to_redeemers.append((script, redeemer))
         return self
 
+    def add_withdrawal_script(
+        self,
+        script: Union[UTxO, NativeScript, PlutusV1Script, PlutusV2Script],
+        redeemer: Optional[Redeemer] = None,
+    ) -> TransactionBuilder:
+        """Add a withdrawal script along with its redeemer to this transaction.
+
+        Args:
+            script (Union[UTxO, PlutusV1Script, PlutusV2Script]): A plutus script.
+            redeemer (Optional[Redeemer]): A plutus redeemer to unlock the UTxO.
+
+        Returns:
+            TransactionBuilder: Current transaction builder.
+        """
+        if redeemer:
+            if redeemer.tag is not None and redeemer.tag != RedeemerTag.REWARD:
+                raise InvalidArgumentException(
+                    f"Expect the redeemer tag's type to be {RedeemerTag.REWARD}, "
+                    f"but got {redeemer.tag} instead."
+                )
+            redeemer.tag = RedeemerTag.REWARD
+            self._consolidate_redeemer(redeemer)
+
+        if isinstance(script, UTxO):
+            assert script.output.script is not None
+            self._withdrawal_script_to_redeemers.append(
+                (script.output.script, redeemer)
+            )
+            self.reference_inputs.add(script)
+            self._reference_scripts.append(script.output.script)
+        else:
+            self._withdrawal_script_to_redeemers.append((script, redeemer))
+        return self
+
     def add_input_address(self, address: Union[Address, str]) -> TransactionBuilder:
         """Add an address to transaction's input address.
         Unlike :meth:`add_input`, which deterministically adds a UTxO to the transaction's inputs, `add_input_address`
@@ -376,6 +414,9 @@ class TransactionBuilder:
         for s, _ in self._minting_script_to_redeemers:
             scripts[script_hash(s)] = s
 
+        for s, _ in self._withdrawal_script_to_redeemers:
+            scripts[script_hash(s)] = s
+
         return list(scripts.values())
 
     @property
@@ -397,9 +438,11 @@ class TransactionBuilder:
 
     @property
     def redeemers(self) -> List[Redeemer]:
-        return [r for r in self._inputs_to_redeemers.values() if r is not None] + [
-            r for _, r in self._minting_script_to_redeemers if r is not None
-        ]
+        return (
+            [r for r in self._inputs_to_redeemers.values() if r is not None]
+            + [r for _, r in self._minting_script_to_redeemers if r is not None]
+            + [r for _, r in self._withdrawal_script_to_redeemers if r is not None]
+        )
 
     @property
     def script_data_hash(self) -> Optional[ScriptDataHash]:
