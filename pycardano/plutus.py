@@ -784,7 +784,7 @@ class PlutusData(ArrayCBORSerializable):
 RawDatum = Union[PlutusData, dict, int, bytes, IndefiniteList, RawCBOR, CBORTag]
 
 
-@dataclass(repr=False)
+@dataclass(repr=True)
 class RawPlutusData(CBORSerializable):
     data: RawDatum
 
