@@ -88,6 +88,9 @@ class TransactionBuilder:
     execution_step_buffer: float = 0.2
     """Additional amount of execution step (in ratio) that will be added on top of estimation"""
 
+    fee_buffer: Optional[int] = field(default=None)
+    """Additional amount of fee (in lovelace) that will be added on top of estimation."""
+
     ttl: Optional[int] = field(default=None)
 
     validity_start: Optional[int] = field(default=None)
@@ -587,6 +590,9 @@ class TransactionBuilder:
 
         # With changes included, we can estimate the fee more precisely
         self.fee = self._estimate_fee()
+        # Beyond this, the computed fee is not updated anymore so we can add the fee buffer
+        if self.fee_buffer is not None:
+            self.fee += self.fee_buffer
 
         if change_address:
             self._outputs = original_outputs
@@ -920,6 +926,8 @@ class TransactionBuilder:
             plutus_execution_units.steps,
             plutus_execution_units.mem,
         )
+        if self.fee_buffer is not None:
+            estimated_fee += self.fee_buffer
 
         return estimated_fee
 
