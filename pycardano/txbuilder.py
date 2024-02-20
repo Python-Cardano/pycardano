@@ -313,12 +313,12 @@ class TransactionBuilder:
             TransactionBuilder: Current transaction builder.
         """
         if redeemer:
-            if redeemer.tag is not None and redeemer.tag != RedeemerTag.REWARD:
+            if redeemer.tag is not None and redeemer.tag != RedeemerTag.WITHDRAWAL:
                 raise InvalidArgumentException(
-                    f"Expect the redeemer tag's type to be {RedeemerTag.REWARD}, "
+                    f"Expect the redeemer tag's type to be {RedeemerTag.WITHDRAWAL}, "
                     f"but got {redeemer.tag} instead."
                 )
-            redeemer.tag = RedeemerTag.REWARD
+            redeemer.tag = RedeemerTag.WITHDRAWAL
             self._consolidate_redeemer(redeemer)
 
         if isinstance(script, UTxO):
@@ -1259,9 +1259,7 @@ class TransactionBuilder:
                 assert (
                     r.tag is not None
                 ), "Expected tag of redeemer to be set, but found None"
-                tagname = (
-                    r.tag.name.lower() if r.tag != RedeemerTag.REWARD else "withdrawal"
-                )
+                tagname = r.tag.name.lower()
                 key = f"{tagname}:{r.index}"
                 if (
                     key not in estimated_execution_units
