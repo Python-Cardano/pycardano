@@ -1251,7 +1251,10 @@ class TransactionBuilder:
                 assert (
                     r.tag is not None
                 ), "Expected tag of redeemer to be set, but found None"
-                key = f"{r.tag.name.lower()}:{r.index}"
+                tagname = (
+                    r.tag.name.lower() if r.tag != RedeemerTag.REWARD else "withdrawal"
+                )
+                key = f"{tagname}:{r.index}"
                 if (
                     key not in estimated_execution_units
                     or estimated_execution_units[key] is None
