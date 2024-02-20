@@ -896,9 +896,6 @@ class DictCBORSerializable(CBORSerializable):
         Raises:
             DeserializeException: When the object could not be restored from primitives.
         """
-        if not value:
-            raise DeserializeException(f"Cannot accept empty value {value}.")
-
         restored = cls()
         for k, v in value.items():
             k = (
