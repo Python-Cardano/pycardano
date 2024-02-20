@@ -932,7 +932,7 @@ class RedeemerTag(CBORSerializable, Enum):
     SPEND = 0
     MINT = 1
     CERT = 2
-    REWARD = 3
+    WITHDRAWAL = 3
 
     def to_primitive(self) -> int:
         return self.value
