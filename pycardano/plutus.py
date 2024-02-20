@@ -781,11 +781,14 @@ class PlutusData(ArrayCBORSerializable):
         return self.__class__.from_cbor(self.to_cbor_hex())
 
 
+RawDatum = Union[PlutusData, dict, int, bytes, IndefiniteList, RawCBOR, CBORTag]
+
+
 @dataclass(repr=True)
 class RawPlutusData(CBORSerializable):
-    data: CBORTag
+    data: RawDatum
 
-    def to_primitive(self) -> CBORTag:
+    def to_primitive(self) -> RawDatum:
         def _dfs(obj):
             if isinstance(obj, list) and obj:
                 return IndefiniteList([_dfs(item) for item in obj])
@@ -823,6 +826,8 @@ class RawPlutusData(CBORSerializable):
             elif isinstance(obj, CBORTag):
                 constructor, fields = get_constructor_id_and_fields(obj)
                 return {"constructor": constructor, "fields": [_dfs(f) for f in fields]}
+            elif isinstance(obj, RawCBOR):
+                return RawPlutusData.from_cbor(obj.cbor).to_dict()
             raise TypeError(f"Unexpected type {type(obj)}")
 
         return _dfs(RawPlutusData.to_primitive(self))
@@ -840,8 +845,10 @@ class RawPlutusData(CBORSerializable):
         return json.dumps(RawPlutusData.to_dict(self), **kwargs)
 
     @classmethod
-    @limit_primitive_type(CBORTag)
-    def from_primitive(cls: Type[RawPlutusData], value: CBORTag) -> RawPlutusData:
+    @limit_primitive_type(
+        PlutusData, dict, int, bytes, IndefiniteList, RawCBOR, CBORTag
+    )  # equal to RawDatum parameter list
+    def from_primitive(cls: Type[RawPlutusData], value: RawDatum) -> RawPlutusData:
         return cls(value)
 
     @classmethod
