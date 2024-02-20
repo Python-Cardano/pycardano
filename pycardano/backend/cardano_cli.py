@@ -143,7 +143,7 @@ class CardanoCliChainContext(ChainContext):
         self._genesis_param = None
         self._protocol_param = None
         if refetch_chain_tip_interval is None:
-            self._refetch_chain_tip_interval = (
+            self._refetch_chain_tip_interval = float(
                 self.genesis_param.slot_length
                 / self.genesis_param.active_slots_coefficient
             )
