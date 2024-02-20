@@ -778,6 +778,10 @@ class TransactionBuilder:
             sorted_mint_policies = sorted(self.mint.keys(), key=lambda x: x.to_cbor())
         else:
             sorted_mint_policies = []
+        if self.withdrawals:
+            sorted_withdrawals = sorted(self.withdrawals.keys())
+        else:
+            sorted_withdrawals = []
 
         for i, utxo in enumerate(self.inputs):
             if (
@@ -785,18 +789,19 @@ class TransactionBuilder:
                 and self._inputs_to_redeemers[utxo].tag == RedeemerTag.SPEND
             ):
                 self._inputs_to_redeemers[utxo].index = i
-            elif (
-                utxo in self._inputs_to_redeemers
-                and self._inputs_to_redeemers[utxo].tag == RedeemerTag.MINT
-            ):
-                redeemer = self._inputs_to_redeemers[utxo]
-                redeemer.index = sorted_mint_policies.index(
-                    script_hash(self._inputs_to_scripts[utxo])
-                )
 
         for script, redeemer in self._minting_script_to_redeemers:
             if redeemer is not None:
                 redeemer.index = sorted_mint_policies.index(script_hash(script))
+
+        for script, redeemer in self._withdrawal_script_to_redeemers:
+            if redeemer is not None:
+                script_staking_credential = Address(
+                    staking_part=script_hash(script), network=self.context.network
+                )
+                redeemer.index = sorted_withdrawals.index(
+                    script_staking_credential.to_primitive()
+                )
 
         self.redeemers.sort(key=lambda r: r.index)
 
