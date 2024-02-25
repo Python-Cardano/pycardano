@@ -2,11 +2,13 @@ from typing import Dict, List, Union
 
 import pytest
 
-from pycardano import ExecutionUnits
+from pycardano import (
+    ExecutionUnits,
+)
 from pycardano.backend.base import ChainContext, GenesisParameters, ProtocolParameters
 from pycardano.network import Network
 from pycardano.serialization import CBORSerializable
-from pycardano.transaction import TransactionInput, TransactionOutput, UTxO, Value
+from pycardano.transaction import TransactionInput, TransactionOutput, UTxO
 
 TEST_ADDR = "addr_test1vr2p8st5t5cxqglyjky7vk98k7jtfhdpvhl4e97cezuhn0cqcexl7"
 

@@ -1,4 +1,3 @@
-from fractions import Fraction
 from pycardano.address import Address
 from pycardano.certificate import (
     StakeCredential,
@@ -10,25 +9,9 @@ from pycardano.certificate import (
 )
 from pycardano.hash import (
     POOL_KEY_HASH_SIZE,
-    VRF_KEY_HASH_SIZE,
-    VrfKeyHash,
     PoolKeyHash,
-    VerificationKeyHash,
-    VERIFICATION_KEY_HASH_SIZE,
-    PoolMetadataHash,
-    POOL_METADATA_HASH_SIZE,
     ScriptHash,
     SCRIPT_HASH_SIZE,
-    RewardAccountHash,
-    REWARD_ACCOUNT_HASH_SIZE,
-)
-from pycardano.pool_params import (
-    PoolParams,
-    PoolMetadata,
-    MultiHostName,
-    # Fraction,
-    SingleHostAddr,
-    SingleHostName,
 )
 
 TEST_ADDR = Address.from_primitive(
@@ -112,29 +95,7 @@ def test_stake_delegation():
     assert StakeDelegation.from_cbor(stake_delegation_cbor_hex) == stake_delegation
 
 
-def test_pool_registration():
-    pool_keyhash = PoolKeyHash(b"1" * POOL_KEY_HASH_SIZE)
-    vrf_keyhash = VrfKeyHash(b"1" * VRF_KEY_HASH_SIZE)
-    pool_owner = VerificationKeyHash(b"1" * VERIFICATION_KEY_HASH_SIZE)
-    reward_account = RewardAccountHash(b"1" * REWARD_ACCOUNT_HASH_SIZE)
-    pool_params = PoolParams(
-        operator=pool_keyhash,
-        vrf_keyhash=vrf_keyhash,
-        pledge=100_000_000,
-        cost=340_000_000,
-        margin=Fraction(1, 50),
-        reward_account=reward_account,
-        pool_owners=[pool_owner],
-        relays=[
-            SingleHostAddr(port=3001, ipv4="192.168.0.1", ipv6="::1"),
-            SingleHostName(port=3001, dns_name="relay1.example.com"),
-            MultiHostName(dns_name="relay1.example.com"),
-        ],
-        pool_metadata=PoolMetadata(
-            url="https://meta1.example.com",
-            pool_metadata_hash=PoolMetadataHash(b"1" * POOL_METADATA_HASH_SIZE),
-        ),
-    )
+def test_pool_registration(pool_params):
     pool_registration = PoolRegistration(pool_params)
 
     pool_registration_cbor_hex = pool_registration.to_cbor_hex()
