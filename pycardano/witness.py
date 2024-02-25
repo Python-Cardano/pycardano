@@ -82,32 +82,32 @@ class TransactionWitnessSet(MapCBORSerializable):
     def from_primitive(
         cls: Type[TransactionWitnessSet], values: Union[dict, list, tuple]
     ) -> TransactionWitnessSet | None:
-
         def _get_vkey_witnesses(data: Any):
-            return [
-                VerificationKeyWitness.from_primitive(witness)
-                for witness in data
-            ] if data else None
+            return (
+                [VerificationKeyWitness.from_primitive(witness) for witness in data]
+                if data
+                else None
+            )
 
         def _get_native_scripts(data: Any):
-            return [
-                NativeScript.from_primitive(script) for script in data
-            ] if data else None
+            return (
+                [NativeScript.from_primitive(script) for script in data]
+                if data
+                else None
+            )
 
         def _get_plutus_v1_scripts(data: Any):
-            return [
-                PlutusV1Script(script) for script in data
-            ] if data else None
+            return [PlutusV1Script(script) for script in data] if data else None
 
         def _get_plutus_v2_scripts(data: Any):
-            return [
-                PlutusV2Script(script) for script in data
-            ] if data else None
+            return [PlutusV2Script(script) for script in data] if data else None
 
         def _get_redeemers(data: Any):
-            return [
-                Redeemer.from_primitive(redeemer) for redeemer in data
-            ] if data else None
+            return (
+                [Redeemer.from_primitive(redeemer) for redeemer in data]
+                if data
+                else None
+            )
 
         def _get_cls(data: Any):
             return cls(

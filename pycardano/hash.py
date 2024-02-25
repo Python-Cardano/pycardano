@@ -133,7 +133,7 @@ class AuxiliaryDataHash(ConstrainedBytes):
     MAX_SIZE = MIN_SIZE = AUXILIARY_DATA_HASH_SIZE
 
 
-class PoolKeyHash(ConstrainedBytes):
+class PoolKeyHash(VerificationKeyHash):
     """Hash of a stake pool"""
 
     MAX_SIZE = MIN_SIZE = POOL_KEY_HASH_SIZE

@@ -113,10 +113,7 @@ class PoolRegistration(ArrayCBORSerializable):
     def to_primitive(self):
         pool_params = self.pool_params.to_primitive()
         if isinstance(pool_params, list):
-            return [
-                self._CODE,
-                *pool_params
-            ]
+            return [self._CODE, *pool_params]
         return super().to_primitive()
 
     @classmethod
@@ -166,7 +163,7 @@ class CertificateCBORSerializer(ArrayCBORSerializable):
     @classmethod
     @limit_primitive_type(list)
     def from_primitive(
-        cls: Type[Certificate], values: Union[list, tuple]
+        cls: Type[CertificateCBORSerializer], values: Union[list, tuple]
     ) -> Certificate | None:
         if values[0] == 0:
             return StakeRegistration.from_primitive(values)

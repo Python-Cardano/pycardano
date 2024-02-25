@@ -235,7 +235,9 @@ class FractionSerializer(CBORSerializable, Fraction, ABC):
 class RelayCBORSerializer(ArrayCBORSerializable):
     @classmethod
     @limit_primitive_type(list)
-    def from_primitive(cls: Type[Relay], values: Union[list, tuple]) -> Relay | None:
+    def from_primitive(
+        cls: Type[RelayCBORSerializer], values: Union[list, tuple]
+    ) -> Relay | None:
         if values[0] == 0:
             return SingleHostAddr.from_primitive(values)
         elif values[0] == 1:
