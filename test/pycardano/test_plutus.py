@@ -207,6 +207,50 @@ def test_plutus_data_from_json_wrong_data_structure_type():
         MyTest.from_json(test)
 
 
+def test_raw_plutus_data_json():
+    key_hash = bytes.fromhex("c2ff616e11299d9094ce0a7eb5b7284b705147a822f4ffbd471f971a")
+    deadline = 1643235300000
+    testa = BigTest(MyTest(123, b"1234", IndefiniteList([4, 5, 6]), {1: b"1", 2: b"2"}))
+    testb = LargestTest()
+
+    my_vesting = VestingParam(
+        beneficiary=key_hash, deadline=deadline, testa=testa, testb=testb
+    )
+
+    my_vesting_primitive = my_vesting.to_primitive()
+    encoded_json = RawPlutusData(my_vesting_primitive).to_json(separators=(",", ":"))
+
+    assert (
+        '{"constructor":1,"fields":[{"bytes":"c2ff616e11299d9094ce0a7eb5b7284b705147a822f4ffbd471f971a"},'
+        '{"int":1643235300000},{"constructor":8,"fields":[{"constructor":130,"fields":[{"int":123},'
+        '{"bytes":"31323334"},{"list":[{"int":4},{"int":5},{"int":6}]},{"map":[{"v":{"bytes":"31"},'
+        '"k":{"int":1}},{"v":{"bytes":"32"},"k":{"int":2}}]}]}]},{"constructor":9,"fields":[]}]}'
+        == encoded_json
+    )
+
+    # note that json encoding is lossy, so we can't compare the original object with the one decoded from json
+    # but we can compare the jsons
+    assert encoded_json == RawPlutusData.from_json(encoded_json).to_json(
+        separators=(",", ":")
+    )
+
+    @dataclass
+    class C(PlutusData):
+        CONSTR_ID = 2
+        x: Datum
+        y: Datum
+        z: int
+
+    c = C(RawPlutusData(testb.to_primitive()), RawCBOR(testa.to_cbor()), 1)
+    encoded_json = c.to_json(separators=(",", ":"))
+
+    assert (
+        '{"constructor":2,"fields":[{"constructor":9,"fields":[]},{"constructor":8,"fields":[{"constructor":130,"fields":[{"int":123},{"bytes":"31323334"},{"list":[{"int":4},{"int":5},{"int":6}]},{"map":[{"v":{"bytes":"31"},"k":{"int":1}},{"v":{"bytes":"32"},"k":{"int":2}}]}]}]},{"int":1}]}'
+        == encoded_json
+    )
+    assert encoded_json == C.from_json(encoded_json).to_json(separators=(",", ":"))
+
+
 def test_plutus_data_hash():
     assert (
         "923918e403bf43c34b4ef6b48eb2ee04babed17320d8d1b9ff9ad086e86f44ec"

@@ -1,3 +1,4 @@
+from fractions import Fraction
 from unittest.mock import patch
 
 import pytest
@@ -130,17 +131,17 @@ class TestOgmiosChainContext:
                 max_block_header_size=1100,
                 key_deposit=0,
                 pool_deposit=0,
-                pool_influence=0.0,
-                monetary_expansion=0.1,
-                treasury_expansion=0.1,
-                decentralization_param=1.0,
+                pool_influence=Fraction("0"),
+                monetary_expansion=Fraction("1/10"),
+                treasury_expansion=Fraction("1/10"),
+                decentralization_param=Fraction("1"),
                 extra_entropy="neutral",
                 protocol_major_version=5,
                 protocol_minor_version=0,
                 min_utxo=1000000,
                 min_pool_cost=0,
-                price_mem=0.1,
-                price_step=0.1,
+                price_mem=Fraction("1/10"),
+                price_step=Fraction("1/10"),
                 max_tx_ex_mem=500000000000,
                 max_tx_ex_steps=500000000000,
                 max_block_ex_mem=500000000000,
@@ -158,7 +159,7 @@ class TestOgmiosChainContext:
     def test_genesis(self, chain_context):
         assert (
             GenesisParameters(
-                active_slots_coefficient=0.1,
+                active_slots_coefficient=Fraction("1/10"),
                 update_quorum=2,
                 max_lovelace_supply=1000000000000,
                 network_magic=42,
