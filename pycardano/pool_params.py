@@ -4,7 +4,6 @@ Pool parameters for stake pool registration certificate.
 from __future__ import annotations
 
 import socket
-from abc import ABC
 from dataclasses import dataclass, field
 from fractions import Fraction
 from typing import List, Optional, Type, Union
@@ -32,7 +31,6 @@ __all__ = [
     "SingleHostAddr",
     "SingleHostName",
     "MultiHostName",
-    "RelayCBORSerializer",
     "is_bech32_cardano_pool_id",
 ]
 
