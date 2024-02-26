@@ -8,12 +8,12 @@ from pycardano.address import Address, AddressType
 from pycardano.backend.base import ChainContext
 from pycardano.certificate import (
     Certificate,
+    PoolRegistration,
+    PoolRetirement,
     StakeCredential,
     StakeDelegation,
     StakeDeregistration,
     StakeRegistration,
-    PoolRegistration,
-    PoolRetirement,
 )
 from pycardano.coinselection import (
     LargestFirstSelector,

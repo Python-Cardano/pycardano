@@ -2,9 +2,7 @@ from typing import Dict, List, Union
 
 import pytest
 
-from pycardano import (
-    ExecutionUnits,
-)
+from pycardano import ExecutionUnits
 from pycardano.backend.base import ChainContext, GenesisParameters, ProtocolParameters
 from pycardano.network import Network
 from pycardano.serialization import CBORSerializable

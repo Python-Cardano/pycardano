@@ -1,18 +1,13 @@
 from pycardano.address import Address
 from pycardano.certificate import (
+    PoolRegistration,
+    PoolRetirement,
     StakeCredential,
     StakeDelegation,
     StakeDeregistration,
     StakeRegistration,
-    PoolRegistration,
-    PoolRetirement,
 )
-from pycardano.hash import (
-    POOL_KEY_HASH_SIZE,
-    PoolKeyHash,
-    ScriptHash,
-    SCRIPT_HASH_SIZE,
-)
+from pycardano.hash import POOL_KEY_HASH_SIZE, SCRIPT_HASH_SIZE, PoolKeyHash, ScriptHash
 
 TEST_ADDR = Address.from_primitive(
     "stake_test1upyz3gk6mw5he20apnwfn96cn9rscgvmmsxc9r86dh0k66gswf59n"

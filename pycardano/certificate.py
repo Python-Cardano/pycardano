@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Optional, Union, Tuple, Type
+from typing import Optional, Tuple, Type, Union
 
+from pycardano.exception import DeserializeException
 from pycardano.hash import PoolKeyHash, ScriptHash, VerificationKeyHash
 from pycardano.serialization import ArrayCBORSerializable, limit_primitive_type
 
@@ -14,7 +15,6 @@ __all__ = [
     "StakeDelegation",
     "PoolRegistration",
     "PoolRetirement",
-    "CertificateCBORSerializer",
 ]
 
 from pycardano.pool_params import PoolParams
@@ -41,8 +41,10 @@ class StakeCredential(ArrayCBORSerializable):
     ) -> StakeCredential:
         if values[0] == 0:
             return cls(VerificationKeyHash(values[1]))
-        else:
+        elif values[0] == 1:
             return cls(ScriptHash(values[1]))
+        else:
+            raise DeserializeException(f"Invalid StakeCredential type {values[0]}")
 
 
 @dataclass(repr=False)
@@ -76,7 +78,10 @@ class StakeDeregistration(ArrayCBORSerializable):
     def from_primitive(
         cls: Type[StakeDeregistration], values: Union[list, tuple]
     ) -> StakeDeregistration:
-        return cls(StakeCredential.from_primitive(values[1]))
+        if values[0] == 1:
+            return cls(StakeCredential.from_primitive(values[1]))
+        else:
+            raise DeserializeException(f"Invalid StakeDeregistration type {values[0]}")
 
 
 @dataclass(repr=False)
@@ -95,10 +100,13 @@ class StakeDelegation(ArrayCBORSerializable):
     def from_primitive(
         cls: Type[StakeDelegation], values: Union[list, tuple]
     ) -> StakeDelegation:
-        return cls(
-            stake_credential=StakeCredential.from_primitive(values[1]),
-            pool_keyhash=PoolKeyHash.from_primitive(values[2]),
-        )
+        if values[0] == 2:
+            return cls(
+                stake_credential=StakeCredential.from_primitive(values[1]),
+                pool_keyhash=PoolKeyHash.from_primitive(values[2]),
+            )
+        else:
+            raise DeserializeException(f"Invalid StakeDelegation type {values[0]}")
 
 
 @dataclass(repr=False)
@@ -121,14 +129,17 @@ class PoolRegistration(ArrayCBORSerializable):
     def from_primitive(
         cls: Type[PoolRegistration], values: Union[list, tuple]
     ) -> PoolRegistration:
-        if isinstance(values[1], list):
-            return cls(
-                pool_params=PoolParams.from_primitive(values[1]),
-            )
+        if values[0] == 3:
+            if isinstance(values[1], list):
+                return cls(
+                    pool_params=PoolParams.from_primitive(values[1]),
+                )
+            else:
+                return cls(
+                    pool_params=PoolParams.from_primitive(values[1:]),
+                )
         else:
-            return cls(
-                pool_params=PoolParams.from_primitive(values[1:]),
-            )
+            raise DeserializeException(f"Invalid PoolRegistration type {values[0]}")
 
 
 @dataclass(repr=False)
@@ -146,7 +157,12 @@ class PoolRetirement(ArrayCBORSerializable):
     def from_primitive(
         cls: Type[PoolRetirement], values: Union[list, tuple]
     ) -> PoolRetirement:
-        return cls(pool_keyhash=PoolKeyHash.from_primitive(values[1]), epoch=values[2])
+        if values[0] == 4:
+            return cls(
+                pool_keyhash=PoolKeyHash.from_primitive(values[1]), epoch=values[2]
+            )
+        else:
+            raise DeserializeException(f"Invalid PoolRetirement type {values[0]}")
 
 
 Certificate = Union[
@@ -156,23 +172,3 @@ Certificate = Union[
     PoolRegistration,
     PoolRetirement,
 ]
-
-
-@dataclass(repr=False)
-class CertificateCBORSerializer(ArrayCBORSerializable):
-    @classmethod
-    @limit_primitive_type(list)
-    def from_primitive(
-        cls: Type[CertificateCBORSerializer], values: Union[list, tuple]
-    ) -> Certificate | None:
-        if values[0] == 0:
-            return StakeRegistration.from_primitive(values)
-        elif values[0] == 1:
-            return StakeDeregistration.from_primitive(values)
-        elif values[0] == 2:
-            return StakeDelegation.from_primitive(values)
-        elif values[0] == 3:
-            return PoolRegistration.from_primitive(values)
-        elif values[0] == 4:
-            return PoolRetirement.from_primitive(values)
-        return None

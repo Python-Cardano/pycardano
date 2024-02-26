@@ -1,7 +1,8 @@
 """Transaction witness."""
 from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Any, List, Optional, Union, Type
+from typing import Any, List, Optional, Type, Union
 
 from pycardano.key import ExtendedVerificationKey, VerificationKey
 from pycardano.nativescript import NativeScript
@@ -9,8 +10,8 @@ from pycardano.plutus import PlutusV1Script, PlutusV2Script, RawPlutusData, Rede
 from pycardano.serialization import (
     ArrayCBORSerializable,
     MapCBORSerializable,
-    list_hook,
     limit_primitive_type,
+    list_hook,
 )
 
 __all__ = ["VerificationKeyWitness", "TransactionWitnessSet"]

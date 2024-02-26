@@ -7,19 +7,19 @@ import socket
 from abc import ABC
 from dataclasses import dataclass, field
 from fractions import Fraction
-from typing import Optional, Union, List, Type
+from typing import List, Optional, Type, Union
 
 from pycardano.crypto.bech32 import bech32_decode
 from pycardano.hash import (
     PoolKeyHash,
-    VerificationKeyHash,
-    VrfKeyHash,
     PoolMetadataHash,
     RewardAccountHash,
+    VerificationKeyHash,
+    VrfKeyHash,
 )
 from pycardano.serialization import (
-    CBORSerializable,
     ArrayCBORSerializable,
+    CBORSerializable,
     limit_primitive_type,
     list_hook,
 )

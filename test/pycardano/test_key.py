@@ -7,9 +7,9 @@ from pycardano.key import (
     PaymentKeyPair,
     PaymentSigningKey,
     PaymentVerificationKey,
+    StakePoolKeyPair,
     StakePoolSigningKey,
     StakePoolVerificationKey,
-    StakePoolKeyPair,
 )
 
 SK = PaymentSigningKey.from_json(

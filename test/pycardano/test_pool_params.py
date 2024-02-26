@@ -3,30 +3,30 @@ from fractions import Fraction
 import pytest
 
 from pycardano import (
-    PoolMetadataHash,
-    POOL_METADATA_HASH_SIZE,
-    VRF_KEY_HASH_SIZE,
     POOL_KEY_HASH_SIZE,
+    POOL_METADATA_HASH_SIZE,
     VERIFICATION_KEY_HASH_SIZE,
+    VRF_KEY_HASH_SIZE,
+    PoolMetadataHash,
 )
 from pycardano.hash import (
     REWARD_ACCOUNT_HASH_SIZE,
     PoolKeyHash,
-    VrfKeyHash,
     RewardAccountHash,
     VerificationKeyHash,
+    VrfKeyHash,
 )
-from pycardano.pool_params import (
-    # Fraction,
+from pycardano.pool_params import (  # Fraction,
+    FractionSerializer,
+    MultiHostName,
+    PoolId,
+    PoolMetadata,
+    PoolParams,
+    RelayCBORSerializer,
     SingleHostAddr,
     SingleHostName,
-    MultiHostName,
-    PoolMetadata,
-    RelayCBORSerializer,
-    PoolParams,
-    FractionSerializer,
+    is_bech32_cardano_pool_id,
 )
-from pycardano.pool_params import is_bech32_cardano_pool_id, PoolId
 
 TEST_POOL_ID = "pool1mt8sdg37f2h3rypyuc77k7vxrjshtvjw04zdjlae9vdzyt9uu34"
 

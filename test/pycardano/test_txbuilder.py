@@ -1,16 +1,17 @@
 import copy
 from dataclasses import replace
 from fractions import Fraction
+from test.pycardano.test_key import SK
 from unittest.mock import patch
 
 import pytest
 
 from pycardano.address import Address
 from pycardano.certificate import (
+    PoolRegistration,
     StakeCredential,
     StakeDelegation,
     StakeRegistration,
-    PoolRegistration,
 )
 from pycardano.coinselection import RandomImproveMultiAsset
 from pycardano.exception import (
@@ -52,7 +53,6 @@ from pycardano.transaction import (
 from pycardano.txbuilder import TransactionBuilder
 from pycardano.utils import fee
 from pycardano.witness import VerificationKeyWitness
-from test.pycardano.test_key import SK
 
 
 def test_tx_builder(chain_context):

@@ -13,7 +13,7 @@ from nacl.encoding import RawEncoder
 from nacl.hash import blake2b
 
 from pycardano.address import Address
-from pycardano.certificate import Certificate, CertificateCBORSerializer
+from pycardano.certificate import Certificate
 from pycardano.exception import InvalidDataException, InvalidOperationException
 from pycardano.hash import (
     TRANSACTION_HASH_SIZE,
@@ -508,7 +508,6 @@ class TransactionBody(MapCBORSerializable):
         metadata={
             "key": 4,
             "optional": True,
-            "object_hook": list_hook(CertificateCBORSerializer),
         },
     )
 
