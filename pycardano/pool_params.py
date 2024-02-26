@@ -10,6 +10,7 @@ from fractions import Fraction
 from typing import List, Optional, Type, Union
 
 from pycardano.crypto.bech32 import bech32_decode
+from pycardano.exception import DeserializeException
 from pycardano.hash import (
     PoolKeyHash,
     PoolMetadataHash,
@@ -21,8 +22,19 @@ from pycardano.serialization import (
     ArrayCBORSerializable,
     CBORSerializable,
     limit_primitive_type,
-    list_hook,
 )
+
+__all__ = [
+    "PoolId",
+    "PoolMetadata",
+    "PoolParams",
+    "Relay",
+    "SingleHostAddr",
+    "SingleHostName",
+    "MultiHostName",
+    "RelayCBORSerializer",
+    "is_bech32_cardano_pool_id",
+]
 
 
 def is_bech32_cardano_pool_id(pool_id: str) -> bool:
@@ -158,11 +170,14 @@ class SingleHostAddr(ArrayCBORSerializable):
     def from_primitive(
         cls: Type[SingleHostAddr], values: Union[list, tuple]
     ) -> SingleHostAddr:
-        return cls(
-            port=values[1],
-            ipv4=values[2],
-            ipv6=values[3],
-        )
+        if values[0] == 0:
+            return cls(
+                port=values[1],
+                ipv4=values[2],
+                ipv6=values[3],
+            )
+        else:
+            raise DeserializeException(f"Invalid SingleHostAddr type {values[0]}")
 
 
 @dataclass(repr=False)
@@ -180,10 +195,13 @@ class SingleHostName(ArrayCBORSerializable):
     def from_primitive(
         cls: Type[SingleHostName], values: Union[list, tuple]
     ) -> SingleHostName:
-        return cls(
-            port=values[1],
-            dns_name=values[2],
-        )
+        if values[0] == 1:
+            return cls(
+                port=values[1],
+                dns_name=values[2],
+            )
+        else:
+            raise DeserializeException(f"Invalid SingleHostName type {values[0]}")
 
 
 @dataclass(repr=False)
@@ -200,9 +218,12 @@ class MultiHostName(ArrayCBORSerializable):
     def from_primitive(
         cls: Type[MultiHostName], values: Union[list, tuple]
     ) -> MultiHostName:
-        return cls(
-            dns_name=values[1],
-        )
+        if values[0] == 2:
+            return cls(
+                dns_name=values[1],
+            )
+        else:
+            raise DeserializeException(f"Invalid MultiHostName type {values[0]}")
 
 
 Relay = Union[SingleHostAddr, SingleHostName, MultiHostName]
@@ -214,37 +235,17 @@ class PoolMetadata(ArrayCBORSerializable):
     pool_metadata_hash: PoolMetadataHash
 
 
-@dataclass(repr=False)
-class FractionSerializer(CBORSerializable, Fraction, ABC):
-    @classmethod
-    @limit_primitive_type(Fraction, str, list)
-    def from_primitive(
-        cls: Type[Fraction], fraction: Union[Fraction, str, list]
-    ) -> Fraction:
-        if isinstance(fraction, Fraction):
-            return Fraction(int(fraction.numerator), int(fraction.denominator))
-        elif isinstance(fraction, str):
-            numerator, denominator = fraction.split("/")
-            return Fraction(int(numerator), int(denominator))
-        elif isinstance(fraction, list):
-            numerator, denominator = fraction[1]
-            return Fraction(int(numerator), int(denominator))
-
-
-@dataclass(repr=False)
-class RelayCBORSerializer(ArrayCBORSerializable):
-    @classmethod
-    @limit_primitive_type(list)
-    def from_primitive(
-        cls: Type[RelayCBORSerializer], values: Union[list, tuple]
-    ) -> Relay | None:
-        if values[0] == 0:
-            return SingleHostAddr.from_primitive(values)
-        elif values[0] == 1:
-            return SingleHostName.from_primitive(values)
-        elif values[0] == 2:
-            return MultiHostName.from_primitive(values)
-        return None
+def fraction_parser(fraction: Union[Fraction, str, list]) -> Fraction:
+    if isinstance(fraction, Fraction):
+        return Fraction(int(fraction.numerator), int(fraction.denominator))
+    elif isinstance(fraction, str):
+        numerator, denominator = fraction.split("/")
+        return Fraction(int(numerator), int(denominator))
+    elif isinstance(fraction, list):
+        numerator, denominator = fraction[1]
+        return Fraction(int(numerator), int(denominator))
+    else:
+        raise ValueError(f"Invalid fraction type {fraction}")
 
 
 @dataclass(repr=False)
@@ -253,13 +254,9 @@ class PoolParams(ArrayCBORSerializable):
     vrf_keyhash: VrfKeyHash
     pledge: int
     cost: int
-    margin: Fraction = field(
-        metadata={"object_hook": FractionSerializer.from_primitive}
-    )
+    margin: Fraction = field(metadata={"object_hook": fraction_parser})
     reward_account: RewardAccountHash
     pool_owners: List[VerificationKeyHash]
-    relays: Optional[List[Relay]] = field(
-        metadata={"object_hook": list_hook(RelayCBORSerializer)},
-    )
+    relays: Optional[List[Relay]] = None
     pool_metadata: Optional[PoolMetadata] = None
     id: Optional[PoolId] = field(default=None, metadata={"optional": True})

@@ -90,7 +90,10 @@ def genesis_file(genesis_json):
 
     yield genesis_file_path
 
-    genesis_file_path.unlink()
+    try:
+        genesis_file_path.unlink()
+    except FileNotFoundError:
+        pass
 
 
 @pytest.fixture(scope="session")
@@ -190,4 +193,7 @@ def config_file():
 
     yield config_file_path
 
-    config_file_path.unlink()
+    try:
+        config_file_path.unlink()
+    except FileNotFoundError:
+        pass

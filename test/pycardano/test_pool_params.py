@@ -17,14 +17,13 @@ from pycardano.hash import (
     VrfKeyHash,
 )
 from pycardano.pool_params import (  # Fraction,
-    FractionSerializer,
     MultiHostName,
     PoolId,
     PoolMetadata,
     PoolParams,
-    RelayCBORSerializer,
     SingleHostAddr,
     SingleHostName,
+    fraction_parser,
     is_bech32_cardano_pool_id,
 )
 
@@ -208,28 +207,10 @@ def test_pool_metadata(url, pool_metadata_hash):
 )
 def test_fraction_serializer(input_value):
     # Act
-    result = FractionSerializer.from_primitive(input_value)
+    result = fraction_parser(input_value)
 
     # Assert
     assert isinstance(result, Fraction)
-
-
-@pytest.mark.parametrize(
-    "test_id, input_value, expected_output",
-    [
-        ("HP-1", [0, 3001, "10.20.30.40", "::1"], SingleHostAddr),
-        ("HP-2", [1, 3001, "example.com"], SingleHostName),
-        ("HP-3", [2, "example.com"], MultiHostName),
-    ],
-)
-def test_relay_cbor_serializer(test_id, input_value, expected_output):
-    # Act
-    result = RelayCBORSerializer.from_primitive(input_value)
-
-    # Assert
-    assert isinstance(
-        result, expected_output
-    ), f"Test {test_id} failed: {result} != {expected_output}"
 
 
 @pytest.mark.parametrize(
@@ -245,7 +226,7 @@ def test_relay_cbor_serializer(test_id, input_value, expected_output):
             b"1" * REWARD_ACCOUNT_HASH_SIZE,
             [b"1" * VERIFICATION_KEY_HASH_SIZE],
             [
-                [0, 3001, "10.20.30.40", None],
+                [0, 3001, SingleHostAddr.ipv4_to_bytes("10.20.30.40"), None],
                 [1, 3001, "example.com"],
                 [2, "example.com"],
             ],
@@ -286,26 +267,11 @@ def test_pool_params(
         vrf_keyhash,
         pledge,
         cost,
-        FractionSerializer.from_primitive(margin),
+        fraction_parser(margin),
         reward_account,
         pool_owners,
-        [RelayCBORSerializer.from_primitive(x).to_primitive() for x in relays],
+        relays,
         pool_metadata,
     ]
 
-    # Act
-    pool_params = PoolParams.from_primitive(primitive_values)
-
-    # Assert
-    assert isinstance(pool_params, PoolParams)
-    assert pool_params.operator == PoolKeyHash(operator)
-    assert pool_params.vrf_keyhash == VrfKeyHash(vrf_keyhash)
-    assert pool_params.pledge == pledge
-    assert pool_params.cost == cost
-    assert pool_params.margin == Fraction(margin)
-    assert pool_params.reward_account == RewardAccountHash(reward_account)
-    assert pool_params.pool_owners == [VerificationKeyHash(x) for x in pool_owners]
-    assert pool_params.relays == [RelayCBORSerializer.from_primitive(x) for x in relays]
-    assert pool_params.pool_metadata == PoolMetadata.from_primitive(pool_metadata)
-
-    assert pool_params.to_primitive() == primitive_out
+    assert PoolParams.from_primitive(primitive_values).to_primitive() == primitive_out
