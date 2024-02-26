@@ -12,6 +12,9 @@ __all__ = [
     "AUXILIARY_DATA_HASH_SIZE",
     "POOL_KEY_HASH_SIZE",
     "SCRIPT_DATA_HASH_SIZE",
+    "VRF_KEY_HASH_SIZE",
+    "POOL_METADATA_HASH_SIZE",
+    "REWARD_ACCOUNT_HASH_SIZE",
     "ConstrainedBytes",
     "VerificationKeyHash",
     "ScriptHash",
@@ -20,6 +23,9 @@ __all__ = [
     "DatumHash",
     "AuxiliaryDataHash",
     "PoolKeyHash",
+    "PoolMetadataHash",
+    "VrfKeyHash",
+    "RewardAccountHash",
 ]
 
 VERIFICATION_KEY_HASH_SIZE = 28
@@ -29,6 +35,9 @@ TRANSACTION_HASH_SIZE = 32
 DATUM_HASH_SIZE = 32
 AUXILIARY_DATA_HASH_SIZE = 32
 POOL_KEY_HASH_SIZE = 28
+POOL_METADATA_HASH_SIZE = 32
+VRF_KEY_HASH_SIZE = 32
+REWARD_ACCOUNT_HASH_SIZE = 29
 
 
 T = TypeVar("T", bound="ConstrainedBytes")
@@ -124,7 +133,25 @@ class AuxiliaryDataHash(ConstrainedBytes):
     MAX_SIZE = MIN_SIZE = AUXILIARY_DATA_HASH_SIZE
 
 
-class PoolKeyHash(ConstrainedBytes):
+class PoolKeyHash(VerificationKeyHash):
     """Hash of a stake pool"""
 
     MAX_SIZE = MIN_SIZE = POOL_KEY_HASH_SIZE
+
+
+class PoolMetadataHash(ConstrainedBytes):
+    """Hash of a stake pool metadata"""
+
+    MAX_SIZE = MIN_SIZE = POOL_METADATA_HASH_SIZE
+
+
+class VrfKeyHash(ConstrainedBytes):
+    """Hash of a Cardano VRF key."""
+
+    MAX_SIZE = MIN_SIZE = VRF_KEY_HASH_SIZE
+
+
+class RewardAccountHash(ConstrainedBytes):
+    """Hash of a Cardano VRF key."""
+
+    MAX_SIZE = MIN_SIZE = REWARD_ACCOUNT_HASH_SIZE

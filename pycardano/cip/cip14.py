@@ -2,6 +2,7 @@ from typing import Union
 
 from nacl.encoding import RawEncoder
 from nacl.hash import blake2b
+
 from pycardano.crypto.bech32 import encode
 from pycardano.hash import ScriptHash
 from pycardano.transaction import AssetName

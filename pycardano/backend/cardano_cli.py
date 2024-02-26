@@ -31,7 +31,7 @@ from pycardano.exception import (
 from pycardano.hash import DatumHash, ScriptHash
 from pycardano.nativescript import NativeScript
 from pycardano.network import Network
-from pycardano.plutus import PlutusV1Script, PlutusV2Script, RawPlutusData, Datum
+from pycardano.plutus import Datum, PlutusV1Script, PlutusV2Script, RawPlutusData
 from pycardano.serialization import RawCBOR
 from pycardano.transaction import (
     Asset,

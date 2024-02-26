@@ -8,6 +8,8 @@ from pycardano.address import Address, AddressType
 from pycardano.backend.base import ChainContext
 from pycardano.certificate import (
     Certificate,
+    PoolRegistration,
+    PoolRetirement,
     StakeCredential,
     StakeDelegation,
     StakeDeregistration,
@@ -112,6 +114,10 @@ class TransactionBuilder:
     reference_inputs: Set[Union[UTxO, TransactionInput]] = field(
         init=False, default_factory=lambda: set()
     )
+
+    witness_override: Optional[int] = field(default=None)
+
+    initial_stake_pool_registration: Optional[bool] = field(default=False)
 
     _inputs: List[UTxO] = field(init=False, default_factory=lambda: [])
 
@@ -737,15 +743,35 @@ class TransactionBuilder:
                     cert, (StakeRegistration, StakeDeregistration, StakeDelegation)
                 ):
                     _check_and_add_vkey(cert.stake_credential)
+                elif isinstance(cert, PoolRegistration):
+                    results.add(cert.pool_params.operator)
+                elif isinstance(cert, PoolRetirement):
+                    results.add(cert.pool_keyhash)
         return results
 
     def _get_total_key_deposit(self):
-        results = set()
+        stake_registration_certs = set()
+        stake_pool_registration_certs = set()
+
+        protocol_params = self.context.protocol_param
+
         if self.certificates:
             for cert in self.certificates:
                 if isinstance(cert, StakeRegistration):
-                    results.add(cert.stake_credential.credential)
-        return self.context.protocol_param.key_deposit * len(results)
+                    stake_registration_certs.add(cert.stake_credential.credential)
+                elif (
+                    isinstance(cert, PoolRegistration)
+                    and self.initial_stake_pool_registration
+                ):
+                    stake_pool_registration_certs.add(cert.pool_params.operator)
+
+        stake_registration_deposit = protocol_params.key_deposit * len(
+            stake_registration_certs
+        )
+        stake_pool_registration_deposit = protocol_params.pool_deposit * len(
+            stake_pool_registration_certs
+        )
+        return stake_registration_deposit + stake_pool_registration_deposit
 
     def _withdrawal_vkey_hashes(self) -> Set[VerificationKeyHash]:
         results = set()
@@ -845,8 +871,12 @@ class TransactionBuilder:
         vkey_hashes.update(self._native_scripts_vkey_hashes())
         vkey_hashes.update(self._certificate_vkey_hashes())
         vkey_hashes.update(self._withdrawal_vkey_hashes())
+
+        witness_count = self.witness_override or len(vkey_hashes)
+
         return [
-            VerificationKeyWitness(FAKE_VKEY, FAKE_TX_SIGNATURE) for _ in vkey_hashes
+            VerificationKeyWitness(FAKE_VKEY, FAKE_TX_SIGNATURE)
+            for _ in range(witness_count)
         ]
 
     def _build_fake_witness_set(self) -> TransactionWitnessSet:

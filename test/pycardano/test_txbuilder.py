@@ -1,13 +1,18 @@
 import copy
 from dataclasses import replace
+from fractions import Fraction
 from test.pycardano.test_key import SK
-from test.pycardano.util import chain_context
 from unittest.mock import patch
 
 import pytest
 
 from pycardano.address import Address
-from pycardano.certificate import StakeCredential, StakeDelegation, StakeRegistration
+from pycardano.certificate import (
+    PoolRegistration,
+    StakeCredential,
+    StakeDelegation,
+    StakeRegistration,
+)
 from pycardano.coinselection import RandomImproveMultiAsset
 from pycardano.exception import (
     InsufficientUTxOBalanceException,
@@ -79,14 +84,14 @@ def test_tx_builder(chain_context):
 def test_tx_builder_no_change(chain_context):
     tx_builder = TransactionBuilder(chain_context, [RandomImproveMultiAsset([0, 0])])
     sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
-    sender_address = Address.from_primitive(sender)
+    Address.from_primitive(sender)
 
     # Add sender address as input
     tx_builder.add_input_address(sender).add_output(
         TransactionOutput.from_primitive([sender, 500000])
     )
 
-    tx_body = tx_builder.build()
+    tx_builder.build()
 
 
 def test_tx_builder_with_certain_input(chain_context):
@@ -206,7 +211,7 @@ def test_tx_builder_raises_utxo_selection(chain_context):
     )
 
     with pytest.raises(UTxOSelectionException) as e:
-        tx_body = tx_builder.build(
+        tx_builder.build(
             change_address=sender_address,
         )
 
@@ -226,7 +231,7 @@ def test_tx_too_big_exception(chain_context):
         tx_builder.add_output(TransactionOutput.from_primitive([sender, 10]))
 
     with pytest.raises(InvalidTransactionException):
-        tx_body = tx_builder.build(change_address=sender_address)
+        tx_builder.build(change_address=sender_address)
 
 
 def test_tx_small_utxo_precise_fee(chain_context):
@@ -278,7 +283,7 @@ def test_tx_small_utxo_balance_fail(chain_context):
     # Balance is smaller than minimum ada required in change
     # No more UTxO is available, throwing UTxO selection exception
     with pytest.raises(UTxOSelectionException):
-        tx_body = tx_builder.build(change_address=sender_address)
+        tx_builder.build(change_address=sender_address)
 
 
 def test_tx_small_utxo_balance_pass(chain_context):
@@ -486,7 +491,7 @@ def test_tx_add_change_split_nfts_not_enough_add(chain_context):
     tx_builder.ttl = 123456789
 
     with pytest.raises(InsufficientUTxOBalanceException):
-        tx_body = tx_builder.build(change_address=sender_address)
+        tx_builder.build(change_address=sender_address)
 
 
 def test_not_enough_input_amount(chain_context):
@@ -502,7 +507,7 @@ def test_not_enough_input_amount(chain_context):
 
     with pytest.raises(UTxOSelectionException):
         # Tx builder must fail here because there is not enough amount of input ADA to pay tx fee
-        tx_body = tx_builder.build(change_address=sender_address)
+        tx_builder.build(change_address=sender_address)
 
 
 def test_add_script_input(chain_context):
@@ -521,7 +526,7 @@ def test_add_script_input(chain_context):
         tx_in1, TransactionOutput(script_address, 10000000, datum_hash=datum.hash())
     )
     mint = MultiAsset.from_primitive({script_hash.payload: {b"TestToken": 1}})
-    utxo2 = UTxO(
+    UTxO(
         tx_in2,
         TransactionOutput(
             script_address, Value(10000000, mint), datum_hash=datum.hash()
@@ -536,7 +541,7 @@ def test_add_script_input(chain_context):
         "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
     )
     tx_builder.add_output(TransactionOutput(receiver, 5000000))
-    tx_body = tx_builder.build(change_address=receiver)
+    tx_builder.build(change_address=receiver)
     witness = tx_builder.build_witness_set()
     assert [datum] == witness.plutus_data
     assert [redeemer1, redeemer2] == witness.redeemer
@@ -564,7 +569,7 @@ def test_add_script_input_no_script(chain_context):
         "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
     )
     tx_builder.add_output(TransactionOutput(receiver, 5000000))
-    tx_body = tx_builder.build(change_address=receiver)
+    tx_builder.build(change_address=receiver)
     witness = tx_builder.build_witness_set()
     assert [datum] == witness.plutus_data
     assert [redeemer] == witness.redeemer
@@ -835,7 +840,7 @@ def test_wrong_redeemer_execution_units(chain_context):
         tx_in1, TransactionOutput(script_address, 10000000, datum_hash=datum.hash())
     )
     mint = MultiAsset.from_primitive({script_hash.payload: {b"TestToken": 1}})
-    utxo2 = UTxO(
+    UTxO(
         tx_in2,
         TransactionOutput(
             script_address, Value(10000000, mint), datum_hash=datum.hash()
@@ -856,7 +861,7 @@ def test_all_redeemer_should_provide_execution_units(chain_context):
     tx_in1 = TransactionInput.from_primitive(
         ["18cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad21431590f7e6643438ef", 0]
     )
-    tx_in2 = TransactionInput.from_primitive(
+    TransactionInput.from_primitive(
         ["18cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad21431590f7e6643438ef", 1]
     )
     plutus_script = PlutusV1Script(b"dummy test script")
@@ -893,7 +898,7 @@ def test_add_minting_script(chain_context):
         "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
     )
     tx_builder.add_output(TransactionOutput(receiver, Value(5000000, mint)))
-    tx_body = tx_builder.build(change_address=receiver)
+    tx_builder.build(change_address=receiver)
     witness = tx_builder.build_witness_set()
     assert [plutus_script] == witness.plutus_v1_script
 
@@ -915,7 +920,7 @@ def test_add_minting_script_only(chain_context):
         "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
     )
     tx_builder.add_output(TransactionOutput(receiver, Value(5000000, mint)))
-    tx_body = tx_builder.build(change_address=receiver)
+    tx_builder.build(change_address=receiver)
     witness = tx_builder.build_witness_set()
     assert [plutus_script] == witness.plutus_v1_script
 
@@ -1019,7 +1024,7 @@ def test_estimate_execution_unit(chain_context):
         "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
     )
     tx_builder.add_output(TransactionOutput(receiver, 5000000))
-    tx_body = tx_builder.build(change_address=receiver)
+    tx_builder.build(change_address=receiver)
     witness = tx_builder.build_witness_set()
     assert [datum] == witness.plutus_data
     assert [redeemer1] == witness.redeemer
@@ -1106,6 +1111,62 @@ def test_tx_builder_certificates(chain_context):
         4: [
             [0, [0, b"1111111111111111111111111111"]],
             [2, [0, b"1111111111111111111111111111"], b"1111111111111111111111111111"],
+        ],
+    }
+
+    assert expected == tx_body.to_primitive()
+
+
+def test_tx_builder_stake_pool_registration(chain_context, pool_params):
+    tx_builder = TransactionBuilder(chain_context, [RandomImproveMultiAsset([0, 0])])
+    sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    sender_address = Address.from_primitive(sender)
+
+    pool_registration = PoolRegistration(pool_params)
+
+    tx_in3 = TransactionInput.from_primitive([b"2" * 32, 2])
+    tx_out3 = TransactionOutput.from_primitive([sender, 505000000])
+    utxo = UTxO(tx_in3, tx_out3)
+
+    tx_builder.add_input(utxo)
+
+    tx_builder.initial_stake_pool_registration = True
+
+    tx_builder.certificates = [pool_registration]
+
+    tx_body = tx_builder.build(change_address=sender_address)
+
+    expected = {
+        0: [[b"22222222222222222222222222222222", 2]],
+        1: [
+            [
+                b"`\xf6S(P\xe1\xbc\xce\xe9\xc7*\x91\x13\xad\x98\xbc\xc5\xdb\xb3\r*\xc9`&$D\xf6\xe5\xf4",
+                4819407,
+            ]
+        ],
+        2: 180593,
+        4: [
+            [
+                3,
+                b"1111111111111111111111111111",
+                b"11111111111111111111111111111111",
+                100000000,
+                340000000,
+                Fraction(1, 50),
+                b"11111111111111111111111111111",
+                [b"1111111111111111111111111111"],
+                [
+                    [
+                        0,
+                        3001,
+                        b"\xc0\xa8\x00\x01",
+                        b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01",
+                    ],
+                    [1, 3001, "relay1.example.com"],
+                    [2, "relay1.example.com"],
+                ],
+                ["https://meta1.example.com", b"11111111111111111111111111111111"],
+            ]
         ],
     }
 
@@ -1339,7 +1400,7 @@ def test_tx_builder_small_utxo_input(chain_context):
                 ),
             )
         )
-        signed_tx = builder.build(change_address=address)
+        builder.build(change_address=address)
 
 
 def test_tx_builder_small_utxo_input_2(chain_context):
@@ -1408,7 +1469,7 @@ def test_tx_builder_small_utxo_input_2(chain_context):
                 ),
             )
         )
-        signed_tx = builder.build(change_address=address)
+        builder.build(change_address=address)
 
 
 def test_tx_builder_merge_change_to_output_3(chain_context):

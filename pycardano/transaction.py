@@ -504,7 +504,11 @@ class TransactionBody(MapCBORSerializable):
     ttl: Optional[int] = field(default=None, metadata={"key": 3, "optional": True})
 
     certificates: Optional[List[Certificate]] = field(
-        default=None, metadata={"key": 4, "optional": True}
+        default=None,
+        metadata={
+            "key": 4,
+            "optional": True,
+        },
     )
 
     withdraws: Optional[Withdrawals] = field(

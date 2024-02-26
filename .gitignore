@@ -7,3 +7,5 @@ dist
 # IDE
 .idea
 .code
+/integration-test/.env
+/integration-test/tmp_configs/*

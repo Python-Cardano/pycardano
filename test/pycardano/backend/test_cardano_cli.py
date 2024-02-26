@@ -9,13 +9,13 @@ from pycardano import (
     ALONZO_COINS_PER_UTXO_WORD,
     CardanoCliChainContext,
     CardanoCliNetwork,
+    DatumHash,
     GenesisParameters,
     MultiAsset,
-    ProtocolParameters,
-    TransactionInput,
     PlutusV2Script,
+    ProtocolParameters,
     RawPlutusData,
-    DatumHash,
+    TransactionInput,
 )
 
 QUERY_TIP_RESULT = {

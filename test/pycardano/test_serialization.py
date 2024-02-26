@@ -1,12 +1,11 @@
 from dataclasses import dataclass, field
-
-import pycardano
 from test.pycardano.util import check_two_way_cbor
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 import cbor2
 import pytest
 
+import pycardano
 from pycardano import Datum, RawPlutusData
 from pycardano.exception import DeserializeException
 from pycardano.plutus import PlutusV1Script, PlutusV2Script
