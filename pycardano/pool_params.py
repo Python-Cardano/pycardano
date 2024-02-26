@@ -62,14 +62,14 @@ class SingleHostAddr(ArrayCBORSerializable):
     _CODE: int = field(init=False, default=0)
 
     port: Optional[int]
-    ipv4: Optional[str | bytes]
-    ipv6: Optional[str | bytes]
+    ipv4: Optional[Union[str, bytes]]
+    ipv6: Optional[Union[str, bytes]]
 
     def __init__(
         self,
         port: Optional[int] = None,
-        ipv4: Optional[str | bytes] = None,
-        ipv6: Optional[str | bytes] = None,
+        ipv4: Optional[Union[str, bytes]] = None,
+        ipv6: Optional[Union[str, bytes]] = None,
     ):
         super().__init__()
 
