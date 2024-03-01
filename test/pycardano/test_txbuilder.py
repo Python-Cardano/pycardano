@@ -576,6 +576,32 @@ def test_add_script_input_no_script(chain_context):
     assert witness.plutus_v1_script is None
 
 
+def test_add_script_input_payment_script(chain_context):
+    tx_builder = TransactionBuilder(chain_context)
+    tx_in1 = TransactionInput.from_primitive(
+        ["18cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad21431590f7e6643438ef", 0]
+    )
+    plutus_script = PlutusV1Script(b"dummy test script")
+    vk1 = VerificationKey.from_cbor(
+        "58206443a101bdb948366fc87369336224595d36d8b0eee5602cba8b81a024e58473"
+    )
+    script_address = Address(vk1.hash())
+    datum = PlutusData()
+    utxo1 = UTxO(
+        tx_in1,
+        TransactionOutput(script_address, 10000000, datum_hash=datum.hash()),
+    )
+    redeemer = Redeemer(PlutusData(), ExecutionUnits(1000000, 1000000))
+    pytest.raises(
+        InvalidArgumentException,
+        tx_builder.add_script_input,
+        utxo1,
+        datum=datum,
+        redeemer=redeemer,
+        script=plutus_script,
+    )
+
+
 def test_add_script_input_find_script(chain_context):
     original_utxos = chain_context.utxos(
         "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"

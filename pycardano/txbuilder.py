@@ -251,11 +251,6 @@ class TransactionBuilder:
             self._inputs_to_redeemers[utxo] = redeemer
 
         input_script_hash = utxo.output.address.payment_part
-        if not isinstance(input_script_hash, ScriptHash):
-            raise InvalidArgumentException(
-                f"Expect the payment part of the address to be of a script (type ScriptHash), "
-                f"but got {type(input_script_hash)} instead."
-            )
 
         # collect potential scripts to fulfill the input
         candidate_scripts: List[
