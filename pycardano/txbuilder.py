@@ -270,8 +270,8 @@ class TransactionBuilder:
         elif isinstance(script, UTxO):
             if script.output.script is None:
                 raise InvalidArgumentException(
-                    "Expect the output of the UTxO to have a script, "
-                    "but got None instead."
+                    f"Expect the output of the reference UTxO {utxo}"
+                    " to have a script, but got None instead."
                 )
             candidate_scripts.append((script.output.script, script))
         else:

@@ -791,6 +791,24 @@ def test_add_script_input_with_script_from_specified_utxo_with_incorrect_script(
         redeemer=redeemer,
     )
 
+    existing_script_utxo = UTxO(
+        TransactionInput.from_primitive(
+            [
+                "41cb004bec7051621b19b46aea28f0657a586a05ce2013152ea9b9f1a5614cc7",
+                1,
+            ]
+        ),
+        TransactionOutput(script_address, 1234567, script=None),
+    )
+    pytest.raises(
+        InvalidArgumentException,
+        tx_builder.add_script_input,
+        utxo1,
+        script=existing_script_utxo,
+        datum=datum,
+        redeemer=redeemer,
+    )
+
 
 def test_add_script_input_multiple_redeemers(chain_context):
     tx_builder = TransactionBuilder(chain_context)
