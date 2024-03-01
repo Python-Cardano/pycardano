@@ -259,7 +259,7 @@ class TransactionBuilder:
 
         # collect potential scripts to fulfill the input
         candidate_scripts: List[
-            Tuple[ScriptType, Optional[UTxO]]
+            Tuple[Union[NativeScript, PlutusV1Script, PlutusV2Script], Optional[UTxO]]
         ] = []
         if utxo.output.script:
             candidate_scripts.append((utxo.output.script, utxo))
