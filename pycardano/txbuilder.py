@@ -994,7 +994,7 @@ class TransactionBuilder:
         self._ensure_no_input_exclusion_conflict()
 
         # only automatically set the validity interval and required signers if scripts are involved
-        is_smart = bool(self.scripts)
+        is_smart = bool(self.all_scripts)
 
         # Automatically set the validity range to a tight value around transaction creation
         if (
