@@ -311,8 +311,12 @@ def test_multi_asset_subtraction():
         }
     )
 
-    with pytest.raises(InvalidOperationException):
-        a - b
+    assert a - b == MultiAsset.from_primitive(
+        {
+            b"1" * SCRIPT_HASH_SIZE: {b"Token1": -9, b"Token2": -18},
+            b"2" * SCRIPT_HASH_SIZE: {b"Token1": -1, b"Token2": -2},
+        }
+    )
 
 
 def test_asset_comparison():
@@ -427,11 +431,25 @@ def test_values():
         [101, {b"1" * SCRIPT_HASH_SIZE: {b"Token1": 1, b"Token2": 2}}]
     )
 
-    with pytest.raises(InvalidOperationException):
-        a - c
+    assert a - c == Value.from_primitive(
+        [
+            -10,
+            {
+                b"1" * SCRIPT_HASH_SIZE: {b"Token1": -10, b"Token2": -20},
+                b"2" * SCRIPT_HASH_SIZE: {b"Token1": -11, b"Token2": -22},
+            },
+        ]
+    )
 
-    with pytest.raises(InvalidOperationException):
-        b - c
+    assert b - c == Value.from_primitive(
+        [
+            0,
+            {
+                b"1" * SCRIPT_HASH_SIZE: {b"Token1": 0, b"Token2": 0},
+                b"2" * SCRIPT_HASH_SIZE: {b"Token1": -11, b"Token2": -22},
+            },
+        ]
+    )
 
 
 def test_inline_datum_serdes():
