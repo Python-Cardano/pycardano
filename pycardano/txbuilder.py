@@ -283,7 +283,7 @@ class TransactionBuilder:
                 self._reference_scripts.append(candidate_script)
         if not found_valid_script:
             raise InvalidArgumentException(
-                f"Cannot find a valid script to fulfill the input UTxO: {utxo}."
+                f"Cannot find a valid script to fulfill the input UTxO: {utxo.input}."
                 "Supplied scripts do not match the payment part of the input address."
             )
 
