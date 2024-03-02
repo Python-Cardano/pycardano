@@ -238,7 +238,8 @@ class TransactionBuilder:
             )
         if datum is not None and utxo.output.datum is not None:
             raise InvalidArgumentException(
-                f"Inline Datum found in transaction output, so attaching a Datum to the transaction input manually is not allowed."
+                f"Inline Datum found in transaction output {utxo.input}, "
+                "so attaching a Datum to the transaction input manually is not allowed."
             )
 
         if datum is not None:
