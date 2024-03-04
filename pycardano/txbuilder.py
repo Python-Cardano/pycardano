@@ -236,7 +236,7 @@ class TransactionBuilder:
                 f"Datum hash in transaction output is {utxo.output.datum_hash}, "
                 f"but actual datum hash from input datum is {datum_hash(datum)}."
             )
-        if datum is not None and utxo.output.datum is not None:
+        if datum is not None and utxo.output.datum_hash is None and utxo.output.datum is not None:
             raise InvalidArgumentException(
                 f"Inline Datum found in transaction output {utxo.input}, "
                 "so attaching a Datum to the transaction input manually is not allowed."
