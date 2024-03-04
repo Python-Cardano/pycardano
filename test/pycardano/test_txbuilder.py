@@ -1032,6 +1032,30 @@ def test_estimate_execution_unit(chain_context):
     assert [plutus_script] == witness.plutus_v1_script
 
 
+def test_add_script_input_inline_datum_extra(chain_context):
+    tx_builder = TransactionBuilder(chain_context)
+    tx_in1 = TransactionInput.from_primitive(
+        ["18cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad21431590f7e6643438ef", 0]
+    )
+    tx_in2 = TransactionInput.from_primitive(
+        ["18cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad21431590f7e6643438ef", 1]
+    )
+    plutus_script = PlutusV1Script(b"dummy test script")
+    script_hash = plutus_script_hash(plutus_script)
+    script_address = Address(script_hash)
+    datum = PlutusData()
+    utxo1 = UTxO(tx_in1, TransactionOutput(script_address, 10000000, datum=datum))
+    redeemer1 = Redeemer(PlutusData(), ExecutionUnits(1000000, 1000000))
+    pytest.raises(
+        InvalidArgumentException,
+        tx_builder.add_script_input,
+        utxo1,
+        plutus_script,
+        datum,
+        redeemer1,
+    )
+
+
 def test_tx_builder_exact_fee_no_change(chain_context):
     tx_builder = TransactionBuilder(chain_context)
     sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
