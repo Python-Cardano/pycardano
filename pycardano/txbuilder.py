@@ -259,24 +259,42 @@ class TransactionBuilder:
             self._consolidate_redeemer(redeemer)
             self._inputs_to_redeemers[utxo] = redeemer
 
+        input_script_hash = utxo.output.address.payment_part
+
+        # collect potential scripts to fulfill the input
+        candidate_scripts: List[
+            Tuple[Union[NativeScript, PlutusV1Script, PlutusV2Script], Optional[UTxO]]
+        ] = []
         if utxo.output.script:
-            self._inputs_to_scripts[utxo] = utxo.output.script
-            self.reference_inputs.add(utxo)
-            self._reference_scripts.append(utxo.output.script)
+            candidate_scripts.append((utxo.output.script, utxo))
         elif not script:
             for i in self.context.utxos(utxo.output.address):
                 if i.output.script:
-                    self._inputs_to_scripts[utxo] = i.output.script
-                    self.reference_inputs.add(i)
-                    self._reference_scripts.append(i.output.script)
-                    break
+                    candidate_scripts.append((i.output.script, i))
         elif isinstance(script, UTxO):
-            assert script.output.script is not None
-            self._inputs_to_scripts[utxo] = script.output.script
-            self.reference_inputs.add(script)
-            self._reference_scripts.append(script.output.script)
+            if script.output.script is None:
+                raise InvalidArgumentException(
+                    f"Expect the output of the reference UTxO {utxo}"
+                    " to have a script, but got None instead."
+                )
+            candidate_scripts.append((script.output.script, script))
         else:
-            self._inputs_to_scripts[utxo] = script
+            candidate_scripts.append((script, None))
+
+        found_valid_script = False
+        for candidate_script, candidate_utxo in candidate_scripts:
+            if script_hash(candidate_script) != input_script_hash:
+                continue
+            found_valid_script = True
+            self._inputs_to_scripts[utxo] = candidate_script
+            if candidate_utxo is not None:
+                self.reference_inputs.add(candidate_utxo)
+                self._reference_scripts.append(candidate_script)
+        if not found_valid_script:
+            raise InvalidArgumentException(
+                f"Cannot find a valid script to fulfill the input UTxO: {utxo.input}."
+                "Supplied scripts do not match the payment part of the input address."
+            )
 
         self.inputs.append(utxo)
         return self
