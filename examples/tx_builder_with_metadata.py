@@ -26,10 +26,18 @@ context = BlockFrostChainContext(
     "your_blockfrost_project_id", base_url=ApiUrls.preprod.value
 )
 
-metadata = 1337: {
-                  "description": "example",
-                  "name": "example",
-                 }
+# Metadata that follows the CIP-20 standard. More info here https://cips.cardano.org/cip/CIP-20/
+metadata = {
+              674:
+                  {
+                    "msg":
+                  [
+                    "Invoice-No: 1234567890",
+                    "Customer-No: 555-1234",
+                    "P.S.: i will shop again at your store :-)"
+                  ]
+         }
+}
         
 # Place metadata in AuxiliaryData, the format acceptable by a transaction.
 auxiliary_data = AuxiliaryData(AlonzoMetadata(metadata=Metadata(metadata)))
