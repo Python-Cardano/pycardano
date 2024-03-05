@@ -36,13 +36,13 @@ auxiliary_data = AuxiliaryData(AlonzoMetadata(metadata=Metadata(metadata)))
 # Set transaction metadata
 builder.auxiliary_data = auxiliary_data
 # Create a transaction builder
-builder = TransactionBuilder(chain_context)
+builder = TransactionBuilder(context)
 # Set your address
 builder.add_input_address(from_address)
 # Recipient address
 to_address = "cardano_address_you_want_to_send_ada_to"
 # Add output and sign transaction
 builder.add_output(TransactionOutput.from_primitive([to_address, 100000000000]))
-signed_tx = builder.build_and_sign([sk], change_address=address)
+signed_tx = builder.build_and_sign([payment_signing_key], change_address=from_address)
 # Send transaction
 context.submit_tx(signed_tx)
