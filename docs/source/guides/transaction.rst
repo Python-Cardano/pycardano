@@ -119,7 +119,7 @@ Read signing key into the program and generate its corresponding verification ke
     >>> network = Network.TESTNET
     >>> sk = PaymentSigningKey.load("path/to/payment.skey")
     >>> vk = PaymentVerificationKey.from_signing_key(sk)
-    >>> address = Address(pvk.hash(), svk.hash(), network)
+    >>> address = Address(vk.hash(), network)
 
 
 Step 3
