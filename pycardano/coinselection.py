@@ -183,7 +183,7 @@ class RandomImproveMultiAsset(UTxOSelector):
     @staticmethod
     def _split_by_asset(value: Value) -> List[Value]:
         # Extract ADA
-        assets = [Value(value.coin)]
+        assets = [Value(value.coin)] if value.coin else []
 
         # Extract native assets
         for policy_id, d in value.multi_asset.items():
