@@ -1,6 +1,7 @@
 """Defines interfaces for client codes to interact (read/write) with the blockchain."""
 
 from dataclasses import dataclass
+from fractions import Fraction
 from typing import Dict, List, Union
 
 from pycardano.address import Address
@@ -24,7 +25,7 @@ ALONZO_COINS_PER_UTXO_WORD = 34482
 class GenesisParameters:
     """Cardano genesis parameters"""
 
-    active_slots_coefficient: float
+    active_slots_coefficient: Fraction
 
     update_quorum: int
 
@@ -63,13 +64,13 @@ class ProtocolParameters:
 
     pool_deposit: int
 
-    pool_influence: float
+    pool_influence: Fraction
 
-    monetary_expansion: float
+    monetary_expansion: Fraction
 
-    treasury_expansion: float
+    treasury_expansion: Fraction
 
-    decentralization_param: float
+    decentralization_param: Fraction
 
     extra_entropy: str
 
@@ -81,9 +82,9 @@ class ProtocolParameters:
 
     min_pool_cost: int
 
-    price_mem: float
+    price_mem: Fraction
 
-    price_step: float
+    price_step: Fraction
 
     max_tx_ex_mem: int
 
@@ -171,7 +172,7 @@ class ChainContext:
         """
         if isinstance(tx, Transaction):
             return self.submit_tx_cbor(tx.to_cbor())
-        elif isinstance(tx, bytes):
+        elif isinstance(tx, bytes) or isinstance(tx, str):
             return self.submit_tx_cbor(tx)
         else:
             raise InvalidArgumentException(

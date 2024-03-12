@@ -86,7 +86,7 @@ Sign the transaction body hash and create a complete transaction::
     >>> signed_tx = Transaction(tx_body, TransactionWitnessSet(vkey_witnesses=vk_witnesses))
 
 
-A complete example could be found `here <https://github.com/cffls/pycardano/blob/main/examples/raw_transaction.py>`_.
+A complete example could be found `here <https://github.com/Python-Cardano/pycardano/blob/main/examples/raw_transaction.py>`_.
 
 Notice that, to create a transaction, we need to know which transaction input to use, the amount of changes to return
 to the sender, and the amount of fee to pay to the network, which is possible to calculate, but requiring
@@ -119,7 +119,7 @@ Read signing key into the program and generate its corresponding verification ke
     >>> network = Network.TESTNET
     >>> sk = PaymentSigningKey.load("path/to/payment.skey")
     >>> vk = PaymentVerificationKey.from_signing_key(sk)
-    >>> address = Address(pvk.hash(), svk.hash(), network)
+    >>> address = Address(vk.hash(), network)
 
 
 Step 3
@@ -169,7 +169,7 @@ By using transaction builder, we no longer need to specify which UTxO to use as 
 transaction fee, because they are taken care by the transaction builder. Also, the code becomes much more concise.
 
 A more complex example of using transaction builder could be found
-in this `Github example <https://github.com/cffls/pycardano/blob/main/examples/tx_builder.py>`_.
+in this `Github example <https://github.com/Python-Cardano/pycardano/blob/main/examples/tx_builder.py>`_.
 
 ----------------------
 Transaction submission
@@ -178,5 +178,5 @@ Transaction submission
 Once we have a signed transaction, it could be submitted to the network. The easiest way to do so is through a chain
 context::
 
-    >>> context.submit_tx(signed_tx.to_cbor_hex())
+    >>> context.submit_tx(signed_tx)
 

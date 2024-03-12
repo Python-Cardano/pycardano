@@ -7,6 +7,9 @@ from pycardano.key import (
     PaymentKeyPair,
     PaymentSigningKey,
     PaymentVerificationKey,
+    StakePoolKeyPair,
+    StakePoolSigningKey,
+    StakePoolVerificationKey,
 )
 
 SK = PaymentSigningKey.from_json(
@@ -23,6 +26,22 @@ VK = PaymentVerificationKey.from_json(
         "description": "Genesis Initial UTxO Verification Key",
         "cborHex": "58208be8339e9f3addfa6810d59e2f072f85e64d4c024c087e0d24f8317c6544f62f"
     }"""
+)
+
+SPSK = StakePoolSigningKey.from_json(
+    """{
+        "type": "StakePoolSigningKey_ed25519", 
+        "description": "StakePoolSigningKey_ed25519", 
+        "cborHex": "582044181bd0e6be21cea5b0751b8c6d4f88a5cb2d5dfec31a271add617f7ce559a9"
+    }"""
+)
+
+SPVK = StakePoolVerificationKey.from_json(
+    """{
+        "type": "StakePoolVerificationKey_ed25519",
+        "description": "StakePoolVerificationKey_ed25519", 
+        "cborHex": "5820354ce32da92e7116f6c70e9be99a3a601d33137d0685ab5b7e2ff5b656989299"
+     }"""
 )
 
 EXTENDED_SK = ExtendedSigningKey.from_json(
@@ -58,6 +77,24 @@ def test_payment_key():
     assert PaymentKeyPair.from_signing_key(SK).verification_key.payload == VK.payload
 
 
+def test_stake_pool_key():
+    assert (
+        SPSK.payload
+        == b"D\x18\x1b\xd0\xe6\xbe!\xce\xa5\xb0u\x1b\x8cmO\x88\xa5\xcb-]\xfe\xc3\x1a'\x1a\xdda\x7f|\xe5Y\xa9"
+    )
+    assert (
+        SPVK.payload
+        == b"5L\xe3-\xa9.q\x16\xf6\xc7\x0e\x9b\xe9\x9a:`\x1d3\x13}\x06\x85\xab[~/\xf5\xb6V\x98\x92\x99"
+    )
+    assert (
+        SPVK.hash().payload
+        == b'3/\x13v\xecJi\xe3\x93\xe1\x88`1\x80\xa6\r"\n\x10\xf0<1\xb6)|\xa4c\xb5'
+    )
+    assert (
+        StakePoolKeyPair.from_signing_key(SPSK).verification_key.payload == SPVK.payload
+    )
+
+
 def test_extended_payment_key():
     assert EXTENDED_VK == ExtendedVerificationKey.from_signing_key(EXTENDED_SK)
 
@@ -86,10 +123,27 @@ def test_key_pair():
     assert PaymentKeyPair(sk, vk) == PaymentKeyPair.from_signing_key(sk)
 
 
+def test_stake_pool_key_pair():
+    sk = StakePoolSigningKey.generate()
+    vk = StakePoolVerificationKey.from_signing_key(sk)
+    assert StakePoolKeyPair(sk, vk) == StakePoolKeyPair.from_signing_key(sk)
+
+
 def test_key_load():
-    sk = PaymentSigningKey.load(
+    PaymentSigningKey.load(
         str(pathlib.Path(__file__).parent / "../resources/keys/payment.skey")
     )
+
+
+def test_stake_pool_key_load():
+    sk = StakePoolSigningKey.load(
+        str(pathlib.Path(__file__).parent / "../resources/keys/cold.skey")
+    )
+    vk = StakePoolVerificationKey.load(
+        str(pathlib.Path(__file__).parent / "../resources/keys/cold.vkey")
+    )
+    assert sk == StakePoolSigningKey.from_json(sk.to_json())
+    assert vk == StakePoolVerificationKey.from_json(vk.to_json())
 
 
 def test_key_save():
@@ -99,9 +153,34 @@ def test_key_save():
         assert SK == sk
 
 
+def test_stake_pool_key_save():
+    with tempfile.NamedTemporaryFile() as skf, tempfile.NamedTemporaryFile() as vkf:
+        SPSK.save(skf.name)
+        sk = StakePoolSigningKey.load(skf.name)
+        SPVK.save(vkf.name)
+        vk = StakePoolSigningKey.load(vkf.name)
+    assert SPSK == sk
+    assert SPVK == vk
+
+
 def test_key_hash():
     sk = PaymentSigningKey.generate()
     vk = PaymentVerificationKey.from_signing_key(sk)
+
+    sk_set = set()
+    vk_set = set()
+
+    for _ in range(2):
+        sk_set.add(sk)
+        vk_set.add(vk)
+
+    assert len(sk_set) == 1
+    assert len(vk_set) == 1
+
+
+def test_stake_pool_key_hash():
+    sk = StakePoolSigningKey.generate()
+    vk = StakePoolVerificationKey.from_signing_key(sk)
 
     sk_set = set()
     vk_set = set()

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from typing import Dict, List, Optional, Union
 
 import cbor2
@@ -43,11 +44,11 @@ def fee(
     Return:
         int: Minimum acceptable transaction fee.
     """
-    return (
-        int(length * context.protocol_param.min_fee_coefficient)
-        + int(context.protocol_param.min_fee_constant)
-        + int(exec_steps * context.protocol_param.price_step)
-        + int(max_mem_unit * context.protocol_param.price_mem)
+    return int(
+        math.ceil(length * context.protocol_param.min_fee_coefficient)
+        + math.ceil(context.protocol_param.min_fee_constant)
+        + math.ceil(exec_steps * context.protocol_param.price_step)
+        + math.ceil(max_mem_unit * context.protocol_param.price_mem)
     )
 
 
