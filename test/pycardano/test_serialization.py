@@ -6,7 +6,7 @@ import cbor2
 import pytest
 
 import pycardano
-from pycardano import Datum, RawPlutusData
+from pycardano import Datum, PlutusData, RawPlutusData
 from pycardano.exception import DeserializeException
 from pycardano.plutus import PlutusV1Script, PlutusV2Script
 from pycardano.serialization import (
@@ -208,6 +208,30 @@ def test_datum_type():
     t = Test1(b=b"hello!")
 
     check_two_way_cbor(t)
+
+
+def test_datum_raw_round_trip():
+    @dataclass
+    class TestDatum(PlutusData):
+        CONSTR_ID = 0
+        a: int
+        b: List[bytes]
+
+    datum = TestDatum(a=1, b=[b"test", b"datum"])
+    restored = RawPlutusData.from_cbor(datum.to_cbor())
+    assert datum.to_cbor_hex() == restored.to_cbor_hex()
+
+
+def test_datum_round_trip():
+    @dataclass
+    class TestDatum(PlutusData):
+        CONSTR_ID = 0
+        a: int
+        b: List[bytes]
+
+    datum = TestDatum(a=1, b=[b"test", b"datum"])
+    restored = TestDatum.from_cbor(datum.to_cbor())
+    assert datum.to_cbor_hex() == restored.to_cbor_hex()
 
 
 def test_wrong_primitive_type():

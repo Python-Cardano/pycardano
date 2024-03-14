@@ -5,12 +5,14 @@ from __future__ import annotations
 import re
 import typing
 from collections import OrderedDict, UserList, defaultdict
+from collections.abc import Sequence
 from copy import deepcopy
 from dataclasses import Field, dataclass, fields
 from datetime import datetime
 from decimal import Decimal
 from functools import wraps
 from inspect import isclass
+from io import BytesIO
 from typing import (
     Any,
     Callable,
@@ -24,7 +26,14 @@ from typing import (
     get_type_hints,
 )
 
-from cbor2 import CBOREncoder, CBORSimpleValue, CBORTag, dumps, loads, undefined
+from cbor2 import (
+    CBORDecoder,
+    CBOREncoder,
+    CBORSimpleValue,
+    CBORTag,
+    dumps,
+)
+from cbor2._types import UndefinedType, break_marker
 from frozendict import frozendict
 from frozenlist import FrozenList
 from pprintpp import pformat
@@ -86,6 +95,7 @@ class RawCBOR:
 Primitive = Union[
     bytes,
     bytearray,
+    ByteString,
     str,
     int,
     float,
@@ -98,7 +108,7 @@ Primitive = Union[
     dict,
     defaultdict,
     OrderedDict,
-    undefined.__class__,
+    UndefinedType,
     datetime,
     re.Pattern,
     CBORSimpleValue,
@@ -113,6 +123,7 @@ Primitive = Union[
 PRIMITIVE_TYPES = (
     bytes,
     bytearray,
+    ByteString,
     str,
     int,
     float,
@@ -125,7 +136,7 @@ PRIMITIVE_TYPES = (
     dict,
     defaultdict,
     OrderedDict,
-    type(undefined),
+    UndefinedType,
     datetime,
     re.Pattern,
     CBORSimpleValue,
@@ -167,6 +178,39 @@ def limit_primitive_type(*allowed_types):
 
 
 CBORBase = TypeVar("CBORBase", bound="CBORSerializable")
+
+
+class IndefiniteDecoder(CBORDecoder):
+
+    def decode_array(self, subtype: int) -> Sequence[Any]:
+        # Major tag 4
+        length = self._decode_length(subtype, allow_indefinite=True)
+        if length is None:
+            # Indefinite length
+            items: list = []
+            if not self._immutable:
+                self.set_shareable(items)
+            while True:
+                value = self._decode()
+                if value is break_marker:
+                    break
+                else:
+                    items.append(value)
+
+            return IndefiniteList(items)
+        else:
+            return super().decode_array(subtype=subtype)
+
+    major_decoders: dict[int, Callable[[Any, int], Any]] = {
+        0: CBORDecoder.decode_uint,
+        1: CBORDecoder.decode_negint,
+        2: CBORDecoder.decode_bytestring,
+        3: CBORDecoder.decode_string,
+        4: decode_array,
+        5: CBORDecoder.decode_map,
+        6: CBORDecoder.decode_semantic,
+        7: CBORDecoder.decode_special,
+    }
 
 
 def default_encoder(
@@ -479,9 +523,12 @@ class CBORSerializable:
             TestParent(3, Test(1, 2))
 
         """
-        if type(payload) == str:
+        if isinstance(payload, str):
             payload = bytes.fromhex(payload)
-        value = loads(payload)
+
+        with BytesIO(payload) as fp:
+            value = IndefiniteDecoder(fp).decode()
+
         return cls.from_primitive(value)
 
     def __repr__(self):
@@ -503,6 +550,7 @@ def _restore_dataclass_field(
 
     if "object_hook" in f.metadata:
         return f.metadata["object_hook"](v)
+
     return _restore_typed_primitive(f.type, v)
 
 
@@ -528,10 +576,14 @@ def _restore_typed_primitive(
             raise DeserializeException(
                 f"List types need exactly one type argument, but got {t_args}"
             )
-        t = t_args[0]
+        t_subtype = t_args[0]
         if not isinstance(v, list):
             raise DeserializeException(f"Expected type list but got {type(v)}")
-        return IndefiniteList([_restore_typed_primitive(t, w) for w in v])
+        v_list = [_restore_typed_primitive(t_subtype, w) for w in v]
+        if t == IndefiniteList:
+            return IndefiniteList(v_list)
+        else:
+            return v_list
     elif isclass(t) and t == ByteString:
         if not isinstance(v, bytes):
             raise DeserializeException(f"Expected type bytes but got {type(v)}")
@@ -657,8 +709,10 @@ class ArrayCBORSerializable(CBORSerializable):
         return primitives
 
     @classmethod
-    @limit_primitive_type(list, tuple)
-    def from_primitive(cls: Type[ArrayBase], values: Union[list, tuple]) -> ArrayBase:
+    @limit_primitive_type(list, tuple, IndefiniteList)
+    def from_primitive(
+        cls: Type[ArrayBase], values: Union[list, tuple, IndefiniteList]
+    ) -> ArrayBase:
         """Restore a primitive value to its original class type.
 
         Args:

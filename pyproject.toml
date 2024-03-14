@@ -22,9 +22,9 @@ repository = "https://github.com/Python-Cardano/pycardano"
 license = "MIT"
 
 [tool.poetry.dependencies]
-python = "^3.7"
+python = "^3.8"
 PyNaCl = "^1.5.0"
-cbor2 = "^5.4.3"
+cbor2 = { git = "https://github.com/theeldermillenial/cbor2", branch = "feat/local-decoders" }
 typeguard = "^2.13.3"
 blockfrost-python = "0.5.3"
 websocket-client = "^1.4.1"
@@ -59,10 +59,7 @@ build-backend = "poetry.core.masonry.api"
 [tool.pytest.ini_options]
 addopts = "--doctest-modules --ignore=examples --ignore=integration-test --ignore=test/resources/haskell"
 minversion = "6.0"
-markers = [
-    "post_alonzo",
-    "single"
-]
+markers = ["post_alonzo", "single"]
 
 [tool.isort]
 profile = "black"
@@ -71,6 +68,4 @@ profile = "black"
 ignore_missing_imports = true
 disable_error_code = ["str-bytes-safe"]
 python_version = 3.7
-exclude = [
-    '^pycardano/crypto/bech32.py$',
-]
+exclude = ['^pycardano/crypto/bech32.py$']
