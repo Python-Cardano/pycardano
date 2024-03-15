@@ -87,27 +87,35 @@ class TransactionWitnessSet(MapCBORSerializable):
         def _get_vkey_witnesses(data: Any):
             return (
                 [VerificationKeyWitness.from_primitive(witness) for witness in data]
-                if data
+                if data is not None
                 else None
             )
 
         def _get_native_scripts(data: Any):
             return (
                 [NativeScript.from_primitive(script) for script in data]
-                if data
+                if data is not None
                 else None
             )
 
         def _get_plutus_v1_scripts(data: Any):
-            return [PlutusV1Script(script) for script in data] if data else None
+            return (
+                [PlutusV1Script(script) for script in data]
+                if data is not None
+                else None
+            )
 
         def _get_plutus_v2_scripts(data: Any):
-            return [PlutusV2Script(script) for script in data] if data else None
+            return (
+                [PlutusV2Script(script) for script in data]
+                if data is not None
+                else None
+            )
 
         def _get_redeemers(data: Any):
             return (
                 [Redeemer.from_primitive(redeemer) for redeemer in data]
-                if data
+                if data is not None
                 else None
             )
 

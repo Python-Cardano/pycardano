@@ -480,7 +480,8 @@ def test_datum_witness():
 
     tx_body = make_transaction_body()
     signed_tx = Transaction(
-        tx_body, TransactionWitnessSet(plutus_data=[TestDatum(1, b"test")])
+        tx_body,
+        TransactionWitnessSet(vkey_witnesses=[], plutus_data=[TestDatum(1, b"test")]),
     )
     restored_tx = Transaction.from_cbor(signed_tx.to_cbor())
 
