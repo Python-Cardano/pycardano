@@ -1,6 +1,8 @@
 from typing import Dict, List, Union
+from unittest.mock import Mock, patch
 
 import pytest
+from blockfrost import ApiError, BlockFrostApi
 
 from pycardano import ExecutionUnits
 from pycardano.backend.base import ChainContext, GenesisParameters, ProtocolParameters
@@ -93,6 +95,11 @@ class FixedChainContext(ChainContext):
         """Current slot number"""
         return 2000
 
+    @property
+    def last_block_slot(self) -> int:
+        """Slot number of last block"""
+        return 2000
+
     def _utxos(self, address: str) -> List[UTxO]:
         """Get all UTxOs associated with an address.
 
@@ -129,3 +136,16 @@ class FixedChainContext(ChainContext):
 @pytest.fixture
 def chain_context():
     return FixedChainContext()
+
+
+# Patch BlockFrostApi to avoid network calls
+blockfrost_patch = patch.object(
+    BlockFrostApi,
+    "epoch_latest",
+    lambda _: 300,
+)
+
+
+# mock API error
+def mock_blockfrost_api_error():
+    return ApiError(response=Mock(status_code=404, text="Mock Error"))
