@@ -27,6 +27,8 @@ jobs:
           cache: 'poetry'
       - name: Install dependencies
         run: |
+          - name: Install dependencies
+          pip install setuptools wheel
           poetry install
       - name: Run unit tests
         run: |
