@@ -62,7 +62,7 @@ class CostModels(DictCBORSerializable):
     VALUE_TYPE = dict
 
     def to_shallow_primitive(self) -> dict:
-        result = {}
+        result: typing.Dict[Primitive, Primitive] = {}
         for language in sorted(self.keys()):
             cost_model = self[language]
             if language == 0:
@@ -509,7 +509,7 @@ def id_map(cls, skip_constructor=False):
 
 
 @dataclass(repr=False)
-class PlutusData(ArrayCBORSerializable):
+class PlutusData(CBORSerializable):
     """
     PlutusData is a helper class that can serialize itself into a CBOR format, which could be intepreted as
     a data structure in Plutus scripts.
@@ -788,7 +788,7 @@ RawDatum = Union[PlutusData, dict, int, bytes, IndefiniteList, RawCBOR, CBORTag]
 class RawPlutusData(CBORSerializable):
     data: RawDatum
 
-    def to_primitive(self) -> RawDatum:
+    def to_primitive(self) -> Primitive:
         def _dfs(obj):
             if isinstance(obj, list) and obj:
                 return IndefiniteList([_dfs(item) for item in obj])

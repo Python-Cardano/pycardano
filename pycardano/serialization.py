@@ -181,7 +181,6 @@ CBORBase = TypeVar("CBORBase", bound="CBORSerializable")
 
 
 class IndefiniteDecoder(CBORDecoder):
-
     def decode_array(self, subtype: int) -> Sequence[Any]:
         # Major tag 4
         length = self._decode_length(subtype, allow_indefinite=True)

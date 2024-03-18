@@ -5,7 +5,7 @@ from __future__ import annotations
 from copy import deepcopy
 from dataclasses import dataclass, field
 from pprint import pformat
-from typing import Any, Callable, List, Optional, Type, Union
+from typing import Any, Callable, List, Optional, Type, Union, cast
 
 import cbor2
 from cbor2 import CBORTag
@@ -281,7 +281,7 @@ class _Script(ArrayCBORSerializable):
 class _DatumOption(ArrayCBORSerializable):
     _TYPE: int = field(init=False, default=0)
 
-    datum: Union[DatumHash, Any]
+    datum: Union[DatumHash, Datum]
 
     def __post_init__(self):
         if isinstance(self.datum, DatumHash):
@@ -290,10 +290,10 @@ class _DatumOption(ArrayCBORSerializable):
             self._TYPE = 1
 
     def to_shallow_primitive(self) -> List[Primitive]:
-        if self._TYPE == 1:
-            data = CBORTag(24, cbor2.dumps(self.datum, default=default_encoder))
+        if self._TYPE == 0:
+            data = cast(DatumHash, self.datum).to_shallow_primitive()
         else:
-            data = self.datum
+            data = CBORTag(24, cbor2.dumps(self.datum, default=default_encoder))
         return [self._TYPE, data]
 
     @classmethod
@@ -402,8 +402,10 @@ class TransactionOutput(CBORSerializable):
     def to_primitive(self) -> Primitive:
         if self.datum or self.script or self.post_alonzo:
             datum = (
-                _DatumOption(self.datum_hash or self.datum)
-                if self.datum is not None or self.datum_hash is not None
+                _DatumOption(self.datum_hash)
+                if self.datum_hash is not None
+                else _DatumOption(self.datum)
+                if self.datum is not None
                 else None
             )
             script_ref = (
