@@ -62,7 +62,7 @@ class CostModels(DictCBORSerializable):
     VALUE_TYPE = dict
 
     def to_shallow_primitive(self) -> dict:
-        result = {}
+        result: typing.Dict[Primitive, Primitive] = {}
         for language in sorted(self.keys()):
             cost_model = self[language]
             if language == 0:
@@ -562,8 +562,8 @@ class PlutusData(ArrayCBORSerializable):
                     "Use pycardano.serialization.ByteString for long bytes."
                 )
 
-    def to_shallow_primitive(self) -> CBORTag:
-        primitives: Primitive = super().to_shallow_primitive()
+    def to_shallow_primitive(self) -> CBORTag:  # type: ignore
+        primitives: Primitive = super(PlutusData, self).to_shallow_primitive()
         if primitives:
             primitives = IndefiniteList(primitives)
         tag = get_tag(self.CONSTR_ID)
@@ -788,7 +788,7 @@ RawDatum = Union[PlutusData, dict, int, bytes, IndefiniteList, RawCBOR, CBORTag]
 class RawPlutusData(CBORSerializable):
     data: RawDatum
 
-    def to_primitive(self) -> RawDatum:
+    def to_primitive(self) -> Primitive:
         def _dfs(obj):
             if isinstance(obj, list) and obj:
                 return IndefiniteList([_dfs(item) for item in obj])
