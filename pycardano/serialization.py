@@ -278,7 +278,7 @@ class CBORSerializable:
         does not refer to itself, which could cause infinite loops.
     """
 
-    def to_shallow_primitive(self) -> Primitive:
+    def to_shallow_primitive(self) -> Union[Primitive, "CBORSerializable"]:
         """
         Convert the instance to a CBOR primitive. If the primitive is a container, e.g. list, dict, the type of
         its elements could be either a Primitive or a CBORSerializable.

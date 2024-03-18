@@ -291,7 +291,7 @@ class _DatumOption(ArrayCBORSerializable):
 
     def to_shallow_primitive(self) -> List[Primitive]:
         if self._TYPE == 0:
-            data = cast(DatumHash, self.datum).to_shallow_primitive()
+            data: Primitive = cast(DatumHash, self.datum).to_shallow_primitive()
         else:
             data = CBORTag(24, cbor2.dumps(self.datum, default=default_encoder))
         return [self._TYPE, data]

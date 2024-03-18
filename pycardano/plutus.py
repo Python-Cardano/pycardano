@@ -509,7 +509,7 @@ def id_map(cls, skip_constructor=False):
 
 
 @dataclass(repr=False)
-class PlutusData(CBORSerializable):
+class PlutusData(ArrayCBORSerializable):
     """
     PlutusData is a helper class that can serialize itself into a CBOR format, which could be intepreted as
     a data structure in Plutus scripts.
@@ -562,8 +562,8 @@ class PlutusData(CBORSerializable):
                     "Use pycardano.serialization.ByteString for long bytes."
                 )
 
-    def to_shallow_primitive(self) -> CBORTag:
-        primitives: Primitive = super().to_shallow_primitive()
+    def to_shallow_primitive(self) -> CBORTag:  # type: ignore
+        primitives: Primitive = super(PlutusData, self).to_shallow_primitive()
         if primitives:
             primitives = IndefiniteList(primitives)
         tag = get_tag(self.CONSTR_ID)
