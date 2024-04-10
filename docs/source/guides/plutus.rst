@@ -23,24 +23,27 @@ To calculate the hash of a datum, we can leverage the helper class `PlutusData`.
 
 Empty datum::
 
-    >>> empty_datum = PlutusData()
-    >>> empty_datum.to_cbor_hex()
+    >>> from pycardano import PlutusData, Unit
+    >>> empty_datum = Unit()
+    >>> empty_datum.to_cbor().hex()
     'd87980'
 
 Sample datum with int, bytes, List and hashmap inputs::
 
     >>> # Create sample datum
+    >>> from typing import List, Dict
+    >>> from dataclasses import dataclass
     >>> @dataclass
     ... class MyDatum(PlutusData):
     ...     CONSTR_ID = 1
     ...     a: int
     ...     b: bytes
-    ...     c: IndefiniteList
-    ...     d: dict
+    ...     c: List[int]
+    ...     d: Dict[int, bytes]
 
-    >>> datum = MyDatum(123, b"1234", IndefiniteList([4, 5, 6]), {1: b"1", 2: b"2"})
-    >>> datum.to_cbor_hex()
-    'd87a9f187b43333231ff'
+    >>> datum = MyDatum(123, b"1234", [4, 5, 6], {1: b"1", 2: b"2"})
+    >>> datum.to_cbor().hex()
+    'd87a9f187b443132333483040506a2014131024132ff'
 
 You can also wrap `PlutusData` within `PlutusData`::
 
@@ -53,9 +56,9 @@ You can also wrap `PlutusData` within `PlutusData`::
 
     >>> key_hash = bytes.fromhex("c2ff616e11299d9094ce0a7eb5b7284b705147a822f4ffbd471f971a")
     >>> deadline = 1643235300000
-    >>> other_datum = MyDatum(123, b"1234", IndefiniteList([4, 5, 6]), {1: b"1", 2: b"2"})
+    >>> other_datum = MyDatum(123, b"1234", [4, 5, 6], {1: b"1", 2: b"2"})
     >>> include_datum = InclusionDatum(key_hash, deadline, other_datum)
-    >>> include_datum.to_cbor_hex()
+    >>> include_datum.to_cbor().hex()
     'd87a9f581cc2ff616e11299d9094ce0a7eb5b7284b705147a822f4ffbd471f971a1b0000017e9874d2a0d8668218829f187b44313233349f040506ffa2014131024132ffff'
 
 `PlutusData` supports conversion from/to JSON format, which
@@ -67,8 +70,47 @@ Similarly, redeemer can be serialized like following::
 
     >>> data = MyDatum(123, b"234", IndefiniteList([]), {1: b"1", 2: b"2"})
     >>> redeemer = Redeemer(data, ExecutionUnits(1000000, 1000000))
-    >>> redeemer.to_cbor_hex()
+    >>> redeemer.to_cbor().hex()
     '840000d8668218829f187b433233349fffa2014131024132ff821a000f42401a000f4240'
+
+--------------------------------
+Datum Deserialization
+--------------------------------
+
+Deserialization of PlutusData generally has two different paths, based on whether you know the structure of the Plutus Datum you are trying to deserialize or not.
+If you know the structure in advance, subclass the `PlutusData` type and configure it to match the data type that you expect to receive. If the datatype does not match, the deserialization will throw an Exception! So make sure that the data really follows the format that you expect.::
+
+    >>> # Create sample datum
+    >>> from typing import List, Dict
+    >>> @dataclass
+    ... class MyDatum(PlutusData):
+    ...     CONSTR_ID = 1
+    ...     a: int
+    ...     b: bytes
+    ...     c: List[int]
+    ...     d: Dict[int, bytes]
+
+    >>> MyDatum.from_cbor(bytes.fromhex('d87a9f187b443132333483040506a2014131024132ff'))
+    MyDatum(a=123, b=b'1234', c=[4, 5, 6], d={1: b'1', 2: b'2'})
+    >>> # The Inclusion Datum will not be correctly deserialized
+    >>> MyDatum.from_cbor(bytes.fromhex('d87a9f581cc2ff616e11299d9094ce0a7eb5b7284b705147a822f4ffbd471f971a1b0000017e9874d2a0d8668218829f187b44313233349f040506ffa2014131024132ffff'))
+    DeserializeException(f"Cannot deserialize object: \n{v}\n to type {t}.")
+    pycardano.exception.DeserializeException: Cannot deserialize object:
+    b'\xc2\xffan\x11)\x9d\x90\x94\xce\n~\xb5\xb7(KpQG\xa8"\xf4\xff\xbdG\x1f\x97\x1a'
+     to type <class 'int'>.
+
+If you do not know the structure of the Datum in advance, use `RawPlutusDatum.from_cbor`.
+As you can see, this will not tell you anything about the `meaning` of specific fields, CBOR Tags etc - this is because the meaning are not stored on chain. In the CBOR, just the types are known and hence restoring a raw datum will return to you just the types.::
+
+    >>> from pycardano import RawPlutusData
+    >>> RawPlutusData.from_cbor(bytes.fromhex("d87a9f187b443132333483040506a2014131024132ff"))
+    RawPlutusData(data=CBORTag(122, [123, b'1234', [4, 5, 6], {1: b'1', 2: b'2'}]))
+
+Note that there are specific fields you may need.
+ * **Builtin**: If you don't know the structure of a datum inside a PlutusDatum. It will be decoded as RawPlutusDatum.
+ * **IndefiniteList**: A list that is in theory unbounded. This may be required by the Cardano node in case a list has more than 64 elements.
+ * **ByteString**: Similarly to IndefiniteList, this denotes a `bytes` element that may be longer than 64 bytes and correctly encodes it in CBOR so that the result is accepted by the Cardano node.
+
 
 -----------------------
 Example - Gift Contract
