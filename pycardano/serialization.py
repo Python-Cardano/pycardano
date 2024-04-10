@@ -576,7 +576,7 @@ def _restore_typed_primitive(
                 f"List types need exactly one type argument, but got {t_args}"
             )
         t_subtype = t_args[0]
-        if not isinstance(v, list):
+        if not isinstance(v, (list, IndefiniteList)):
             raise DeserializeException(f"Expected type list but got {type(v)}")
         v_list = [_restore_typed_primitive(t_subtype, w) for w in v]
         if t == IndefiniteList:
