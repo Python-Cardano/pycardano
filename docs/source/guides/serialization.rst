@@ -61,3 +61,9 @@ Examples::
     'update': None,
     'validity_start': None,
     'withdraws': None}
+
+----------
+Plutus Data
+----------
+
+Note that Plutus datums, passed to `smart contracts <./plutus.html>`_ follow slightly specific rules to `from_cbor`, outlined in the `plutus documentation <./plutus.html#...>`_.
