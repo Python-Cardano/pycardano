@@ -38,6 +38,7 @@ jobs:
           fail_ci_if_error: true
           token: ${{ secrets.CODECOV_TOKEN }}
       - name: Run static analyses
+        if: ${{ matrix.python-version == '3.11' }}
         run: |
           make qa
 
