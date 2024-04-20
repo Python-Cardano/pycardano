@@ -54,6 +54,9 @@ __all__ = [
     "Withdrawals",
 ]
 
+_MAX_INT64 = (1 << 63) - 1
+_MIN_INT64 = -(1 << 63)
+
 
 @dataclass(repr=False)
 class TransactionInput(ArrayCBORSerializable):
@@ -77,6 +80,13 @@ class Asset(DictCBORSerializable):
     KEY_TYPE = AssetName
 
     VALUE_TYPE = int
+
+    def validate(self):
+        for n in self:
+            if self[n] < _MIN_INT64 or self[n] > _MAX_INT64:
+                raise InvalidDataException(
+                    f"Asset amount must be between {_MIN_INT64} and {_MAX_INT64}: \n {self[n]}"
+                )
 
     def union(self, other: Asset) -> Asset:
         return self + other

@@ -469,3 +469,10 @@ def test_inline_datum_serdes():
     cbor = output.to_cbor_hex()
 
     assert cbor == TransactionOutput.from_cbor(cbor).to_cbor_hex()
+
+
+def test_out_of_bound_asset():
+    bad_asset = Asset({AssetName(b"abc"): 1 << 64})
+
+    with pytest.raises(InvalidDataException):
+        bad_asset.to_cbor_hex()
