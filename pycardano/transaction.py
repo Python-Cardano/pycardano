@@ -81,13 +81,6 @@ class Asset(DictCBORSerializable):
 
     VALUE_TYPE = int
 
-    def validate(self):
-        for n in self:
-            if self[n] < _MIN_INT64 or self[n] > _MAX_INT64:
-                raise InvalidDataException(
-                    f"Asset amount must be between {_MIN_INT64} and {_MAX_INT64}: \n {self[n]}"
-                )
-
     def union(self, other: Asset) -> Asset:
         return self + other
 
@@ -570,6 +563,15 @@ class TransactionBody(MapCBORSerializable):
             "optional": True,
         },
     )
+
+    def validate(self):
+        if (
+            self.mint
+            and self.mint.count(lambda p, n, v: v < _MIN_INT64 or v > _MAX_INT64) > 0
+        ):
+            raise InvalidDataException(
+                f"Mint amount must be between {_MIN_INT64} and {_MAX_INT64}. \n Mint amount: {self.mint}"
+            )
 
     def hash(self) -> bytes:
         return blake2b(self.to_cbor(), TRANSACTION_HASH_SIZE, encoder=RawEncoder)  # type: ignore
