@@ -98,7 +98,6 @@ Primitive = Union[
     dict,
     defaultdict,
     OrderedDict,
-    undefined.__class__,
     datetime,
     re.Pattern,
     CBORSimpleValue,
@@ -108,6 +107,7 @@ Primitive = Union[
     frozendict,
     FrozenList,
     IndefiniteFrozenList,
+    ByteString,
 ]
 
 PRIMITIVE_TYPES = (
@@ -481,7 +481,7 @@ class CBORSerializable:
         """
         if type(payload) == str:
             payload = bytes.fromhex(payload)
-        value = loads(payload)
+        value = loads(payload)  # type: ignore
         return cls.from_primitive(value)
 
     def __repr__(self):
@@ -639,7 +639,7 @@ class ArrayCBORSerializable(CBORSerializable):
         Test2(c='c', test1=Test1(a='a', b=None))
     """
 
-    def to_shallow_primitive(self) -> List[Primitive]:
+    def to_shallow_primitive(self) -> Primitive:
         """
         Returns:
             :const:`Primitive`: A CBOR primitive.

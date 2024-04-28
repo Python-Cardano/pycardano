@@ -289,7 +289,8 @@ class _DatumOption(ArrayCBORSerializable):
         else:
             self._TYPE = 1
 
-    def to_shallow_primitive(self) -> List[Primitive]:
+    def to_shallow_primitive(self) -> Primitive:
+        data: Union[CBORTag, DatumHash]
         if self._TYPE == 1:
             data = CBORTag(24, cbor2.dumps(self.datum, default=default_encoder))
         else:

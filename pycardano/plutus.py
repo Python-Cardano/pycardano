@@ -62,7 +62,7 @@ class CostModels(DictCBORSerializable):
     VALUE_TYPE = dict
 
     def to_shallow_primitive(self) -> dict:
-        result = {}
+        result: dict[bytes, Union[typing.List[Any], bytes]] = {}
         for language in sorted(self.keys()):
             cost_model = self[language]
             if language == 0:
@@ -788,7 +788,7 @@ RawDatum = Union[PlutusData, dict, int, bytes, IndefiniteList, RawCBOR, CBORTag]
 class RawPlutusData(CBORSerializable):
     data: RawDatum
 
-    def to_primitive(self) -> RawDatum:
+    def to_primitive(self) -> Primitive:
         def _dfs(obj):
             if isinstance(obj, list) and obj:
                 return IndefiniteList([_dfs(item) for item in obj])

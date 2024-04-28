@@ -117,7 +117,7 @@ def sign(
             OKPKpX: verification_key.payload,  # public key
         }
 
-        signed_message = {
+        signed_message = {  # type: ignore
             "signature": signed_message,
             "key": CoseKey.from_dict(key_to_return).encode().hex(),
         }
