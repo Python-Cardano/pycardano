@@ -6,7 +6,6 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Natural Language :: English",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.7",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
@@ -22,7 +21,7 @@ repository = "https://github.com/Python-Cardano/pycardano"
 license = "MIT"
 
 [tool.poetry.dependencies]
-python = "^3.7"
+python = "^3.8"
 PyNaCl = "^1.5.0"
 cbor2 = "^5.4.3"
 typeguard = "^2.13.3"
@@ -52,6 +51,9 @@ pytest-xdist = "^3.5.0"
 mypy = "1.4.1"
 types-requests = "2.31.0.10"
 
+[tool.poetry.group.dev.dependencies]
+setuptools = "^69.5.1"
+
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
@@ -71,7 +73,7 @@ profile = "black"
 [tool.mypy]
 ignore_missing_imports = true
 disable_error_code = ["str-bytes-safe"]
-python_version = 3.7
+python_version = 3.8
 exclude = [
     '^pycardano/crypto/bech32.py$',
 ]
