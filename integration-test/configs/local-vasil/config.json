@@ -2,6 +2,7 @@
   "ByronGenesisFile": "byron-genesis.json",
   "ShelleyGenesisFile": "shelley-genesis.json",
   "AlonzoGenesisFile": "alonzo-genesis.json",
+  "ConwayGenesisFile": "conway-genesis.json",
   "SocketPath": "db/node.socket",
   "MaxConcurrencyBulkSync": 1,
   "MaxConcurrencyDeadline": 2,
@@ -100,6 +101,6 @@
   "TestMaryHardForkAtEpoch": 0,
   "TestAlonzoHardForkAtEpoch": 0,
   "TestBabbageHardForkAtEpoch": 10,
-  "TestEnableDevelopmentHardForkEras": true,
-  "TestEnableDevelopmentNetworkProtocols": true
+  "EnableDevelopmentHardForkEras": true,
+  "ExperimentalProtocolsEnabled": true
 }

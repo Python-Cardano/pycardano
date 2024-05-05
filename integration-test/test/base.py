@@ -7,6 +7,8 @@ from retry import retry
 
 from pycardano import *
 
+from ogmios import OgmiosChainContext
+
 TEST_RETRIES = 6
 
 
@@ -19,11 +21,10 @@ class TestBase:
     # Define chain context
     NETWORK = Network.TESTNET
 
-    OGMIOS_WS = "ws://localhost:1337"
-
+    # TODO: Bring back kupo test
     KUPO_URL = "http://localhost:1442"
 
-    chain_context = OgmiosChainContext(OGMIOS_WS, Network.TESTNET, kupo_url=KUPO_URL)
+    chain_context = OgmiosChainContext(host="localhost", port=1337, network=Network.TESTNET)
 
     check_chain_context(chain_context)
 
