@@ -469,3 +469,15 @@ def test_inline_datum_serdes():
     cbor = output.to_cbor_hex()
 
     assert cbor == TransactionOutput.from_cbor(cbor).to_cbor_hex()
+
+
+def test_out_of_bound_asset():
+    a = Asset({AssetName(b"abc"): 1 << 64})
+
+    a.to_cbor_hex()  # okay to have out of bound asset
+
+    tx = TransactionBody(mint=MultiAsset({ScriptHash(b"1" * SCRIPT_HASH_SIZE): a}))
+
+    # Not okay only when minting
+    with pytest.raises(InvalidDataException):
+        tx.to_cbor_hex()

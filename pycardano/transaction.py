@@ -54,6 +54,9 @@ __all__ = [
     "Withdrawals",
 ]
 
+_MAX_INT64 = (1 << 63) - 1
+_MIN_INT64 = -(1 << 63)
+
 
 @dataclass(repr=False)
 class TransactionInput(ArrayCBORSerializable):
@@ -560,6 +563,15 @@ class TransactionBody(MapCBORSerializable):
             "optional": True,
         },
     )
+
+    def validate(self):
+        if (
+            self.mint
+            and self.mint.count(lambda p, n, v: v < _MIN_INT64 or v > _MAX_INT64) > 0
+        ):
+            raise InvalidDataException(
+                f"Mint amount must be between {_MIN_INT64} and {_MAX_INT64}. \n Mint amount: {self.mint}"
+            )
 
     def hash(self) -> bytes:
         return blake2b(self.to_cbor(), TRANSACTION_HASH_SIZE, encoder=RawEncoder)  # type: ignore

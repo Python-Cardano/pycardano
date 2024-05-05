@@ -870,6 +870,13 @@ class DictCBORSerializable(CBORSerializable):
     def __deepcopy__(self, memodict={}):
         return self.__class__(deepcopy(self.data))
 
+    def validate(self):
+        for key, value in self.data.items():
+            if isinstance(key, CBORSerializable):
+                key.validate()
+            if isinstance(value, CBORSerializable):
+                value.validate()
+
     def to_shallow_primitive(self) -> dict:
         # Sort keys in a map according to https://datatracker.ietf.org/doc/html/rfc7049#section-3.9
         def _get_sortable_val(key):
