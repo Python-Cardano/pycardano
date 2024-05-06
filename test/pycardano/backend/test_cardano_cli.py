@@ -598,7 +598,15 @@ class TestCardanoCliChainContext:
                 coins_per_utxo_byte=QUERY_PROTOCOL_PARAMETERS_RESULT.get(
                     "coinsPerUtxoByte", 0
                 ),
-                cost_models=QUERY_PROTOCOL_PARAMETERS_RESULT["costModels"],
+                cost_models={
+                    l: {
+                        i: v
+                        for i, v in enumerate(
+                            QUERY_PROTOCOL_PARAMETERS_RESULT["costModels"][l]
+                        )
+                    }
+                    for l in QUERY_PROTOCOL_PARAMETERS_RESULT["costModels"]
+                },
             )
             == chain_context.protocol_param
         )

@@ -370,10 +370,10 @@ class TestPlutus(TestBase):
         assert utxos[0].output.script == forty_two_script
 
 
-class TestPlutusOgmiosOnly(TestPlutus):
-    @classmethod
-    def setup_class(cls):
-        cls.chain_context._kupo_url = None
+# class TestPlutusOgmiosOnly(TestPlutus):
+#     @classmethod
+#     def setup_class(cls):
+#         cls.chain_context._kupo_url = None
 
 
 def evaluate_tx(tx: Transaction) -> Dict[str, ExecutionUnits]:

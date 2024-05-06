@@ -258,6 +258,11 @@ class CardanoCliChainContext(ChainContext):
         elif "PlutusV2" in cli_cost_models:
             cost_models["PlutusV2"] = cli_cost_models["PlutusV2"].copy()
 
+        # After 8.x.x, cardano-cli returns cost models as a list
+        for m in cost_models:
+            if isinstance(cost_models[m], list):
+                cost_models[m] = {i: v for i, v in enumerate(cost_models[m])}
+
         return cost_models
 
     def _is_chain_tip_updated(self):

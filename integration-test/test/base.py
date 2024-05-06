@@ -1,8 +1,8 @@
 """An example that demonstrates low-level construction of a transaction."""
 
 import os
-import time
 
+import ogmios as python_ogmios
 from retry import retry
 
 from pycardano import *
@@ -19,11 +19,12 @@ class TestBase:
     # Define chain context
     NETWORK = Network.TESTNET
 
-    OGMIOS_WS = "ws://localhost:1337"
-
+    # TODO: Bring back kupo test
     KUPO_URL = "http://localhost:1442"
 
-    chain_context = OgmiosChainContext(OGMIOS_WS, Network.TESTNET, kupo_url=KUPO_URL)
+    chain_context = python_ogmios.OgmiosChainContext(
+        host="localhost", port=1337, network=Network.TESTNET
+    )
 
     check_chain_context(chain_context)
 
