@@ -66,9 +66,6 @@ markers = [
     "post_alonzo",
     "single"
 ]
-log_level = "ERROR"
-log_cli = true
-log_cli_level = "ERROR"
 
 
 [tool.isort]
