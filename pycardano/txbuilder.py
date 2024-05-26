@@ -29,7 +29,7 @@ from pycardano.exception import (
 )
 from pycardano.hash import DatumHash, ScriptDataHash, ScriptHash, VerificationKeyHash
 from pycardano.key import ExtendedSigningKey, SigningKey, VerificationKey
-from pycardano.logging import logger
+from pycardano.logging import log_state, logger
 from pycardano.metadata import AuxiliaryData
 from pycardano.nativescript import NativeScript, ScriptAll, ScriptAny, ScriptPubkey
 from pycardano.plutus import (
@@ -988,6 +988,7 @@ class TransactionBuilder:
 
         return estimated_fee
 
+    @log_state
     def build(
         self,
         change_address: Optional[Address] = None,
@@ -1357,6 +1358,7 @@ class TransactionBuilder:
 
         return self.context.evaluate_tx(tx)
 
+    @log_state
     def build_and_sign(
         self,
         signing_keys: List[Union[SigningKey, ExtendedSigningKey]],
