@@ -86,6 +86,11 @@ class BlockFrostChainContext(ChainContext):
             if self.network == Network.TESTNET
             else ApiUrls.mainnet.value
         )
+
+        # Set network value to mainnet if base_url contains "mainnet".
+        if "mainnet" in self._base_url.value:
+            self._network = Network.MAINNET
+
         self.api = BlockFrostApi(project_id=self._project_id, base_url=self._base_url)
         self._epoch_info = self.api.epoch_latest()
         self._epoch = None
