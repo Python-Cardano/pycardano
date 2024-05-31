@@ -311,7 +311,7 @@ class CardanoCliChainContext(ChainContext):
             ),
             coins_per_utxo_byte=result["coinsPerUtxoByte"]
             if "coinsPerUtxoByte" in result
-            else result.get("utxoCostPerByte", 0),
+            else result.get("utxoCostPerByte", 0) or 0,
             cost_models=self._parse_cost_models(result),
         )
 
