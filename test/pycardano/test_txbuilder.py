@@ -1,4 +1,5 @@
 import copy
+import logging
 from dataclasses import replace
 from fractions import Fraction
 from test.pycardano.test_key import SK
@@ -218,6 +219,30 @@ def test_tx_builder_raises_utxo_selection(chain_context):
     # The unfulfilled amount includes requested (991000000) and estimated fees (161277)
     assert "Unfulfilled amount:\n {\n  'coin': 991161277" in e.value.args[0]
     assert "{AssetName(b'NewToken'): 1}" in e.value.args[0]
+
+
+def test_tx_builder_state_logger_warning_level(chain_context, caplog):
+    with caplog.at_level(logging.WARNING):
+        test_tx_builder_raises_utxo_selection(chain_context)
+        assert "WARNING" in caplog.text
+
+
+def test_tx_builder_state_logger_error_level(chain_context, caplog):
+    with caplog.at_level(logging.ERROR):
+        test_tx_builder_raises_utxo_selection(chain_context)
+        assert "WARNING" not in caplog.text
+
+
+def test_tx_builder_state_logger_info_level(chain_context, caplog):
+    with caplog.at_level(logging.INFO):
+        test_tx_builder_multi_asset(chain_context)
+        assert "DEBUG" not in caplog.text
+
+
+def test_tx_builder_state_logger_debug_level(chain_context, caplog):
+    with caplog.at_level(logging.DEBUG):
+        test_tx_builder_multi_asset(chain_context)
+        assert "DEBUG" in caplog.text
 
 
 def test_tx_too_big_exception(chain_context):
