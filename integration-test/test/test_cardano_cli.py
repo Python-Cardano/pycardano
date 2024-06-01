@@ -40,6 +40,7 @@ class TestCardanoCli:
 
         assert protocol_param is not None
         assert isinstance(protocol_param, ProtocolParameters)
+        assert protocol_param.coins_per_utxo_byte is not None
 
         cost_models = protocol_param.cost_models
         for cost_model in cost_models.items():

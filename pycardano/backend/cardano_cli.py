@@ -237,11 +237,8 @@ class CardanoCliChainContext(ChainContext):
             and params["lovelacePerUTxOWord"] is not None
         ):
             return params["lovelacePerUTxOWord"]
-        elif "utxoCostPerWord" in params and params["utxoCostPerWord"] is not None:
-            return params["utxoCostPerWord"]
-        elif "utxoCostPerByte" in params and params["utxoCostPerByte"] is not None:
-            return params["utxoCostPerByte"]
-        raise ValueError("Cannot determine minUTxOValue, invalid protocol params")
+        else:
+            return 0
 
     @staticmethod
     def _parse_cost_models(cli_result: JsonDict) -> Dict[str, Dict[str, int]]:
@@ -312,7 +309,9 @@ class CardanoCliChainContext(ChainContext):
             coins_per_utxo_word=result.get(
                 "coinsPerUtxoWord", ALONZO_COINS_PER_UTXO_WORD
             ),
-            coins_per_utxo_byte=result.get("coinsPerUtxoByte", 0),
+            coins_per_utxo_byte=result["coinsPerUtxoByte"]
+            if "coinsPerUtxoByte" in result
+            else result.get("utxoCostPerByte", 0) or 0,
             cost_models=self._parse_cost_models(result),
         )
 
