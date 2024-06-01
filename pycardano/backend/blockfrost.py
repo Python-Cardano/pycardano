@@ -82,9 +82,11 @@ class BlockFrostChainContext(ChainContext):
         self._base_url = (
             base_url
             if base_url
-            else ApiUrls.preprod.value
-            if self.network == Network.TESTNET
-            else ApiUrls.mainnet.value
+            else (
+                ApiUrls.preprod.value
+                if self.network == Network.TESTNET
+                else ApiUrls.mainnet.value
+            )
         )
 
         # Set network value to mainnet if base_url contains "mainnet".

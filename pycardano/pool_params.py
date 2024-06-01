@@ -1,6 +1,7 @@
 """
 Pool parameters for stake pool registration certificate.
 """
+
 from __future__ import annotations
 
 import socket

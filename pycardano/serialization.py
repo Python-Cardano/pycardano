@@ -479,7 +479,7 @@ class CBORSerializable:
             TestParent(3, Test(1, 2))
 
         """
-        if type(payload) == str:
+        if isinstance(payload, str):
             payload = bytes.fromhex(payload)
         value = loads(payload)  # type: ignore
         return cls.from_primitive(value)
@@ -826,7 +826,7 @@ class DictCBORSerializable(CBORSerializable):
         >>> t[1] = 2
         Traceback (most recent call last):
          ...
-        TypeError: type of key must be str; got int instead
+        typeguard.TypeCheckError: int is not an instance of str
     """
 
     KEY_TYPE = Any
@@ -839,8 +839,8 @@ class DictCBORSerializable(CBORSerializable):
         return getattr(self.data, item)
 
     def __setitem__(self, key: Any, value: Any):
-        check_type("key", key, self.KEY_TYPE)
-        check_type("value", value, self.VALUE_TYPE)
+        check_type(key, self.KEY_TYPE)
+        check_type(value, self.VALUE_TYPE)
         self.data[key] = value
 
     def __getitem__(self, key):
