@@ -49,7 +49,7 @@ retry = "^0.9.2"
 Flask = "^2.0.3"
 pytest-xdist = "^3.5.0"
 mypy = "1.4.1"
-types-requests = "2.31.0.10"
+types-requests = "2.32.0.20240523"
 
 [tool.poetry.group.dev.dependencies]
 setuptools = "^69.5.1"
