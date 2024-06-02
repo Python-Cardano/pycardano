@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from test.pycardano.util import check_two_way_cbor
 
 import pytest
+from typeguard import TypeCheckError
 
 from pycardano.address import Address
 from pycardano.exception import InvalidDataException, InvalidOperationException
@@ -340,7 +341,7 @@ def test_asset_comparison():
 
     assert not any([a == d, a <= d, d <= a])
 
-    with pytest.raises(TypeError):
+    with pytest.raises(TypeCheckError):
         a <= 1
 
 
@@ -380,7 +381,7 @@ def test_multi_asset_comparison():
     assert not a <= d
     assert not d <= a
 
-    with pytest.raises(TypeError):
+    with pytest.raises(TypeCheckError):
         a <= 1
 
 
