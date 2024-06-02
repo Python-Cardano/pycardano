@@ -479,7 +479,7 @@ class CBORSerializable:
             TestParent(3, Test(1, 2))
 
         """
-        if isinstance(payload, str):
+        if type(payload) is str:
             payload = bytes.fromhex(payload)
         value = loads(payload)  # type: ignore
         return cls.from_primitive(value)

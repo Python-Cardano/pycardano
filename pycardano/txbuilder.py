@@ -485,7 +485,7 @@ class TransactionBuilder:
         if self.datums or self.redeemers:
             cost_models = {}
             for s in self.all_scripts:
-                if isinstance(s, PlutusV1Script) or isinstance(s, bytes):
+                if isinstance(s, PlutusV1Script) or type(s) is bytes:
                     cost_models[0] = (
                         self.context.protocol_param.cost_models.get("PlutusV1")
                         or PLUTUS_V1_COST_MODEL
