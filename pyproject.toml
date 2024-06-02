@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pycardano"
-version = "0.10.0"
+version = "0.11.0"
 classifiers = [
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
