@@ -37,7 +37,7 @@ cachetools = "^5.3.0"
 docker = "^7.1.0"
 
 [tool.poetry.dev-dependencies]
-Sphinx = "^5.0.0"
+Sphinx = "^7.1.2"
 sphinx-rtd-theme = "^2.0.0"
 pytest = "^8.2.0"
 pytest-cov = "^5.0.0"
