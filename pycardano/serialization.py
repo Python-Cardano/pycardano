@@ -61,6 +61,22 @@ class IndefiniteFrozenList(FrozenList, IndefiniteList):  # type: ignore
 
 
 @dataclass
+class ByteString:
+    value: bytes
+
+    def __hash__(self):
+        return hash(self.value)
+
+    def __eq__(self, other: object):
+        if isinstance(other, ByteString):
+            return self.value == other.value
+        elif isinstance(other, bytes):
+            return self.value == other
+        else:
+            return False
+
+
+@dataclass
 class RawCBOR:
     """A wrapper class for bytes that represents a CBOR value."""
 
@@ -82,7 +98,6 @@ Primitive = Union[
     dict,
     defaultdict,
     OrderedDict,
-    undefined.__class__,
     datetime,
     re.Pattern,
     CBORSimpleValue,
@@ -92,6 +107,7 @@ Primitive = Union[
     frozendict,
     FrozenList,
     IndefiniteFrozenList,
+    ByteString,
 ]
 
 PRIMITIVE_TYPES = (
@@ -160,6 +176,7 @@ def default_encoder(
     assert isinstance(
         value,
         (
+            ByteString,
             CBORSerializable,
             IndefiniteList,
             RawCBOR,
@@ -178,6 +195,15 @@ def default_encoder(
         for item in value:
             encoder.encode(item)
         encoder.write(b"\xff")
+    elif isinstance(value, ByteString):
+        if len(value.value) > 64:
+            encoder.write(b"\x5f")
+            for i in range(0, len(value.value), 64):
+                imax = min(i + 64, len(value.value))
+                encoder.encode(value.value[i:imax])
+            encoder.write(b"\xff")
+        else:
+            encoder.encode(value.value)
     elif isinstance(value, RawCBOR):
         encoder.write(value.cbor)
     elif isinstance(value, FrozenList):
@@ -453,9 +479,9 @@ class CBORSerializable:
             TestParent(3, Test(1, 2))
 
         """
-        if type(payload) == str:
+        if type(payload) is str:
             payload = bytes.fromhex(payload)
-        value = loads(payload)
+        value = loads(payload)  # type: ignore
         return cls.from_primitive(value)
 
     def __repr__(self):
@@ -506,6 +532,15 @@ def _restore_typed_primitive(
         if not isinstance(v, list):
             raise DeserializeException(f"Expected type list but got {type(v)}")
         return IndefiniteList([_restore_typed_primitive(t, w) for w in v])
+    elif isclass(t) and t == ByteString:
+        if not isinstance(v, bytes):
+            raise DeserializeException(f"Expected type bytes but got {type(v)}")
+        return ByteString(v)
+    elif isclass(t) and t.__name__ in ["PlutusV1Script", "PlutusV2Script"]:
+        if not isinstance(v, bytes):
+            raise DeserializeException(f"Expected type bytes but got {type(v)}")
+        return t(v)
+
     elif isclass(t) and issubclass(t, IndefiniteList):
         try:
             return IndefiniteList(v)
@@ -604,7 +639,7 @@ class ArrayCBORSerializable(CBORSerializable):
         Test2(c='c', test1=Test1(a='a', b=None))
     """
 
-    def to_shallow_primitive(self) -> List[Primitive]:
+    def to_shallow_primitive(self) -> Primitive:
         """
         Returns:
             :const:`Primitive`: A CBOR primitive.
@@ -791,7 +826,7 @@ class DictCBORSerializable(CBORSerializable):
         >>> t[1] = 2
         Traceback (most recent call last):
          ...
-        TypeError: type of key must be str; got int instead
+        typeguard.TypeCheckError: int is not an instance of str
     """
 
     KEY_TYPE = Any
@@ -804,8 +839,8 @@ class DictCBORSerializable(CBORSerializable):
         return getattr(self.data, item)
 
     def __setitem__(self, key: Any, value: Any):
-        check_type("key", key, self.KEY_TYPE)
-        check_type("value", value, self.VALUE_TYPE)
+        check_type(key, self.KEY_TYPE)
+        check_type(value, self.VALUE_TYPE)
         self.data[key] = value
 
     def __getitem__(self, key):
@@ -835,6 +870,13 @@ class DictCBORSerializable(CBORSerializable):
     def __deepcopy__(self, memodict={}):
         return self.__class__(deepcopy(self.data))
 
+    def validate(self):
+        for key, value in self.data.items():
+            if isinstance(key, CBORSerializable):
+                key.validate()
+            if isinstance(value, CBORSerializable):
+                value.validate()
+
     def to_shallow_primitive(self) -> dict:
         # Sort keys in a map according to https://datatracker.ietf.org/doc/html/rfc7049#section-3.9
         def _get_sortable_val(key):
@@ -861,9 +903,6 @@ class DictCBORSerializable(CBORSerializable):
         Raises:
             DeserializeException: When the object could not be restored from primitives.
         """
-        if not value:
-            raise DeserializeException(f"Cannot accept empty value {value}.")
-
         restored = cls()
         for k, v in value.items():
             k = (

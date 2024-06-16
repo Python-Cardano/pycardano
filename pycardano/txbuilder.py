@@ -8,6 +8,8 @@ from pycardano.address import Address, AddressType
 from pycardano.backend.base import ChainContext
 from pycardano.certificate import (
     Certificate,
+    PoolRegistration,
+    PoolRetirement,
     StakeCredential,
     StakeDelegation,
     StakeDeregistration,
@@ -27,7 +29,7 @@ from pycardano.exception import (
 )
 from pycardano.hash import DatumHash, ScriptDataHash, ScriptHash, VerificationKeyHash
 from pycardano.key import ExtendedSigningKey, SigningKey, VerificationKey
-from pycardano.logging import logger
+from pycardano.logging import log_state, logger
 from pycardano.metadata import AuxiliaryData
 from pycardano.nativescript import NativeScript, ScriptAll, ScriptAny, ScriptPubkey
 from pycardano.plutus import (
@@ -88,6 +90,9 @@ class TransactionBuilder:
     execution_step_buffer: float = 0.2
     """Additional amount of execution step (in ratio) that will be added on top of estimation"""
 
+    fee_buffer: Optional[int] = field(default=None)
+    """Additional amount of fee (in lovelace) that will be added on top of estimation."""
+
     ttl: Optional[int] = field(default=None)
 
     validity_start: Optional[int] = field(default=None)
@@ -109,6 +114,10 @@ class TransactionBuilder:
     reference_inputs: Set[Union[UTxO, TransactionInput]] = field(
         init=False, default_factory=lambda: set()
     )
+
+    witness_override: Optional[int] = field(default=None)
+
+    initial_stake_pool_registration: Optional[bool] = field(default=False)
 
     _inputs: List[UTxO] = field(init=False, default_factory=lambda: [])
 
@@ -138,13 +147,17 @@ class TransactionBuilder:
         init=False, default_factory=lambda: []
     )
 
+    _withdrawal_script_to_redeemers: List[Tuple[ScriptType, Optional[Redeemer]]] = (
+        field(init=False, default_factory=lambda: [])
+    )
+
     _inputs_to_scripts: Dict[UTxO, ScriptType] = field(
         init=False, default_factory=lambda: {}
     )
 
-    _reference_scripts: List[
-        Union[NativeScript, PlutusV1Script, PlutusV2Script]
-    ] = field(init=False, default_factory=lambda: [])
+    _reference_scripts: List[Union[NativeScript, PlutusV1Script, PlutusV2Script]] = (
+        field(init=False, default_factory=lambda: [])
+    )
 
     _should_estimate_execution_units: Optional[bool] = field(init=False, default=None)
 
@@ -223,6 +236,15 @@ class TransactionBuilder:
                 f"Datum hash in transaction output is {utxo.output.datum_hash}, "
                 f"but actual datum hash from input datum is {datum_hash(datum)}."
             )
+        if (
+            datum is not None
+            and utxo.output.datum_hash is None
+            and utxo.output.datum is not None
+        ):
+            raise InvalidArgumentException(
+                f"Inline Datum found in transaction output {utxo.input}, "
+                "so attaching a Datum to the transaction input manually is not allowed."
+            )
 
         if datum is not None:
             self.datums[datum_hash(datum)] = datum
@@ -237,24 +259,42 @@ class TransactionBuilder:
             self._consolidate_redeemer(redeemer)
             self._inputs_to_redeemers[utxo] = redeemer
 
+        input_script_hash = utxo.output.address.payment_part
+
+        # collect potential scripts to fulfill the input
+        candidate_scripts: List[
+            Tuple[Union[NativeScript, PlutusV1Script, PlutusV2Script], Optional[UTxO]]
+        ] = []
         if utxo.output.script:
-            self._inputs_to_scripts[utxo] = utxo.output.script
-            self.reference_inputs.add(utxo)
-            self._reference_scripts.append(utxo.output.script)
+            candidate_scripts.append((utxo.output.script, utxo))
         elif not script:
             for i in self.context.utxos(utxo.output.address):
                 if i.output.script:
-                    self._inputs_to_scripts[utxo] = i.output.script
-                    self.reference_inputs.add(i)
-                    self._reference_scripts.append(i.output.script)
-                    break
+                    candidate_scripts.append((i.output.script, i))
         elif isinstance(script, UTxO):
-            assert script.output.script is not None
-            self._inputs_to_scripts[utxo] = script.output.script
-            self.reference_inputs.add(script)
-            self._reference_scripts.append(script.output.script)
+            if script.output.script is None:
+                raise InvalidArgumentException(
+                    f"Expect the output of the reference UTxO {utxo}"
+                    " to have a script, but got None instead."
+                )
+            candidate_scripts.append((script.output.script, script))
         else:
-            self._inputs_to_scripts[utxo] = script
+            candidate_scripts.append((script, None))
+
+        found_valid_script = False
+        for candidate_script, candidate_utxo in candidate_scripts:
+            if script_hash(candidate_script) != input_script_hash:
+                continue
+            found_valid_script = True
+            self._inputs_to_scripts[utxo] = candidate_script
+            if candidate_utxo is not None:
+                self.reference_inputs.add(candidate_utxo)
+                self._reference_scripts.append(candidate_script)
+        if not found_valid_script:
+            raise InvalidArgumentException(
+                f"Cannot find a valid script to fulfill the input UTxO: {utxo.input}."
+                "Supplied scripts do not match the payment part of the input address."
+            )
 
         self.inputs.append(utxo)
         return self
@@ -289,6 +329,40 @@ class TransactionBuilder:
             self._reference_scripts.append(script.output.script)
         else:
             self._minting_script_to_redeemers.append((script, redeemer))
+        return self
+
+    def add_withdrawal_script(
+        self,
+        script: Union[UTxO, NativeScript, PlutusV1Script, PlutusV2Script],
+        redeemer: Optional[Redeemer] = None,
+    ) -> TransactionBuilder:
+        """Add a withdrawal script along with its redeemer to this transaction.
+
+        Args:
+            script (Union[UTxO, PlutusV1Script, PlutusV2Script]): A plutus script.
+            redeemer (Optional[Redeemer]): A plutus redeemer to unlock the UTxO.
+
+        Returns:
+            TransactionBuilder: Current transaction builder.
+        """
+        if redeemer:
+            if redeemer.tag is not None and redeemer.tag != RedeemerTag.WITHDRAWAL:
+                raise InvalidArgumentException(
+                    f"Expect the redeemer tag's type to be {RedeemerTag.WITHDRAWAL}, "
+                    f"but got {redeemer.tag} instead."
+                )
+            redeemer.tag = RedeemerTag.WITHDRAWAL
+            self._consolidate_redeemer(redeemer)
+
+        if isinstance(script, UTxO):
+            assert script.output.script is not None
+            self._withdrawal_script_to_redeemers.append(
+                (script.output.script, redeemer)
+            )
+            self.reference_inputs.add(script)
+            self._reference_scripts.append(script.output.script)
+        else:
+            self._withdrawal_script_to_redeemers.append((script, redeemer))
         return self
 
     def add_input_address(self, address: Union[Address, str]) -> TransactionBuilder:
@@ -376,6 +450,9 @@ class TransactionBuilder:
         for s, _ in self._minting_script_to_redeemers:
             scripts[script_hash(s)] = s
 
+        for s, _ in self._withdrawal_script_to_redeemers:
+            scripts[script_hash(s)] = s
+
         return list(scripts.values())
 
     @property
@@ -397,16 +474,18 @@ class TransactionBuilder:
 
     @property
     def redeemers(self) -> List[Redeemer]:
-        return [r for r in self._inputs_to_redeemers.values() if r is not None] + [
-            r for _, r in self._minting_script_to_redeemers if r is not None
-        ]
+        return (
+            [r for r in self._inputs_to_redeemers.values() if r is not None]
+            + [r for _, r in self._minting_script_to_redeemers if r is not None]
+            + [r for _, r in self._withdrawal_script_to_redeemers if r is not None]
+        )
 
     @property
     def script_data_hash(self) -> Optional[ScriptDataHash]:
         if self.datums or self.redeemers:
             cost_models = {}
             for s in self.all_scripts:
-                if isinstance(s, PlutusV1Script) or type(s) == bytes:
+                if isinstance(s, PlutusV1Script) or type(s) is bytes:
                     cost_models[0] = (
                         self.context.protocol_param.cost_models.get("PlutusV1")
                         or PLUTUS_V1_COST_MODEL
@@ -544,6 +623,9 @@ class TransactionBuilder:
 
         # With changes included, we can estimate the fee more precisely
         self.fee = self._estimate_fee()
+        # Beyond this, the computed fee is not updated anymore so we can add the fee buffer
+        if self.fee_buffer is not None:
+            self.fee += self.fee_buffer
 
         if change_address:
             self._outputs = original_outputs
@@ -688,15 +770,35 @@ class TransactionBuilder:
                     cert, (StakeRegistration, StakeDeregistration, StakeDelegation)
                 ):
                     _check_and_add_vkey(cert.stake_credential)
+                elif isinstance(cert, PoolRegistration):
+                    results.add(cert.pool_params.operator)
+                elif isinstance(cert, PoolRetirement):
+                    results.add(cert.pool_keyhash)
         return results
 
     def _get_total_key_deposit(self):
-        results = set()
+        stake_registration_certs = set()
+        stake_pool_registration_certs = set()
+
+        protocol_params = self.context.protocol_param
+
         if self.certificates:
             for cert in self.certificates:
                 if isinstance(cert, StakeRegistration):
-                    results.add(cert.stake_credential.credential)
-        return self.context.protocol_param.key_deposit * len(results)
+                    stake_registration_certs.add(cert.stake_credential.credential)
+                elif (
+                    isinstance(cert, PoolRegistration)
+                    and self.initial_stake_pool_registration
+                ):
+                    stake_pool_registration_certs.add(cert.pool_params.operator)
+
+        stake_registration_deposit = protocol_params.key_deposit * len(
+            stake_registration_certs
+        )
+        stake_pool_registration_deposit = protocol_params.pool_deposit * len(
+            stake_pool_registration_certs
+        )
+        return stake_registration_deposit + stake_pool_registration_deposit
 
     def _withdrawal_vkey_hashes(self) -> Set[VerificationKeyHash]:
         results = set()
@@ -735,6 +837,10 @@ class TransactionBuilder:
             sorted_mint_policies = sorted(self.mint.keys(), key=lambda x: x.to_cbor())
         else:
             sorted_mint_policies = []
+        if self.withdrawals:
+            sorted_withdrawals = sorted(self.withdrawals.keys())
+        else:
+            sorted_withdrawals = []
 
         for i, utxo in enumerate(self.inputs):
             if (
@@ -742,18 +848,19 @@ class TransactionBuilder:
                 and self._inputs_to_redeemers[utxo].tag == RedeemerTag.SPEND
             ):
                 self._inputs_to_redeemers[utxo].index = i
-            elif (
-                utxo in self._inputs_to_redeemers
-                and self._inputs_to_redeemers[utxo].tag == RedeemerTag.MINT
-            ):
-                redeemer = self._inputs_to_redeemers[utxo]
-                redeemer.index = sorted_mint_policies.index(
-                    script_hash(self._inputs_to_scripts[utxo])
-                )
 
         for script, redeemer in self._minting_script_to_redeemers:
             if redeemer is not None:
                 redeemer.index = sorted_mint_policies.index(script_hash(script))
+
+        for script, redeemer in self._withdrawal_script_to_redeemers:
+            if redeemer is not None:
+                script_staking_credential = Address(
+                    staking_part=script_hash(script), network=self.context.network
+                )
+                redeemer.index = sorted_withdrawals.index(
+                    script_staking_credential.to_primitive()
+                )
 
         self.redeemers.sort(key=lambda r: r.index)
 
@@ -764,24 +871,24 @@ class TransactionBuilder:
             fee=self.fee,
             ttl=self.ttl,
             mint=self.mint,
-            auxiliary_data_hash=self.auxiliary_data.hash()
-            if self.auxiliary_data
-            else None,
+            auxiliary_data_hash=(
+                self.auxiliary_data.hash() if self.auxiliary_data else None
+            ),
             script_data_hash=self.script_data_hash,
             required_signers=self.required_signers,
             validity_start=self.validity_start,
-            collateral=[c.input for c in self.collaterals]
-            if self.collaterals
-            else None,
+            collateral=(
+                [c.input for c in self.collaterals] if self.collaterals else None
+            ),
             certificates=self.certificates,
             withdraws=self.withdrawals,
             collateral_return=self._collateral_return,
             total_collateral=self._total_collateral,
-            reference_inputs=[
-                i.input if isinstance(i, UTxO) else i for i in self.reference_inputs
-            ]
-            if self.reference_inputs
-            else None,
+            reference_inputs=(
+                [i.input if isinstance(i, UTxO) else i for i in self.reference_inputs]
+                if self.reference_inputs
+                else None
+            ),
         )
         return tx_body
 
@@ -791,8 +898,12 @@ class TransactionBuilder:
         vkey_hashes.update(self._native_scripts_vkey_hashes())
         vkey_hashes.update(self._certificate_vkey_hashes())
         vkey_hashes.update(self._withdrawal_vkey_hashes())
+
+        witness_count = self.witness_override or len(vkey_hashes)
+
         return [
-            VerificationKeyWitness(FAKE_VKEY, FAKE_TX_SIGNATURE) for _ in vkey_hashes
+            VerificationKeyWitness(FAKE_VKEY, FAKE_TX_SIGNATURE)
+            for _ in range(witness_count)
         ]
 
     def _build_fake_witness_set(self) -> TransactionWitnessSet:
@@ -872,9 +983,12 @@ class TransactionBuilder:
             plutus_execution_units.steps,
             plutus_execution_units.mem,
         )
+        if self.fee_buffer is not None:
+            estimated_fee += self.fee_buffer
 
         return estimated_fee
 
+    @log_state
     def build(
         self,
         change_address: Optional[Address] = None,
@@ -908,7 +1022,7 @@ class TransactionBuilder:
         self._ensure_no_input_exclusion_conflict()
 
         # only automatically set the validity interval and required signers if scripts are involved
-        is_smart = bool(self.scripts)
+        is_smart = bool(self.all_scripts)
 
         # Automatically set the validity range to a tight value around transaction creation
         if (
@@ -934,7 +1048,13 @@ class TransactionBuilder:
             selected_amount += i.output.amount
 
         if self.mint:
-            selected_amount.multi_asset += self.mint
+            # Add positive minted amounts to the selected amount (=source)
+            for pid, m in self.mint.items():
+                for tkn, am in m.items():
+                    if am > 0:
+                        selected_amount += Value(
+                            multi_asset=MultiAsset({pid: Asset({tkn: am})})
+                        )
 
         if self.withdrawals:
             for v in self.withdrawals.values():
@@ -952,6 +1072,15 @@ class TransactionBuilder:
         requested_amount = Value()
         for o in self.outputs:
             requested_amount += o.amount
+
+        if self.mint:
+            # Add negative minted amounts to the requested amount (=sink)
+            for pid, m in self.mint.items():
+                for tkn, am in m.items():
+                    if am < 0:
+                        requested_amount += Value(
+                            multi_asset=MultiAsset({pid: Asset({tkn: -am})})
+                        )
 
         # Include min fees associated as part of requested amount
         requested_amount += self._estimate_fee()
@@ -1135,6 +1264,13 @@ class TransactionBuilder:
 
             if tmp_val.coin < collateral_amount:
                 sorted_inputs = sorted(
+                    self.potential_inputs,
+                    key=lambda i: (len(i.output.to_cbor_hex()), -i.output.amount.coin),
+                )
+                _add_collateral_input(tmp_val, sorted_inputs)
+
+            if tmp_val.coin < collateral_amount:
+                sorted_inputs = sorted(
                     self.context.utxos(collateral_return_address),
                     key=lambda i: (len(i.output.to_cbor_hex()), -i.output.amount.coin),
                 )
@@ -1181,7 +1317,8 @@ class TransactionBuilder:
                 assert (
                     r.tag is not None
                 ), "Expected tag of redeemer to be set, but found None"
-                key = f"{r.tag.name.lower()}:{r.index}"
+                tagname = r.tag.name.lower()
+                key = f"{tagname}:{r.index}"
                 if (
                     key not in estimated_execution_units
                     or estimated_execution_units[key] is None
@@ -1221,6 +1358,7 @@ class TransactionBuilder:
 
         return self.context.evaluate_tx(tx)
 
+    @log_state
     def build_and_sign(
         self,
         signing_keys: List[Union[SigningKey, ExtendedSigningKey]],

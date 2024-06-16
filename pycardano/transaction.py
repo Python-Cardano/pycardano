@@ -14,7 +14,7 @@ from nacl.hash import blake2b
 
 from pycardano.address import Address
 from pycardano.certificate import Certificate
-from pycardano.exception import InvalidDataException, InvalidOperationException
+from pycardano.exception import InvalidDataException
 from pycardano.hash import (
     TRANSACTION_HASH_SIZE,
     AuxiliaryDataHash,
@@ -53,6 +53,9 @@ __all__ = [
     "Transaction",
     "Withdrawals",
 ]
+
+_MAX_INT64 = (1 << 63) - 1
+_MIN_INT64 = -(1 << 63)
 
 
 @dataclass(repr=False)
@@ -95,14 +98,7 @@ class Asset(DictCBORSerializable):
     def __sub__(self, other: Asset) -> Asset:
         new_asset = deepcopy(self)
         for n in other:
-            if n not in new_asset:
-                raise InvalidOperationException(
-                    f"Asset: {new_asset} does not have asset with name: {n}"
-                )
-            # According to ledger rule, the value of an asset could be negative, so we don't check the value here and
-            # will leave the check to users when necessary.
-            # https://github.com/input-output-hk/cardano-ledger/blob/master/eras/alonzo/test-suite/cddl-files/alonzo.cddl#L378
-            new_asset[n] -= other[n]
+            new_asset[n] = new_asset.get(n, 0) - other[n]
         return new_asset
 
     def __eq__(self, other):
@@ -135,9 +131,7 @@ class MultiAsset(DictCBORSerializable):
     def __add__(self, other):
         new_multi_asset = deepcopy(self)
         for p in other:
-            if p not in new_multi_asset:
-                new_multi_asset[p] = Asset()
-            new_multi_asset[p] += other[p]
+            new_multi_asset[p] = new_multi_asset.get(p, Asset()) + other[p]
         return new_multi_asset
 
     def __iadd__(self, other):
@@ -148,11 +142,7 @@ class MultiAsset(DictCBORSerializable):
     def __sub__(self, other: MultiAsset) -> MultiAsset:
         new_multi_asset = deepcopy(self)
         for p in other:
-            if p not in new_multi_asset:
-                raise InvalidOperationException(
-                    f"MultiAsset: {new_multi_asset} doesn't have policy: {p}"
-                )
-            new_multi_asset[p] -= other[p]
+            new_multi_asset[p] = new_multi_asset.get(p, Asset()) - other[p]
         return new_multi_asset
 
     def __eq__(self, other):
@@ -302,7 +292,8 @@ class _DatumOption(ArrayCBORSerializable):
         else:
             self._TYPE = 1
 
-    def to_shallow_primitive(self) -> List[Primitive]:
+    def to_shallow_primitive(self) -> Primitive:
+        data: Union[CBORTag, DatumHash]
         if self._TYPE == 1:
             data = CBORTag(24, cbor2.dumps(self.datum, default=default_encoder))
         else:
@@ -504,7 +495,11 @@ class TransactionBody(MapCBORSerializable):
     ttl: Optional[int] = field(default=None, metadata={"key": 3, "optional": True})
 
     certificates: Optional[List[Certificate]] = field(
-        default=None, metadata={"key": 4, "optional": True}
+        default=None,
+        metadata={
+            "key": 4,
+            "optional": True,
+        },
     )
 
     withdraws: Optional[Withdrawals] = field(
@@ -568,6 +563,15 @@ class TransactionBody(MapCBORSerializable):
             "optional": True,
         },
     )
+
+    def validate(self):
+        if (
+            self.mint
+            and self.mint.count(lambda p, n, v: v < _MIN_INT64 or v > _MAX_INT64) > 0
+        ):
+            raise InvalidDataException(
+                f"Mint amount must be between {_MIN_INT64} and {_MAX_INT64}. \n Mint amount: {self.mint}"
+            )
 
     def hash(self) -> bytes:
         return blake2b(self.to_cbor(), TRANSACTION_HASH_SIZE, encoder=RawEncoder)  # type: ignore

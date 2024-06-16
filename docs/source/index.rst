@@ -56,6 +56,6 @@ Links
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
-* `Github Home Page <https://github.com/cffls/pycardano>`_
-* `More usage examples on Github <https://github.com/cffls/pycardano/tree/main/examples>`_
+* `Github Home Page <https://github.com/Python-Cardano/pycardano>`_
+* `More usage examples on Github <https://github.com/Python-Cardano/pycardano/tree/main/examples>`_
 

@@ -4,7 +4,6 @@ Off-chain code of taker and giver in fortytwo.
 
 """
 
-
 import os
 
 import cbor2

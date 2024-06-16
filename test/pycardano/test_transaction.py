@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from test.pycardano.util import check_two_way_cbor
 
 import pytest
+from typeguard import TypeCheckError
 
 from pycardano.address import Address
 from pycardano.exception import InvalidDataException, InvalidOperationException
@@ -311,8 +312,12 @@ def test_multi_asset_subtraction():
         }
     )
 
-    with pytest.raises(InvalidOperationException):
-        a - b
+    assert a - b == MultiAsset.from_primitive(
+        {
+            b"1" * SCRIPT_HASH_SIZE: {b"Token1": -9, b"Token2": -18},
+            b"2" * SCRIPT_HASH_SIZE: {b"Token1": -1, b"Token2": -2},
+        }
+    )
 
 
 def test_asset_comparison():
@@ -336,7 +341,7 @@ def test_asset_comparison():
 
     assert not any([a == d, a <= d, d <= a])
 
-    with pytest.raises(TypeError):
+    with pytest.raises(TypeCheckError):
         a <= 1
 
 
@@ -376,7 +381,7 @@ def test_multi_asset_comparison():
     assert not a <= d
     assert not d <= a
 
-    with pytest.raises(TypeError):
+    with pytest.raises(TypeCheckError):
         a <= 1
 
 
@@ -427,11 +432,25 @@ def test_values():
         [101, {b"1" * SCRIPT_HASH_SIZE: {b"Token1": 1, b"Token2": 2}}]
     )
 
-    with pytest.raises(InvalidOperationException):
-        a - c
+    assert a - c == Value.from_primitive(
+        [
+            -10,
+            {
+                b"1" * SCRIPT_HASH_SIZE: {b"Token1": -10, b"Token2": -20},
+                b"2" * SCRIPT_HASH_SIZE: {b"Token1": -11, b"Token2": -22},
+            },
+        ]
+    )
 
-    with pytest.raises(InvalidOperationException):
-        b - c
+    assert b - c == Value.from_primitive(
+        [
+            0,
+            {
+                b"1" * SCRIPT_HASH_SIZE: {b"Token1": 0, b"Token2": 0},
+                b"2" * SCRIPT_HASH_SIZE: {b"Token1": -11, b"Token2": -22},
+            },
+        ]
+    )
 
 
 def test_inline_datum_serdes():
@@ -451,3 +470,15 @@ def test_inline_datum_serdes():
     cbor = output.to_cbor_hex()
 
     assert cbor == TransactionOutput.from_cbor(cbor).to_cbor_hex()
+
+
+def test_out_of_bound_asset():
+    a = Asset({AssetName(b"abc"): 1 << 64})
+
+    a.to_cbor_hex()  # okay to have out of bound asset
+
+    tx = TransactionBody(mint=MultiAsset({ScriptHash(b"1" * SCRIPT_HASH_SIZE): a}))
+
+    # Not okay only when minting
+    with pytest.raises(InvalidDataException):
+        tx.to_cbor_hex()

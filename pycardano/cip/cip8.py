@@ -1,5 +1,6 @@
 from typing import Optional, Union
 
+from cbor2 import CBORTag, dumps
 from cose.algorithms import EdDSA
 from cose.headers import KID, Algorithm
 from cose.keys import CoseKey
@@ -10,13 +11,15 @@ from cose.keys.keytype import KtyOKP
 from cose.messages import CoseMessage, Sign1Message
 
 from pycardano.address import Address
+from pycardano.crypto import BIP32ED25519PublicKey
 from pycardano.key import (
+    ExtendedSigningKey,
+    ExtendedVerificationKey,
     PaymentVerificationKey,
     SigningKey,
     StakeExtendedSigningKey,
     StakeSigningKey,
     StakeVerificationKey,
-    VerificationKey,
 )
 from pycardano.network import Network
 
@@ -25,7 +28,7 @@ __all__ = ["sign", "verify"]
 
 def sign(
     message: str,
-    signing_key: SigningKey,
+    signing_key: Union[ExtendedSigningKey, SigningKey],
     attach_cose_key: bool = False,
     network: Network = Network.MAINNET,
 ) -> Union[str, dict]:
@@ -45,7 +48,9 @@ def sign(
     """
 
     # derive the verification key
-    verification_key = VerificationKey.from_signing_key(signing_key)
+    verification_key = signing_key.to_verification_key()
+    if isinstance(verification_key, ExtendedVerificationKey):
+        verification_key = verification_key.to_non_extended()
 
     if isinstance(signing_key, StakeSigningKey) or isinstance(
         signing_key, StakeExtendedSigningKey
@@ -85,7 +90,20 @@ def sign(
 
     msg.key = cose_key  # attach the key to the message
 
-    encoded = msg.encode()
+    if isinstance(signing_key, ExtendedSigningKey):
+        _message = [
+            msg.phdr_encoded,
+            msg.uhdr_encoded,
+            msg.payload,
+            signing_key.sign(msg._sig_structure),
+        ]
+
+        encoded = dumps(
+            CBORTag(msg.cbor_tag, _message), default=msg._custom_cbor_encoder
+        )
+
+    else:
+        encoded = msg.encode()
 
     # turn the enocded message into a hex string and remove the first byte
     # which is always "d2"
@@ -99,7 +117,7 @@ def sign(
             OKPKpX: verification_key.payload,  # public key
         }
 
-        signed_message = {
+        signed_message = {  # type: ignore
             "signature": signed_message,
             "key": CoseKey.from_dict(key_to_return).encode().hex(),
         }
@@ -108,7 +126,8 @@ def sign(
 
 
 def verify(
-    signed_message: Union[str, dict], attach_cose_key: Optional[bool] = None
+    signed_message: Union[str, dict],
+    attach_cose_key: Optional[bool] = None,
 ) -> dict:
     """Verify the signature of a COSESign1 message and decode its contents following CIP-0008.
     Supports messages signed by browser wallets or `Message.sign()`.
@@ -175,7 +194,16 @@ def verify(
     # attach the key to the decoded message
     decoded_message.key = cose_key
 
-    signature_verified = decoded_message.verify_signature()
+    if len(verification_key) > 32:
+        vk = BIP32ED25519PublicKey(
+            public_key=verification_key[:32], chain_code=verification_key[32:]
+        )
+        vk.verify(
+            signature=decoded_message.signature, message=decoded_message._sig_structure
+        )
+        signature_verified = True
+    else:
+        signature_verified = decoded_message.verify_signature()
 
     message = decoded_message.payload.decode("utf-8")
 

@@ -2,6 +2,7 @@ import os
 import tempfile
 import time
 import warnings
+from fractions import Fraction
 from typing import Dict, List, Optional, Union
 
 import cbor2
@@ -67,7 +68,7 @@ class BlockFrostChainContext(ChainContext):
         self,
         project_id: str,
         network: Optional[Network] = None,
-        base_url: str = ApiUrls.preprod.value,
+        base_url: Optional[str] = None,
     ):
         if network is not None:
             warnings.warn(
@@ -81,10 +82,17 @@ class BlockFrostChainContext(ChainContext):
         self._base_url = (
             base_url
             if base_url
-            else ApiUrls.preprod.value
-            if self.network == Network.TESTNET
-            else ApiUrls.mainnet.value
+            else (
+                ApiUrls.preprod.value
+                if self.network == Network.TESTNET
+                else ApiUrls.mainnet.value
+            )
         )
+
+        # Set network value to mainnet if base_url contains "mainnet".
+        if "mainnet" in self._base_url:
+            self._network = Network.MAINNET
+
         self.api = BlockFrostApi(project_id=self._project_id, base_url=self._base_url)
         self._epoch_info = self.api.epoch_latest()
         self._epoch = None
@@ -133,17 +141,17 @@ class BlockFrostChainContext(ChainContext):
                 max_block_header_size=int(params.max_block_header_size),
                 key_deposit=int(params.key_deposit),
                 pool_deposit=int(params.pool_deposit),
-                pool_influence=float(params.a0),
-                monetary_expansion=float(params.rho),
-                treasury_expansion=float(params.tau),
-                decentralization_param=float(params.decentralisation_param),
+                pool_influence=Fraction(params.a0),
+                monetary_expansion=Fraction(params.rho),
+                treasury_expansion=Fraction(params.tau),
+                decentralization_param=Fraction(params.decentralisation_param),
                 extra_entropy=params.extra_entropy,
                 protocol_major_version=int(params.protocol_major_ver),
                 protocol_minor_version=int(params.protocol_minor_ver),
                 min_utxo=int(params.min_utxo),
                 min_pool_cost=int(params.min_pool_cost),
-                price_mem=float(params.price_mem),
-                price_step=float(params.price_step),
+                price_mem=Fraction(params.price_mem),
+                price_step=Fraction(params.price_step),
                 max_tx_ex_mem=int(params.max_tx_ex_mem),
                 max_tx_ex_steps=int(params.max_tx_ex_steps),
                 max_block_ex_mem=int(params.max_block_ex_mem),

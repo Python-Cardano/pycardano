@@ -1,5 +1,7 @@
 import copy
-import unittest
+import subprocess
+import sys
+import tempfile
 from dataclasses import dataclass
 from test.pycardano.util import check_two_way_cbor
 from typing import Dict, List, Union
@@ -7,17 +9,20 @@ from typing import Dict, List, Union
 import pytest
 from cbor2 import CBORTag
 
-from pycardano.exception import DeserializeException, SerializeException
+from pycardano.exception import DeserializeException
 from pycardano.plutus import (
     COST_MODELS,
+    Datum,
     ExecutionUnits,
     PlutusData,
     RawPlutusData,
     Redeemer,
     RedeemerTag,
+    Unit,
+    id_map,
     plutus_script_hash,
 )
-from pycardano.serialization import IndefiniteList
+from pycardano.serialization import ByteString, IndefiniteList, RawCBOR
 
 
 @dataclass
@@ -51,6 +56,7 @@ class DictTest(PlutusData):
 
 @dataclass
 class ListTest(PlutusData):
+    CONSTR_ID = 0
     a: List[LargestTest]
 
 
@@ -201,12 +207,54 @@ def test_plutus_data_from_json_wrong_data_structure_type():
         MyTest.from_json(test)
 
 
+def test_raw_plutus_data_json():
+    key_hash = bytes.fromhex("c2ff616e11299d9094ce0a7eb5b7284b705147a822f4ffbd471f971a")
+    deadline = 1643235300000
+    testa = BigTest(MyTest(123, b"1234", IndefiniteList([4, 5, 6]), {1: b"1", 2: b"2"}))
+    testb = LargestTest()
+
+    my_vesting = VestingParam(
+        beneficiary=key_hash, deadline=deadline, testa=testa, testb=testb
+    )
+
+    my_vesting_primitive = my_vesting.to_primitive()
+    encoded_json = RawPlutusData(my_vesting_primitive).to_json(separators=(",", ":"))
+
+    assert (
+        '{"constructor":1,"fields":[{"bytes":"c2ff616e11299d9094ce0a7eb5b7284b705147a822f4ffbd471f971a"},'
+        '{"int":1643235300000},{"constructor":8,"fields":[{"constructor":130,"fields":[{"int":123},'
+        '{"bytes":"31323334"},{"list":[{"int":4},{"int":5},{"int":6}]},{"map":[{"v":{"bytes":"31"},'
+        '"k":{"int":1}},{"v":{"bytes":"32"},"k":{"int":2}}]}]}]},{"constructor":9,"fields":[]}]}'
+        == encoded_json
+    )
+
+    # note that json encoding is lossy, so we can't compare the original object with the one decoded from json
+    # but we can compare the jsons
+    assert encoded_json == RawPlutusData.from_json(encoded_json).to_json(
+        separators=(",", ":")
+    )
+
+    @dataclass
+    class C(PlutusData):
+        CONSTR_ID = 2
+        x: Datum
+        y: Datum
+        z: int
+
+    c = C(RawPlutusData(testb.to_primitive()), RawCBOR(testa.to_cbor()), 1)
+    encoded_json = c.to_json(separators=(",", ":"))
+
+    assert (
+        '{"constructor":2,"fields":[{"constructor":9,"fields":[]},{"constructor":8,"fields":[{"constructor":130,"fields":[{"int":123},{"bytes":"31323334"},{"list":[{"int":4},{"int":5},{"int":6}]},{"map":[{"v":{"bytes":"31"},"k":{"int":1}},{"v":{"bytes":"32"},"k":{"int":2}}]}]}]},{"int":1}]}'
+        == encoded_json
+    )
+    assert encoded_json == C.from_json(encoded_json).to_json(separators=(",", ":"))
+
+
 def test_plutus_data_hash():
     assert (
-        bytes.fromhex(
-            "923918e403bf43c34b4ef6b48eb2ee04babed17320d8d1b9ff9ad086e86f44ec"
-        )
-        == PlutusData().hash().payload
+        "923918e403bf43c34b4ef6b48eb2ee04babed17320d8d1b9ff9ad086e86f44ec"
+        == Unit().hash().payload.hex()
     )
 
 
@@ -316,3 +364,129 @@ def test_clone_plutus_data():
     my_vesting.deadline = 1643235300001
 
     assert cloned_vesting != my_vesting
+
+
+def test_unique_constr_ids():
+    @dataclass
+    class A(PlutusData):
+        pass
+
+    @dataclass
+    class B(PlutusData):
+        pass
+
+    assert (
+        A.CONSTR_ID != B.CONSTR_ID
+    ), "Different classes (different names) have same default constructor ID"
+    B_tmp = B
+
+    @dataclass
+    class B(PlutusData):
+        a: int
+        b: bytes
+
+    assert (
+        B_tmp.CONSTR_ID != B.CONSTR_ID
+    ), "Different classes (different fields) have same default constructor ID"
+
+    B_tmp = B
+
+    @dataclass
+    class B(PlutusData):
+        a: bytes
+        b: bytes
+
+    assert (
+        B_tmp.CONSTR_ID != B.CONSTR_ID
+    ), "Different classes (different field types) have same default constructor ID"
+
+
+def test_deterministic_constr_ids_local():
+    @dataclass
+    class A(PlutusData):
+        a: int
+        b: bytes
+
+    A_tmp = A
+
+    @dataclass
+    class A(PlutusData):
+        a: int
+        b: bytes
+
+    assert (
+        A_tmp.CONSTR_ID == A.CONSTR_ID
+    ), "Same class has different default constructor ID"
+
+
+def test_deterministic_constr_ids_global():
+    code = """
+from dataclasses import dataclass
+from pycardano import PlutusData
+
+@dataclass
+class A(PlutusData):
+    a: int
+    b: bytes
+
+print(A.CONSTR_ID)
+"""
+    tmpfile = tempfile.TemporaryFile()
+    tmpfile.write(code.encode("utf8"))
+    tmpfile.seek(0)
+    res = subprocess.run([sys.executable], stdin=tmpfile, capture_output=True).stdout
+    tmpfile.seek(0)
+    res2 = subprocess.run([sys.executable], stdin=tmpfile, capture_output=True).stdout
+
+    assert (
+        res == res2
+    ), "Same class has different default constructor id in two consecutive runs"
+
+
+def test_id_map_supports_all():
+    @dataclass
+    class A(PlutusData):
+        CONSTR_ID = 0
+        a: int
+        b: bytes
+        c: ByteString
+        d: List[int]
+
+    @dataclass
+    class C(PlutusData):
+        x: RawPlutusData
+        y: RawCBOR
+        z: Datum
+        w: IndefiniteList
+
+    @dataclass
+    class B(PlutusData):
+        a: int
+        c: A
+        d: Dict[bytes, C]
+        e: Union[A, C]
+
+    s = id_map(B)
+    assert (
+        s
+        == "cons[B](3809077817;a:int,c:cons[A](0;a:int,b:bytes,c:bytes,d:list<int>),d:map<bytes,cons[C](892310804;x:any,y:any,z:any,w:list)>,e:union<cons[A](0;a:int,b:bytes,c:bytes,d:list<int>),cons[C](892310804;x:any,y:any,z:any,w:list)>)"
+    )
+
+
+def test_plutus_data_long_bytes():
+    @dataclass
+    class A(PlutusData):
+        CONSTR_ID = 0
+        a: ByteString
+
+    quote = (
+        "The line separating good and evil passes ... right through every human heart."
+    )
+
+    quote_hex = "d8799f5f5840546865206c696e652073657061726174696e6720676f6f6420616e64206576696c20706173736573202e2e2e207269676874207468726f7567682065766572794d2068756d616e2068656172742effff"
+
+    A_tmp = A(ByteString(quote.encode()))
+
+    assert (
+        A_tmp.to_cbor_hex() == quote_hex
+    ), "Long metadata bytestring is encoded incorrectly."

@@ -4,20 +4,23 @@ from __future__ import annotations
 
 import inspect
 import json
+import typing
 from dataclasses import dataclass, field, fields
 from enum import Enum
-from typing import Any, ClassVar, Optional, Type, Union
+from hashlib import sha256
+from typing import Any, Optional, Type, Union
 
 import cbor2
 from cbor2 import CBORTag
 from nacl.encoding import RawEncoder
 from nacl.hash import blake2b
 
-from pycardano.exception import DeserializeException
+from pycardano.exception import DeserializeException, InvalidArgumentException
 from pycardano.hash import DATUM_HASH_SIZE, SCRIPT_HASH_SIZE, DatumHash, ScriptHash
 from pycardano.nativescript import NativeScript
 from pycardano.serialization import (
     ArrayCBORSerializable,
+    ByteString,
     CBORSerializable,
     DictCBORSerializable,
     IndefiniteList,
@@ -44,7 +47,14 @@ __all__ = [
     "datum_hash",
     "plutus_script_hash",
     "script_hash",
+    "Unit",
 ]
+
+
+# taken from https://stackoverflow.com/a/13624858
+class classproperty(property):
+    def __get__(self, owner_self, owner_cls):
+        return self.fget(owner_cls)
 
 
 class CostModels(DictCBORSerializable):
@@ -52,7 +62,7 @@ class CostModels(DictCBORSerializable):
     VALUE_TYPE = dict
 
     def to_shallow_primitive(self) -> dict:
-        result = {}
+        result: dict[bytes, Union[typing.List[Any], bytes]] = {}
         for language in sorted(self.keys()):
             cost_model = self[language]
             if language == 0:
@@ -439,6 +449,65 @@ def get_tag(constr_id: int) -> Optional[int]:
         return None
 
 
+def get_constructor_id_and_fields(
+    raw_tag: CBORTag,
+) -> typing.Tuple[int, typing.List[Any]]:
+    tag = raw_tag.tag
+    if tag == 102:
+        if len(raw_tag.value) != 2:
+            raise DeserializeException(
+                f"Expect the length of value to be exactly 2, got {len(raw_tag.value)} instead."
+            )
+        return raw_tag.value[0], raw_tag.value[1]
+    else:
+        if 121 <= tag < 128:
+            constr = tag - 121
+        elif 1280 <= tag < 1536:
+            constr = tag - 1280 + 7
+        else:
+            raise DeserializeException(f"Unexpected tag for RawPlutusData: {tag}")
+        return constr, raw_tag.value
+
+
+def id_map(cls, skip_constructor=False):
+    """
+    Constructs a unique representation of a PlutusData type definition.
+    Intended for automatic constructor generation.
+    """
+    if cls == bytes or cls == ByteString:
+        return "bytes"
+    if cls == int:
+        return "int"
+    if cls == RawCBOR or cls == RawPlutusData or cls == Datum:
+        return "any"
+    if cls == IndefiniteList:
+        return "list"
+    if hasattr(cls, "__origin__"):
+        origin = getattr(cls, "__origin__")
+        if origin == list:
+            prefix = "list"
+        elif origin == dict:
+            prefix = "map"
+        elif origin == typing.Union:
+            prefix = "union"
+        else:
+            raise TypeError(
+                f"Unexpected parameterized type for automatic constructor generation: {cls}"
+            )
+        return prefix + "<" + ",".join(id_map(a) for a in cls.__args__) + ">"
+    if issubclass(cls, PlutusData):
+        return (
+            "cons["
+            + cls.__name__
+            + "]("
+            + (str(cls.CONSTR_ID) if not skip_constructor else "_")
+            + ";"
+            + ",".join(f.name + ":" + id_map(f.type) for f in fields(cls))
+            + ")"
+        )
+    raise TypeError(f"Unexpected type for automatic constructor generation: {cls}")
+
+
 @dataclass(repr=False)
 class PlutusData(ArrayCBORSerializable):
     """
@@ -460,16 +529,37 @@ class PlutusData(ArrayCBORSerializable):
         >>> assert test == Test.from_cbor("d87a9f187b43333231ff")
     """
 
-    CONSTR_ID: ClassVar[int] = 0
-    """Constructor ID of this plutus data.
-       It is primarily used by Plutus core to reconstruct a data structure from serialized CBOR bytes."""
+    MAX_BYTES_SIZE = 64
+
+    @classproperty
+    def CONSTR_ID(cls):
+        """
+        Constructor ID of this plutus data.
+        It is primarily used by Plutus core to reconstruct a data structure from serialized CBOR bytes.
+        The default implementation is an almost unique, deterministic constructor ID in the range 1 - 2^32 based
+        on class attributes, types and class name.
+        """
+        k = f"_CONSTR_ID_{cls.__name__}"
+        if not hasattr(cls, k):
+            det_string = id_map(cls, skip_constructor=True)
+            det_hash = sha256(det_string.encode("utf8")).hexdigest()
+            setattr(cls, k, int(det_hash, 16) % 2**32)
+
+        return getattr(cls, k)
 
     def __post_init__(self):
-        valid_types = (PlutusData, dict, IndefiniteList, int, bytes)
+        valid_types = (PlutusData, dict, IndefiniteList, int, ByteString, bytes)
         for f in fields(self):
             if inspect.isclass(f.type) and not issubclass(f.type, valid_types):
                 raise TypeError(
                     f"Invalid field type: {f.type}. A field in PlutusData should be one of {valid_types}"
+                )
+
+            data = getattr(self, f.name)
+            if isinstance(data, bytes) and len(data) > 64:
+                raise InvalidArgumentException(
+                    f"The size of {data} exceeds {self.MAX_BYTES_SIZE} bytes. "
+                    "Use pycardano.serialization.ByteString for long bytes."
                 )
 
     def to_shallow_primitive(self) -> CBORTag:
@@ -509,14 +599,12 @@ class PlutusData(ArrayCBORSerializable):
     def hash(self) -> DatumHash:
         return datum_hash(self)
 
-    def to_json(self, **kwargs) -> str:
-        """Convert to a json string
-
-        Args:
-            **kwargs: Extra key word arguments to be passed to `json.dumps()`
+    def to_dict(self) -> dict:
+        """
+        Convert to a dictionary.
 
         Returns:
-            str: a JSON encoded PlutusData.
+            str: a dict PlutusData that can be JSON encoded.
         """
 
         def _dfs(obj):
@@ -529,6 +617,8 @@ class PlutusData(ArrayCBORSerializable):
                 return {"int": obj}
             elif isinstance(obj, bytes):
                 return {"bytes": obj.hex()}
+            elif isinstance(obj, ByteString):
+                return {"bytes": obj.value.hex()}
             elif isinstance(obj, IndefiniteList) or isinstance(obj, list):
                 return {"list": [_dfs(item) for item in obj]}
             elif isinstance(obj, dict):
@@ -538,10 +628,26 @@ class PlutusData(ArrayCBORSerializable):
                     "constructor": obj.CONSTR_ID,
                     "fields": [_dfs(getattr(obj, f.name)) for f in fields(obj)],
                 }
+            elif isinstance(obj, RawPlutusData):
+                return obj.to_dict()
+            elif isinstance(obj, RawCBOR):
+                return RawPlutusData.from_cbor(obj.cbor).to_dict()
             else:
                 raise TypeError(f"Unexpected type {type(obj)}")
 
-        return json.dumps(_dfs(self), **kwargs)
+        return _dfs(self)
+
+    def to_json(self, **kwargs) -> str:
+        """Convert to a json string
+
+        Args:
+            **kwargs: Extra key word arguments to be passed to `json.dumps()`
+
+        Returns:
+            str: a JSON encoded PlutusData.
+        """
+
+        return json.dumps(self.to_dict(), **kwargs)
 
     @classmethod
     def from_dict(cls: Type[PlutusData], data: dict) -> PlutusData:
@@ -559,7 +665,7 @@ class PlutusData(ArrayCBORSerializable):
                 if "constructor" in obj:
                     if obj["constructor"] != cls.CONSTR_ID:
                         raise DeserializeException(
-                            f"Mismatch between constructors, expect: {cls.CONSTR_ID}, "
+                            f"Mismatch between constructors in class {cls.__name__}, expect: {cls.CONSTR_ID}, "
                             f"got: {obj['constructor']} instead."
                         )
                     converted_fields = []
@@ -568,6 +674,8 @@ class PlutusData(ArrayCBORSerializable):
                             f_info.type, PlutusData
                         ):
                             converted_fields.append(f_info.type.from_dict(f))
+                        elif f_info.type == Datum:
+                            converted_fields.append(RawPlutusData.from_dict(f))
                         elif (
                             hasattr(f_info.type, "__origin__")
                             and f_info.type.__origin__ is Union
@@ -643,7 +751,10 @@ class PlutusData(ArrayCBORSerializable):
                 elif "int" in obj:
                     return obj["int"]
                 elif "bytes" in obj:
-                    return bytes.fromhex(obj["bytes"])
+                    if len(obj["bytes"]) > 64:
+                        return ByteString(bytes.fromhex(obj["bytes"]))
+                    else:
+                        return bytes.fromhex(obj["bytes"])
                 elif "list" in obj:
                     return IndefiniteList([_dfs(item) for item in obj["list"]])
                 else:
@@ -670,11 +781,14 @@ class PlutusData(ArrayCBORSerializable):
         return self.__class__.from_cbor(self.to_cbor_hex())
 
 
-@dataclass(repr=False)
-class RawPlutusData(CBORSerializable):
-    data: CBORTag
+RawDatum = Union[PlutusData, dict, int, bytes, IndefiniteList, RawCBOR, CBORTag]
 
-    def to_primitive(self) -> CBORTag:
+
+@dataclass(repr=True)
+class RawPlutusData(CBORSerializable):
+    data: RawDatum
+
+    def to_primitive(self) -> Primitive:
         def _dfs(obj):
             if isinstance(obj, list) and obj:
                 return IndefiniteList([_dfs(item) for item in obj])
@@ -690,10 +804,107 @@ class RawPlutusData(CBORSerializable):
 
         return _dfs(self.data)
 
+    def to_dict(self) -> dict:
+        """
+        Convert to a dictionary.
+
+        Returns:
+            str: a dict RawPlutusData that can be JSON encoded.
+        """
+
+        def _dfs(obj):
+            if isinstance(obj, int):
+                return {"int": obj}
+            elif isinstance(obj, bytes):
+                return {"bytes": obj.hex()}
+            elif isinstance(obj, ByteString):
+                return {"bytes": obj.value.hex()}
+            elif isinstance(obj, IndefiniteList) or isinstance(obj, list):
+                return {"list": [_dfs(item) for item in obj]}
+            elif isinstance(obj, dict):
+                return {"map": [{"v": _dfs(v), "k": _dfs(k)} for k, v in obj.items()]}
+            elif isinstance(obj, CBORTag):
+                constructor, fields = get_constructor_id_and_fields(obj)
+                return {"constructor": constructor, "fields": [_dfs(f) for f in fields]}
+            elif isinstance(obj, RawCBOR):
+                return RawPlutusData.from_cbor(obj.cbor).to_dict()
+            raise TypeError(f"Unexpected type {type(obj)}")
+
+        return _dfs(RawPlutusData.to_primitive(self))
+
+    def to_json(self, **kwargs) -> str:
+        """Convert to a json string
+
+        Args:
+            **kwargs: Extra key word arguments to be passed to `json.dumps()`
+
+        Returns:
+            str: a JSON encoded RawPlutusData.
+        """
+
+        return json.dumps(RawPlutusData.to_dict(self), **kwargs)
+
     @classmethod
-    @limit_primitive_type(CBORTag)
-    def from_primitive(cls: Type[RawPlutusData], value: CBORTag) -> RawPlutusData:
+    @limit_primitive_type(
+        PlutusData, dict, int, bytes, IndefiniteList, RawCBOR, CBORTag
+    )  # equal to RawDatum parameter list
+    def from_primitive(cls: Type[RawPlutusData], value: RawDatum) -> RawPlutusData:
         return cls(value)
+
+    @classmethod
+    def from_dict(cls: Type[RawPlutusData], data: dict) -> RawPlutusData:
+        """Convert a dictionary to RawPlutusData
+
+        Args:
+            data (dict): A dictionary.
+
+        Returns:
+            RawPlutusData: Restored RawPlutusData.
+        """
+
+        def _dfs(obj):
+            if isinstance(obj, dict):
+                if "constructor" in obj:
+                    converted_fields = []
+                    for f in obj["fields"]:
+                        converted_fields.append(_dfs(f))
+                    tag = get_tag(obj["constructor"])
+                    if tag is None:
+                        return CBORTag(
+                            102, [obj["constructor"], IndefiniteList(converted_fields)]
+                        )
+                    else:
+                        return CBORTag(tag, converted_fields)
+                elif "map" in obj:
+                    return {_dfs(pair["k"]): _dfs(pair["v"]) for pair in obj["map"]}
+                elif "int" in obj:
+                    return obj["int"]
+                elif "bytes" in obj:
+                    if len(obj["bytes"]) > 64:
+                        return ByteString(bytes.fromhex(obj["bytes"]))
+                    else:
+                        return bytes.fromhex(obj["bytes"])
+                elif "list" in obj:
+                    return IndefiniteList([_dfs(item) for item in obj["list"]])
+                else:
+                    raise DeserializeException(f"Unexpected data structure: {obj}")
+            else:
+                raise TypeError(f"Unexpected data type: {type(obj)}")
+
+        return cls(_dfs(data))
+
+    @classmethod
+    def from_json(cls: Type[RawPlutusData], data: str) -> RawPlutusData:
+        """Restore a json encoded string to a RawPlutusData.
+
+        Args:
+            data (str): An encoded json string.
+
+        Returns:
+            RawPlutusData: The restored RawPlutusData.
+        """
+        obj = json.loads(data)
+        return cls.from_dict(obj)
 
     def __deepcopy__(self, memo):
         return self.__class__.from_cbor(self.to_cbor_hex())
@@ -721,7 +932,7 @@ class RedeemerTag(CBORSerializable, Enum):
     SPEND = 0
     MINT = 1
     CERT = 2
-    REWARD = 3
+    WITHDRAWAL = 3
 
     def to_primitive(self) -> int:
         return self.value
@@ -820,3 +1031,10 @@ def script_hash(script: ScriptType) -> ScriptHash:
         )
     else:
         raise TypeError(f"Unexpected script type: {type(script)}")
+
+
+@dataclass
+class Unit(PlutusData):
+    """The default "Unit type" with a 0 constructor ID"""
+
+    CONSTR_ID = 0

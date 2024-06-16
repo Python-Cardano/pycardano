@@ -32,6 +32,9 @@ __all__ = [
     "StakeSigningKey",
     "StakeVerificationKey",
     "StakeKeyPair",
+    "StakePoolSigningKey",
+    "StakePoolVerificationKey",
+    "StakePoolKeyPair",
 ]
 
 
@@ -314,3 +317,37 @@ class StakeKeyPair:
         cls: Type[StakeKeyPair], signing_key: SigningKey
     ) -> StakeKeyPair:
         return cls(signing_key, StakeVerificationKey.from_signing_key(signing_key))
+
+
+class StakePoolSigningKey(SigningKey):
+    KEY_TYPE = "StakePoolSigningKey_ed25519"
+    DESCRIPTION = "Stake Pool Operator Signing Key"
+
+
+class StakePoolVerificationKey(VerificationKey):
+    KEY_TYPE = "StakePoolVerificationKey_ed25519"
+    DESCRIPTION = "Stake Pool Operator Verification Key"
+
+
+class StakePoolKeyPair:
+    def __init__(self, signing_key: SigningKey, verification_key: VerificationKey):
+        self.signing_key = signing_key
+        self.verification_key = verification_key
+
+    @classmethod
+    def generate(cls: Type[StakePoolKeyPair]) -> StakePoolKeyPair:
+        signing_key = StakePoolSigningKey.generate()
+        return cls.from_signing_key(signing_key)
+
+    @classmethod
+    def from_signing_key(
+        cls: Type[StakePoolKeyPair], signing_key: SigningKey
+    ) -> StakePoolKeyPair:
+        return cls(signing_key, StakePoolVerificationKey.from_signing_key(signing_key))
+
+    def __eq__(self, other):
+        if isinstance(other, StakePoolKeyPair):
+            return (
+                other.signing_key == self.signing_key
+                and other.verification_key == self.verification_key
+            )

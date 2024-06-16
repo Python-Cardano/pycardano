@@ -9,10 +9,11 @@ networks:
 services:
 
   cardano-node:
-    image: inputoutput/cardano-node:${CARDANO_NODE_VERSION:-1.35.7}
+    image: ghcr.io/intersectmbo/cardano-node:${CARDANO_NODE_VERSION:-8.9.2}
     entrypoint: bash
     environment:
       NETWORK: "${NETWORK:-local-alonzo}"
+      CARDANO_NODE_SOCKET_PATH: "/ipc/node.socket"
     command: /code/run_node.sh
 
     networks:
@@ -21,6 +22,7 @@ services:
 
     volumes:
       - .:/code
+      - /tmp:/tmp
       - node-db:/data/db
       - node-ipc:/ipc
     ports:
@@ -32,7 +34,7 @@ services:
         max-file: "10"
 
   cardano-pool:
-    image: inputoutput/cardano-node:${CARDANO_NODE_VERSION:-1.35.7}
+    image: ghcr.io/intersectmbo/cardano-node:${CARDANO_NODE_VERSION:-8.9.2}
     entrypoint: bash
     environment:
       NETWORK: "${NETWORK:-local-alonzo}"
@@ -52,7 +54,7 @@ services:
         max-file: "10"
 
   ogmios:
-    image: cardanosolutions/ogmios:latest
+    image: cardanosolutions/ogmios:v6.2.0
     environment:
       NETWORK: "${NETWORK:-local-alonzo}"
 
