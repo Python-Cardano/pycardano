@@ -16,8 +16,8 @@ from pycardano.backend.blockfrost import BlockFrostChainContext
 from pycardano.certificate import (
     StakeCredential,
     StakeDelegation,
-    StakeDeregistration,
     StakeRegistration,
+    Certificate,
 )
 from pycardano.cip.cip8 import sign
 from pycardano.exception import PyCardanoException
@@ -1241,11 +1241,9 @@ class Wallet:
                 inputs = utxos
         else:
             inputs = [self]
-            
         # if token amounts are negative, remove them from the outputs
         if not isinstance(mints, list):
             mints = [mints]
-        
         tokens = []
         for mint in mints:
             if mint.amount > 0:
@@ -1521,9 +1519,7 @@ class Wallet:
             auxiliary_data = AuxiliaryData(Metadata())
 
         # create stake_registrations, delegations
-        certificates: List[
-            Union[StakeDelegation, StakeRegistration, StakeDeregistration]
-        ] = []
+        certificates: List[Certificate] = []
         if stake_registration_info:  # add registrations
             if isinstance(stake_registration_info, bool):
                 # register current wallet
@@ -1589,9 +1585,9 @@ class Wallet:
         # withdrawals
         withdraw = {}
         if withdrawals and isinstance(withdrawals, bool):  # withdraw current wallet
-            withdraw[
-                self.stake_address.to_primitive()
-            ] = self.withdrawable_amount.lovelace
+            withdraw[self.stake_address.to_primitive()] = (
+                self.withdrawable_amount.lovelace
+            )
             if self.stake_signing_key not in signers_list:
                 signers_list.append(self.stake_signing_key)
         elif isinstance(withdrawals, dict):
@@ -1840,7 +1836,7 @@ def get_stake_info(
     if isinstance(stake_address, str):
         stake_address = Address.from_primitive(stake_address)
 
-    if not type(stake_address) == Address:
+    if not isinstance(stake_address, Address):
         raise TypeError(f"Address {stake_address} is not a valid stake address.")
 
     if not stake_address.staking_part:
@@ -1864,7 +1860,7 @@ def get_stake_address(address: Union[str, Address]) -> Address:
     if isinstance(address, str):
         address = Address.from_primitive(address)
 
-    if not type(address) == Address:
+    if not isinstance(address, Address):
         raise TypeError(f"Address {address} is not a valid address.")
 
     return Address.from_primitive(
