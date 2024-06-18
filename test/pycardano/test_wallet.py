@@ -1,11 +1,25 @@
 import datetime
 import pathlib
+from typing import Literal
+
+from pycardano import (
+    Network,
+    PoolKeyHash,
+    POOL_KEY_HASH_SIZE,
+    UTxO,
+    TransactionInput,
+    Value,
+    TransactionOutput,
+    MultiAsset,
+    ScriptHash,
+    AssetName,
+    Asset,
+)
 from test.pycardano.util import (
     blockfrost_patch,
-    chain_context,
     mock_blockfrost_api_error,
 )
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 import pytest
 from blockfrost import BlockFrostApi
@@ -107,6 +121,7 @@ def test_amount():
     assert -Lovelace(5) == Lovelace(-5)
     assert -Ada(5) == Ada(-5)
     assert round(Ada(5.66)) == Ada(6)
+    assert repr(Lovelace(2)) == "Lovelace(2)"
 
     with pytest.raises(TypeError):
         Lovelace(500) == "500"
@@ -576,3 +591,97 @@ def test_wallet_init():
     assert wallet.stake_verification_key_hash == VerificationKeyHash.from_primitive(
         "4828a2dadba97ca9fd0cdc99975899470c219bdc0d828cfa6ddf6d69"
     )
+
+
+@pytest.mark.parametrize(
+    "test_input, expected",
+    [
+        ("mainnet", Network.MAINNET),
+        ("preprod", Network.TESTNET),
+        ("preview", Network.TESTNET),
+    ],
+)
+def test_none_context_init(
+    test_input: Literal["mainnet", "preview", "preprod"], expected: Network
+):
+    with patch(
+        "pycardano.backend.blockfrost.BlockFrostApi",
+        return_value=MagicMock(),
+    ):
+        wallet = Wallet(
+            name="payment",
+            keys_dir=str(pathlib.Path(__file__).parent / "../resources/keys"),
+            network=test_input,
+            context=None,
+        )
+    assert wallet.context.network == expected
+
+
+def test_pool_id(wallet, pool_id):
+    assert wallet.pool_id == pool_id
+
+
+def test_withdrawable_amount(wallet):
+    assert wallet.withdrawable_amount == 1000000
+
+
+def test_empty_wallet(wallet, address):
+    tx_cbor = wallet.empty_wallet(address, submit=False)
+    assert tx_cbor is not None
+
+
+def test_send_utxo(wallet, address):
+    tx_cbor = wallet.send_utxo(address, wallet.utxos[0], submit=False)
+    assert tx_cbor is not None
+
+
+def test_send_ada(wallet):
+    tx_cbor_1 = wallet.send_ada(WALLET.address, Ada(1), submit=False)
+    tx_cbor_2 = wallet.send_ada(WALLET.address, Ada(1), wallet.utxos[0], submit=False)
+    assert tx_cbor_1 is not None
+    assert tx_cbor_2 is not None
+
+
+def test_delegate(wallet):
+    tx_cbor_1 = wallet.delegate(
+        PoolKeyHash(b"1" * POOL_KEY_HASH_SIZE), True, submit=False
+    )
+    tx_cbor_2 = wallet.delegate(
+        PoolKeyHash(b"1" * POOL_KEY_HASH_SIZE),
+        True,
+        utxos=wallet.utxos[0],
+        submit=False,
+    )
+    assert tx_cbor_1 is not None
+    assert tx_cbor_2 is not None
+
+
+def test_withdraw_rewards(wallet):
+    tx_cbor = wallet.withdraw_rewards(submit=False)
+    assert tx_cbor is not None
+
+
+def test_mint_tokens(wallet, token):
+    tx_cbor = wallet.mint_tokens(wallet.address, token, submit=False)
+    assert tx_cbor is not None
+
+
+def test_burn_tokens(wallet, token):
+    multi_asset = MultiAsset()
+    assets = Asset()
+    asset_name = AssetName(token.bytes_name)
+    assets[asset_name] = int(token.amount)
+    policy = ScriptHash.from_primitive(token.policy_id)
+    multi_asset[policy] = assets
+
+    tx_in = TransactionInput.from_primitive([b"1" * 32, 0])
+    tx_out = TransactionOutput(
+        address=wallet.address,
+        amount=Value(
+            coin=6000000,
+            multi_asset=multi_asset,
+        ),
+    )
+    utxo = UTxO(tx_in, tx_out)
+    tx_cbor = wallet.burn_tokens(token, wallet.address, utxos=utxo, build_only=True)
+    assert tx_cbor is not None
