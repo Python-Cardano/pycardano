@@ -15,6 +15,7 @@ from pycardano.backend.base import (
     ChainContext,
     GenesisParameters,
     ProtocolParameters,
+    StakeAddressInfo,
 )
 from pycardano.exception import TransactionFailedException
 from pycardano.hash import SCRIPT_HASH_SIZE, DatumHash, ScriptHash
@@ -305,3 +306,22 @@ class BlockFrostChainContext(ChainContext):
                     getattr(result.EvaluationResult, k).steps,
                 )
             return return_val
+
+    def _stake_address_info(self, address: str) -> List[StakeAddressInfo]:
+        """Get the current delegation and reward account for a stake address.
+
+        Args:
+            address (str): An address encoded with bech32.
+
+        Returns:
+            List[StakeAddressInfo]: A list of StakeAddressInfo objects
+        """
+        results = self.api.accounts(address).to_dict()
+
+        return [
+            StakeAddressInfo(
+                address=results.get("stake_address"),
+                delegation=results.get("pool_id"),
+                reward_account_balance=results.get("withdrawable_amount"),
+            )
+        ]

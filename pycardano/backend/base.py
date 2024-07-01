@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 from fractions import Fraction
-from typing import Dict, List, Union
+from typing import Dict, List, Union, Optional
 
 from pycardano.address import Address
 from pycardano.exception import InvalidArgumentException
@@ -110,6 +110,19 @@ class ProtocolParameters:
     The value will be a dict of cost model parameters."""
 
 
+@dataclass(frozen=True)
+class StakeAddressInfo:
+    """The current delegation and reward account for a stake address"""
+
+    address: str
+
+    delegation: str
+
+    reward_account_balance: int
+
+    delegation_deposit: Optional[int] = None
+
+
 @typechecked
 class ChainContext:
     """Interfaces through which the library interacts with Cardano blockchain."""
@@ -137,6 +150,30 @@ class ChainContext:
     @property
     def last_block_slot(self) -> int:
         """Slot number of last block"""
+        raise NotImplementedError()
+
+    def stake_address_info(
+        self, address: Union[str, Address]
+    ) -> List[StakeAddressInfo]:
+        """Get the current delegation and reward account for a stake address.
+
+        Args:
+            address (Union[str, Address]): An address, potentially bech32 encoded
+
+        Returns:
+            List[StakeAddressInfo]: A list of StakeAddressInfo objects
+        """
+        return self._stake_address_info(str(address))
+
+    def _stake_address_info(self, address: str) -> List[StakeAddressInfo]:
+        """Get the current delegation and reward account for a stake address.
+
+        Args:
+            address (str): An address encoded with bech32.
+
+        Returns:
+            List[StakeAddressInfo]: A list of StakeAddressInfo objects
+        """
         raise NotImplementedError()
 
     def utxos(self, address: Union[str, Address]) -> List[UTxO]:

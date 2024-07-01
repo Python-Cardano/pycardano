@@ -1,5 +1,4 @@
 from functools import reduce
-from test.pycardano.util import chain_context
 from typing import List
 
 import pytest

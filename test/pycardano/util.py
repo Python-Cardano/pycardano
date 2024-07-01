@@ -1,14 +1,26 @@
 from typing import Dict, List, Union
 from unittest.mock import Mock, patch
 
-import pytest
 from blockfrost import ApiError, BlockFrostApi
 
-from pycardano import ExecutionUnits
-from pycardano.backend.base import ChainContext, GenesisParameters, ProtocolParameters
+from pycardano import ExecutionUnits, Address, ScriptHash
+from pycardano.backend.base import (
+    ChainContext,
+    GenesisParameters,
+    ProtocolParameters,
+    StakeAddressInfo,
+)
 from pycardano.network import Network
 from pycardano.serialization import CBORSerializable
-from pycardano.transaction import TransactionInput, TransactionOutput, UTxO
+from pycardano.transaction import (
+    TransactionInput,
+    TransactionOutput,
+    UTxO,
+    Value,
+    MultiAsset,
+    AssetName,
+    Asset,
+)
 
 TEST_ADDR = "addr_test1vr2p8st5t5cxqglyjky7vk98k7jtfhdpvhl4e97cezuhn0cqcexl7"
 
@@ -132,10 +144,15 @@ class FixedChainContext(ChainContext):
     def evaluate_tx_cbor(self, cbor: Union[bytes, str]) -> Dict[str, ExecutionUnits]:
         return {"spend:0": ExecutionUnits(399882, 175940720)}
 
-
-@pytest.fixture
-def chain_context():
-    return FixedChainContext()
+    def stake_address_info(self, address: str) -> List[StakeAddressInfo]:
+        return [
+            StakeAddressInfo(
+                address="stake1u9ylzsgxaa6xctf4juup682ar3juj85n8tx3hthnljg47zctvm3rc",
+                delegation="pool1pu5jlj4q9w9jlxeu370a3c9myx47md5j5m2str0naunn2q3lkdy",
+                delegation_deposit=2000000,
+                reward_account_balance=1000000,
+            )
+        ]
 
 
 # Patch BlockFrostApi to avoid network calls
