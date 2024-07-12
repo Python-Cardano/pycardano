@@ -6,6 +6,7 @@ from typing import Dict, List, Union
 
 from pycardano.address import Address
 from pycardano.exception import InvalidArgumentException
+from pycardano.logging import log_state
 from pycardano.network import Network
 from pycardano.plutus import ExecutionUnits
 from pycardano.transaction import Transaction, UTxO
@@ -160,6 +161,7 @@ class ChainContext:
         """
         raise NotImplementedError()
 
+    @log_state
     def submit_tx(self, tx: Union[Transaction, bytes, str]):
         """Submit a transaction to the blockchain.
 

@@ -55,7 +55,7 @@ clean-test: ## remove test and coverage artifacts
 	rm -fr .pytest_cache
 
 test: ## runs tests
-	poetry run pytest -s -vv -n 4
+	poetry run pytest -vv -n 4
 
 test-single: ## runs tests with "single" markers
 	poetry run pytest -s -vv -m single

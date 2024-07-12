@@ -32,6 +32,8 @@ from cbor2 import (
     CBORSimpleValue,
     CBORTag,
     dumps,
+    loads,
+    undefined,
 )
 from cbor2._types import UndefinedType, break_marker
 from frozendict import frozendict
@@ -118,6 +120,7 @@ Primitive = Union[
     frozendict,
     FrozenList,
     IndefiniteFrozenList,
+    ByteString,
 ]
 
 PRIMITIVE_TYPES = (
@@ -528,6 +531,7 @@ class CBORSerializable:
         with BytesIO(payload) as fp:
             value = IndefiniteDecoder(fp).decode()
 
+        # value = loads(payload)  # type: ignore
         return cls.from_primitive(value)
 
     def __repr__(self):
@@ -690,7 +694,7 @@ class ArrayCBORSerializable(CBORSerializable):
         Test2(c='c', test1=Test1(a='a', b=None))
     """
 
-    def to_shallow_primitive(self) -> List[Primitive]:
+    def to_shallow_primitive(self) -> Primitive:
         """
         Returns:
             :const:`Primitive`: A CBOR primitive.
@@ -879,7 +883,7 @@ class DictCBORSerializable(CBORSerializable):
         >>> t[1] = 2
         Traceback (most recent call last):
          ...
-        TypeError: type of key must be str; got int instead
+        typeguard.TypeCheckError: int is not an instance of str
     """
 
     KEY_TYPE = Any
@@ -892,8 +896,8 @@ class DictCBORSerializable(CBORSerializable):
         return getattr(self.data, item)
 
     def __setitem__(self, key: Any, value: Any):
-        check_type("key", key, self.KEY_TYPE)
-        check_type("value", value, self.VALUE_TYPE)
+        check_type(key, self.KEY_TYPE)
+        check_type(value, self.VALUE_TYPE)
         self.data[key] = value
 
     def __getitem__(self, key):
@@ -922,6 +926,13 @@ class DictCBORSerializable(CBORSerializable):
 
     def __deepcopy__(self, memodict={}):
         return self.__class__(deepcopy(self.data))
+
+    def validate(self):
+        for key, value in self.data.items():
+            if isinstance(key, CBORSerializable):
+                key.validate()
+            if isinstance(value, CBORSerializable):
+                value.validate()
 
     def to_shallow_primitive(self) -> dict:
         # Sort keys in a map according to https://datatracker.ietf.org/doc/html/rfc7049#section-3.9

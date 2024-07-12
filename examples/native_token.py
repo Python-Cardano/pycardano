@@ -6,6 +6,7 @@ This example is inspired by https://developers.cardano.org/docs/native-tokens/mi
 # Submitted transaction in this example could be found at
 # https://testnet.cardanoscan.io/transaction/632898c831719e07ad74b952880c98e9b51a1f31b25ca99e5a6e753ecd5d5201
 """
+
 import pathlib
 
 from blockfrost import ApiUrls

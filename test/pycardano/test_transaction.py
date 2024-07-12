@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from test.pycardano.util import check_two_way_cbor
 
 import pytest
+from typeguard import TypeCheckError
 
 from pycardano.address import Address
 from pycardano.exception import InvalidDataException, InvalidOperationException
@@ -76,6 +77,7 @@ def test_transaction_output_datum_hash_inline_plutus_script():
     output = TransactionOutput(
         addr, 100000000000, datum_hash=datum_hash(datum), script=script
     )
+    print(output.to_cbor_hex())
     assert (
         output.to_cbor_hex()
         == "a400581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f4011b000000174876"
@@ -340,7 +342,7 @@ def test_asset_comparison():
 
     assert not any([a == d, a <= d, d <= a])
 
-    with pytest.raises(TypeError):
+    with pytest.raises(TypeCheckError):
         a <= 1
 
 
@@ -380,7 +382,7 @@ def test_multi_asset_comparison():
     assert not a <= d
     assert not d <= a
 
-    with pytest.raises(TypeError):
+    with pytest.raises(TypeCheckError):
         a <= 1
 
 
@@ -486,3 +488,15 @@ def test_datum_witness():
     restored_tx = Transaction.from_cbor(signed_tx.to_cbor())
 
     assert signed_tx.to_cbor_hex() == restored_tx.to_cbor_hex()
+
+
+def test_out_of_bound_asset():
+    a = Asset({AssetName(b"abc"): 1 << 64})
+
+    a.to_cbor_hex()  # okay to have out of bound asset
+
+    tx = TransactionBody(mint=MultiAsset({ScriptHash(b"1" * SCRIPT_HASH_SIZE): a}))
+
+    # Not okay only when minting
+    with pytest.raises(InvalidDataException):
+        tx.to_cbor_hex()

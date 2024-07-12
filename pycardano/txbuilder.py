@@ -29,7 +29,7 @@ from pycardano.exception import (
 )
 from pycardano.hash import DatumHash, ScriptDataHash, ScriptHash, VerificationKeyHash
 from pycardano.key import ExtendedSigningKey, SigningKey, VerificationKey
-from pycardano.logging import logger
+from pycardano.logging import log_state, logger
 from pycardano.metadata import AuxiliaryData
 from pycardano.nativescript import NativeScript, ScriptAll, ScriptAny, ScriptPubkey
 from pycardano.plutus import (
@@ -147,17 +147,17 @@ class TransactionBuilder:
         init=False, default_factory=lambda: []
     )
 
-    _withdrawal_script_to_redeemers: List[
-        Tuple[ScriptType, Optional[Redeemer]]
-    ] = field(init=False, default_factory=lambda: [])
+    _withdrawal_script_to_redeemers: List[Tuple[ScriptType, Optional[Redeemer]]] = (
+        field(init=False, default_factory=lambda: [])
+    )
 
     _inputs_to_scripts: Dict[UTxO, ScriptType] = field(
         init=False, default_factory=lambda: {}
     )
 
-    _reference_scripts: List[
-        Union[NativeScript, PlutusV1Script, PlutusV2Script]
-    ] = field(init=False, default_factory=lambda: [])
+    _reference_scripts: List[Union[NativeScript, PlutusV1Script, PlutusV2Script]] = (
+        field(init=False, default_factory=lambda: [])
+    )
 
     _should_estimate_execution_units: Optional[bool] = field(init=False, default=None)
 
@@ -485,7 +485,7 @@ class TransactionBuilder:
         if self.datums or self.redeemers:
             cost_models = {}
             for s in self.all_scripts:
-                if isinstance(s, PlutusV1Script) or type(s) == bytes:
+                if isinstance(s, PlutusV1Script) or type(s) is bytes:
                     cost_models[0] = (
                         self.context.protocol_param.cost_models.get("PlutusV1")
                         or PLUTUS_V1_COST_MODEL
@@ -871,24 +871,24 @@ class TransactionBuilder:
             fee=self.fee,
             ttl=self.ttl,
             mint=self.mint,
-            auxiliary_data_hash=self.auxiliary_data.hash()
-            if self.auxiliary_data
-            else None,
+            auxiliary_data_hash=(
+                self.auxiliary_data.hash() if self.auxiliary_data else None
+            ),
             script_data_hash=self.script_data_hash,
             required_signers=self.required_signers,
             validity_start=self.validity_start,
-            collateral=[c.input for c in self.collaterals]
-            if self.collaterals
-            else None,
+            collateral=(
+                [c.input for c in self.collaterals] if self.collaterals else None
+            ),
             certificates=self.certificates,
             withdraws=self.withdrawals,
             collateral_return=self._collateral_return,
             total_collateral=self._total_collateral,
-            reference_inputs=[
-                i.input if isinstance(i, UTxO) else i for i in self.reference_inputs
-            ]
-            if self.reference_inputs
-            else None,
+            reference_inputs=(
+                [i.input if isinstance(i, UTxO) else i for i in self.reference_inputs]
+                if self.reference_inputs
+                else None
+            ),
         )
         return tx_body
 
@@ -988,6 +988,7 @@ class TransactionBuilder:
 
         return estimated_fee
 
+    @log_state
     def build(
         self,
         change_address: Optional[Address] = None,
@@ -1357,6 +1358,7 @@ class TransactionBuilder:
 
         return self.context.evaluate_tx(tx)
 
+    @log_state
     def build_and_sign(
         self,
         signing_keys: List[Union[SigningKey, ExtendedSigningKey]],

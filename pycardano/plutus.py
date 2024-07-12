@@ -62,7 +62,7 @@ class CostModels(DictCBORSerializable):
     VALUE_TYPE = dict
 
     def to_shallow_primitive(self) -> dict:
-        result: typing.Dict[Primitive, Primitive] = {}
+        result: dict[bytes, Union[typing.List[Any], bytes]] = {}
         for language in sorted(self.keys()):
             cost_model = self[language]
             if language == 0:

@@ -561,7 +561,11 @@ class TestCardanoCliChainContext:
                 protocol_minor_version=int(
                     QUERY_PROTOCOL_PARAMETERS_RESULT["protocolVersion"]["minor"]
                 ),
-                min_utxo=QUERY_PROTOCOL_PARAMETERS_RESULT["utxoCostPerByte"],
+                min_utxo=QUERY_PROTOCOL_PARAMETERS_RESULT.get(
+                    "minUTxOValue",
+                    QUERY_PROTOCOL_PARAMETERS_RESULT.get("lovelacePerUTxOWord", 0),
+                )
+                or 0,
                 min_pool_cost=QUERY_PROTOCOL_PARAMETERS_RESULT["minPoolCost"],
                 price_mem=float(
                     QUERY_PROTOCOL_PARAMETERS_RESULT["executionUnitPrices"][
@@ -596,9 +600,18 @@ class TestCardanoCliChainContext:
                     "coinsPerUtxoWord", ALONZO_COINS_PER_UTXO_WORD
                 ),
                 coins_per_utxo_byte=QUERY_PROTOCOL_PARAMETERS_RESULT.get(
-                    "coinsPerUtxoByte", 0
+                    "coinsPerUtxoByte",
+                    QUERY_PROTOCOL_PARAMETERS_RESULT.get("utxoCostPerByte", 0),
                 ),
-                cost_models=QUERY_PROTOCOL_PARAMETERS_RESULT["costModels"],
+                cost_models={
+                    l: {
+                        i: v
+                        for i, v in enumerate(
+                            QUERY_PROTOCOL_PARAMETERS_RESULT["costModels"][l]
+                        )
+                    }
+                    for l in QUERY_PROTOCOL_PARAMETERS_RESULT["costModels"]
+                },
             )
             == chain_context.protocol_param
         )

@@ -294,7 +294,7 @@ class Address(CBORSerializable):
         payment = self.payment_part or bytes()
         if self.staking_part is None:
             staking = bytes()
-        elif type(self.staking_part) == PointerAddress:
+        elif type(self.staking_part) is PointerAddress:
             staking = self.staking_part.encode()
         else:
             staking = self.staking_part

@@ -1,6 +1,7 @@
 """
 Cardano CLI Chain Context
 """
+
 import json
 import os
 import subprocess
@@ -237,11 +238,8 @@ class CardanoCliChainContext(ChainContext):
             and params["lovelacePerUTxOWord"] is not None
         ):
             return params["lovelacePerUTxOWord"]
-        elif "utxoCostPerWord" in params and params["utxoCostPerWord"] is not None:
-            return params["utxoCostPerWord"]
-        elif "utxoCostPerByte" in params and params["utxoCostPerByte"] is not None:
-            return params["utxoCostPerByte"]
-        raise ValueError("Cannot determine minUTxOValue, invalid protocol params")
+        else:
+            return 0
 
     @staticmethod
     def _parse_cost_models(cli_result: JsonDict) -> Dict[str, Dict[str, int]]:
@@ -258,6 +256,11 @@ class CardanoCliChainContext(ChainContext):
         elif "PlutusV2" in cli_cost_models:
             cost_models["PlutusV2"] = cli_cost_models["PlutusV2"].copy()
 
+        # After 8.x.x, cardano-cli returns cost models as a list
+        for m in cost_models:
+            if isinstance(cost_models[m], list):
+                cost_models[m] = {i: v for i, v in enumerate(cost_models[m])}
+
         return cost_models
 
     def _is_chain_tip_updated(self):
@@ -271,12 +274,16 @@ class CardanoCliChainContext(ChainContext):
     def _fetch_protocol_param(self) -> ProtocolParameters:
         result = self._query_current_protocol_params()
         return ProtocolParameters(
-            min_fee_constant=result["minFeeConstant"]
-            if "minFeeConstant" in result
-            else result["txFeeFixed"],
-            min_fee_coefficient=result["minFeeCoefficient"]
-            if "minFeeCoefficient" in result
-            else result["txFeePerByte"],
+            min_fee_constant=(
+                result["minFeeConstant"]
+                if "minFeeConstant" in result
+                else result["txFeeFixed"]
+            ),
+            min_fee_coefficient=(
+                result["minFeeCoefficient"]
+                if "minFeeCoefficient" in result
+                else result["txFeePerByte"]
+            ),
             max_block_size=result["maxBlockBodySize"],
             max_tx_size=result["maxTxSize"],
             max_block_header_size=result["maxBlockHeaderSize"],
@@ -291,12 +298,16 @@ class CardanoCliChainContext(ChainContext):
             protocol_minor_version=result["protocolVersion"]["minor"],
             min_utxo=self._get_min_utxo(),
             min_pool_cost=result["minPoolCost"],
-            price_mem=result["executionUnitPrices"]["priceMemory"]
-            if "executionUnitPrices" in result
-            else result["executionPrices"]["priceMemory"],
-            price_step=result["executionUnitPrices"]["priceSteps"]
-            if "executionUnitPrices" in result
-            else result["executionPrices"]["priceSteps"],
+            price_mem=(
+                result["executionUnitPrices"]["priceMemory"]
+                if "executionUnitPrices" in result
+                else result["executionPrices"]["priceMemory"]
+            ),
+            price_step=(
+                result["executionUnitPrices"]["priceSteps"]
+                if "executionUnitPrices" in result
+                else result["executionPrices"]["priceSteps"]
+            ),
             max_tx_ex_mem=result["maxTxExecutionUnits"]["memory"],
             max_tx_ex_steps=result["maxTxExecutionUnits"]["steps"],
             max_block_ex_mem=result["maxBlockExecutionUnits"]["memory"],
@@ -307,7 +318,11 @@ class CardanoCliChainContext(ChainContext):
             coins_per_utxo_word=result.get(
                 "coinsPerUtxoWord", ALONZO_COINS_PER_UTXO_WORD
             ),
-            coins_per_utxo_byte=result.get("coinsPerUtxoByte", 0),
+            coins_per_utxo_byte=(
+                result["coinsPerUtxoByte"]
+                if "coinsPerUtxoByte" in result
+                else result.get("utxoCostPerByte", 0) or 0
+            ),
             cost_models=self._parse_cost_models(result),
         )
 
