@@ -121,7 +121,7 @@ def sign(
             "signature": signed_message,
             "key": CoseKey.from_dict(key_to_return).encode().hex(),
         }
-    
+
     return signed_message
 
 

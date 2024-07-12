@@ -32,8 +32,6 @@ from cbor2 import (
     CBORSimpleValue,
     CBORTag,
     dumps,
-    loads,
-    undefined,
 )
 from cbor2._types import UndefinedType, break_marker
 from frozendict import frozendict

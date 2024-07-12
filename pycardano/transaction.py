@@ -5,7 +5,7 @@ from __future__ import annotations
 from copy import deepcopy
 from dataclasses import dataclass, field
 from pprint import pformat
-from typing import Any, Callable, List, Optional, Type, Union, cast
+from typing import Any, Callable, List, Optional, Type, Union
 
 import cbor2
 from cbor2 import CBORTag
@@ -293,6 +293,7 @@ class _DatumOption(ArrayCBORSerializable):
             self._TYPE = 1
 
     def to_shallow_primitive(self) -> Primitive:
+        data: Union[CBORTag, DatumHash, Datum]
         if self._TYPE == 1:
             data = CBORTag(24, cbor2.dumps(self.datum, default=default_encoder))
         else:
