@@ -548,7 +548,15 @@ class PlutusData(ArrayCBORSerializable):
         return getattr(cls, k)
 
     def __post_init__(self):
-        valid_types = (PlutusData, dict, IndefiniteList, int, ByteString, bytes)
+        valid_types = (
+            RawPlutusData,
+            PlutusData,
+            dict,
+            IndefiniteList,
+            int,
+            ByteString,
+            bytes,
+        )
         for f in fields(self):
             if inspect.isclass(f.type) and not issubclass(f.type, valid_types):
                 raise TypeError(
@@ -562,7 +570,7 @@ class PlutusData(ArrayCBORSerializable):
                     "Use pycardano.serialization.ByteString for long bytes."
                 )
 
-    def to_shallow_primitive(self) -> CBORTag:  # type: ignore
+    def to_shallow_primitive(self) -> CBORTag:
         primitives: Primitive = super(PlutusData, self).to_shallow_primitive()
         if primitives:
             primitives = IndefiniteList(primitives)
