@@ -490,3 +490,33 @@ def test_plutus_data_long_bytes():
     assert (
         A_tmp.to_cbor_hex() == quote_hex
     ), "Long metadata bytestring is encoded incorrectly."
+
+
+def test_plutus_raw_plutus_data():
+
+    @dataclass
+    class A(PlutusData):
+        CONSTR_ID = 0
+        payload: bytes
+
+    @dataclass
+    class B(PlutusData):
+        CONSTR_ID = 0
+
+        a: A
+        b: RawPlutusData
+        c: int
+        d: RawPlutusData
+        e: RawPlutusData
+        f: Union[RawPlutusData, bytes]
+
+    cbor = (
+        "d8799fd8799f581c2f36866691fa75a9aab66dec99f7cc2d297ca09e34d9ce68cde04773ffd879"
+        + "9f581cf0e17b51bc18962397450eb625222bce9c510cb82b213bd9cf17ea82ff1a0007a120d8"
+        + "799fd8799fd8799f581ce0b68e229f9c043ab610067ed7f3c6d662b8f3c6bb4ec452c11f6411"
+        + "ffd8799fd8799fd8799f581cf0e17b51bc18962397450eb625222bce9c510cb82b213bd9cf17"
+        + "ea82ffffffffd87980ffd87a9f9f40401a00989680ff9f581c9a9693a9a37912a5097918f979"
+        + "18d15240c92ab729a0b7c4aa144d774653554e4441451a1d5a82fdffff43d87980ff"
+    )
+
+    assert B.from_cbor(cbor).to_cbor_hex() == cbor
