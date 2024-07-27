@@ -1358,7 +1358,6 @@ class TransactionBuilder:
 
         return self.context.evaluate_tx(tx)
 
-    @log_state
     def build_and_sign(
         self,
         signing_keys: List[Union[SigningKey, ExtendedSigningKey]],
