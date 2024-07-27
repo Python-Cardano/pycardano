@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if [ "$NETWORK" = "local-alonzo" ] || [ "$NETWORK" = "local-vasil" ]
+if [ "$NETWORK" = "local-alonzo" ] || [ "$NETWORK" = "local-vasil" ] || [ "$NETWORK" = "local-chang" ]
 then
   chmod 400 /code/tmp_configs/"$NETWORK"/shelley/*.skey
   chmod 400 /code/tmp_configs/"$NETWORK"/shelley/*.vkey

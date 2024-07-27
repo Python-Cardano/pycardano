@@ -23,7 +23,49 @@ __all__ = [
     "min_lovelace_pre_alonzo",
     "min_lovelace_post_alonzo",
     "script_data_hash",
+    "tiered_reference_script_fee",
 ]
+
+
+def tiered_reference_script_fee(context: ChainContext, scripts_size: int) -> int:
+    """Calculate fee for reference scripts.
+
+    Args:
+        context (ChainContext): A chain context.
+        scripts_size (int): Size of reference scripts in bytes.
+
+    Returns:
+        int: Fee for reference scripts.
+
+    Raises:
+        ValueError: If scripts size exceeds maximum allowed size
+    """
+    if (
+        context.protocol_param.maximum_reference_scripts_size is None
+        or context.protocol_param.min_fee_reference_scripts is None
+    ):
+        return 0
+
+    max_size = context.protocol_param.maximum_reference_scripts_size["bytes"]
+    if scripts_size > max_size:
+        raise ValueError(
+            f"Reference scripts size: {scripts_size} exceeds maximum allowed size ({max_size})."
+        )
+
+    total = 0
+    if scripts_size:
+        b = context.protocol_param.min_fee_reference_scripts["base"]
+        r = context.protocol_param.min_fee_reference_scripts["range"]
+        m = context.protocol_param.min_fee_reference_scripts["multiplier"]
+
+        while scripts_size > r:
+            total += math.ceil(b * r)
+            scripts_size = math.ceil(scripts_size - r)
+            b = math.ceil(b * m)
+
+        total += math.ceil(b * scripts_size)
+
+    return total
 
 
 def fee(
@@ -31,6 +73,7 @@ def fee(
     length: int,
     exec_steps: int = 0,
     max_mem_unit: int = 0,
+    ref_script_size: int = 0,
 ) -> int:
     """Calculate fee based on the length of a transaction's CBOR bytes and script execution.
 
@@ -38,8 +81,9 @@ def fee(
         context (ChainConext): A chain context.
         length (int): The length of CBOR bytes, which could usually be derived
             by `len(tx.to_cbor())`.
-        exec_steps (Optional[int]): Number of execution steps run by plutus scripts in the transaction.
-        max_mem_unit (Optional[int]): Max numer of memory units run by plutus scripts in the transaction.
+        exec_steps (int): Number of execution steps run by plutus scripts in the transaction.
+        max_mem_unit (int): Max numer of memory units run by plutus scripts in the transaction.
+        ref_script_size (int): Size of referenced scripts in the transaction.
 
     Return:
         int: Minimum acceptable transaction fee.
@@ -49,6 +93,7 @@ def fee(
         + math.ceil(context.protocol_param.min_fee_constant)
         + math.ceil(exec_steps * context.protocol_param.price_step)
         + math.ceil(max_mem_unit * context.protocol_param.price_mem)
+        + tiered_reference_script_fee(context, ref_script_size)
     )
 
 
