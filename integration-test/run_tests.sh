@@ -62,13 +62,13 @@ poetry run pip install ogmios
 #########
 
 # Cleanup containers and volumes in case there is any running
-docker-compose -f docker-compose-chang.yml down --volumes --remove-orphans
+docker compose -f docker-compose-chang.yml down --volumes --remove-orphans
 
 # Run integration tests
 ./bootstrap.sh local-chang
 
 # Launch containers
-docker-compose -f docker-compose-chang.yml up -d
+docker compose -f docker-compose-chang.yml up -d
 
 export PAYMENT_KEY="$ROOT"/configs/local-chang/shelley/utxo-keys/utxo1.skey
 export EXTENDED_PAYMENT_KEY="$ROOT"/keys/extended.skey
@@ -80,4 +80,4 @@ export POOL_ID=$(cat "$ROOT"/keys/pool/pool.id)
 poetry run pytest -m "not (CardanoCLI)" -s -vv -n 4 "$ROOT"/test
 
 # Cleanup
-docker-compose -f docker-compose-chang.yml down --volumes --remove-orphans
+docker compose -f docker-compose-chang.yml down --volumes --remove-orphans
