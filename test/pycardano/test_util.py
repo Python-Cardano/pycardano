@@ -1,5 +1,3 @@
-from test.pycardano.util import chain_context
-
 from pycardano.hash import SCRIPT_HASH_SIZE, ScriptDataHash
 from pycardano.plutus import ExecutionUnits, PlutusData, Redeemer, RedeemerTag, Unit
 from pycardano.transaction import Value

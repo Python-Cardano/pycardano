@@ -482,6 +482,15 @@ QUERY_UTXO_RESULT = {
     },
 }
 
+STAKE_ADDRESS_INFO_RESULT = [
+    {
+        "address": "stake1u9ylzsgxaa6xctf4juup682ar3juj85n8tx3hthnljg47zctvm3rc",
+        "delegation": "pool1pu5jlj4q9w9jlxeu370a3c9myx47md5j5m2str0naunn2q3lkdy",
+        "delegationDeposit": 2000000,
+        "rewardAccountBalance": 1000000000,
+    }
+]
+
 
 def override_run_command(cmd: List[str]):
     """
@@ -498,6 +507,8 @@ def override_run_command(cmd: List[str]):
         return json.dumps(QUERY_PROTOCOL_PARAMETERS_RESULT)
     if "utxo" in cmd:
         return json.dumps(QUERY_UTXO_RESULT)
+    if "stake-address-info" in cmd:
+        return json.dumps(STAKE_ADDRESS_INFO_RESULT)
     if "txid" in cmd:
         return "270be16fa17cdb3ef683bf2c28259c978d4b7088792074f177c8efda247e23f7"
     if "version" in cmd:
@@ -732,3 +743,19 @@ class TestCardanoCliChainContext:
 
     def test_epoch(self, chain_context):
         assert chain_context.epoch == 98
+
+    def test_stake_address_info(self, chain_context):
+        results = chain_context.stake_address_info(
+            "stake1u9ylzsgxaa6xctf4juup682ar3juj85n8tx3hthnljg47zctvm3rc"
+        )
+
+        assert (
+            results[0].address
+            == "stake1u9ylzsgxaa6xctf4juup682ar3juj85n8tx3hthnljg47zctvm3rc"
+        )
+        assert (
+            results[0].delegation
+            == "pool1pu5jlj4q9w9jlxeu370a3c9myx47md5j5m2str0naunn2q3lkdy"
+        )
+        assert results[0].delegation_deposit == 2000000
+        assert results[0].reward_account_balance == 1000000000

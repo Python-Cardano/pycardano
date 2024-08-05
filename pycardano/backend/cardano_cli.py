@@ -23,6 +23,7 @@ from pycardano.backend.base import (
     ChainContext,
     GenesisParameters,
     ProtocolParameters,
+    StakeAddressInfo,
 )
 from pycardano.exception import (
     CardanoCliError,
@@ -530,3 +531,36 @@ class CardanoCliChainContext(ChainContext):
                 ) from err
 
         return txid
+
+    def _stake_address_info(self, address: str) -> List[StakeAddressInfo]:
+        """Get the current delegation and reward account for a stake address.
+
+        Args:
+            address (str): An address encoded with bech32.
+
+        Returns:
+            List[StakeAddressInfo]: A list of StakeAddressInfo objects
+        """
+        results = self._run_command(
+            [
+                "query",
+                "stake-address-info",
+                "--address",
+                address,
+                "--out-file",
+                "/dev/stdout",
+            ]
+            + self._network_args
+        )
+
+        result_json = json.loads(results)
+
+        return [
+            StakeAddressInfo(
+                address=stake_info["address"],
+                delegation=stake_info["delegation"],
+                delegation_deposit=stake_info["delegationDeposit"],
+                reward_account_balance=stake_info["rewardAccountBalance"],
+            )
+            for stake_info in result_json
+        ]

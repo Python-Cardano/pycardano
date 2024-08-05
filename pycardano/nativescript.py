@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import ClassVar, List, Type, Union, cast
+from typing import ClassVar, List, Sequence, Type, Union, cast
 
 from nacl.encoding import RawEncoder
 from nacl.hash import blake2b
@@ -129,7 +129,7 @@ class ScriptAll(NativeScript):
     json_field: ClassVar[str] = "scripts"
     _TYPE: int = field(default=1, init=False)
 
-    native_scripts: List[
+    native_scripts: Sequence[
         Union[
             ScriptPubkey,
             ScriptAll,
@@ -147,7 +147,7 @@ class ScriptAny(NativeScript):
     json_field: ClassVar[str] = "scripts"
     _TYPE: int = field(default=2, init=False)
 
-    native_scripts: List[
+    native_scripts: Sequence[
         Union[
             ScriptPubkey,
             ScriptAll,
@@ -167,7 +167,7 @@ class ScriptNofK(NativeScript):
 
     n: int
 
-    native_scripts: List[
+    native_scripts: Sequence[
         Union[
             ScriptPubkey,
             ScriptAll,
