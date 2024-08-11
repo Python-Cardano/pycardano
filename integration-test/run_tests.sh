@@ -75,7 +75,7 @@ export EXTENDED_PAYMENT_KEY="$ROOT"/keys/extended.skey
 export POOL_ID=$(cat "$ROOT"/keys/pool/pool.id)
 
 # Wait for stake pool to start producing blocks
-#sleep 30
+sleep 30
 
 poetry run pytest -m "not (CardanoCLI)" -s -vv -n 4 "$ROOT"/test
 

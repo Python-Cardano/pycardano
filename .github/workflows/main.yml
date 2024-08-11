@@ -66,7 +66,7 @@ jobs:
       - name: Dump docker logs
         if: failure()
         run: |
-          cd integration-test && docker-compose logs --no-color > integration-test.log
+          cd integration-test && docker compose logs --no-color > integration-test.log
 
       - name: Upload integration-test.log
         if: failure()
