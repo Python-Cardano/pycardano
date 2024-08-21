@@ -112,7 +112,7 @@ def override_request(method, args):
 @pytest.fixture
 def chain_context():
     with patch(
-        "pycardano.backend.ogmios.OgmiosChainContext._request",
+        "pycardano.backend.ogmios_v5.OgmiosV5ChainContext._request",
         side_effect=override_request,
     ):
         context = OgmiosV5ChainContext("", Network.TESTNET)
