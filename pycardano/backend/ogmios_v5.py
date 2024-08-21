@@ -5,7 +5,6 @@ from enum import Enum
 from fractions import Fraction
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-import requests
 import websocket
 from cachetools import Cache, LRUCache, TTLCache, func
 
@@ -16,7 +15,6 @@ from pycardano.backend.base import (
     GenesisParameters,
     ProtocolParameters,
 )
-from pycardano.backend.blockfrost import _try_fix_script
 from pycardano.exception import TransactionFailedException
 from pycardano.hash import DatumHash, ScriptHash
 from pycardano.network import Network
@@ -32,8 +30,9 @@ from pycardano.transaction import (
     Value,
 )
 from pycardano.types import JsonDict
+from pycardano.backend.kupo import KupoChainContextExtension
 
-__all__ = ["OgmiosChainContext"]
+__all__ = ["OgmiosV5ChainContext"]
 
 
 class OgmiosQueryType(str, Enum):
@@ -42,11 +41,10 @@ class OgmiosQueryType(str, Enum):
     EvaluateTx = "EvaluateTx"
 
 
-class OgmiosChainContext(ChainContext):
+class OgmiosV5ChainContext(ChainContext):
     _ws_url: str
     _network: Network
     _service_name: str
-    _kupo_url: Optional[str]
     _last_known_block_slot: int
     _last_chain_tip_fetch: float
     _genesis_param: Optional[GenesisParameters]
@@ -59,7 +57,6 @@ class OgmiosChainContext(ChainContext):
         ws_url: str,
         network: Network,
         compact_result=True,
-        kupo_url=None,
         refetch_chain_tip_interval: Optional[float] = None,
         utxo_cache_size: int = 10000,
         datum_cache_size: int = 10000,
@@ -67,7 +64,6 @@ class OgmiosChainContext(ChainContext):
         self._ws_url = ws_url
         self._network = network
         self._service_name = "ogmios.v1:compact" if compact_result else "ogmios"
-        self._kupo_url = kupo_url
         self._last_known_block_slot = 0
         self._refetch_chain_tip_interval = (
             refetch_chain_tip_interval
@@ -271,124 +267,9 @@ class OgmiosChainContext(ChainContext):
         if key in self._utxo_cache:
             return self._utxo_cache[key]
 
-        if self._kupo_url:
-            utxos = self._utxos_kupo(address)
-        else:
-            utxos = self._utxos_ogmios(address)
+        utxos = self._utxos_ogmios(address)
 
         self._utxo_cache[key] = utxos
-
-        return utxos
-
-    def _get_datum_from_kupo(self, datum_hash: str) -> Optional[RawCBOR]:
-        """Get datum from Kupo.
-
-        Args:
-            datum_hash (str): A datum hash.
-
-        Returns:
-            Optional[RawCBOR]: A datum.
-        """
-        datum = self._datum_cache.get(datum_hash, None)
-
-        if datum is not None:
-            return datum
-
-        if self._kupo_url is None:
-            raise AssertionError(
-                "kupo_url object attribute has not been assigned properly."
-            )
-
-        kupo_datum_url = self._kupo_url + "/datums/" + datum_hash
-        datum_result = requests.get(kupo_datum_url).json()
-        if datum_result and datum_result["datum"] != datum_hash:
-            datum = RawCBOR(bytes.fromhex(datum_result["datum"]))
-
-        self._datum_cache[datum_hash] = datum
-        return datum
-
-    def _utxos_kupo(self, address: str) -> List[UTxO]:
-        """Get all UTxOs associated with an address with Kupo.
-        Since UTxO querying will be deprecated from Ogmios in next
-        major release: https://ogmios.dev/mini-protocols/local-state-query/.
-
-        Args:
-            address (str): An address encoded with bech32.
-
-        Returns:
-            List[UTxO]: A list of UTxOs.
-        """
-        if self._kupo_url is None:
-            raise AssertionError(
-                "kupo_url object attribute has not been assigned properly."
-            )
-
-        kupo_utxo_url = self._kupo_url + "/matches/" + address + "?unspent"
-        results = requests.get(kupo_utxo_url).json()
-
-        utxos = []
-
-        for result in results:
-            tx_id = result["transaction_id"]
-            index = result["output_index"]
-
-            if result["spent_at"] is None:
-                tx_in = TransactionInput.from_primitive([tx_id, index])
-
-                lovelace_amount = result["value"]["coins"]
-
-                script = None
-                script_hash = result.get("script_hash", None)
-                if script_hash:
-                    kupo_script_url = self._kupo_url + "/scripts/" + script_hash
-                    script = requests.get(kupo_script_url).json()
-                    if script["language"] == "plutus:v2":
-                        script = PlutusV2Script(bytes.fromhex(script["script"]))
-                        script = _try_fix_script(script_hash, script)
-                    elif script["language"] == "plutus:v1":
-                        script = PlutusV1Script(bytes.fromhex(script["script"]))
-                        script = _try_fix_script(script_hash, script)
-                    else:
-                        raise ValueError("Unknown plutus script type")
-
-                datum = None
-                datum_hash = (
-                    DatumHash.from_primitive(result["datum_hash"])
-                    if result["datum_hash"]
-                    else None
-                )
-                if datum_hash and result.get("datum_type", "inline"):
-                    datum = self._get_datum_from_kupo(result["datum_hash"])
-
-                if not result["value"]["assets"]:
-                    tx_out = TransactionOutput(
-                        Address.from_primitive(address),
-                        amount=lovelace_amount,
-                        datum_hash=datum_hash,
-                        datum=datum,
-                        script=script,
-                    )
-                else:
-                    multi_assets = MultiAsset()
-
-                    for asset, quantity in result["value"]["assets"].items():
-                        policy_hex, policy, asset_name_hex = self._extract_asset_info(
-                            asset
-                        )
-                        multi_assets.setdefault(policy, Asset())[
-                            asset_name_hex
-                        ] = quantity
-
-                    tx_out = TransactionOutput(
-                        Address.from_primitive(address),
-                        amount=Value(lovelace_amount, multi_assets),
-                        datum_hash=datum_hash,
-                        datum=datum,
-                        script=script,
-                    )
-                utxos.append(UTxO(tx_in, tx_out))
-            else:
-                continue
 
         return utxos
 
@@ -545,3 +426,25 @@ class OgmiosChainContext(ChainContext):
                     result["EvaluationResult"][k]["steps"],
                 )
             return result["EvaluationResult"]
+
+
+def KupoOgmiosV5ChainContext(
+    ws_url: str,
+    network: Network,
+    compact_result=True,
+    refetch_chain_tip_interval: Optional[float] = None,
+    utxo_cache_size: int = 10000,
+    datum_cache_size: int = 10000,
+    kupo_url: Optional[str] = None,
+) -> KupoChainContextExtension:
+    return KupoChainContextExtension(
+        OgmiosV5ChainContext(
+            ws_url,
+            network,
+            compact_result,
+            refetch_chain_tip_interval,
+            utxo_cache_size,
+            datum_cache_size,
+        ),
+        kupo_url,
+    )

@@ -22,7 +22,7 @@ class TestBase:
     # TODO: Bring back kupo test
     KUPO_URL = "http://localhost:1442"
 
-    chain_context = python_ogmios.OgmiosChainContext(
+    chain_context = python_ogmios.OgmiosV5ChainContext(
         host="localhost", port=1337, network=Network.TESTNET
     )
 

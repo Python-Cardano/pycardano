@@ -4,7 +4,7 @@ from unittest.mock import patch
 import pytest
 
 from pycardano.backend.base import GenesisParameters, ProtocolParameters
-from pycardano.backend.ogmios import OgmiosChainContext
+from pycardano.backend.ogmios_v5 import OgmiosV5ChainContext
 from pycardano.network import Network
 from pycardano.transaction import MultiAsset, TransactionInput
 
@@ -115,7 +115,7 @@ def chain_context():
         "pycardano.backend.ogmios.OgmiosChainContext._request",
         side_effect=override_request,
     ):
-        context = OgmiosChainContext("", Network.TESTNET)
+        context = OgmiosV5ChainContext("", Network.TESTNET)
         context._request = override_request
     return context
 
