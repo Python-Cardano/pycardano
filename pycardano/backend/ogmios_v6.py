@@ -150,11 +150,11 @@ class OgmiosV6ChainContext(ChainContext):
                 pool_influence=eval(protocol_parameters.stake_pool_pledge_influence),
                 monetary_expansion=eval(protocol_parameters.monetary_expansion),
                 treasury_expansion=eval(protocol_parameters.treasury_expansion),
-                decentralization_param=None,  # TODO
+                decentralization_param=None,  # type: ignore[arg-type]
                 extra_entropy=protocol_parameters.extra_entropy,
                 protocol_major_version=protocol_parameters.version.get("major"),
                 protocol_minor_version=protocol_parameters.version.get("minor"),
-                min_utxo=None,
+                min_utxo=None,  # type: ignore[arg-type]
                 price_mem=eval(
                     protocol_parameters.script_execution_prices.get("memory")
                 ),
