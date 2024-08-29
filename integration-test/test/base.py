@@ -2,60 +2,11 @@
 
 import os
 
-import ogmios as python_ogmios
 from retry import retry
 
 from pycardano import *
 
 TEST_RETRIES = 6
-
-
-def _fetch_protocol_param(self) -> ProtocolParameters:
-    with python_ogmios.Client(self.host, self.port, self.secure) as client:
-        protocol_parameters, _ = client.query_protocol_parameters.execute()
-        pyc_protocol_params = ProtocolParameters(
-            min_fee_constant=protocol_parameters.min_fee_constant.lovelace,
-            min_fee_coefficient=protocol_parameters.min_fee_coefficient,
-            min_pool_cost=protocol_parameters.min_stake_pool_cost.lovelace,
-            max_block_size=protocol_parameters.max_block_body_size.get("bytes"),
-            max_tx_size=protocol_parameters.max_transaction_size.get("bytes"),
-            max_block_header_size=protocol_parameters.max_block_header_size.get(
-                "bytes"
-            ),
-            key_deposit=protocol_parameters.stake_credential_deposit.lovelace,
-            pool_deposit=protocol_parameters.stake_pool_deposit.lovelace,
-            pool_influence=eval(protocol_parameters.stake_pool_pledge_influence),
-            monetary_expansion=eval(protocol_parameters.monetary_expansion),
-            treasury_expansion=eval(protocol_parameters.treasury_expansion),
-            decentralization_param=None,  # TODO
-            extra_entropy=protocol_parameters.extra_entropy,
-            protocol_major_version=protocol_parameters.version.get("major"),
-            protocol_minor_version=protocol_parameters.version.get("minor"),
-            min_utxo=None,
-            price_mem=eval(protocol_parameters.script_execution_prices.get("memory")),
-            price_step=eval(protocol_parameters.script_execution_prices.get("cpu")),
-            max_tx_ex_mem=protocol_parameters.max_execution_units_per_transaction.get(
-                "memory"
-            ),
-            max_tx_ex_steps=protocol_parameters.max_execution_units_per_transaction.get(
-                "cpu"
-            ),
-            max_block_ex_mem=protocol_parameters.max_execution_units_per_block.get(
-                "memory"
-            ),
-            max_block_ex_steps=protocol_parameters.max_execution_units_per_block.get(
-                "cpu"
-            ),
-            max_val_size=protocol_parameters.max_value_size.get("bytes"),
-            collateral_percent=protocol_parameters.collateral_percentage,
-            max_collateral_inputs=protocol_parameters.max_collateral_inputs,
-            coins_per_utxo_word=ALONZO_COINS_PER_UTXO_WORD,
-            coins_per_utxo_byte=protocol_parameters.min_utxo_deposit_coefficient,
-            maximum_reference_scripts_size=protocol_parameters.max_ref_script_size,
-            min_fee_reference_scripts=protocol_parameters.min_fee_ref_scripts,
-            cost_models=self._parse_cost_models(protocol_parameters.plutus_cost_models),
-        )
-        return pyc_protocol_params
 
 
 @retry(tries=10, delay=4)
@@ -70,8 +21,7 @@ class TestBase:
     # TODO: Bring back kupo test
     KUPO_URL = "http://localhost:1442"
 
-    python_ogmios.OgmiosChainContext._fetch_protocol_param = _fetch_protocol_param
-    chain_context = python_ogmios.OgmiosChainContext(
+    chain_context = OgmiosV6ChainContext(
         host="localhost",
         port=1337,
         network=Network.TESTNET,
