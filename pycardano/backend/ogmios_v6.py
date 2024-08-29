@@ -1,5 +1,5 @@
 import time
-from typing import Optional, Union, Dict
+from typing import Optional, Union, Dict, List
 from cachetools import Cache, LRUCache, TTLCache, func
 
 from ogmios.client import Client
@@ -13,7 +13,6 @@ from ogmios.datatypes import (
 )
 from ogmios.utils import get_current_era, GenesisParameters
 
-from pycardano import RawCBOR
 from pycardano.backend.kupo import KupoChainContextExtension
 from pycardano.backend.base import (
     ChainContext,
@@ -28,6 +27,7 @@ from pycardano.transaction import (
     MultiAsset,
     AssetName,
     Asset,
+    Address as pyc_Address,
 )
 from pycardano.plutus import (
     PLUTUS_V1_COST_MODEL,
@@ -37,6 +37,7 @@ from pycardano.plutus import (
     ExecutionUnits,
 )
 from pycardano.hash import ScriptHash, DatumHash
+from pycardano.serialization import RawCBOR
 
 ALONZO_COINS_PER_UTXO_WORD = 34482
 DEFAULT_REFETCH_INTERVAL = 1000
@@ -100,12 +101,12 @@ class OgmiosV6ChainContext(ChainContext):
             tip, _ = client.query_network_tip.execute()
             return tip
 
-    def _query_utxos_by_address(self, address: Address) -> list[Utxo]:
+    def _query_utxos_by_address(self, address: pyc_Address) -> List[Utxo]:
         with Client(self.host, self.port, self.secure) as client:
             utxos, _ = client.query_utxo.execute([address])
             return utxos
 
-    def _query_utxos_by_tx_id(self, tx_id: str, index: int) -> list[Utxo]:
+    def _query_utxos_by_tx_id(self, tx_id: str, index: int) -> List[Utxo]:
         with Client(self.host, self.port, self.secure) as client:
             utxos, _ = client.query_utxo.execute([TxOutputReference(tx_id, index)])
             return utxos
@@ -150,11 +151,11 @@ class OgmiosV6ChainContext(ChainContext):
                 pool_influence=eval(protocol_parameters.stake_pool_pledge_influence),
                 monetary_expansion=eval(protocol_parameters.monetary_expansion),
                 treasury_expansion=eval(protocol_parameters.treasury_expansion),
-                decentralization_param=None,  # TODO
+                decentralization_param=None,  # type: ignore[arg-type]
                 extra_entropy=protocol_parameters.extra_entropy,
                 protocol_major_version=protocol_parameters.version.get("major"),
                 protocol_minor_version=protocol_parameters.version.get("minor"),
-                min_utxo=None,
+                min_utxo=None,  # type: ignore[arg-type]
                 price_mem=eval(
                     protocol_parameters.script_execution_prices.get("memory")
                 ),
@@ -216,7 +217,7 @@ class OgmiosV6ChainContext(ChainContext):
         tip = self._query_chain_tip()
         return tip.slot
 
-    def _utxos(self, address: str) -> list[UTxO]:
+    def _utxos(self, address: str) -> List[UTxO]:
         key = (self.last_block_slot, address)
         if key in self._utxo_cache:
             return self._utxo_cache[key]
@@ -231,7 +232,7 @@ class OgmiosV6ChainContext(ChainContext):
         results = self._query_utxos_by_tx_id(tx_id, index)
         return len(results) > 0
 
-    def _utxos_ogmios(self, address: Address) -> list[Utxo]:
+    def _utxos_ogmios(self, address: pyc_Address) -> List[Utxo]:
         """Get all UTxOs associated with an address with Ogmios.
 
         Args:
@@ -255,13 +256,12 @@ class OgmiosV6ChainContext(ChainContext):
         script = utxo.script
         if script:
             # TODO: Need to test with native scripts
-            match script["language"]:
-                case "plutus:v2":
-                    script = PlutusV2Script(bytes.fromhex(script["cbor"]))
-                case "plutus:v1":
-                    script = PlutusV1Script(bytes.fromhex(script["cbor"]))
-                case _:
-                    raise ValueError("Unknown plutus script type")
+            if script["language"] == "plutus:v2":
+                script = PlutusV2Script(bytes.fromhex(script["cbor"]))
+            elif script["language"] == "plutus:v1":
+                script = PlutusV1Script(bytes.fromhex(script["cbor"]))
+            else:
+                raise ValueError("Unknown plutus script type")
         datum_hash = (
             DatumHash.from_primitive(utxo.datum_hash) if utxo.datum_hash else None
         )
@@ -270,7 +270,7 @@ class OgmiosV6ChainContext(ChainContext):
             datum = RawCBOR(bytes.fromhex(utxo.datum))
         if set(utxo.value.keys()) == {"ada"}:
             tx_out = TransactionOutput(
-                Address.from_primitive(utxo.address),
+                pyc_Address.from_primitive(utxo.address),
                 amount=lovelace_amount,
                 datum_hash=datum_hash,
                 datum=datum,
@@ -286,7 +286,7 @@ class OgmiosV6ChainContext(ChainContext):
                         multi_assets.setdefault(policy, Asset())[token_name] = quantity
 
             tx_out = TransactionOutput(
-                Address.from_primitive(utxo.address),
+                pyc_Address.from_primitive(utxo.address),
                 amount=Value(lovelace_amount, multi_assets),
                 datum_hash=datum_hash,
                 datum=datum,
@@ -346,22 +346,24 @@ class OgmiosV6ChainContext(ChainContext):
 
 
 def KupoOgmiosV6ChainContext(
-    ws_url: str,
-    network: Network,
-    compact_result=True,
+    host: str,
+    port: int,
+    secure: bool,
     refetch_chain_tip_interval: Optional[float] = None,
     utxo_cache_size: int = 10000,
     datum_cache_size: int = 10000,
+    network: Network = Network.TESTNET,
     kupo_url: Optional[str] = None,
 ) -> KupoChainContextExtension:
     return KupoChainContextExtension(
         OgmiosV6ChainContext(
-            ws_url,
-            network,
-            compact_result,
+            host,
+            port,
+            secure,
             refetch_chain_tip_interval,
             utxo_cache_size,
             datum_cache_size,
+            network,
         ),
         kupo_url,
     )

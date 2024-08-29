@@ -3,7 +3,7 @@ import time
 from datetime import datetime, timezone
 from enum import Enum
 from fractions import Fraction
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Union
 
 import websocket
 from cachetools import Cache, LRUCache, TTLCache, func
@@ -16,13 +16,12 @@ from pycardano.backend.base import (
     ProtocolParameters,
 )
 from pycardano.exception import TransactionFailedException
-from pycardano.hash import DatumHash, ScriptHash
+from pycardano.hash import DatumHash
 from pycardano.network import Network
 from pycardano.plutus import ExecutionUnits, PlutusV1Script, PlutusV2Script
 from pycardano.serialization import RawCBOR
 from pycardano.transaction import (
     Asset,
-    AssetName,
     MultiAsset,
     TransactionInput,
     TransactionOutput,
@@ -30,7 +29,7 @@ from pycardano.transaction import (
     Value,
 )
 from pycardano.types import JsonDict
-from pycardano.backend.kupo import KupoChainContextExtension
+from pycardano.backend.kupo import KupoChainContextExtension, extract_asset_info
 
 __all__ = ["OgmiosV5ChainContext"]
 
@@ -283,21 +282,6 @@ class OgmiosV5ChainContext(ChainContext):
         results = self._query_utxos_by_tx_id(tx_id, index)
         return len(results) > 0
 
-    def _extract_asset_info(self, asset_hash: str) -> Tuple[str, ScriptHash, AssetName]:
-        split_result = asset_hash.split(".")
-
-        if len(split_result) == 1:
-            policy_hex, asset_name_hex = split_result[0], ""
-        elif len(split_result) == 2:
-            policy_hex, asset_name_hex = split_result
-        else:
-            raise ValueError(f"Unable to parse asset hash: {asset_hash}")
-
-        policy = ScriptHash.from_primitive(policy_hex)
-        asset_name = AssetName.from_primitive(asset_name_hex)
-
-        return policy_hex, policy, asset_name
-
     def _utxos_ogmios(self, address: str) -> List[UTxO]:
         """Get all UTxOs associated with an address with Ogmios.
 
@@ -369,7 +353,7 @@ class OgmiosV5ChainContext(ChainContext):
             multi_assets = MultiAsset()
 
             for asset, quantity in output["value"]["assets"].items():
-                policy_hex, policy, asset_name_hex = self._extract_asset_info(asset)
+                policy_hex, policy, asset_name_hex = extract_asset_info(asset)
                 multi_assets.setdefault(policy, Asset())[asset_name_hex] = quantity
 
             tx_out = TransactionOutput(
