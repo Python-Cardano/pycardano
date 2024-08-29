@@ -180,6 +180,8 @@ class OgmiosV6ChainContext(ChainContext):
                 cost_models=self._parse_cost_models(
                     protocol_parameters.plutus_cost_models
                 ),
+                maximum_reference_scripts_size=protocol_parameters.max_ref_script_size,
+                min_fee_reference_scripts=protocol_parameters.min_fee_ref_scripts,
             )
             return pyc_protocol_params
 
