@@ -1,4 +1,10 @@
 {
+  "protocolParams": {
+    "protocolVersion": {
+      "minor": 0,
+      "major": 9
+    }
+  },
   "poolVotingThresholds": {
     "committeeNormal": 0.65,
     "committeeNoConfidence": 0.65,

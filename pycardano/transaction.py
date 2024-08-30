@@ -28,7 +28,7 @@ from pycardano.hash import (
 from pycardano.metadata import AuxiliaryData
 from pycardano.nativescript import NativeScript
 from pycardano.network import Network
-from pycardano.plutus import Datum, PlutusV1Script, PlutusV2Script, RawPlutusData
+from pycardano.plutus import Datum, PlutusV1Script, PlutusV2Script, PlutusV3Script, RawPlutusData
 from pycardano.serialization import (
     ArrayCBORSerializable,
     CBORSerializable,
@@ -370,7 +370,7 @@ class TransactionOutput(CBORSerializable):
 
     datum: Optional[Datum] = None
 
-    script: Optional[Union[NativeScript, PlutusV1Script, PlutusV2Script]] = None
+    script: Optional[Union[NativeScript, PlutusV1Script, PlutusV2Script, PlutusV3Script]] = None
 
     post_alonzo: Optional[bool] = False
 

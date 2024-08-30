@@ -290,9 +290,11 @@ class TransactionBuilder:
         for candidate_script, candidate_utxo in candidate_scripts:
             if script_hash(candidate_script) != input_script_hash:
                 continue
+
             found_valid_script = True
             self._inputs_to_scripts[utxo] = candidate_script
-            if candidate_utxo is not None:
+
+            if candidate_utxo is not None and candidate_utxo != utxo:
                 self.reference_inputs.add(candidate_utxo)
                 self._reference_scripts.append(candidate_script)
             break
@@ -944,9 +946,13 @@ class TransactionBuilder:
             )
         return tx
 
-    def build_witness_set(self) -> TransactionWitnessSet:
+    def build_witness_set(self, remove_dup_script=False) -> TransactionWitnessSet:
         """Build a transaction witness set, excluding verification key witnesses.
         This function is especially useful when the transaction involves Plutus scripts.
+
+        Args:
+            remove_dup_script (bool): Whether to remove scripts, that are already attached to inputs,
+             from the witness set.
 
         Returns:
             TransactionWitnessSet: A transaction witness set without verification key witnesses.
@@ -957,21 +963,24 @@ class TransactionBuilder:
         plutus_v2_scripts: List[PlutusV2Script] = []
         plutus_v3_scripts: List[PlutusV3Script] = []
 
+        input_scripts = {script_hash(i.output.script) for i in self.inputs if i.output.script is not None} if remove_dup_script else {}
+
         for script in self.scripts:
-            if isinstance(script, NativeScript):
-                native_scripts.append(script)
-            elif isinstance(script, PlutusV1Script):
-                plutus_v1_scripts.append(script)
-            elif type(script) is bytes:
-                plutus_v1_scripts.append(PlutusV1Script(script))
-            elif isinstance(script, PlutusV2Script):
-                plutus_v2_scripts.append(script)
-            elif isinstance(script, PlutusV3Script):
-                plutus_v3_scripts.append(script)
-            else:
-                raise InvalidArgumentException(
-                    f"Unsupported script type: {type(script)}"
-                )
+            if script_hash(script) not in input_scripts:
+                if isinstance(script, NativeScript):
+                    native_scripts.append(script)
+                elif isinstance(script, PlutusV1Script):
+                    plutus_v1_scripts.append(script)
+                elif type(script) is bytes:
+                    plutus_v1_scripts.append(PlutusV1Script(script))
+                elif isinstance(script, PlutusV2Script):
+                    plutus_v2_scripts.append(script)
+                elif isinstance(script, PlutusV3Script):
+                    plutus_v3_scripts.append(script)
+                else:
+                    raise InvalidArgumentException(
+                        f"Unsupported script type: {type(script)}"
+                    )
 
         return TransactionWitnessSet(
             native_scripts=native_scripts if native_scripts else None,
@@ -1432,7 +1441,7 @@ class TransactionBuilder:
             auto_ttl_offset=auto_ttl_offset,
             auto_required_signers=auto_required_signers,
         )
-        witness_set = self.build_witness_set()
+        witness_set = self.build_witness_set(True)
         witness_set.vkey_witnesses = []
 
         for signing_key in set(signing_keys):

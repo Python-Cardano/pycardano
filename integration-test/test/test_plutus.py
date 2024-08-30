@@ -389,9 +389,11 @@ class TestPlutus(TestBase):
 
         with open("./plutus_scripts/helloworldV3.plutus", "r") as f:
             script_hex = f.read()
-            hello_world_script = cbor2.loads(bytes.fromhex(script_hex))
+            hello_world_script = bytes.fromhex(script_hex)
 
         script_hash = plutus_script_hash(PlutusV3Script(hello_world_script))
+
+        print("script_hash: ", script_hash)
 
         script_address = Address(script_hash, network=self.NETWORK)
 
@@ -417,7 +419,7 @@ class TestPlutus(TestBase):
 
         utxo_to_spend = self.chain_context.utxos(script_address)[0]
 
-        taker_address = Address(self.extended_payment_vkey.hash(), network=self.NETWORK)
+        taker_address = Address(self.payment_vkey.hash(), network=self.NETWORK)
 
         builder = TransactionBuilder(self.chain_context)
 
