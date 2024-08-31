@@ -34,7 +34,7 @@ from pycardano.plutus import (
     PLUTUS_V2_COST_MODEL,
     PlutusV1Script,
     PlutusV2Script,
-    ExecutionUnits,
+    ExecutionUnits, PlutusV3Script,
 )
 from pycardano.hash import ScriptHash, DatumHash
 from pycardano.serialization import RawCBOR
@@ -258,6 +258,8 @@ class OgmiosV6ChainContext(ChainContext):
         script = utxo.script
         if script:
             # TODO: Need to test with native scripts
+            if script["language"] == "plutus:v3":
+                script = PlutusV3Script(bytes.fromhex(script["cbor"]))
             if script["language"] == "plutus:v2":
                 script = PlutusV2Script(bytes.fromhex(script["cbor"]))
             elif script["language"] == "plutus:v1":
@@ -344,6 +346,11 @@ class OgmiosV6ChainContext(ChainContext):
                     ogmios_cost_models["plutus:v2"].copy(),
                 )
             )
+        if "plutus:v3" in ogmios_cost_models:
+            cost_models["PlutusV3"] = {}
+            width = len(ogmios_cost_models["plutus:v3"])
+            for i, v in enumerate(ogmios_cost_models["plutus:v3"].copy()):
+                cost_models["PlutusV3"][f"{i:0{width}d}"] = v
         return cost_models
 
 

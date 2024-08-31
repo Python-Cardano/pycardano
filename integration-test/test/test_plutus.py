@@ -439,6 +439,8 @@ class TestPlutus(TestBase):
         print("############### Submitting transaction ###############")
         self.chain_context.submit_tx(signed_tx)
 
+        time.sleep(3)
+
         self.assert_output(taker_address, take_output)
 
 

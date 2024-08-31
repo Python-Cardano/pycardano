@@ -496,6 +496,8 @@ class TransactionBuilder:
     def script_data_hash(self) -> Optional[ScriptDataHash]:
         if self.datums or self.redeemers:
             cost_models = {}
+            print("All scripts", self.all_scripts)
+            print("Cost models", self.context.protocol_param.cost_models)
             for s in self.all_scripts:
                 if isinstance(s, PlutusV1Script) or type(s) is bytes:
                     cost_models[0] = (
@@ -508,7 +510,7 @@ class TransactionBuilder:
                         or PLUTUS_V2_COST_MODEL
                     )
                 if isinstance(s, PlutusV3Script):
-                    cost_models[1] = self.context.protocol_param.cost_models.get(
+                    cost_models[2] = self.context.protocol_param.cost_models.get(
                         "PlutusV3", {}
                     )
             return script_data_hash(
@@ -1263,6 +1265,7 @@ class TransactionBuilder:
         if (
             not witnesses.plutus_v1_script
             and not witnesses.plutus_v2_script
+            and not witnesses.plutus_v3_script
             and not self._reference_scripts
         ):
             return
@@ -1390,6 +1393,8 @@ class TransactionBuilder:
         tx = Transaction(
             tx_body, witness_set, auxiliary_data=tmp_builder.auxiliary_data
         )
+
+        print(tx)
 
         return self.context.evaluate_tx(tx)
 
