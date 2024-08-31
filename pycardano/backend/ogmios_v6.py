@@ -1,48 +1,48 @@
 import time
-from typing import Optional, Union, Dict, List
-from cachetools import Cache, LRUCache, TTLCache, func
+from typing import Dict, List, Optional, Union
 
+from cachetools import Cache, LRUCache, TTLCache, func
 from ogmios.client import Client
 from ogmios.datatypes import (
-    ProtocolParameters,
-    Era,
-    Tip,
-    Utxo,
     Address,
+    Era,
+    ProtocolParameters,
+    Tip,
     TxOutputReference,
+    Utxo,
 )
-from ogmios.utils import get_current_era, GenesisParameters
+from ogmios.utils import GenesisParameters, get_current_era
 
+from pycardano.backend.base import ChainContext
+from pycardano.backend.base import ProtocolParameters as pycProtocolParameters
 from pycardano.backend.kupo import KupoChainContextExtension
-from pycardano.backend.base import (
-    ChainContext,
-    ProtocolParameters as pycProtocolParameters,
-)
+from pycardano.hash import DatumHash, ScriptHash
 from pycardano.network import Network
-from pycardano.transaction import (
-    UTxO,
-    TransactionOutput,
-    Value,
-    TransactionInput,
-    MultiAsset,
-    AssetName,
-    Asset,
-    Address as pyc_Address,
-)
 from pycardano.plutus import (
     PLUTUS_V1_COST_MODEL,
     PLUTUS_V2_COST_MODEL,
+    ExecutionUnits,
     PlutusV1Script,
     PlutusV2Script,
-    ExecutionUnits, PlutusV3Script,
+    PlutusV3Script,
 )
-from pycardano.hash import ScriptHash, DatumHash
 from pycardano.serialization import RawCBOR
+from pycardano.transaction import Address as pyc_Address
+from pycardano.transaction import (
+    Asset,
+    AssetName,
+    MultiAsset,
+    TransactionInput,
+    TransactionOutput,
+    UTxO,
+    Value,
+)
 
 ALONZO_COINS_PER_UTXO_WORD = 34482
 DEFAULT_REFETCH_INTERVAL = 1000
 
 __all__ = ["OgmiosV6ChainContext"]
+
 
 class OgmiosV6ChainContext(ChainContext):
     """Ogmios chain context for use with PyCardano"""

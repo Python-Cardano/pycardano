@@ -15,6 +15,7 @@ from pycardano.backend.base import (
     GenesisParameters,
     ProtocolParameters,
 )
+from pycardano.backend.kupo import KupoChainContextExtension, extract_asset_info
 from pycardano.exception import TransactionFailedException
 from pycardano.hash import DatumHash
 from pycardano.network import Network
@@ -29,7 +30,6 @@ from pycardano.transaction import (
     Value,
 )
 from pycardano.types import JsonDict
-from pycardano.backend.kupo import KupoChainContextExtension, extract_asset_info
 
 __all__ = ["OgmiosV5ChainContext"]
 

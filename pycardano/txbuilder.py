@@ -963,7 +963,15 @@ class TransactionBuilder:
         plutus_v2_scripts: List[PlutusV2Script] = []
         plutus_v3_scripts: List[PlutusV3Script] = []
 
-        input_scripts = {script_hash(i.output.script) for i in self.inputs if i.output.script is not None} if remove_dup_script else {}
+        input_scripts = (
+            {
+                script_hash(i.output.script)
+                for i in self.inputs
+                if i.output.script is not None
+            }
+            if remove_dup_script
+            else {}
+        )
 
         for script in self.scripts:
             if script_hash(script) not in input_scripts:
