@@ -1392,8 +1392,6 @@ class TransactionBuilder:
             tx_body, witness_set, auxiliary_data=tmp_builder.auxiliary_data
         )
 
-        print(tx)
-
         return self.context.evaluate_tx(tx)
 
     def build_and_sign(
