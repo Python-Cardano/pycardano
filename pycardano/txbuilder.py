@@ -496,8 +496,6 @@ class TransactionBuilder:
     def script_data_hash(self) -> Optional[ScriptDataHash]:
         if self.datums or self.redeemers:
             cost_models = {}
-            print("All scripts", self.all_scripts)
-            print("Cost models", self.context.protocol_param.cost_models)
             for s in self.all_scripts:
                 if isinstance(s, PlutusV1Script) or type(s) is bytes:
                     cost_models[0] = (
