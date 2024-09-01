@@ -17,6 +17,7 @@ from pycardano.nativescript import (
     ScriptAll,
     ScriptPubkey,
 )
+from pycardano.plutus import PlutusV1Script
 
 M_PRIMITIVE = {123: {"test": b"123", 2: 3, 3: [1, 2, {(1, 2, 3): "token"}]}}
 
@@ -56,9 +57,9 @@ def test_shelley_marry_metadata():
 def test_alonzo_metadata():
     script = generate_script()
     m = Metadata(M_PRIMITIVE)
-    plutus_scripts = [b"fake_script"]
+    plutus_scripts = [PlutusV1Script(b"fake_script")]
 
-    alonzo_m = AlonzoMetadata(m, [script], plutus_scripts)
+    alonzo_m = AlonzoMetadata(m, [script], plutus_v1_scripts=plutus_scripts)
 
     check_two_way_cbor(alonzo_m)
 
@@ -73,11 +74,11 @@ def test_alonzo_metadata():
 
 def test_auxiliary_data():
     script = generate_script()
-    plutus_scripts = [b"fake_script"]
+    plutus_scripts = [PlutusV1Script(b"fake_script")]
 
     m = Metadata(M_PRIMITIVE)
     shelley_marry_m = ShelleyMarryMetadata(m, [script])
-    alonzo_m = AlonzoMetadata(m, [script], plutus_scripts)
+    alonzo_m = AlonzoMetadata(m, [script], plutus_v1_scripts=plutus_scripts)
 
     check_two_way_cbor(AuxiliaryData(m))
     check_two_way_cbor(AuxiliaryData(shelley_marry_m))

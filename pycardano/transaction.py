@@ -28,7 +28,13 @@ from pycardano.hash import (
 from pycardano.metadata import AuxiliaryData
 from pycardano.nativescript import NativeScript
 from pycardano.network import Network
-from pycardano.plutus import Datum, PlutusV1Script, PlutusV2Script, RawPlutusData
+from pycardano.plutus import (
+    Datum,
+    PlutusV1Script,
+    PlutusV2Script,
+    PlutusV3Script,
+    RawPlutusData,
+)
 from pycardano.serialization import (
     ArrayCBORSerializable,
     CBORSerializable,
@@ -259,15 +265,17 @@ class Value(ArrayCBORSerializable):
 class _Script(ArrayCBORSerializable):
     _TYPE: int = field(init=False, default=0)
 
-    script: Union[NativeScript, PlutusV1Script, PlutusV2Script]
+    script: Union[NativeScript, PlutusV1Script, PlutusV2Script, PlutusV3Script]
 
     def __post_init__(self):
         if isinstance(self.script, NativeScript):
             self._TYPE = 0
         elif isinstance(self.script, PlutusV1Script):
             self._TYPE = 1
-        else:
+        elif isinstance(self.script, PlutusV2Script):
             self._TYPE = 2
+        else:
+            self._TYPE = 3
 
     @classmethod
     def from_primitive(cls: Type[_Script], values: List[Primitive]) -> _Script:
@@ -276,8 +284,10 @@ class _Script(ArrayCBORSerializable):
         assert isinstance(values[1], bytes)
         if values[0] == 1:
             return cls(PlutusV1Script(values[1]))
-        else:
+        elif values[0] == 2:
             return cls(PlutusV2Script(values[1]))
+        else:
+            return cls(PlutusV3Script(values[1]))
 
 
 @dataclass(repr=False)
@@ -344,7 +354,9 @@ class _TransactionOutputPostAlonzo(MapCBORSerializable):
     )
 
     @property
-    def script(self) -> Optional[Union[NativeScript, PlutusV1Script, PlutusV2Script]]:
+    def script(
+        self,
+    ) -> Optional[Union[NativeScript, PlutusV1Script, PlutusV2Script, PlutusV3Script]]:
         if self.script_ref:
             return self.script_ref.script.script
         else:
@@ -370,7 +382,9 @@ class TransactionOutput(CBORSerializable):
 
     datum: Optional[Datum] = None
 
-    script: Optional[Union[NativeScript, PlutusV1Script, PlutusV2Script]] = None
+    script: Optional[
+        Union[NativeScript, PlutusV1Script, PlutusV2Script, PlutusV3Script]
+    ] = None
 
     post_alonzo: Optional[bool] = False
 

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 echo "$NETWORK"
-if [ "$NETWORK" = "local-alonzo" ] || [ "$NETWORK" = "local-vasil" ]
+if [ "$NETWORK" = "local-alonzo" ] || [ "$NETWORK" = "local-vasil" ] || [ "$NETWORK" = "local-chang" ]
 then
 
 # Waiting for BFT node to be ready
@@ -15,7 +15,7 @@ done
   cardano-cli transaction build \
     --tx-in 732bfd67e66be8e8288349fcaaa2294973ef6271cc189a239bb431275401b8e5#0 \
     --tx-out "$(cat /code/keys/pool/full.addr)"+450000000000 \
-    --change-address "$(cat /code/tmp_configs/local-alonzo/shelley/utxo-keys/payment.addr)" \
+    --change-address "$(cat /code/tmp_configs/"$NETWORK"/shelley/utxo-keys/payment.addr)" \
     --out-file tx.raw \
     --testnet-magic 42 \
     --certificate-file /code/keys/pool/stake.cert \
@@ -29,7 +29,7 @@ done
 
   cardano-cli transaction sign \
     --tx-body-file tx.raw \
-    --signing-key-file /code/tmp_configs/local-alonzo/shelley/utxo-keys/utxo1.skey \
+    --signing-key-file /code/tmp_configs/"$NETWORK"/shelley/utxo-keys/utxo1.skey \
     --signing-key-file /code/keys/pool/stake.skey \
     --signing-key-file /code/keys/pool/cold.skey \
     --testnet-magic 42 \

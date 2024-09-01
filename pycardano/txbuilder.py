@@ -40,6 +40,7 @@ from pycardano.plutus import (
     ExecutionUnits,
     PlutusV1Script,
     PlutusV2Script,
+    PlutusV3Script,
     Redeemer,
     RedeemerTag,
     ScriptType,
@@ -155,9 +156,9 @@ class TransactionBuilder:
         init=False, default_factory=lambda: {}
     )
 
-    _reference_scripts: List[Union[NativeScript, PlutusV1Script, PlutusV2Script]] = (
-        field(init=False, default_factory=lambda: [])
-    )
+    _reference_scripts: List[
+        Union[NativeScript, PlutusV1Script, PlutusV2Script, PlutusV3Script]
+    ] = field(init=False, default_factory=lambda: [])
 
     _should_estimate_execution_units: Optional[bool] = field(init=False, default=None)
 
@@ -203,7 +204,7 @@ class TransactionBuilder:
         self,
         utxo: UTxO,
         script: Optional[
-            Union[UTxO, NativeScript, PlutusV1Script, PlutusV2Script]
+            Union[UTxO, NativeScript, PlutusV1Script, PlutusV2Script, PlutusV3Script]
         ] = None,
         datum: Optional[Datum] = None,
         redeemer: Optional[Redeemer] = None,
@@ -212,7 +213,8 @@ class TransactionBuilder:
 
         Args:
             utxo (UTxO): Script UTxO to be added.
-            script (Optional[Union[UTxO, NativeScript, PlutusV1Script, PlutusV2Script]]): A plutus script.
+            script (Optional[Union[UTxO, NativeScript, PlutusV1Script, PlutusV2Script, PlutusV3Script]]):
+                A plutus script.
                 If not provided, the script will be inferred from the input UTxO (first arg of this method).
                 The script can also be a specific UTxO whose output contains an inline script.
             datum (Optional[Datum]): A plutus datum to unlock the UTxO.
@@ -263,7 +265,10 @@ class TransactionBuilder:
 
         # collect potential scripts to fulfill the input
         candidate_scripts: List[
-            Tuple[Union[NativeScript, PlutusV1Script, PlutusV2Script], Optional[UTxO]]
+            Tuple[
+                Union[NativeScript, PlutusV1Script, PlutusV2Script, PlutusV3Script],
+                Optional[UTxO],
+            ]
         ] = []
         if utxo.output.script:
             candidate_scripts.append((utxo.output.script, utxo))
@@ -285,11 +290,14 @@ class TransactionBuilder:
         for candidate_script, candidate_utxo in candidate_scripts:
             if script_hash(candidate_script) != input_script_hash:
                 continue
+
             found_valid_script = True
             self._inputs_to_scripts[utxo] = candidate_script
-            if candidate_utxo is not None:
+
+            if candidate_utxo is not None and candidate_utxo != utxo:
                 self.reference_inputs.add(candidate_utxo)
                 self._reference_scripts.append(candidate_script)
+            break
         if not found_valid_script:
             raise InvalidArgumentException(
                 f"Cannot find a valid script to fulfill the input UTxO: {utxo.input}."
@@ -301,13 +309,15 @@ class TransactionBuilder:
 
     def add_minting_script(
         self,
-        script: Union[UTxO, NativeScript, PlutusV1Script, PlutusV2Script],
+        script: Union[
+            UTxO, NativeScript, PlutusV1Script, PlutusV2Script, PlutusV3Script
+        ],
         redeemer: Optional[Redeemer] = None,
     ) -> TransactionBuilder:
         """Add a minting script along with its datum and redeemer to this transaction.
 
         Args:
-            script (Union[UTxO, PlutusV1Script, PlutusV2Script]): A plutus script.
+            script (Union[UTxO, PlutusV1Script, PlutusV2Script, PlutusV3Script]): A plutus script.
             redeemer (Optional[Redeemer]): A plutus redeemer to unlock the UTxO.
 
         Returns:
@@ -333,13 +343,15 @@ class TransactionBuilder:
 
     def add_withdrawal_script(
         self,
-        script: Union[UTxO, NativeScript, PlutusV1Script, PlutusV2Script],
+        script: Union[
+            UTxO, NativeScript, PlutusV1Script, PlutusV2Script, PlutusV3Script
+        ],
         redeemer: Optional[Redeemer] = None,
     ) -> TransactionBuilder:
         """Add a withdrawal script along with its redeemer to this transaction.
 
         Args:
-            script (Union[UTxO, PlutusV1Script, PlutusV2Script]): A plutus script.
+            script (Union[UTxO, PlutusV1Script, PlutusV2Script, PlutusV3Script]): A plutus script.
             redeemer (Optional[Redeemer]): A plutus redeemer to unlock the UTxO.
 
         Returns:
@@ -494,6 +506,10 @@ class TransactionBuilder:
                     cost_models[1] = (
                         self.context.protocol_param.cost_models.get("PlutusV2")
                         or PLUTUS_V2_COST_MODEL
+                    )
+                if isinstance(s, PlutusV3Script):
+                    cost_models[2] = self.context.protocol_param.cost_models.get(
+                        "PlutusV3", {}
                     )
             return script_data_hash(
                 self.redeemers, list(self.datums.values()), CostModels(cost_models)
@@ -875,7 +891,7 @@ class TransactionBuilder:
                 self.auxiliary_data.hash() if self.auxiliary_data else None
             ),
             script_data_hash=self.script_data_hash,
-            required_signers=self.required_signers,
+            required_signers=self.required_signers if self.required_signers else None,
             validity_start=self.validity_start,
             collateral=(
                 [c.input for c in self.collaterals] if self.collaterals else None
@@ -930,9 +946,13 @@ class TransactionBuilder:
             )
         return tx
 
-    def build_witness_set(self) -> TransactionWitnessSet:
+    def build_witness_set(self, remove_dup_script=False) -> TransactionWitnessSet:
         """Build a transaction witness set, excluding verification key witnesses.
         This function is especially useful when the transaction involves Plutus scripts.
+
+        Args:
+            remove_dup_script (bool): Whether to remove scripts, that are already attached to inputs,
+             from the witness set.
 
         Returns:
             TransactionWitnessSet: A transaction witness set without verification key witnesses.
@@ -941,25 +961,40 @@ class TransactionBuilder:
         native_scripts: List[NativeScript] = []
         plutus_v1_scripts: List[PlutusV1Script] = []
         plutus_v2_scripts: List[PlutusV2Script] = []
+        plutus_v3_scripts: List[PlutusV3Script] = []
+
+        input_scripts = (
+            {
+                script_hash(i.output.script)
+                for i in self.inputs
+                if i.output.script is not None
+            }
+            if remove_dup_script
+            else {}
+        )
 
         for script in self.scripts:
-            if isinstance(script, NativeScript):
-                native_scripts.append(script)
-            elif isinstance(script, PlutusV1Script):
-                plutus_v1_scripts.append(script)
-            elif type(script) is bytes:
-                plutus_v1_scripts.append(PlutusV1Script(script))
-            elif isinstance(script, PlutusV2Script):
-                plutus_v2_scripts.append(script)
-            else:
-                raise InvalidArgumentException(
-                    f"Unsupported script type: {type(script)}"
-                )
+            if script_hash(script) not in input_scripts:
+                if isinstance(script, NativeScript):
+                    native_scripts.append(script)
+                elif isinstance(script, PlutusV1Script):
+                    plutus_v1_scripts.append(script)
+                elif type(script) is bytes:
+                    plutus_v1_scripts.append(PlutusV1Script(script))
+                elif isinstance(script, PlutusV2Script):
+                    plutus_v2_scripts.append(script)
+                elif isinstance(script, PlutusV3Script):
+                    plutus_v3_scripts.append(script)
+                else:
+                    raise InvalidArgumentException(
+                        f"Unsupported script type: {type(script)}"
+                    )
 
         return TransactionWitnessSet(
             native_scripts=native_scripts if native_scripts else None,
             plutus_v1_script=plutus_v1_scripts if plutus_v1_scripts else None,
             plutus_v2_script=plutus_v2_scripts if plutus_v2_scripts else None,
+            plutus_v3_script=plutus_v3_scripts if plutus_v3_scripts else None,
             redeemer=self.redeemers if self.redeemers else None,
             plutus_data=list(self.datums.values()) if self.datums else None,
         )
@@ -977,11 +1012,19 @@ class TransactionBuilder:
         for redeemer in self.redeemers:
             plutus_execution_units += redeemer.ex_units
 
+        ref_script_size = 0
+        for s in self._reference_scripts:
+            if isinstance(s, NativeScript):
+                ref_script_size += len(s.to_cbor())
+            else:
+                ref_script_size += len(s)
+
         estimated_fee = fee(
             self.context,
             len(self._build_full_fake_tx().to_cbor()),
             plutus_execution_units.steps,
             plutus_execution_units.mem,
+            ref_script_size,
         )
         if self.fee_buffer is not None:
             estimated_fee += self.fee_buffer
@@ -1228,6 +1271,7 @@ class TransactionBuilder:
         if (
             not witnesses.plutus_v1_script
             and not witnesses.plutus_v2_script
+            and not witnesses.plutus_v3_script
             and not self._reference_scripts
         ):
             return
@@ -1358,7 +1402,6 @@ class TransactionBuilder:
 
         return self.context.evaluate_tx(tx)
 
-    @log_state
     def build_and_sign(
         self,
         signing_keys: List[Union[SigningKey, ExtendedSigningKey]],
@@ -1407,7 +1450,7 @@ class TransactionBuilder:
             auto_ttl_offset=auto_ttl_offset,
             auto_required_signers=auto_required_signers,
         )
-        witness_set = self.build_witness_set()
+        witness_set = self.build_witness_set(True)
         witness_set.vkey_witnesses = []
 
         for signing_key in set(signing_keys):

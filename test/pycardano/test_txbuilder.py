@@ -595,7 +595,7 @@ def test_add_script_input_no_script(chain_context):
     )
     tx_builder.add_output(TransactionOutput(receiver, 5000000))
     tx_builder.build(change_address=receiver)
-    witness = tx_builder.build_witness_set()
+    witness = tx_builder.build_witness_set(remove_dup_script=True)
     assert [datum] == witness.plutus_data
     assert [redeemer] == witness.redeemer
     assert witness.plutus_v1_script is None
