@@ -59,13 +59,13 @@ def tiered_reference_script_fee(context: ChainContext, scripts_size: int) -> int
         m = context.protocol_param.min_fee_reference_scripts["multiplier"]
 
         while scripts_size > r:
-            total += math.ceil(b * r)
-            scripts_size = math.ceil(scripts_size - r)
-            b = math.ceil(b * m)
+            total += b * r
+            scripts_size = scripts_size - r
+            b = b * m
 
-        total += math.ceil(b * scripts_size)
+        total += b * scripts_size
 
-    return total
+    return math.ceil(total)
 
 
 def fee(

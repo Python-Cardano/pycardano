@@ -1,9 +1,15 @@
 from test.pycardano.util import chain_context
 
+import pytest
+
 from pycardano.hash import SCRIPT_HASH_SIZE, ScriptDataHash
 from pycardano.plutus import ExecutionUnits, PlutusData, Redeemer, RedeemerTag, Unit
 from pycardano.transaction import Value
-from pycardano.utils import min_lovelace_pre_alonzo, script_data_hash
+from pycardano.utils import (
+    min_lovelace_pre_alonzo,
+    script_data_hash,
+    tiered_reference_script_fee,
+)
 
 
 def test_min_lovelace_ada_only(chain_context):
@@ -166,3 +172,55 @@ def test_script_data_hash_redeemer_only():
     assert ScriptDataHash.from_primitive(
         "a88fe2947b8d45d1f8b798e52174202579ecf847b8f17038c7398103df2d27b0"
     ) == script_data_hash(redeemers=redeemers, datums=[])
+
+
+class MockProtocolParam:
+    def __init__(self, max_size, base, range, multiplier):
+        self.maximum_reference_scripts_size = {"bytes": max_size}
+        self.min_fee_reference_scripts = {
+            "base": base,
+            "range": range,
+            "multiplier": multiplier,
+        }
+
+
+class MockChainContext:
+    def __init__(self, protocol_param):
+        self.protocol_param = protocol_param
+
+
+@pytest.mark.parametrize(
+    "max_size,base,range,multiplier,scripts_size,expected",
+    [
+        (200 * 1024, 44, 25600, 1.2, 80 * 1024, 4489380),
+    ],
+)
+def test_tiered_reference_script_fee(
+    max_size, base, range, multiplier, scripts_size, expected
+):
+    protocol_param = MockProtocolParam(max_size, base, range, multiplier)
+    context = MockChainContext(protocol_param)
+
+    result = tiered_reference_script_fee(context, scripts_size)
+    assert result == expected
+
+
+def test_tiered_reference_script_fee_exceeds_max_size():
+    protocol_param = MockProtocolParam(1000, 10, 100, 1.1)
+    context = MockChainContext(protocol_param)
+
+    with pytest.raises(
+        ValueError, match="Reference scripts size: 1001 exceeds maximum allowed size"
+    ):
+        tiered_reference_script_fee(context, 1001)
+
+
+def test_tiered_reference_script_fee_no_params():
+    class EmptyProtocolParam:
+        maximum_reference_scripts_size = None
+        min_fee_reference_scripts = None
+
+    context = MockChainContext(EmptyProtocolParam())
+
+    result = tiered_reference_script_fee(context, 100)
+    assert result == 0
