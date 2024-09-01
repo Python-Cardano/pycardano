@@ -52,10 +52,10 @@ def tiered_reference_script_fee(context: ChainContext, scripts_size: int) -> int
             f"Reference scripts size: {scripts_size} exceeds maximum allowed size ({max_size})."
         )
 
-    total = 0
+    total = 0.0
     if scripts_size:
         b = context.protocol_param.min_fee_reference_scripts["base"]
-        r = context.protocol_param.min_fee_reference_scripts["range"]
+        r = math.ceil(context.protocol_param.min_fee_reference_scripts["range"])
         m = context.protocol_param.min_fee_reference_scripts["multiplier"]
 
         while scripts_size > r:
