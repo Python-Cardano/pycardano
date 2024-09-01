@@ -348,7 +348,7 @@ class OgmiosV6ChainContext(ChainContext):
             )
         if "plutus:v3" in ogmios_cost_models:
             cost_models["PlutusV3"] = {}
-            width = len(ogmios_cost_models["plutus:v3"])
+            width = len(f'{len(ogmios_cost_models["plutus:v3"])}')
             for i, v in enumerate(ogmios_cost_models["plutus:v3"].copy()):
                 cost_models["PlutusV3"][f"{i:0{width}d}"] = v
         return cost_models

@@ -8,6 +8,7 @@ import pytest
 from retry import retry
 
 from pycardano import *
+from pycardano.backend.kupo import KupoChainContextExtension
 
 from .base import TEST_RETRIES, TestBase
 from .test_cardano_cli import TestCardanoCli
@@ -444,10 +445,10 @@ class TestPlutus(TestBase):
         self.assert_output(taker_address, take_output)
 
 
-# class TestPlutusOgmiosOnly(TestPlutus):
-#     @classmethod
-#     def setup_class(cls):
-#         cls.chain_context._kupo_url = None
+class TestPlutusKupoOgmios(TestPlutus):
+    @classmethod
+    def setup_class(cls):
+        cls.chain_context = KupoChainContextExtension(cls.chain_context, cls.KUPO_URL)
 
 
 def evaluate_tx(tx: Transaction) -> Dict[str, ExecutionUnits]:
