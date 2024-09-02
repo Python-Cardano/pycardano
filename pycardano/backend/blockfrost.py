@@ -169,7 +169,7 @@ class BlockFrostChainContext(ChainContext):
                 maximum_reference_scripts_size={"bytes": 200000},
                 min_fee_reference_scripts={
                     "base": params.min_fee_ref_script_cost_per_byte,
-                    "range": 10,
+                    "range": 1,
                     "multiplier": 1,
                 },
             )
