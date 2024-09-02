@@ -61,6 +61,8 @@ jobs:
 
       - name: Setup docker-compose
         uses: KengoTODA/actions-setup-docker-compose@v1.2.2
+        with:
+          version: '2.14.2'
 
       - name: Run integration tests
         run: |
