@@ -2,7 +2,6 @@
 
 import os
 
-import ogmios as python_ogmios
 from retry import retry
 
 from pycardano import *
@@ -22,7 +21,7 @@ class TestBase:
     # TODO: Bring back kupo test
     KUPO_URL = "http://localhost:1442"
 
-    chain_context = python_ogmios.OgmiosV5ChainContext(
+    chain_context = OgmiosV6ChainContext(
         host="localhost", port=1337, network=Network.TESTNET
     )
 
