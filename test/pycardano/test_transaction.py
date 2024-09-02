@@ -534,15 +534,12 @@ def test_add_empty():
     )
     assert len(nft_output.multi_asset) == 0
 
+
 def test_zero_value_pop():
     policy = bytes.fromhex("a39a5998f2822dfc9111e447038c3cfffa883ed1b9e357be9cd60dfe")
     nft_output = Value(
         10000000,
-        MultiAsset.from_primitive(
-            {
-                policy: {b"MY_NFT_1": 0, b"MY_NFT_2": 1}
-            }
-        ),
+        MultiAsset.from_primitive({policy: {b"MY_NFT_1": 0, b"MY_NFT_2": 1}}),
     )
     assert len(nft_output.multi_asset) == 1
     assert len(nft_output.multi_asset[ScriptHash(policy)]) == 1
@@ -558,7 +555,7 @@ def test_empty_multiasset_pop():
                 ): {},
                 bytes.fromhex(
                     "b39a5998f2822dfc9111e447038c3cfffa883ed1b9e357be9cd60dfe"
-                ): {b"MY_NFT_1": 1}
+                ): {b"MY_NFT_1": 1},
             }
         ),
     )
@@ -569,18 +566,10 @@ def test_add_empty_pop():
     policy = bytes.fromhex("a39a5998f2822dfc9111e447038c3cfffa883ed1b9e357be9cd60dfe")
     nft_output = Value(
         10000000,
-        MultiAsset.from_primitive(
-            {
-                policy: {b"MY_NFT_1": 100, b"MY_NFT_2": 100}
-            }
-        ),
+        MultiAsset.from_primitive({policy: {b"MY_NFT_1": 100, b"MY_NFT_2": 100}}),
     ) - Value(
         5,
-        MultiAsset.from_primitive(
-            {
-                policy: {b"MY_NFT_1": 100}
-            }
-        ),
+        MultiAsset.from_primitive({policy: {b"MY_NFT_1": 100}}),
     )
     assert len(nft_output.multi_asset) == 1
     assert len(nft_output.multi_asset[ScriptHash(policy)]) == 1
