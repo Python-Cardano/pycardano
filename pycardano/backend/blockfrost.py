@@ -20,7 +20,13 @@ from pycardano.exception import TransactionFailedException
 from pycardano.hash import SCRIPT_HASH_SIZE, DatumHash, ScriptHash
 from pycardano.nativescript import NativeScript
 from pycardano.network import Network
-from pycardano.plutus import ExecutionUnits, PlutusV1Script, PlutusV2Script, script_hash
+from pycardano.plutus import (
+    ExecutionUnits,
+    PlutusV1Script,
+    PlutusV2Script,
+    script_hash,
+    PlutusV3Script,
+)
 from pycardano.serialization import RawCBOR
 from pycardano.transaction import (
     Asset,
@@ -37,8 +43,8 @@ __all__ = ["BlockFrostChainContext"]
 
 
 def _try_fix_script(
-    scripth: str, script: Union[PlutusV1Script, PlutusV2Script]
-) -> Union[PlutusV1Script, PlutusV2Script]:
+    scripth: str, script: Union[PlutusV1Script, PlutusV2Script, PlutusV3Script]
+) -> Union[PlutusV1Script, PlutusV2Script, PlutusV3Script]:
     if str(script_hash(script)) == scripth:
         return script
     else:
@@ -170,7 +176,7 @@ class BlockFrostChainContext(ChainContext):
 
     def _get_script(
         self, script_hash: str
-    ) -> Union[PlutusV1Script, PlutusV2Script, NativeScript]:
+    ) -> Union[PlutusV1Script, PlutusV2Script, PlutusV3Script, NativeScript]:
         script_type = self.api.script(script_hash).type
         if script_type == "plutusV1":
             v1script = PlutusV1Script(
@@ -182,6 +188,11 @@ class BlockFrostChainContext(ChainContext):
                 bytes.fromhex(self.api.script_cbor(script_hash).cbor)
             )
             return _try_fix_script(script_hash, v2script)
+        elif script_type == "plutusV3":
+            v3script = PlutusV3Script(
+                bytes.fromhex(self.api.script_cbor(script_hash).cbor)
+            )
+            return _try_fix_script(script_hash, v3script)
         else:
             script_json: JsonDict = self.api.script_json(
                 script_hash, return_type="json"
