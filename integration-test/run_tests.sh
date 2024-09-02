@@ -77,7 +77,7 @@ export POOL_ID=$(cat "$ROOT"/keys/pool/pool.id)
 # Wait for stake pool to start producing blocks
 sleep 30
 
-poetry run pytest -m "not (CardanoCLI)" -s -vv -n 4 "$ROOT"/test
+poetry run pytest -m "not (CardanoCLI)" -s -vv -n 4 "$ROOT"/test  --cov=pycardano --cov-config=../.coveragerc --cov-report=xml:../coverage.xml
 
 # Cleanup
 docker compose -f docker-compose-chang.yml down --volumes --remove-orphans
