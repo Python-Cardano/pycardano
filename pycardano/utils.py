@@ -184,7 +184,7 @@ def min_lovelace_pre_alonzo(
         int: Minimum required lovelace amount for this transaction output.
     """
     if amount is None or isinstance(amount, int) or not amount.multi_asset:
-        return context.protocol_param.min_utxo
+        return context.protocol_param.min_utxo or 1_000_000
 
     b_size = bundle_size(amount.multi_asset)
     utxo_entry_size = 27
