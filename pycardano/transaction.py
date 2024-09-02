@@ -42,7 +42,7 @@ from pycardano.serialization import (
     MapCBORSerializable,
     Primitive,
     default_encoder,
-    list_hook,
+    list_hook, DictBase, limit_primitive_type,
 )
 from pycardano.types import typechecked
 from pycardano.witness import TransactionWitnessSet
@@ -94,17 +94,29 @@ class Asset(DictCBORSerializable):
         new_asset = deepcopy(self)
         for n in other:
             new_asset[n] = new_asset.get(n, 0) + other[n]
+        # pop zero values
+        for n, v in list(new_asset.items()):
+            if v == 0:
+                new_asset.pop(n)
         return new_asset
 
     def __iadd__(self, other: Asset) -> Asset:
         new_item = self + other
         self.update(new_item)
+        # pop zero values
+        for n, v in list(self.items()):
+            if new_item.get(n, 0) == 0:
+                self.pop(n)
         return self
 
     def __sub__(self, other: Asset) -> Asset:
         new_asset = deepcopy(self)
         for n in other:
             new_asset[n] = new_asset.get(n, 0) - other[n]
+        # pop zero values
+        for n, v in list(new_asset.items()):
+            if v == 0:
+                new_asset.pop(n)
         return new_asset
 
     def __eq__(self, other):
@@ -124,6 +136,17 @@ class Asset(DictCBORSerializable):
                 return False
         return True
 
+    @classmethod
+    @limit_primitive_type(dict)
+    def from_primitive(cls: Type[DictBase], value: dict) -> DictBase:
+        res = super().from_primitive(value)
+        # pop zero values
+        for n, v in list(res.items()):
+            if v == 0:
+                res.pop(n)
+        return res
+
+
 
 @typechecked
 class MultiAsset(DictCBORSerializable):
@@ -138,17 +161,29 @@ class MultiAsset(DictCBORSerializable):
         new_multi_asset = deepcopy(self)
         for p in other:
             new_multi_asset[p] = new_multi_asset.get(p, Asset()) + other[p]
+        # pop empty assets
+        for p in list(new_multi_asset.keys()):
+            if not new_multi_asset[p]:
+                new_multi_asset.pop(p)
         return new_multi_asset
 
     def __iadd__(self, other):
         new_item = self + other
         self.update(new_item)
+        # pop empty assets
+        for p in list(self.keys()):
+            if not new_item.get(p, Asset()):
+                self.pop(p)
         return self
 
     def __sub__(self, other: MultiAsset) -> MultiAsset:
         new_multi_asset = deepcopy(self)
         for p in other:
             new_multi_asset[p] = new_multi_asset.get(p, Asset()) - other[p]
+        # pop empty assets
+        for p in list(new_multi_asset.keys()):
+            if not new_multi_asset[p]:
+                new_multi_asset.pop(p)
         return new_multi_asset
 
     def __eq__(self, other):
@@ -208,6 +243,16 @@ class MultiAsset(DictCBORSerializable):
                     count += 1
 
         return count
+
+    @classmethod
+    @limit_primitive_type(dict)
+    def from_primitive(cls: Type[DictBase], value: dict) -> DictBase:
+        res = super().from_primitive(value)
+        # pop empty values
+        for n, v in list(res.items()):
+            if not v:
+                res.pop(n)
+        return res
 
 
 @typechecked
