@@ -483,26 +483,53 @@ def test_out_of_bound_asset():
     with pytest.raises(InvalidDataException):
         tx.to_cbor_hex()
 
+
 def test_zero_value():
     nft_output = Value(
         10000000,
-        MultiAsset.from_primitive({bytes.fromhex('a39a5998f2822dfc9111e447038c3cfffa883ed1b9e357be9cd60dfe'): {b'MY_NFT_1': 0}}),
+        MultiAsset.from_primitive(
+            {
+                bytes.fromhex(
+                    "a39a5998f2822dfc9111e447038c3cfffa883ed1b9e357be9cd60dfe"
+                ): {b"MY_NFT_1": 0}
+            }
+        ),
     )
     assert len(nft_output.multi_asset) == 0
+
 
 def test_empty_multiasset():
     nft_output = Value(
         10000000,
-        MultiAsset.from_primitive({bytes.fromhex('a39a5998f2822dfc9111e447038c3cfffa883ed1b9e357be9cd60dfe'): {}}),
+        MultiAsset.from_primitive(
+            {
+                bytes.fromhex(
+                    "a39a5998f2822dfc9111e447038c3cfffa883ed1b9e357be9cd60dfe"
+                ): {}
+            }
+        ),
     )
     assert len(nft_output.multi_asset) == 0
+
 
 def test_add_empty():
     nft_output = Value(
         10000000,
-        MultiAsset.from_primitive({bytes.fromhex('a39a5998f2822dfc9111e447038c3cfffa883ed1b9e357be9cd60dfe'): {b'MY_NFT_1': 100}}),
+        MultiAsset.from_primitive(
+            {
+                bytes.fromhex(
+                    "a39a5998f2822dfc9111e447038c3cfffa883ed1b9e357be9cd60dfe"
+                ): {b"MY_NFT_1": 100}
+            }
+        ),
     ) - Value(
         5,
-        MultiAsset.from_primitive({bytes.fromhex('a39a5998f2822dfc9111e447038c3cfffa883ed1b9e357be9cd60dfe'): {b'MY_NFT_1': 100}}),
+        MultiAsset.from_primitive(
+            {
+                bytes.fromhex(
+                    "a39a5998f2822dfc9111e447038c3cfffa883ed1b9e357be9cd60dfe"
+                ): {b"MY_NFT_1": 100}
+            }
+        ),
     )
     assert len(nft_output.multi_asset) == 0

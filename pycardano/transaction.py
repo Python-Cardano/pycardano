@@ -42,7 +42,9 @@ from pycardano.serialization import (
     MapCBORSerializable,
     Primitive,
     default_encoder,
-    list_hook, DictBase, limit_primitive_type,
+    list_hook,
+    DictBase,
+    limit_primitive_type,
 )
 from pycardano.types import typechecked
 from pycardano.witness import TransactionWitnessSet
@@ -145,7 +147,6 @@ class Asset(DictCBORSerializable):
             if v == 0:
                 res.pop(n)
         return res
-
 
 
 @typechecked

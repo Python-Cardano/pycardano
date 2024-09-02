@@ -149,7 +149,9 @@ class TestZeroEmptyAsset(TestBase):
             address,
             Value(
                 min_val,
-                MultiAsset.from_primitive({policy_vkey.hash().payload: {b"MY_NFT_1": 0}}),
+                MultiAsset.from_primitive(
+                    {policy_vkey.hash().payload: {b"MY_NFT_1": 0}}
+                ),
             ),
         )
         builder.add_output(nft_output)
@@ -182,7 +184,8 @@ class TestZeroEmptyAsset(TestBase):
 
         # Send the NFT to our own address
         nft_output = TransactionOutput(
-            address, Value(min_val, MultiAsset.from_primitive({policy_vkey.hash().payload: {}}))
+            address,
+            Value(min_val, MultiAsset.from_primitive({policy_vkey.hash().payload: {}})),
         )
         builder.add_output(nft_output)
 
