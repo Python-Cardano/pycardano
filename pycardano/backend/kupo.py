@@ -4,7 +4,7 @@ import requests
 from cachetools import Cache, LRUCache, TTLCache
 
 from pycardano.address import Address
-from pycardano.backend.base import ChainContext, GenesisParameters
+from pycardano.backend.base import ChainContext, GenesisParameters, ProtocolParameters
 from pycardano.backend.blockfrost import _try_fix_script
 from pycardano.hash import DatumHash, ScriptHash
 from pycardano.network import Network
@@ -67,6 +67,11 @@ class KupoChainContextExtension(ChainContext):
         """Get chain genesis parameters"""
 
         return self._wrapped_backend.genesis_param
+
+    @property
+    def protocol_param(self) -> ProtocolParameters:
+        """Get current protocol parameters"""
+        return self._wrapped_backend.protocol_param
 
     @property
     def network(self) -> Network:

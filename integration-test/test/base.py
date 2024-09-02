@@ -2,11 +2,12 @@
 
 import os
 
+import ogmios as python_ogmios
 from retry import retry
 
 from pycardano import *
 
-TEST_RETRIES = 6
+TEST_RETRIES = 8
 
 
 @retry(tries=10, delay=4)

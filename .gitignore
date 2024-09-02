@@ -3,6 +3,7 @@
 cov_html
 docs/build
 dist
+.mypy_cache
 
 # IDE
 .idea
