@@ -2,6 +2,7 @@
 
 import os
 
+import ogmios as python_ogmios
 from retry import retry
 
 from pycardano import *

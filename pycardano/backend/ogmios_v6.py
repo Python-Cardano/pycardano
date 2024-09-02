@@ -2,19 +2,18 @@ import time
 from typing import Dict, List, Optional, Union
 
 from cachetools import Cache, LRUCache, TTLCache, func
-from ogmios.client import Client
-from ogmios.datatypes import (
-    Address,
-    Era,
-    ProtocolParameters,
-    Tip,
-    TxOutputReference,
-    Utxo,
-)
-from ogmios.utils import GenesisParameters, get_current_era
+from ogmios.client import Client as OgmiosClient
+from ogmios.datatypes import Address as OgmiosAddress
+from ogmios.datatypes import Era as OgmiosEra
+from ogmios.datatypes import ProtocolParameters as OgmiosProtocolParameters
+from ogmios.datatypes import Tip as OgmiosTip
+from ogmios.datatypes import TxOutputReference as OgmiosTxOutputReference
+from ogmios.datatypes import Utxo as OgmiosUtxo
+from ogmios.utils import GenesisParameters as OgmiosGenesisParameters
+from ogmios.utils import get_current_era
 
-from pycardano.backend.base import ChainContext
-from pycardano.backend.base import ProtocolParameters as pycProtocolParameters
+from pycardano.address import Address
+from pycardano.backend.base import ChainContext, GenesisParameters, ProtocolParameters
 from pycardano.backend.kupo import KupoChainContextExtension
 from pycardano.hash import DatumHash, ScriptHash
 from pycardano.network import Network
@@ -27,7 +26,6 @@ from pycardano.plutus import (
     PlutusV3Script,
 )
 from pycardano.serialization import RawCBOR
-from pycardano.transaction import Address as pyc_Address
 from pycardano.transaction import (
     Asset,
     AssetName,
@@ -48,12 +46,12 @@ class OgmiosV6ChainContext(ChainContext):
     """Ogmios chain context for use with PyCardano"""
 
     _network: Network
-    _client: Client
+    _client: OgmiosClient
     _service_name: str
     _last_known_block_slot: int
     _last_chain_tip_fetch: float
     _genesis_param: Optional[GenesisParameters]
-    _protocol_param: Optional[ProtocolParameters]
+    _protocol_param: Optional[OgmiosProtocolParameters]
     _utxo_cache: Cache
     _datum_cache: Cache
 
@@ -87,28 +85,30 @@ class OgmiosV6ChainContext(ChainContext):
         )
         self._datum_cache = LRUCache(maxsize=datum_cache_size)
 
-    def _query_current_era(self) -> Era:
-        with Client(self.host, self.port, self.secure) as client:
+    def _query_current_era(self) -> OgmiosEra:
+        with OgmiosClient(self.host, self.port, self.secure) as client:
             return get_current_era(client)
 
     def _query_current_epoch(self) -> int:
-        with Client(self.host, self.port, self.secure) as client:
+        with OgmiosClient(self.host, self.port, self.secure) as client:
             epoch, _ = client.query_epoch.execute()
             return epoch
 
-    def _query_chain_tip(self) -> Tip:
-        with Client(self.host, self.port, self.secure) as client:
+    def _query_chain_tip(self) -> OgmiosTip:
+        with OgmiosClient(self.host, self.port, self.secure) as client:
             tip, _ = client.query_network_tip.execute()
             return tip
 
-    def _query_utxos_by_address(self, address: pyc_Address) -> List[Utxo]:
-        with Client(self.host, self.port, self.secure) as client:
+    def _query_utxos_by_address(self, address: Address) -> List[OgmiosUtxo]:
+        with OgmiosClient(self.host, self.port, self.secure) as client:
             utxos, _ = client.query_utxo.execute([address])
             return utxos
 
-    def _query_utxos_by_tx_id(self, tx_id: str, index: int) -> List[Utxo]:
-        with Client(self.host, self.port, self.secure) as client:
-            utxos, _ = client.query_utxo.execute([TxOutputReference(tx_id, index)])
+    def _query_utxos_by_tx_id(self, tx_id: str, index: int) -> List[OgmiosUtxo]:
+        with OgmiosClient(self.host, self.port, self.secure) as client:
+            utxos, _ = client.query_utxo.execute(
+                [OgmiosTxOutputReference(tx_id, index)]
+            )
             return utxos
 
     def _is_chain_tip_updated(self):
@@ -129,15 +129,15 @@ class OgmiosV6ChainContext(ChainContext):
         return int(x) / int(y)
 
     @property
-    def protocol_param(self) -> pycProtocolParameters:
+    def protocol_param(self) -> ProtocolParameters:
         if not self._protocol_param or self._is_chain_tip_updated():
             self._protocol_param = self._fetch_protocol_param()
         return self._protocol_param
 
     def _fetch_protocol_param(self) -> ProtocolParameters:
-        with Client(self.host, self.port, self.secure) as client:
+        with OgmiosClient(self.host, self.port, self.secure) as client:
             protocol_parameters, _ = client.query_protocol_parameters.execute()
-            pyc_protocol_params = pycProtocolParameters(
+            pyc_protocol_params = ProtocolParameters(
                 min_fee_constant=protocol_parameters.min_fee_constant.lovelace,
                 min_fee_coefficient=protocol_parameters.min_fee_coefficient,
                 min_pool_cost=protocol_parameters.min_stake_pool_cost.lovelace,
@@ -188,22 +188,25 @@ class OgmiosV6ChainContext(ChainContext):
     @property
     def genesis_param(self) -> GenesisParameters:
         if not self._genesis_param or self._is_chain_tip_updated():
-            self._genesis_param = self._fetch_genesis_param()
+            # TODO transform to PyCardano GenesisParameters?
+            self._genesis_param = self._fetch_genesis_param()  # type: ignore[assignment]
 
             # Update the refetch interval if we haven't calculated it yet
             if (
                 self._refetch_chain_tip_interval == DEFAULT_REFETCH_INTERVAL
+                and self._genesis_param is not None
                 and self._genesis_param.slot_length is not None
                 and self._genesis_param.active_slots_coefficient is not None
             ):
-                self._refetch_chain_tip_interval = self._genesis_param.slot_length.get(
-                    "milliseconds"
-                ) / eval(self._genesis_param.active_slots_coefficient)
-        return self._genesis_param
+                self._refetch_chain_tip_interval = (
+                    self._genesis_param.slot_length
+                    / float(self._genesis_param.active_slots_coefficient)
+                )
+        return self._genesis_param  # type: ignore[return-value]
 
-    def _fetch_genesis_param(self) -> GenesisParameters:
-        with Client(self.host, self.port, self.secure) as client:
-            return GenesisParameters(client, self._query_current_era())
+    def _fetch_genesis_param(self) -> OgmiosGenesisParameters:
+        with OgmiosClient(self.host, self.port, self.secure) as client:
+            return OgmiosGenesisParameters(client, self._query_current_era())
 
     @property
     def network(self) -> Network:
@@ -224,7 +227,7 @@ class OgmiosV6ChainContext(ChainContext):
         if key in self._utxo_cache:
             return self._utxo_cache[key]
 
-        utxos = self._utxos_ogmios(Address(address=address))
+        utxos = self._utxos_ogmios(OgmiosAddress(address=address))
 
         self._utxo_cache[key] = utxos
 
@@ -234,7 +237,7 @@ class OgmiosV6ChainContext(ChainContext):
         results = self._query_utxos_by_tx_id(tx_id, index)
         return len(results) > 0
 
-    def _utxos_ogmios(self, address: pyc_Address) -> List[Utxo]:
+    def _utxos_ogmios(self, address: Address) -> List[OgmiosUtxo]:
         """Get all UTxOs associated with an address with Ogmios.
 
         Args:
@@ -251,7 +254,7 @@ class OgmiosV6ChainContext(ChainContext):
 
         return utxos
 
-    def _utxo_from_ogmios_result(self, utxo: Utxo) -> UTxO:
+    def _utxo_from_ogmios_result(self, utxo: OgmiosUtxo) -> UTxO:
         """Convert an Ogmios UTxO result to a PyCardano UTxO."""
         tx_in = TransactionInput.from_primitive([utxo.tx_id, utxo.index])
         lovelace_amount = utxo.value.get("ada").get("lovelace", 0)
@@ -274,7 +277,7 @@ class OgmiosV6ChainContext(ChainContext):
             datum = RawCBOR(bytes.fromhex(utxo.datum))
         if set(utxo.value.keys()) == {"ada"}:
             tx_out = TransactionOutput(
-                pyc_Address.from_primitive(utxo.address),
+                Address.from_primitive(utxo.address),
                 amount=lovelace_amount,
                 datum_hash=datum_hash,
                 datum=datum,
@@ -290,7 +293,7 @@ class OgmiosV6ChainContext(ChainContext):
                         multi_assets.setdefault(policy, Asset())[token_name] = quantity
 
             tx_out = TransactionOutput(
-                pyc_Address.from_primitive(utxo.address),
+                Address.from_primitive(utxo.address),
                 amount=Value(lovelace_amount, multi_assets),
                 datum_hash=datum_hash,
                 datum=datum,
@@ -308,13 +311,13 @@ class OgmiosV6ChainContext(ChainContext):
     def submit_tx_cbor(self, cbor: Union[bytes, str]):
         if isinstance(cbor, bytes):
             cbor = cbor.hex()
-        with Client(self.host, self.port, self.secure) as client:
+        with OgmiosClient(self.host, self.port, self.secure) as client:
             client.submit_transaction.execute(cbor)
 
     def evaluate_tx_cbor(self, cbor: Union[bytes, str]) -> Dict[str, ExecutionUnits]:
         if isinstance(cbor, bytes):
             cbor = cbor.hex()
-        with Client(self.host, self.port, self.secure) as client:
+        with OgmiosClient(self.host, self.port, self.secure) as client:
             result, _ = client.evaluate_transaction.execute(cbor)
             result_dict = {}
             for res in result:
