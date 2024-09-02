@@ -158,7 +158,7 @@ class TestZeroEmptyAsset(TestBase):
 
         # Build and sign transaction
         signed_tx = builder.build_and_sign(
-            [self.payment_skey, self.extended_payment_skey, policy_skey], address
+            [self.payment_skey, self.extended_payment_skey], address
         )
 
         print("############### Transaction created ###############")
@@ -191,7 +191,7 @@ class TestZeroEmptyAsset(TestBase):
 
         # Build and sign transaction
         signed_tx = builder.build_and_sign(
-            [self.payment_skey, self.extended_payment_skey, policy_skey], address
+            [self.payment_skey, self.extended_payment_skey], address
         )
 
         print("############### Transaction created ###############")
