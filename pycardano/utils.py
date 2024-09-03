@@ -11,7 +11,7 @@ from nacl.hash import blake2b
 
 from pycardano.backend.base import ChainContext
 from pycardano.hash import SCRIPT_DATA_HASH_SIZE, SCRIPT_HASH_SIZE, ScriptDataHash
-from pycardano.plutus import COST_MODELS, CostModels, Datum, Redeemer
+from pycardano.plutus import COST_MODELS, CostModels, Datum, Redeemers
 from pycardano.serialization import default_encoder
 from pycardano.transaction import MultiAsset, TransactionOutput, Value
 
@@ -231,14 +231,14 @@ def min_lovelace_post_alonzo(output: TransactionOutput, context: ChainContext) -
 
 
 def script_data_hash(
-    redeemers: List[Redeemer],
+    redeemers: Redeemers,
     datums: List[Datum],
     cost_models: Optional[Union[CostModels, Dict]] = None,
 ) -> ScriptDataHash:
     """Calculate plutus script data hash
 
     Args:
-        redeemers (List[Redeemer]): Redeemers to include.
+        redeemers (Redeemers): Redeemers to include.
         datums (List[Datum]): Datums to include.
         cost_models (Optional[CostModels]): Cost models.
 

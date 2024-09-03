@@ -13,6 +13,7 @@ from pycardano.plutus import (
     PlutusV3Script,
     RawPlutusData,
     Redeemer,
+    Redeemers,
 )
 from pycardano.serialization import (
     ArrayCBORSerializable,
@@ -76,9 +77,9 @@ class TransactionWitnessSet(MapCBORSerializable):
         metadata={"optional": True, "key": 4, "object_hook": list_hook(RawPlutusData)},
     )
 
-    redeemer: Optional[List[Redeemer]] = field(
+    redeemer: Optional[Redeemers] = field(
         default=None,
-        metadata={"optional": True, "key": 5, "object_hook": list_hook(Redeemer)},
+        metadata={"optional": True, "key": 5},
     )
 
     plutus_v2_script: Optional[List[PlutusV2Script]] = field(

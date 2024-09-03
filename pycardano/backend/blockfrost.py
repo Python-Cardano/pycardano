@@ -24,8 +24,8 @@ from pycardano.plutus import (
     ExecutionUnits,
     PlutusV1Script,
     PlutusV2Script,
-    script_hash,
     PlutusV3Script,
+    script_hash,
 )
 from pycardano.serialization import RawCBOR
 from pycardano.transaction import (
