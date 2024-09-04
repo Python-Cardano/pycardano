@@ -169,7 +169,6 @@ class MultiAsset(DictCBORSerializable):
                 self.pop(k)
         return self
 
-
     def __add__(self, other):
         new_multi_asset = deepcopy(self)
         for p in other:
@@ -262,7 +261,6 @@ class MultiAsset(DictCBORSerializable):
     def to_primitive(self) -> Primitive:
         x = deepcopy(self).normalize()
         return super(self.__class__, x).to_shallow_primitive()
-
 
 
 @typechecked
