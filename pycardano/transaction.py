@@ -147,10 +147,6 @@ class Asset(DictCBORSerializable):
         x = deepcopy(self).normalize()
         return super(self.__class__, x).to_shallow_primitive()
 
-    def to_primitive(self) -> Primitive:
-        x = deepcopy(self).normalize()
-        return super(self.__class__, x).to_shallow_primitive()
-
 
 @typechecked
 class MultiAsset(DictCBORSerializable):
@@ -255,10 +251,6 @@ class MultiAsset(DictCBORSerializable):
         return res
 
     def to_shallow_primitive(self) -> dict:
-        x = deepcopy(self).normalize()
-        return super(self.__class__, x).to_shallow_primitive()
-
-    def to_primitive(self) -> Primitive:
         x = deepcopy(self).normalize()
         return super(self.__class__, x).to_shallow_primitive()
 
