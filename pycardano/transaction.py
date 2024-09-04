@@ -89,6 +89,13 @@ class Asset(DictCBORSerializable):
 
     VALUE_TYPE = int
 
+    def normalize(self) -> Asset:
+        """Normalize the Asset by removing zero values."""
+        for k, v in list(self.items()):
+            if v == 0:
+                self.pop(k)
+        return self
+
     def union(self, other: Asset) -> Asset:
         return self + other
 
@@ -96,30 +103,18 @@ class Asset(DictCBORSerializable):
         new_asset = deepcopy(self)
         for n in other:
             new_asset[n] = new_asset.get(n, 0) + other[n]
-        # pop zero values
-        for n, v in list(new_asset.items()):
-            if v == 0:
-                new_asset.pop(n)
-        return new_asset
+        return new_asset.normalize()
 
     def __iadd__(self, other: Asset) -> Asset:
         new_item = self + other
         self.update(new_item)
-        # pop zero values
-        for n, v in list(self.items()):
-            if new_item.get(n, 0) == 0:
-                self.pop(n)
-        return self
+        return self.normalize()
 
     def __sub__(self, other: Asset) -> Asset:
         new_asset = deepcopy(self)
         for n in other:
             new_asset[n] = new_asset.get(n, 0) - other[n]
-        # pop zero values
-        for n, v in list(new_asset.items()):
-            if v == 0:
-                new_asset.pop(n)
-        return new_asset
+        return new_asset.normalize()
 
     def __eq__(self, other):
         if not isinstance(other, Asset):
@@ -148,6 +143,14 @@ class Asset(DictCBORSerializable):
                 res.pop(n)
         return res
 
+    def to_shallow_primitive(self) -> dict:
+        x = deepcopy(self).normalize()
+        return super(self.__class__, x).to_shallow_primitive()
+
+    def to_primitive(self) -> Primitive:
+        x = deepcopy(self).normalize()
+        return super(self.__class__, x).to_shallow_primitive()
+
 
 @typechecked
 class MultiAsset(DictCBORSerializable):
@@ -158,34 +161,31 @@ class MultiAsset(DictCBORSerializable):
     def union(self, other: MultiAsset) -> MultiAsset:
         return self + other
 
+    def normalize(self) -> MultiAsset:
+        """Normalize the MultiAsset by removing zero values."""
+        for k, v in list(self.items()):
+            v.normalize()
+            if len(v) == 0:
+                self.pop(k)
+        return self
+
+
     def __add__(self, other):
         new_multi_asset = deepcopy(self)
         for p in other:
             new_multi_asset[p] = new_multi_asset.get(p, Asset()) + other[p]
-        # pop empty assets
-        for p in list(new_multi_asset.keys()):
-            if not new_multi_asset[p]:
-                new_multi_asset.pop(p)
-        return new_multi_asset
+        return new_multi_asset.normalize()
 
     def __iadd__(self, other):
         new_item = self + other
         self.update(new_item)
-        # pop empty assets
-        for p in list(self.keys()):
-            if not new_item.get(p, Asset()):
-                self.pop(p)
-        return self
+        return self.normalize()
 
     def __sub__(self, other: MultiAsset) -> MultiAsset:
         new_multi_asset = deepcopy(self)
         for p in other:
             new_multi_asset[p] = new_multi_asset.get(p, Asset()) - other[p]
-        # pop empty assets
-        for p in list(new_multi_asset.keys()):
-            if not new_multi_asset[p]:
-                new_multi_asset.pop(p)
-        return new_multi_asset
+        return new_multi_asset.normalize()
 
     def __eq__(self, other):
         if not isinstance(other, MultiAsset):
@@ -254,6 +254,15 @@ class MultiAsset(DictCBORSerializable):
             if not v:
                 res.pop(n)
         return res
+
+    def to_shallow_primitive(self) -> dict:
+        x = deepcopy(self).normalize()
+        return super(self.__class__, x).to_shallow_primitive()
+
+    def to_primitive(self) -> Primitive:
+        x = deepcopy(self).normalize()
+        return super(self.__class__, x).to_shallow_primitive()
+
 
 
 @typechecked
