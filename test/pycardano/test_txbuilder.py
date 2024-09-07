@@ -1202,6 +1202,7 @@ def test_build_and_sign(chain_context):
     tx = tx_builder2.build_and_sign(
         [SK],
         change_address=sender_address,
+        force_skeys=True,
     )
 
     assert tx.transaction_witness_set.vkey_witnesses == [

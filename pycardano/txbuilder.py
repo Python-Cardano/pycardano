@@ -928,12 +928,16 @@ class TransactionBuilder:
         )
         return tx_body
 
-    def _build_fake_vkey_witnesses(self) -> List[VerificationKeyWitness]:
+    def _build_required_vkeys(self) -> Set[VerificationKeyHash]:
         vkey_hashes = self._input_vkey_hashes()
         vkey_hashes.update(self._required_signer_vkey_hashes())
         vkey_hashes.update(self._native_scripts_vkey_hashes())
         vkey_hashes.update(self._certificate_vkey_hashes())
         vkey_hashes.update(self._withdrawal_vkey_hashes())
+        return vkey_hashes
+
+    def _build_fake_vkey_witnesses(self) -> List[VerificationKeyWitness]:
+        vkey_hashes = self._build_required_vkeys()
 
         witness_count = self.witness_override or len(vkey_hashes)
 
@@ -1441,6 +1445,7 @@ class TransactionBuilder:
         auto_validity_start_offset: Optional[int] = None,
         auto_ttl_offset: Optional[int] = None,
         auto_required_signers: Optional[bool] = None,
+        force_skeys: Optional[bool] = False,
     ) -> Transaction:
         """Build a transaction body from all constraints set through the builder and sign the transaction with
         provided signing keys.
@@ -1462,6 +1467,10 @@ class TransactionBuilder:
             auto_required_signers (Optional[bool]): Automatically add all pubkeyhashes of transaction inputs
                 and the given signers to required signatories (default only for Smart Contract transactions).
                 Manually set required signers will always take precedence.
+            force_skeys (Optional[bool]): Whether to force the use of signing keys for signing the transaction.
+                Default is False, which means that provided signing keys will only be used to sign the transaction if
+                they are actually required by the transaction. This is useful to reduce tx fees by not including
+                unnecessary signatures. If set to True, all provided signing keys will be used to sign the transaction.
 
         Returns:
             Transaction: A signed transaction.
@@ -1483,7 +1492,15 @@ class TransactionBuilder:
         witness_set = self.build_witness_set(True)
         witness_set.vkey_witnesses = []
 
+        required_vkeys = self._build_required_vkeys()
+
         for signing_key in set(signing_keys):
+            vkey_hash = signing_key.to_verification_key().hash()
+            if not force_skeys and vkey_hash not in required_vkeys:
+                logger.warn(
+                    f"Verification key hash {vkey_hash} is not required for this tx."
+                )
+                continue
             signature = signing_key.sign(tx_body.hash())
             witness_set.vkey_witnesses.append(
                 VerificationKeyWitness(signing_key.to_verification_key(), signature)
