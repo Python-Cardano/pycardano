@@ -38,13 +38,13 @@ from pycardano.plutus import (
 from pycardano.serialization import (
     ArrayCBORSerializable,
     CBORSerializable,
+    DictBase,
     DictCBORSerializable,
     MapCBORSerializable,
     Primitive,
     default_encoder,
-    list_hook,
-    DictBase,
     limit_primitive_type,
+    list_hook,
 )
 from pycardano.types import typechecked
 from pycardano.witness import TransactionWitnessSet
