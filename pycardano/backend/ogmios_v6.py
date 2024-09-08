@@ -359,6 +359,7 @@ class OgmiosV6ChainContext(ChainContext):
 
 class OgmiosChainContext(OgmiosV6ChainContext):
     """An alias of OgmiosV6ChainContext for backwards compatibility."""
+
     pass
 
 

@@ -42,6 +42,7 @@ class OgmiosQueryType(str, Enum):
 
 class OgmiosV5ChainContext(ChainContext):
     """Legacy Ogmios Chain Context for Ogmios v5"""
+
     _ws_url: str
     _network: Network
     _service_name: str
