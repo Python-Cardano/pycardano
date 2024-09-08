@@ -1497,7 +1497,7 @@ class TransactionBuilder:
         for signing_key in set(signing_keys):
             vkey_hash = signing_key.to_verification_key().hash()
             if not force_skeys and vkey_hash not in required_vkeys:
-                logger.warn(
+                logger.warning(
                     f"Verification key hash {vkey_hash} is not required for this tx."
                 )
                 continue
