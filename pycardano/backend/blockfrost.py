@@ -171,6 +171,12 @@ class BlockFrostChainContext(ChainContext):
                 cost_models={
                     k: v.to_dict() for k, v in params.cost_models.to_dict().items()
                 },
+                maximum_reference_scripts_size={"bytes": 200000},
+                min_fee_reference_scripts={
+                    "base": params.min_fee_ref_script_cost_per_byte,
+                    "range": 200000,
+                    "multiplier": 1,
+                },
             )
         return self._protocol_param
 
