@@ -11,7 +11,12 @@ Backend
    :undoc-members:
    :show-inheritance:
 
-.. automodule:: pycardano.backend.ogmios
+.. automodule:: pycardano.backend.ogmios_v6
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+.. automodule:: pycardano.backend.ogmios_v5
    :members:
    :undoc-members:
    :show-inheritance:
