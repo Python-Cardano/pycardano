@@ -14,6 +14,11 @@ from pycardano.plutus import (
     RawPlutusData,
     Redeemer,
     Redeemers,
+    RedeemerMap,
+    RedeemerKey,
+    RedeemerValue,
+    ExecutionUnits,
+    RedeemerTag,
 )
 from pycardano.serialization import (
     ArrayCBORSerializable,
@@ -116,11 +121,19 @@ class TransactionWitnessSet(MapCBORSerializable):
             return [PlutusV2Script(script) for script in data] if data else None
 
         def _get_redeemers(data: Any):
-            return (
-                [Redeemer.from_primitive(redeemer) for redeemer in data]
-                if data
-                else None
-            )
+            if not data:
+                return None
+            if isinstance(data, dict):
+                redeemer_map = RedeemerMap()
+                for (tag, index), value in data.items():
+                    key = RedeemerKey(RedeemerTag(tag), index)
+                    redeemer_value = RedeemerValue(value[0], ExecutionUnits(*value[1]))
+                    redeemer_map[key] = redeemer_value
+                return redeemer_map
+            elif isinstance(data, list):
+                return [Redeemer.from_primitive(redeemer) for redeemer in data]
+            else:
+                raise ValueError(f"Unexpected redeemer data format: {type(data)}")
 
         def _get_cls(data: Any):
             return cls(
