@@ -21,6 +21,7 @@ from pycardano.transaction import (
     MultiAsset,
     TransactionInput,
     TransactionOutput,
+    TransactionId,
     UTxO,
     Value,
 )
@@ -197,6 +198,8 @@ class KupoChainContextExtension(ChainContext):
                 )
                 if datum_hash and result.get("datum_type", "inline"):
                     datum = self._get_datum_from_kupo(result["datum_hash"])
+                    if datum:
+                        datum_hash = None
 
                 if not result["value"]["assets"]:
                     tx_out = TransactionOutput(
@@ -253,3 +256,27 @@ class KupoChainContextExtension(ChainContext):
             :class:`TransactionFailedException`: When fails to evaluate the transaction.
         """
         return self._wrapped_backend.evaluate_tx_cbor(cbor)
+
+    def get_metadata_cbor(
+        self, tx_id: TransactionId, slot: int
+    ) -> Optional[RawCBOR]:
+        """Get metadata cbor from Kupo.
+
+        Args:
+            tx_id (TransactionId): Transaction id for metadata to query.
+            slot (int): Slot number.
+
+        Returns:
+            Optional[RawCBOR]: Metadata cbor."""
+        if self._kupo_url is None:
+            raise AssertionError(
+                "kupo_url object attribute has not been assigned properly."
+            )
+
+        kupo_metadata_url = self._kupo_url + f"/metadata/{slot}?transaction_id={tx_id}"
+        metadata_result = requests.get(kupo_metadata_url).json()
+
+        if metadata_result and metadata_result[0]["transaction_id"] == tx_id:
+            return RawCBOR(bytes.fromhex(metadata_result[0]["raw"]))
+
+        return None
