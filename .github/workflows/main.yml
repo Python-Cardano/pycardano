@@ -82,7 +82,7 @@ jobs:
 
       - name: Upload integration-test.log
         if: failure()
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: integration-test.log
           path: integration-test/integration-test.log
