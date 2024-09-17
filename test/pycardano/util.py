@@ -46,7 +46,7 @@ class FixedChainContext(ChainContext):
         coins_per_utxo_word=34482,
         coins_per_utxo_byte=4310,
         cost_models={},
-        min_fee_reference_scripts={"base": 25600, "range": 44, "multiplier": 1.2},
+        min_fee_reference_scripts={"base": 44, "range": 25600, "multiplier": 1.2},
         maximum_reference_scripts_size={"bytes": 200_000},
     )
 

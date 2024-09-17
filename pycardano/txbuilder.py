@@ -1041,24 +1041,26 @@ class TransactionBuilder:
                 f"{intersection}."
             )
 
-    def _estimate_fee(self):
-        plutus_execution_units = ExecutionUnits(0, 0)
-        for redeemer in self._redeemer_list:
-            plutus_execution_units += redeemer.ex_units
-
+    def _ref_script_size(self):
         ref_script_size = 0
         for s in self._reference_scripts:
             if isinstance(s, NativeScript):
                 ref_script_size += len(s.to_cbor())
             else:
                 ref_script_size += len(s)
+        return ref_script_size
+
+    def _estimate_fee(self):
+        plutus_execution_units = ExecutionUnits(0, 0)
+        for redeemer in self._redeemer_list:
+            plutus_execution_units += redeemer.ex_units
 
         estimated_fee = fee(
             self.context,
             len(self._build_full_fake_tx().to_cbor()),
             plutus_execution_units.steps,
             plutus_execution_units.mem,
-            ref_script_size,
+            self._ref_script_size(),
         )
         if self.fee_buffer is not None:
             estimated_fee += self.fee_buffer
@@ -1314,7 +1316,7 @@ class TransactionBuilder:
             return
 
         collateral_amount = (
-            max_tx_fee(context=self.context)
+            max_tx_fee(context=self.context, ref_script_size=self._ref_script_size())
             * self.context.protocol_param.collateral_percent
             // 100
         )
