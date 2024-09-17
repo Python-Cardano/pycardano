@@ -7,7 +7,7 @@ from typing import Any, List, Optional, Type, Union
 
 from pycardano.key import ExtendedVerificationKey, VerificationKey
 from pycardano.nativescript import NativeScript
-from pycardano.plutus import PlutusV1Script, PlutusV2Script, RawPlutusData, Redeemer
+from pycardano.plutus import PlutusV1Script, PlutusV2Script, PlutusV3Script, RawPlutusData, Redeemer
 from pycardano.serialization import (
     ArrayCBORSerializable,
     MapCBORSerializable,
@@ -69,6 +69,10 @@ class TransactionWitnessSet(MapCBORSerializable):
         default=None, metadata={"optional": True, "key": 6}
     )
 
+    plutus_v3_script: Optional[List[PlutusV3Script]] = field(
+        default=None, metadata={"optional": True, "key": 7}
+    )
+
     plutus_data: Optional[List[Any]] = field(
         default=None,
         metadata={"optional": True, "key": 4, "object_hook": list_hook(RawPlutusData)},
@@ -103,6 +107,9 @@ class TransactionWitnessSet(MapCBORSerializable):
 
         def _get_plutus_v2_scripts(data: Any):
             return [PlutusV2Script(script) for script in data] if data else None
+
+        def _get_plutus_v3_scripts(data: Any):
+            return [PlutusV3Script(script) for script in data] if data else None
 
         def _get_redeemers(data: Any):
             return (

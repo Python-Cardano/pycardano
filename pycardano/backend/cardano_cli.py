@@ -32,7 +32,7 @@ from pycardano.exception import (
 from pycardano.hash import DatumHash, ScriptHash
 from pycardano.nativescript import NativeScript
 from pycardano.network import Network
-from pycardano.plutus import Datum, PlutusV1Script, PlutusV2Script, RawPlutusData
+from pycardano.plutus import Datum, PlutusV1Script, PlutusV2Script, PlutusV3Script, RawPlutusData
 from pycardano.serialization import RawCBOR
 from pycardano.transaction import (
     Asset,
@@ -384,7 +384,7 @@ class CardanoCliChainContext(ChainContext):
     @staticmethod
     def _get_script(
         reference_script: dict,
-    ) -> Union[PlutusV1Script, PlutusV2Script, NativeScript]:
+    ) -> Union[PlutusV1Script, PlutusV2Script, PlutusV3Script, NativeScript]:
         """
         Get a script object from a reference script dictionary.
         Args:
@@ -405,6 +405,11 @@ class CardanoCliChainContext(ChainContext):
                 cbor2.loads(bytes.fromhex(script_json["cborHex"]))
             )
             return v2script
+        elif script_type == "PlutusScriptV3":
+            v3script = PlutusV3Script(
+                cbor2.loads(bytes.fromhex(script_json["cborHex"]))
+            )
+            return v3script
         else:
             return NativeScript.from_dict(script_json)
 

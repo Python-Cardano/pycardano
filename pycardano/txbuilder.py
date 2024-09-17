@@ -40,6 +40,7 @@ from pycardano.plutus import (
     ExecutionUnits,
     PlutusV1Script,
     PlutusV2Script,
+    PlutusV3Script,
     Redeemer,
     RedeemerTag,
     ScriptType,
@@ -155,7 +156,7 @@ class TransactionBuilder:
         init=False, default_factory=lambda: {}
     )
 
-    _reference_scripts: List[Union[NativeScript, PlutusV1Script, PlutusV2Script]] = (
+    _reference_scripts: List[Union[NativeScript, PlutusV1Script, PlutusV2Script, PlutusV3Script]] = (
         field(init=False, default_factory=lambda: [])
     )
 
@@ -203,7 +204,7 @@ class TransactionBuilder:
         self,
         utxo: UTxO,
         script: Optional[
-            Union[UTxO, NativeScript, PlutusV1Script, PlutusV2Script]
+            Union[UTxO, NativeScript, PlutusV1Script, PlutusV2Script, PlutusV3Script]
         ] = None,
         datum: Optional[Datum] = None,
         redeemer: Optional[Redeemer] = None,
@@ -212,7 +213,7 @@ class TransactionBuilder:
 
         Args:
             utxo (UTxO): Script UTxO to be added.
-            script (Optional[Union[UTxO, NativeScript, PlutusV1Script, PlutusV2Script]]): A plutus script.
+            script (Optional[Union[UTxO, NativeScript, PlutusV1Script, PlutusV2Script, PlutusV3Script]]): A plutus script.
                 If not provided, the script will be inferred from the input UTxO (first arg of this method).
                 The script can also be a specific UTxO whose output contains an inline script.
             datum (Optional[Datum]): A plutus datum to unlock the UTxO.
@@ -263,7 +264,7 @@ class TransactionBuilder:
 
         # collect potential scripts to fulfill the input
         candidate_scripts: List[
-            Tuple[Union[NativeScript, PlutusV1Script, PlutusV2Script], Optional[UTxO]]
+            Tuple[Union[NativeScript, PlutusV1Script, PlutusV2Script, PlutusV3Script], Optional[UTxO]]
         ] = []
         if utxo.output.script:
             candidate_scripts.append((utxo.output.script, utxo))
@@ -301,13 +302,13 @@ class TransactionBuilder:
 
     def add_minting_script(
         self,
-        script: Union[UTxO, NativeScript, PlutusV1Script, PlutusV2Script],
+        script: Union[UTxO, NativeScript, PlutusV1Script, PlutusV2Script, PlutusV3Script],
         redeemer: Optional[Redeemer] = None,
     ) -> TransactionBuilder:
         """Add a minting script along with its datum and redeemer to this transaction.
 
         Args:
-            script (Union[UTxO, PlutusV1Script, PlutusV2Script]): A plutus script.
+            script (Union[UTxO, PlutusV1Script, PlutusV2Script, PlutusV3Script]): A plutus script.
             redeemer (Optional[Redeemer]): A plutus redeemer to unlock the UTxO.
 
         Returns:
@@ -333,13 +334,13 @@ class TransactionBuilder:
 
     def add_withdrawal_script(
         self,
-        script: Union[UTxO, NativeScript, PlutusV1Script, PlutusV2Script],
+        script: Union[UTxO, NativeScript, PlutusV1Script, PlutusV2Script, PlutusV3Script],
         redeemer: Optional[Redeemer] = None,
     ) -> TransactionBuilder:
         """Add a withdrawal script along with its redeemer to this transaction.
 
         Args:
-            script (Union[UTxO, PlutusV1Script, PlutusV2Script]): A plutus script.
+            script (Union[UTxO, PlutusV1Script, PlutusV2Script, PlutusV3Script]): A plutus script.
             redeemer (Optional[Redeemer]): A plutus redeemer to unlock the UTxO.
 
         Returns:
@@ -493,6 +494,11 @@ class TransactionBuilder:
                 if isinstance(s, PlutusV2Script):
                     cost_models[1] = (
                         self.context.protocol_param.cost_models.get("PlutusV2")
+                        or PLUTUS_V2_COST_MODEL
+                    )
+                if isinstance(s, PlutusV3Script):
+                    cost_models[1] = (
+                        self.context.protocol_param.cost_models.get("PlutusV3")
                         or PLUTUS_V2_COST_MODEL
                     )
             return script_data_hash(
@@ -941,6 +947,7 @@ class TransactionBuilder:
         native_scripts: List[NativeScript] = []
         plutus_v1_scripts: List[PlutusV1Script] = []
         plutus_v2_scripts: List[PlutusV2Script] = []
+        plutus_v3_scripts: List[PlutusV3Script] = []
 
         for script in self.scripts:
             if isinstance(script, NativeScript):
@@ -951,6 +958,8 @@ class TransactionBuilder:
                 plutus_v1_scripts.append(PlutusV1Script(script))
             elif isinstance(script, PlutusV2Script):
                 plutus_v2_scripts.append(script)
+            elif isinstance(script, PlutusV3Script):
+                plutus_v3_scripts.append(script)
             else:
                 raise InvalidArgumentException(
                     f"Unsupported script type: {type(script)}"
@@ -960,6 +969,7 @@ class TransactionBuilder:
             native_scripts=native_scripts if native_scripts else None,
             plutus_v1_script=plutus_v1_scripts if plutus_v1_scripts else None,
             plutus_v2_script=plutus_v2_scripts if plutus_v2_scripts else None,
+            plutus_v3_script=plutus_v3_scripts if plutus_v3_scripts else None,
             redeemer=self.redeemers if self.redeemers else None,
             plutus_data=list(self.datums.values()) if self.datums else None,
         )

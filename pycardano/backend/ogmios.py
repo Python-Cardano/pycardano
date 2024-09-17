@@ -20,7 +20,7 @@ from pycardano.backend.blockfrost import _try_fix_script
 from pycardano.exception import TransactionFailedException
 from pycardano.hash import DatumHash, ScriptHash
 from pycardano.network import Network
-from pycardano.plutus import ExecutionUnits, PlutusV1Script, PlutusV2Script
+from pycardano.plutus import ExecutionUnits, PlutusV1Script, PlutusV2Script, PlutusV3Script
 from pycardano.serialization import RawCBOR
 from pycardano.transaction import (
     Asset,
@@ -342,11 +342,14 @@ class OgmiosChainContext(ChainContext):
                 if script_hash:
                     kupo_script_url = self._kupo_url + "/scripts/" + script_hash
                     script = requests.get(kupo_script_url).json()
-                    if script["language"] == "plutus:v2":
+                    if script["language"] == "plutus:v1":
+                        script = PlutusV1Script(bytes.fromhex(script["script"]))
+                        script = _try_fix_script(script_hash, script)
+                    elif script["language"] == "plutus:v2":
                         script = PlutusV2Script(bytes.fromhex(script["script"]))
                         script = _try_fix_script(script_hash, script)
-                    elif script["language"] == "plutus:v1":
-                        script = PlutusV1Script(bytes.fromhex(script["script"]))
+                    elif script["language"] == "plutus:v3":
+                        script = PlutusV3Script(bytes.fromhex(script["script"]))
                         script = _try_fix_script(script_hash, script)
                     else:
                         raise ValueError("Unknown plutus script type")
@@ -462,10 +465,12 @@ class OgmiosChainContext(ChainContext):
         lovelace_amount = output["value"]["coins"]
         script = output.get("script", None)
         if script:
-            if "plutus:v2" in script:
-                script = PlutusV2Script(bytes.fromhex(script["plutus:v2"]))
-            elif "plutus:v1" in script:
+            if "plutus:v1" in script:
                 script = PlutusV1Script(bytes.fromhex(script["plutus:v1"]))
+            elif "plutus:v2" in script:
+                script = PlutusV2Script(bytes.fromhex(script["plutus:v2"]))
+            elif "plutus:v3" in script:
+                script = PlutusV3Script(bytes.fromhex(script["plutus:v3"]))
             else:
                 raise ValueError("Unknown plutus script type")
         datum_hash = (
