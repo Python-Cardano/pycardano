@@ -41,6 +41,7 @@ __all__ = [
     "ExecutionUnits",
     "PlutusV1Script",
     "PlutusV2Script",
+    "PlutusV3Script",
     "RawPlutusData",
     "Redeemer",
     "ScriptType",
@@ -993,12 +994,12 @@ class Redeemer(ArrayCBORSerializable):
 
 
 def plutus_script_hash(
-    script: Union[bytes, PlutusV1Script, PlutusV2Script]
+    script: Union[bytes, PlutusV1Script, PlutusV2Script, PlutusV3Script]
 ) -> ScriptHash:
     """Calculates the hash of a Plutus script.
 
     Args:
-        script (Union[bytes, PlutusV1Script, PlutusV2Script]): A plutus script.
+        script (Union[bytes, PlutusV1Script, PlutusV2Script, PlutusV3Script]): A plutus script.
 
     Returns:
         ScriptHash: blake2b hash of the script.
@@ -1013,8 +1014,11 @@ class PlutusV1Script(bytes):
 class PlutusV2Script(bytes):
     pass
 
+class PlutusV3Script(bytes):
+    pass
 
-ScriptType = Union[bytes, NativeScript, PlutusV1Script, PlutusV2Script]
+
+ScriptType = Union[bytes, NativeScript, PlutusV1Script, PlutusV2Script, PlutusV3Script]
 """Script type. A Union type that contains all valid script types."""
 
 
@@ -1036,6 +1040,10 @@ def script_hash(script: ScriptType) -> ScriptHash:
     elif isinstance(script, PlutusV2Script):
         return ScriptHash(
             blake2b(bytes.fromhex("02") + script, SCRIPT_HASH_SIZE, encoder=RawEncoder)
+        )
+    elif isinstance(script, PlutusV3Script):
+        return ScriptHash(
+            blake2b(bytes.fromhex("03") + script, SCRIPT_HASH_SIZE, encoder=RawEncoder)
         )
     else:
         raise TypeError(f"Unexpected script type: {type(script)}")
