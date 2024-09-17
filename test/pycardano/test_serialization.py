@@ -8,7 +8,7 @@ import pytest
 import pycardano
 from pycardano import Datum, RawPlutusData
 from pycardano.exception import DeserializeException
-from pycardano.plutus import PlutusV1Script, PlutusV2Script
+from pycardano.plutus import PlutusV1Script, PlutusV2Script, PlutusV3Script
 from pycardano.serialization import (
     ArrayCBORSerializable,
     CBORSerializable,
@@ -295,10 +295,12 @@ def test_script_deserialize():
     class Test(MapCBORSerializable):
         script_1: PlutusV1Script
         script_2: PlutusV2Script
+        script_3: PlutusV3Script
 
     datum = Test(
         script_1=PlutusV1Script(b"dummy test script"),
         script_2=PlutusV2Script(b"dummy test script"),
+        script_3=PlutusV3Script(b"dummy test script"),
     )
 
     assert datum == datum.from_cbor(datum.to_cbor())

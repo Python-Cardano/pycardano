@@ -9,7 +9,7 @@ from pycardano.exception import InvalidDataException, InvalidOperationException
 from pycardano.hash import SCRIPT_HASH_SIZE, ScriptHash, TransactionId
 from pycardano.key import PaymentKeyPair, PaymentSigningKey, VerificationKey
 from pycardano.nativescript import ScriptPubkey
-from pycardano.plutus import PlutusData, PlutusV1Script, PlutusV2Script, datum_hash
+from pycardano.plutus import PlutusData, PlutusV1Script, PlutusV2Script, PlutusV3Script, datum_hash
 from pycardano.transaction import (
     Asset,
     AssetName,
