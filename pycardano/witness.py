@@ -115,18 +115,10 @@ class TransactionWitnessSet(MapCBORSerializable):
             )
 
         def _get_plutus_v1_scripts(data: Any):
-            return (
-                [PlutusV1Script(script) for script in data]
-                if data is not None
-                else None
-            )
+            return [PlutusV1Script(script) for script in data] if data else None
 
         def _get_plutus_v2_scripts(data: Any):
-            return (
-                [PlutusV2Script(script) for script in data]
-                if data is not None
-                else None
-            )
+            return [PlutusV2Script(script) for script in data] if data else None
 
         def _get_redeemers(data: Any):
             if not data:
