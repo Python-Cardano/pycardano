@@ -1866,3 +1866,68 @@ def test_add_script_input_post_chang(chain_context):
     )
 
     assert expected_redeemer_map == witness.redeemer
+
+
+def test_transaction_witness_set_redeemers_list(chain_context):
+    """Test that TransactionBuilder correctly stores Redeemer list"""
+    tx_builder = TransactionBuilder(chain_context)
+    redeemer_data = [
+        [0, 0, 42, [1000000, 2000000]],
+        [1, 1, "Hello", [3000000, 4000000]],
+    ]
+    tx_builder._redeemers = [Redeemer.from_primitive(r) for r in redeemer_data]
+
+    assert tx_builder._redeemers is not None
+    assert len(tx_builder._redeemers) == 2
+    assert tx_builder._redeemers[0].tag == RedeemerTag.SPEND
+    assert tx_builder._redeemers[0].index == 0
+    assert tx_builder._redeemers[0].data == 42
+    assert tx_builder._redeemers[0].ex_units == ExecutionUnits(1000000, 2000000)
+    assert tx_builder._redeemers[1].tag == RedeemerTag.MINT
+    assert tx_builder._redeemers[1].index == 1
+    assert tx_builder._redeemers[1].data == "Hello"
+    assert tx_builder._redeemers[1].ex_units == ExecutionUnits(3000000, 4000000)
+
+
+def test_transaction_witness_set_redeemers_dict(chain_context):
+    """Test that TransactionBuilder correctly stores RedeemerMap"""
+    tx_builder = TransactionBuilder(chain_context)
+    redeemer_data = {
+        (0, 0): [42, [1000000, 2000000]],
+        (1, 1): ["Hello", [3000000, 4000000]],
+    }
+    tx_builder._redeemers = RedeemerMap(
+        {
+            RedeemerKey(RedeemerTag(tag), index): RedeemerValue(
+                data, ExecutionUnits(*ex_units)
+            )
+            for (tag, index), (data, ex_units) in redeemer_data.items()
+        }
+    )
+
+    assert tx_builder._redeemers is not None
+    assert isinstance(tx_builder._redeemers, RedeemerMap)
+    assert len(tx_builder._redeemers) == 2
+
+    key1 = RedeemerKey(RedeemerTag.SPEND, 0)
+    assert tx_builder._redeemers[key1].data == 42
+    assert tx_builder._redeemers[key1].ex_units == ExecutionUnits(1000000, 2000000)
+
+    key2 = RedeemerKey(RedeemerTag.MINT, 1)
+    assert tx_builder._redeemers[key2].data == "Hello"
+    assert tx_builder._redeemers[key2].ex_units == ExecutionUnits(3000000, 4000000)
+
+
+def test_transaction_witness_set_redeemers_invalid_format(chain_context):
+    """Test that TransactionBuilder can store invalid redeemer data"""
+    tx_builder = TransactionBuilder(chain_context)
+    invalid_redeemer_data = "invalid_data"
+    tx_builder._redeemers = invalid_redeemer_data
+    assert tx_builder._redeemers == "invalid_data"
+
+
+def test_transaction_witness_set_no_redeemers(chain_context):
+    """Test that build_witness_set() returns a WitnessSet with no Redeemer"""
+    tx_builder = TransactionBuilder(chain_context)
+    witness_set = tx_builder.build_witness_set()
+    assert witness_set.redeemer is None
