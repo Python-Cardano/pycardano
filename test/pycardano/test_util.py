@@ -88,7 +88,8 @@ class TestMinLoveLaceMultiAsset:
                 {
                     b"1"
                     * SCRIPT_HASH_SIZE: {
-                        i.to_bytes(1, byteorder="big"): 1000000 * i for i in range(32)
+                        i.to_bytes(1, byteorder="big"): 1000000 * i
+                        for i in range(1, 33)
                     },
                     b"2"
                     * SCRIPT_HASH_SIZE: {

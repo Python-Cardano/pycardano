@@ -31,7 +31,7 @@ from pycardano.transaction import (
 )
 from pycardano.types import JsonDict
 
-__all__ = ["OgmiosV5ChainContext"]
+__all__ = ["OgmiosV5ChainContext", "KupoOgmiosV5ChainContext"]
 
 
 class OgmiosQueryType(str, Enum):
@@ -41,6 +41,8 @@ class OgmiosQueryType(str, Enum):
 
 
 class OgmiosV5ChainContext(ChainContext):
+    """Legacy Ogmios Chain Context for Ogmios v5"""
+
     _ws_url: str
     _network: Network
     _service_name: str

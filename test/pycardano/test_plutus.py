@@ -17,7 +17,10 @@ from pycardano.plutus import (
     PlutusData,
     RawPlutusData,
     Redeemer,
+    RedeemerKey,
+    RedeemerMap,
     RedeemerTag,
+    RedeemerValue,
     Unit,
     id_map,
     plutus_script_hash,
@@ -520,3 +523,64 @@ def test_plutus_raw_plutus_data():
     )
 
     assert B.from_cbor(cbor).to_cbor_hex() == cbor
+
+
+def test_redeemer_key():
+    # Test creation and equality
+    key1 = RedeemerKey(RedeemerTag.SPEND, 0)
+    key2 = RedeemerKey(RedeemerTag.SPEND, 0)
+    key3 = RedeemerKey(RedeemerTag.MINT, 1)
+
+    assert key1 == key2
+    assert key1 != key3
+
+    # Test hashing
+    assert hash(key1) == hash(key2)
+    assert hash(key1) != hash(key3)
+
+    # Test serialization and deserialization
+    serialized = key1.to_primitive()
+    deserialized = RedeemerKey.from_primitive(serialized)
+    assert key1 == deserialized
+
+
+def test_redeemer_value():
+    # Test creation
+    data = RawPlutusData(42)
+    ex_units = ExecutionUnits(10, 20)
+    value = RedeemerValue(data, ex_units)
+
+    assert value.data == data
+    assert value.ex_units == ex_units
+
+    # Test serialization and deserialization
+    serialized = value.to_primitive()
+    deserialized = RedeemerValue.from_primitive(serialized)
+    assert value.data.data == deserialized.data
+    assert value.ex_units == deserialized.ex_units
+
+
+def test_redeemer_map():
+    # Test creation and adding items
+    redeemer_map = RedeemerMap()
+    key1 = RedeemerKey(RedeemerTag.SPEND, 0)
+    value1 = RedeemerValue(42, ExecutionUnits(10, 20))
+    key2 = RedeemerKey(RedeemerTag.MINT, 1)
+    value2 = RedeemerValue(b"test", ExecutionUnits(30, 40))
+
+    redeemer_map[key1] = value1
+    redeemer_map[key2] = value2
+
+    assert len(redeemer_map) == 2
+    assert redeemer_map[key1] == value1
+    assert redeemer_map[key2] == value2
+
+    # Test serialization and deserialization
+    serialized = redeemer_map.to_cbor()
+    deserialized = RedeemerMap.from_cbor(serialized)
+
+    assert len(deserialized) == 2
+    assert deserialized[key1].data == value1.data
+    assert deserialized[key1].ex_units == value1.ex_units
+    assert deserialized[key2].data == value2.data
+    assert deserialized[key2].ex_units == value2.ex_units

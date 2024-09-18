@@ -68,6 +68,13 @@ jobs:
         run: |
           cd integration-test && ./run_tests.sh
 
+      - name: "Upload coverage to Codecov"
+        if: ${{ matrix.python-version == '3.11' }}
+        uses: codecov/codecov-action@v4
+        with:
+          fail_ci_if_error: true
+          token: ${{ secrets.CODECOV_TOKEN }}
+
       - name: Dump docker logs
         if: failure()
         run: |
@@ -75,7 +82,7 @@ jobs:
 
       - name: Upload integration-test.log
         if: failure()
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: integration-test.log
           path: integration-test/integration-test.log

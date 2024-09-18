@@ -39,7 +39,7 @@ from pycardano.transaction import (
 ALONZO_COINS_PER_UTXO_WORD = 34482
 DEFAULT_REFETCH_INTERVAL = 1000
 
-__all__ = ["OgmiosV6ChainContext"]
+__all__ = ["OgmiosV6ChainContext", "OgmiosChainContext", "KupoOgmiosV6ChainContext"]
 
 
 class OgmiosV6ChainContext(ChainContext):
@@ -355,6 +355,12 @@ class OgmiosV6ChainContext(ChainContext):
             for i, v in enumerate(ogmios_cost_models["plutus:v3"].copy()):
                 cost_models["PlutusV3"][f"{i:0{width}d}"] = v
         return cost_models
+
+
+class OgmiosChainContext(OgmiosV6ChainContext):
+    """An alias of OgmiosV6ChainContext for backwards compatibility."""
+
+    pass
 
 
 def KupoOgmiosV6ChainContext(

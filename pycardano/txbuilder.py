@@ -4,6 +4,7 @@ from copy import deepcopy
 from dataclasses import dataclass, field, fields
 from typing import Dict, List, Optional, Set, Tuple, Union
 
+from pycardano import RedeemerMap
 from pycardano.address import Address, AddressType
 from pycardano.backend.base import ChainContext
 from pycardano.certificate import (
@@ -42,7 +43,10 @@ from pycardano.plutus import (
     PlutusV2Script,
     PlutusV3Script,
     Redeemer,
+    RedeemerKey,
+    Redeemers,
     RedeemerTag,
+    RedeemerValue,
     ScriptType,
     datum_hash,
     script_hash,
@@ -186,7 +190,7 @@ class TransactionBuilder:
                 raise InvalidArgumentException(
                     f"All redeemers need to provide execution units if the firstly "
                     f"added redeemer specifies execution units. \n"
-                    f"Added redeemers: {self.redeemers} \n"
+                    f"Added redeemers: {self._redeemer_list} \n"
                     f"New redeemer: {redeemer}"
                 )
             if self._should_estimate_execution_units:
@@ -194,7 +198,7 @@ class TransactionBuilder:
                     raise InvalidArgumentException(
                         f"No redeemer should provide execution units if the firstly "
                         f"added redeemer didn't provide execution units. \n"
-                        f"Added redeemers: {self.redeemers} \n"
+                        f"Added redeemers: {self._redeemer_list} \n"
                         f"New redeemer: {redeemer}"
                     )
                 else:
@@ -485,16 +489,32 @@ class TransactionBuilder:
         return self._datums
 
     @property
-    def redeemers(self) -> List[Redeemer]:
+    def _redeemer_list(self) -> List[Redeemer]:
         return (
             [r for r in self._inputs_to_redeemers.values() if r is not None]
             + [r for _, r in self._minting_script_to_redeemers if r is not None]
             + [r for _, r in self._withdrawal_script_to_redeemers if r is not None]
         )
 
+    def redeemers(self) -> RedeemerMap:
+        redeemers = RedeemerMap()
+        for r in self._redeemer_list:
+            if r.tag is None:
+                raise InvalidArgumentException(
+                    f"Redeemer tag is not set. Redeemer: {r}"
+                )
+            if r.ex_units is None:
+                raise InvalidArgumentException(
+                    f"Execution units are not set. Redeemer: {r}"
+                )
+            k = RedeemerKey(r.tag, r.index)
+            v = RedeemerValue(r.data, r.ex_units)
+            redeemers[k] = v
+        return redeemers
+
     @property
     def script_data_hash(self) -> Optional[ScriptDataHash]:
-        if self.datums or self.redeemers:
+        if self.datums or self._redeemer_list:
             cost_models = {}
             for s in self.all_scripts:
                 if isinstance(s, PlutusV1Script) or type(s) is bytes:
@@ -512,7 +532,7 @@ class TransactionBuilder:
                         "PlutusV3", {}
                     )
             return script_data_hash(
-                self.redeemers, list(self.datums.values()), CostModels(cost_models)
+                self.redeemers(), list(self.datums.values()), CostModels(cost_models)
             )
         else:
             return None
@@ -878,7 +898,7 @@ class TransactionBuilder:
                     script_staking_credential.to_primitive()
                 )
 
-        self.redeemers.sort(key=lambda r: r.index)
+        self._redeemer_list.sort(key=lambda r: r.index)
 
     def _build_tx_body(self) -> TransactionBody:
         tx_body = TransactionBody(
@@ -908,12 +928,16 @@ class TransactionBuilder:
         )
         return tx_body
 
-    def _build_fake_vkey_witnesses(self) -> List[VerificationKeyWitness]:
+    def _build_required_vkeys(self) -> Set[VerificationKeyHash]:
         vkey_hashes = self._input_vkey_hashes()
         vkey_hashes.update(self._required_signer_vkey_hashes())
         vkey_hashes.update(self._native_scripts_vkey_hashes())
         vkey_hashes.update(self._certificate_vkey_hashes())
         vkey_hashes.update(self._withdrawal_vkey_hashes())
+        return vkey_hashes
+
+    def _build_fake_vkey_witnesses(self) -> List[VerificationKeyWitness]:
+        vkey_hashes = self._build_required_vkeys()
 
         witness_count = self.witness_override or len(vkey_hashes)
 
@@ -946,13 +970,16 @@ class TransactionBuilder:
             )
         return tx
 
-    def build_witness_set(self, remove_dup_script=False) -> TransactionWitnessSet:
+    def build_witness_set(
+        self, remove_dup_script: bool = False, post_chang: bool = True
+    ) -> TransactionWitnessSet:
         """Build a transaction witness set, excluding verification key witnesses.
         This function is especially useful when the transaction involves Plutus scripts.
 
         Args:
             remove_dup_script (bool): Whether to remove scripts, that are already attached to inputs,
              from the witness set.
+            post_chang (bool): Whether to use chang serialization for the witness.
 
         Returns:
             TransactionWitnessSet: A transaction witness set without verification key witnesses.
@@ -990,12 +1017,19 @@ class TransactionBuilder:
                         f"Unsupported script type: {type(script)}"
                     )
 
+        redeemers: Optional[Redeemers] = None
+        if self._redeemer_list:
+            if not post_chang:
+                redeemers = self._redeemer_list
+            else:
+                redeemers = self.redeemers()
+
         return TransactionWitnessSet(
             native_scripts=native_scripts if native_scripts else None,
             plutus_v1_script=plutus_v1_scripts if plutus_v1_scripts else None,
             plutus_v2_script=plutus_v2_scripts if plutus_v2_scripts else None,
             plutus_v3_script=plutus_v3_scripts if plutus_v3_scripts else None,
-            redeemer=self.redeemers if self.redeemers else None,
+            redeemer=redeemers,
             plutus_data=list(self.datums.values()) if self.datums else None,
         )
 
@@ -1007,24 +1041,26 @@ class TransactionBuilder:
                 f"{intersection}."
             )
 
-    def _estimate_fee(self):
-        plutus_execution_units = ExecutionUnits(0, 0)
-        for redeemer in self.redeemers:
-            plutus_execution_units += redeemer.ex_units
-
+    def _ref_script_size(self):
         ref_script_size = 0
         for s in self._reference_scripts:
             if isinstance(s, NativeScript):
                 ref_script_size += len(s.to_cbor())
             else:
                 ref_script_size += len(s)
+        return ref_script_size
+
+    def _estimate_fee(self):
+        plutus_execution_units = ExecutionUnits(0, 0)
+        for redeemer in self._redeemer_list:
+            plutus_execution_units += redeemer.ex_units
 
         estimated_fee = fee(
             self.context,
             len(self._build_full_fake_tx().to_cbor()),
             plutus_execution_units.steps,
             plutus_execution_units.mem,
-            ref_script_size,
+            self._ref_script_size(),
         )
         if self.fee_buffer is not None:
             estimated_fee += self.fee_buffer
@@ -1280,7 +1316,7 @@ class TransactionBuilder:
             return
 
         collateral_amount = (
-            max_tx_fee(context=self.context)
+            max_tx_fee(context=self.context, ref_script_size=self._ref_script_size())
             * self.context.protocol_param.collateral_percent
             // 100
         )
@@ -1357,7 +1393,7 @@ class TransactionBuilder:
             estimated_execution_units = self._estimate_execution_units(
                 change_address, merge_change, collateral_change_address
             )
-            for r in self.redeemers:
+            for r in self._redeemer_list:
                 assert (
                     r.tag is not None
                 ), "Expected tag of redeemer to be set, but found None"
@@ -1411,6 +1447,7 @@ class TransactionBuilder:
         auto_validity_start_offset: Optional[int] = None,
         auto_ttl_offset: Optional[int] = None,
         auto_required_signers: Optional[bool] = None,
+        force_skeys: Optional[bool] = False,
     ) -> Transaction:
         """Build a transaction body from all constraints set through the builder and sign the transaction with
         provided signing keys.
@@ -1432,6 +1469,10 @@ class TransactionBuilder:
             auto_required_signers (Optional[bool]): Automatically add all pubkeyhashes of transaction inputs
                 and the given signers to required signatories (default only for Smart Contract transactions).
                 Manually set required signers will always take precedence.
+            force_skeys (Optional[bool]): Whether to force the use of signing keys for signing the transaction.
+                Default is False, which means that provided signing keys will only be used to sign the transaction if
+                they are actually required by the transaction. This is useful to reduce tx fees by not including
+                unnecessary signatures. If set to True, all provided signing keys will be used to sign the transaction.
 
         Returns:
             Transaction: A signed transaction.
@@ -1453,7 +1494,15 @@ class TransactionBuilder:
         witness_set = self.build_witness_set(True)
         witness_set.vkey_witnesses = []
 
+        required_vkeys = self._build_required_vkeys()
+
         for signing_key in set(signing_keys):
+            vkey_hash = signing_key.to_verification_key().hash()
+            if not force_skeys and vkey_hash not in required_vkeys:
+                logger.warning(
+                    f"Verification key hash {vkey_hash} is not required for this tx."
+                )
+                continue
             signature = signing_key.sign(tx_body.hash())
             witness_set.vkey_witnesses.append(
                 VerificationKeyWitness(signing_key.to_verification_key(), signature)

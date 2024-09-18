@@ -13,6 +13,12 @@ from pycardano.plutus import (
     PlutusV3Script,
     RawPlutusData,
     Redeemer,
+    Redeemers,
+    RedeemerMap,
+    RedeemerKey,
+    RedeemerValue,
+    ExecutionUnits,
+    RedeemerTag,
 )
 from pycardano.serialization import (
     ArrayCBORSerializable,
@@ -76,9 +82,9 @@ class TransactionWitnessSet(MapCBORSerializable):
         metadata={"optional": True, "key": 4, "object_hook": list_hook(RawPlutusData)},
     )
 
-    redeemer: Optional[List[Redeemer]] = field(
+    redeemer: Optional[Redeemers] = field(
         default=None,
-        metadata={"optional": True, "key": 5, "object_hook": list_hook(Redeemer)},
+        metadata={"optional": True, "key": 5},
     )
 
     plutus_v2_script: Optional[List[PlutusV2Script]] = field(
@@ -123,11 +129,19 @@ class TransactionWitnessSet(MapCBORSerializable):
             )
 
         def _get_redeemers(data: Any):
-            return (
-                [Redeemer.from_primitive(redeemer) for redeemer in data]
-                if data is not None
-                else None
-            )
+            if not data:
+                return None
+            if isinstance(data, dict):
+                redeemer_map = RedeemerMap()
+                for (tag, index), value in data.items():
+                    key = RedeemerKey(RedeemerTag(tag), index)
+                    redeemer_value = RedeemerValue(value[0], ExecutionUnits(*value[1]))
+                    redeemer_map[key] = redeemer_value
+                return redeemer_map
+            elif isinstance(data, list):
+                return [Redeemer.from_primitive(redeemer) for redeemer in data]
+            else:
+                raise ValueError(f"Unexpected redeemer data format: {type(data)}")
 
         def _get_cls(data: Any):
             return cls(

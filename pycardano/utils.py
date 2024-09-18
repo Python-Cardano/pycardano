@@ -11,7 +11,7 @@ from nacl.hash import blake2b
 
 from pycardano.backend.base import ChainContext
 from pycardano.hash import SCRIPT_DATA_HASH_SIZE, SCRIPT_HASH_SIZE, ScriptDataHash
-from pycardano.plutus import COST_MODELS, CostModels, Datum, Redeemer
+from pycardano.plutus import COST_MODELS, CostModels, Datum, Redeemers
 from pycardano.serialization import default_encoder
 from pycardano.transaction import MultiAsset, TransactionOutput, Value
 
@@ -97,11 +97,12 @@ def fee(
     )
 
 
-def max_tx_fee(context: ChainContext) -> int:
+def max_tx_fee(context: ChainContext, ref_script_size: int = 0) -> int:
     """Calculate the maximum possible transaction fee based on protocol parameters.
 
     Args:
         context (ChainContext): A chain context.
+        ref_script_size (int): Size of reference scripts in the transaction.
 
     Returns:
         int: Maximum possible tx fee in lovelace.
@@ -111,6 +112,7 @@ def max_tx_fee(context: ChainContext) -> int:
         context.protocol_param.max_tx_size,
         context.protocol_param.max_tx_ex_steps,
         context.protocol_param.max_tx_ex_mem,
+        ref_script_size,
     )
 
 
@@ -184,7 +186,7 @@ def min_lovelace_pre_alonzo(
         int: Minimum required lovelace amount for this transaction output.
     """
     if amount is None or isinstance(amount, int) or not amount.multi_asset:
-        return context.protocol_param.min_utxo
+        return context.protocol_param.min_utxo or 1_000_000
 
     b_size = bundle_size(amount.multi_asset)
     utxo_entry_size = 27
@@ -231,14 +233,14 @@ def min_lovelace_post_alonzo(output: TransactionOutput, context: ChainContext) -
 
 
 def script_data_hash(
-    redeemers: List[Redeemer],
+    redeemers: Redeemers,
     datums: List[Datum],
     cost_models: Optional[Union[CostModels, Dict]] = None,
 ) -> ScriptDataHash:
     """Calculate plutus script data hash
 
     Args:
-        redeemers (List[Redeemer]): Redeemers to include.
+        redeemers (Redeemers): Redeemers to include.
         datums (List[Datum]): Datums to include.
         cost_models (Optional[CostModels]): Cost models.
 

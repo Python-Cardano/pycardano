@@ -38,10 +38,12 @@ from pycardano.plutus import (
 from pycardano.serialization import (
     ArrayCBORSerializable,
     CBORSerializable,
+    DictBase,
     DictCBORSerializable,
     MapCBORSerializable,
     Primitive,
     default_encoder,
+    limit_primitive_type,
     list_hook,
 )
 from pycardano.types import typechecked
@@ -87,6 +89,13 @@ class Asset(DictCBORSerializable):
 
     VALUE_TYPE = int
 
+    def normalize(self) -> Asset:
+        """Normalize the Asset by removing zero values."""
+        for k, v in list(self.items()):
+            if v == 0:
+                self.pop(k)
+        return self
+
     def union(self, other: Asset) -> Asset:
         return self + other
 
@@ -94,18 +103,18 @@ class Asset(DictCBORSerializable):
         new_asset = deepcopy(self)
         for n in other:
             new_asset[n] = new_asset.get(n, 0) + other[n]
-        return new_asset
+        return new_asset.normalize()
 
     def __iadd__(self, other: Asset) -> Asset:
         new_item = self + other
         self.update(new_item)
-        return self
+        return self.normalize()
 
     def __sub__(self, other: Asset) -> Asset:
         new_asset = deepcopy(self)
         for n in other:
             new_asset[n] = new_asset.get(n, 0) - other[n]
-        return new_asset
+        return new_asset.normalize()
 
     def __eq__(self, other):
         if not isinstance(other, Asset):
@@ -124,6 +133,20 @@ class Asset(DictCBORSerializable):
                 return False
         return True
 
+    @classmethod
+    @limit_primitive_type(dict)
+    def from_primitive(cls: Type[DictBase], value: dict) -> DictBase:
+        res = super().from_primitive(value)
+        # pop zero values
+        for n, v in list(res.items()):
+            if v == 0:
+                res.pop(n)
+        return res
+
+    def to_shallow_primitive(self) -> dict:
+        x = deepcopy(self).normalize()
+        return super(self.__class__, x).to_shallow_primitive()
+
 
 @typechecked
 class MultiAsset(DictCBORSerializable):
@@ -134,22 +157,30 @@ class MultiAsset(DictCBORSerializable):
     def union(self, other: MultiAsset) -> MultiAsset:
         return self + other
 
+    def normalize(self) -> MultiAsset:
+        """Normalize the MultiAsset by removing zero values."""
+        for k, v in list(self.items()):
+            v.normalize()
+            if len(v) == 0:
+                self.pop(k)
+        return self
+
     def __add__(self, other):
         new_multi_asset = deepcopy(self)
         for p in other:
             new_multi_asset[p] = new_multi_asset.get(p, Asset()) + other[p]
-        return new_multi_asset
+        return new_multi_asset.normalize()
 
     def __iadd__(self, other):
         new_item = self + other
         self.update(new_item)
-        return self
+        return self.normalize()
 
     def __sub__(self, other: MultiAsset) -> MultiAsset:
         new_multi_asset = deepcopy(self)
         for p in other:
             new_multi_asset[p] = new_multi_asset.get(p, Asset()) - other[p]
-        return new_multi_asset
+        return new_multi_asset.normalize()
 
     def __eq__(self, other):
         if not isinstance(other, MultiAsset):
@@ -208,6 +239,20 @@ class MultiAsset(DictCBORSerializable):
                     count += 1
 
         return count
+
+    @classmethod
+    @limit_primitive_type(dict)
+    def from_primitive(cls: Type[DictBase], value: dict) -> DictBase:
+        res = super().from_primitive(value)
+        # pop empty values
+        for n, v in list(res.items()):
+            if not v:
+                res.pop(n)
+        return res
+
+    def to_shallow_primitive(self) -> dict:
+        x = deepcopy(self).normalize()
+        return super(self.__class__, x).to_shallow_primitive()
 
 
 @typechecked

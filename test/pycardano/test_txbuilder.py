@@ -3,10 +3,12 @@ import logging
 from dataclasses import replace
 from fractions import Fraction
 from test.pycardano.test_key import SK
+from test.pycardano.util import check_two_way_cbor
 from unittest.mock import patch
 
 import pytest
 
+from pycardano import RedeemerKey, RedeemerMap, RedeemerValue
 from pycardano.address import Address
 from pycardano.certificate import (
     PoolRegistration,
@@ -56,7 +58,7 @@ from pycardano.transaction import (
 )
 from pycardano.txbuilder import TransactionBuilder
 from pycardano.utils import fee
-from pycardano.witness import VerificationKeyWitness
+from pycardano.witness import TransactionWitnessSet, VerificationKeyWitness
 
 
 def test_tx_builder(chain_context):
@@ -570,10 +572,13 @@ def test_add_script_input(chain_context):
     )
     tx_builder.add_output(TransactionOutput(receiver, 5000000))
     tx_builder.build(change_address=receiver)
-    witness = tx_builder.build_witness_set()
+    witness = tx_builder.build_witness_set(post_chang=False)
     assert [datum] == witness.plutus_data
     assert [redeemer1, redeemer2] == witness.redeemer
     assert [plutus_script] == witness.plutus_v1_script
+
+    # Test deserialization
+    TransactionWitnessSet.from_cbor(witness.to_cbor_hex())
 
 
 def test_add_script_input_no_script(chain_context):
@@ -598,7 +603,7 @@ def test_add_script_input_no_script(chain_context):
     )
     tx_builder.add_output(TransactionOutput(receiver, 5000000))
     tx_builder.build(change_address=receiver)
-    witness = tx_builder.build_witness_set(remove_dup_script=True)
+    witness = tx_builder.build_witness_set(remove_dup_script=True, post_chang=False)
     assert [datum] == witness.plutus_data
     assert [redeemer] == witness.redeemer
     assert witness.plutus_v1_script is None
@@ -666,7 +671,7 @@ def test_add_script_input_find_script(chain_context):
         )
         tx_builder.add_output(TransactionOutput(receiver, 5000000))
         tx_body = tx_builder.build(change_address=receiver)
-        witness = tx_builder.build_witness_set()
+        witness = tx_builder.build_witness_set(post_chang=False)
         assert [datum] == witness.plutus_data
         assert [redeemer] == witness.redeemer
         assert witness.plutus_v1_script is None
@@ -705,7 +710,7 @@ def test_add_script_input_with_script_from_specified_utxo(chain_context):
     )
     tx_builder.add_output(TransactionOutput(receiver, 5000000))
     tx_body = tx_builder.build(change_address=receiver)
-    witness = tx_builder.build_witness_set()
+    witness = tx_builder.build_witness_set(post_chang=False)
     assert [datum] == witness.plutus_data
     assert [redeemer] == witness.redeemer
     assert witness.plutus_v2_script is None
@@ -976,7 +981,7 @@ def test_add_minting_script_from_specified_utxo(chain_context):
     tx_builder.add_output(TransactionOutput(receiver, 5000000))
     tx_builder.mint = mint
     tx_body = tx_builder.build(change_address=receiver)
-    witness = tx_builder.build_witness_set()
+    witness = tx_builder.build_witness_set(post_chang=False)
     assert witness.plutus_data is None
     assert [redeemer] == witness.redeemer
     assert witness.plutus_v2_script is None
@@ -1105,7 +1110,7 @@ def test_add_minting_script(chain_context):
     )
     tx_builder.add_output(TransactionOutput(receiver, Value(5000000, mint)))
     tx_builder.build(change_address=receiver)
-    witness = tx_builder.build_witness_set()
+    witness = tx_builder.build_witness_set(post_chang=False)
     assert [plutus_script] == witness.plutus_v1_script
 
 
@@ -1127,7 +1132,7 @@ def test_add_minting_script_only(chain_context):
     )
     tx_builder.add_output(TransactionOutput(receiver, Value(5000000, mint)))
     tx_builder.build(change_address=receiver)
-    witness = tx_builder.build_witness_set()
+    witness = tx_builder.build_witness_set(post_chang=False)
     assert [plutus_script] == witness.plutus_v1_script
 
 
@@ -1197,6 +1202,7 @@ def test_build_and_sign(chain_context):
     tx = tx_builder2.build_and_sign(
         [SK],
         change_address=sender_address,
+        force_skeys=True,
     )
 
     assert tx.transaction_witness_set.vkey_witnesses == [
@@ -1231,7 +1237,7 @@ def test_estimate_execution_unit(chain_context):
     )
     tx_builder.add_output(TransactionOutput(receiver, 5000000))
     tx_builder.build(change_address=receiver)
-    witness = tx_builder.build_witness_set()
+    witness = tx_builder.build_witness_set(post_chang=False)
     assert [datum] == witness.plutus_data
     assert [redeemer1] == witness.redeemer
     assert redeemer1.ex_units is not None
@@ -1810,3 +1816,118 @@ def test_build_witness_set_mixed_scripts(chain_context):
     assert len(witness_set.plutus_v1_script) == 2
     assert len(witness_set.plutus_v2_script) == 1
     assert len(witness_set.plutus_v3_script) == 1
+
+
+def test_add_script_input_post_chang(chain_context):
+    tx_builder = TransactionBuilder(chain_context)
+    tx_in1 = TransactionInput.from_primitive(
+        ["18cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad21431590f7e6643438ef", 0]
+    )
+    tx_in2 = TransactionInput.from_primitive(
+        ["18cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad21431590f7e6643438ef", 1]
+    )
+    plutus_script = PlutusV1Script(b"dummy test script")
+    script_hash = plutus_script_hash(plutus_script)
+    script_address = Address(script_hash)
+    datum = PlutusData()
+    utxo1 = UTxO(
+        tx_in1, TransactionOutput(script_address, 10000000, datum_hash=datum.hash())
+    )
+    mint = MultiAsset.from_primitive({script_hash.payload: {b"TestToken": 1}})
+    UTxO(
+        tx_in2,
+        TransactionOutput(
+            script_address, Value(10000000, mint), datum_hash=datum.hash()
+        ),
+    )
+    redeemer1 = Redeemer(PlutusData(), ExecutionUnits(1000000, 1000000))
+    redeemer2 = Redeemer(PlutusData(), ExecutionUnits(5000000, 1000000))
+    tx_builder.mint = mint
+    tx_builder.add_script_input(utxo1, plutus_script, datum, redeemer1)
+    tx_builder.add_minting_script(plutus_script, redeemer2)
+    receiver = Address.from_primitive(
+        "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    )
+    tx_builder.add_output(TransactionOutput(receiver, 5000000))
+    tx_builder.build(change_address=receiver)
+    witness = tx_builder.build_witness_set()
+    assert [datum] == witness.plutus_data
+    assert [plutus_script] == witness.plutus_v1_script
+
+    expected_redeemer_map = RedeemerMap(
+        {
+            RedeemerKey(RedeemerTag.SPEND, 0): RedeemerValue(
+                PlutusData(), ExecutionUnits(1000000, 1000000)
+            ),
+            RedeemerKey(RedeemerTag.MINT, 0): RedeemerValue(
+                PlutusData(), ExecutionUnits(5000000, 1000000)
+            ),
+        }
+    )
+
+    assert expected_redeemer_map == witness.redeemer
+
+
+def test_transaction_witness_set_redeemers_list(chain_context):
+    """Test that TransactionBuilder correctly stores Redeemer list"""
+    tx_builder = TransactionBuilder(chain_context)
+    redeemer_data = [
+        [0, 0, 42, [1000000, 2000000]],
+        [1, 1, "Hello", [3000000, 4000000]],
+    ]
+    tx_builder._redeemers = [Redeemer.from_primitive(r) for r in redeemer_data]
+
+    assert tx_builder._redeemers is not None
+    assert len(tx_builder._redeemers) == 2
+    assert tx_builder._redeemers[0].tag == RedeemerTag.SPEND
+    assert tx_builder._redeemers[0].index == 0
+    assert tx_builder._redeemers[0].data == 42
+    assert tx_builder._redeemers[0].ex_units == ExecutionUnits(1000000, 2000000)
+    assert tx_builder._redeemers[1].tag == RedeemerTag.MINT
+    assert tx_builder._redeemers[1].index == 1
+    assert tx_builder._redeemers[1].data == "Hello"
+    assert tx_builder._redeemers[1].ex_units == ExecutionUnits(3000000, 4000000)
+
+
+def test_transaction_witness_set_redeemers_dict(chain_context):
+    """Test that TransactionBuilder correctly stores RedeemerMap"""
+    tx_builder = TransactionBuilder(chain_context)
+    redeemer_data = {
+        (0, 0): [42, [1000000, 2000000]],
+        (1, 1): ["Hello", [3000000, 4000000]],
+    }
+    tx_builder._redeemers = RedeemerMap(
+        {
+            RedeemerKey(RedeemerTag(tag), index): RedeemerValue(
+                data, ExecutionUnits(*ex_units)
+            )
+            for (tag, index), (data, ex_units) in redeemer_data.items()
+        }
+    )
+
+    assert tx_builder._redeemers is not None
+    assert isinstance(tx_builder._redeemers, RedeemerMap)
+    assert len(tx_builder._redeemers) == 2
+
+    key1 = RedeemerKey(RedeemerTag.SPEND, 0)
+    assert tx_builder._redeemers[key1].data == 42
+    assert tx_builder._redeemers[key1].ex_units == ExecutionUnits(1000000, 2000000)
+
+    key2 = RedeemerKey(RedeemerTag.MINT, 1)
+    assert tx_builder._redeemers[key2].data == "Hello"
+    assert tx_builder._redeemers[key2].ex_units == ExecutionUnits(3000000, 4000000)
+
+
+def test_transaction_witness_set_redeemers_invalid_format(chain_context):
+    """Test that TransactionBuilder can store invalid redeemer data"""
+    tx_builder = TransactionBuilder(chain_context)
+    invalid_redeemer_data = "invalid_data"
+    tx_builder._redeemers = invalid_redeemer_data
+    assert tx_builder._redeemers == "invalid_data"
+
+
+def test_transaction_witness_set_no_redeemers(chain_context):
+    """Test that build_witness_set() returns a WitnessSet with no Redeemer"""
+    tx_builder = TransactionBuilder(chain_context)
+    witness_set = tx_builder.build_witness_set()
+    assert witness_set.redeemer is None
