@@ -249,7 +249,6 @@ def script_data_hash(
     """
     if not redeemers:
         cost_models = {}
-        redeemers = {}
     elif not cost_models:
         cost_models = COST_MODELS
 
