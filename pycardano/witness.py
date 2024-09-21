@@ -103,14 +103,14 @@ class TransactionWitnessSet(MapCBORSerializable):
         def _get_vkey_witnesses(data: Any):
             return (
                 [VerificationKeyWitness.from_primitive(witness) for witness in data]
-                if data is not None
+                if data
                 else None
             )
 
         def _get_native_scripts(data: Any):
             return (
                 [NativeScript.from_primitive(script) for script in data]
-                if data is not None
+                if data
                 else None
             )
 
