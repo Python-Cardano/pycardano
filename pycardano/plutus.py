@@ -577,7 +577,7 @@ class PlutusData(ArrayCBORSerializable):
                 )
 
     def to_shallow_primitive(self) -> CBORTag:
-        primitives: Primitive = super(PlutusData, self).to_shallow_primitive()
+        primitives: Primitive = super().to_shallow_primitive()
         if primitives:
             primitives = IndefiniteList(primitives)
         tag = get_tag(self.CONSTR_ID)
