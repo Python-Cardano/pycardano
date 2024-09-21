@@ -547,9 +547,16 @@ class TransactionBuilder:
         provided = Value()
         for i in inputs:
             provided += i.output.amount
+
         if self.mint:
             for policy_id, assets in self.mint.items():
                 for asset_name, quantity in assets.items():
+                    if policy_id not in provided.multi_asset:
+                        provided.multi_asset[policy_id] = Asset()
+
+                    if asset_name not in provided.multi_asset[policy_id]:
+                        provided.multi_asset[policy_id][asset_name] = 0
+
                     provided.multi_asset[policy_id][asset_name] += quantity
 
             for policy_id in list(provided.multi_asset.keys()):
