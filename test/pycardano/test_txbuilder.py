@@ -572,7 +572,8 @@ def test_add_script_input(chain_context):
     )
     tx_builder.add_output(TransactionOutput(receiver, 5000000))
     tx_builder.build(change_address=receiver)
-    witness = tx_builder.build_witness_set(post_chang=False)
+    tx_builder.use_redeemer_map = False
+    witness = tx_builder.build_witness_set()
     assert [datum] == witness.plutus_data
     assert [redeemer1, redeemer2] == witness.redeemer
     assert [plutus_script] == witness.plutus_v1_script
@@ -603,7 +604,8 @@ def test_add_script_input_no_script(chain_context):
     )
     tx_builder.add_output(TransactionOutput(receiver, 5000000))
     tx_builder.build(change_address=receiver)
-    witness = tx_builder.build_witness_set(remove_dup_script=True, post_chang=False)
+    tx_builder.use_redeemer_map = False
+    witness = tx_builder.build_witness_set(remove_dup_script=True, )
     assert [datum] == witness.plutus_data
     assert [redeemer] == witness.redeemer
     assert witness.plutus_v1_script is None
@@ -671,7 +673,8 @@ def test_add_script_input_find_script(chain_context):
         )
         tx_builder.add_output(TransactionOutput(receiver, 5000000))
         tx_body = tx_builder.build(change_address=receiver)
-        witness = tx_builder.build_witness_set(post_chang=False)
+        tx_builder.use_redeemer_map = False
+        witness = tx_builder.build_witness_set()
         assert [datum] == witness.plutus_data
         assert [redeemer] == witness.redeemer
         assert witness.plutus_v1_script is None
@@ -710,7 +713,8 @@ def test_add_script_input_with_script_from_specified_utxo(chain_context):
     )
     tx_builder.add_output(TransactionOutput(receiver, 5000000))
     tx_body = tx_builder.build(change_address=receiver)
-    witness = tx_builder.build_witness_set(post_chang=False)
+    tx_builder.use_redeemer_map = False
+    witness = tx_builder.build_witness_set()
     assert [datum] == witness.plutus_data
     assert [redeemer] == witness.redeemer
     assert witness.plutus_v2_script is None
@@ -981,7 +985,8 @@ def test_add_minting_script_from_specified_utxo(chain_context):
     tx_builder.add_output(TransactionOutput(receiver, 5000000))
     tx_builder.mint = mint
     tx_body = tx_builder.build(change_address=receiver)
-    witness = tx_builder.build_witness_set(post_chang=False)
+    tx_builder.use_redeemer_map = False
+    witness = tx_builder.build_witness_set()
     assert witness.plutus_data is None
     assert [redeemer] == witness.redeemer
     assert witness.plutus_v2_script is None
@@ -1110,7 +1115,8 @@ def test_add_minting_script(chain_context):
     )
     tx_builder.add_output(TransactionOutput(receiver, Value(5000000, mint)))
     tx_builder.build(change_address=receiver)
-    witness = tx_builder.build_witness_set(post_chang=False)
+    tx_builder.use_redeemer_map = False
+    witness = tx_builder.build_witness_set()
     assert [plutus_script] == witness.plutus_v1_script
 
 
@@ -1132,7 +1138,8 @@ def test_add_minting_script_only(chain_context):
     )
     tx_builder.add_output(TransactionOutput(receiver, Value(5000000, mint)))
     tx_builder.build(change_address=receiver)
-    witness = tx_builder.build_witness_set(post_chang=False)
+    tx_builder.use_redeemer_map = False
+    witness = tx_builder.build_witness_set()
     assert [plutus_script] == witness.plutus_v1_script
 
 
@@ -1237,7 +1244,8 @@ def test_estimate_execution_unit(chain_context):
     )
     tx_builder.add_output(TransactionOutput(receiver, 5000000))
     tx_builder.build(change_address=receiver)
-    witness = tx_builder.build_witness_set(post_chang=False)
+    tx_builder.use_redeemer_map = False
+    witness = tx_builder.build_witness_set()
     assert [datum] == witness.plutus_data
     assert [redeemer1] == witness.redeemer
     assert redeemer1.ex_units is not None
