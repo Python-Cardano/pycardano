@@ -556,8 +556,10 @@ class TransactionBuilder:
         provided = Value()
         for i in inputs:
             provided += i.output.amount
+
         if self.mint:
             provided.multi_asset += self.mint
+
         if self.withdrawals:
             for v in self.withdrawals.values():
                 provided.coin += v

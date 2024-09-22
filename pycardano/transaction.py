@@ -107,7 +107,7 @@ class Asset(DictCBORSerializable):
 
     def __iadd__(self, other: Asset) -> Asset:
         new_item = self + other
-        self.update(new_item)
+        self.data = new_item.data
         return self.normalize()
 
     def __sub__(self, other: Asset) -> Asset:
@@ -173,7 +173,7 @@ class MultiAsset(DictCBORSerializable):
 
     def __iadd__(self, other):
         new_item = self + other
-        self.update(new_item)
+        self.data = new_item.data
         return self.normalize()
 
     def __sub__(self, other: MultiAsset) -> MultiAsset:
