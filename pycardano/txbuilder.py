@@ -5,6 +5,7 @@ from dataclasses import dataclass, field, fields
 from typing import Dict, List, Optional, Set, Tuple, Union
 
 from pycardano import RedeemerMap
+from pycardano import witness
 from pycardano.address import Address, AddressType
 from pycardano.backend.base import ChainContext
 from pycardano.certificate import (
@@ -1507,5 +1508,8 @@ class TransactionBuilder:
             witness_set.vkey_witnesses.append(
                 VerificationKeyWitness(signing_key.to_verification_key(), signature)
             )
+
+        if len(witness_set.vkey_witnesses) == 0:
+            witness_set.vkey_witnesses = None
 
         return Transaction(tx_body, witness_set, auxiliary_data=self.auxiliary_data)
