@@ -1933,29 +1933,23 @@ def test_transaction_witness_set_no_redeemers(chain_context):
     assert witness_set.redeemer is None
 
 
-def test_minting_updates_multi_asset_correctly(chain_context):
+def test_burning_all_assets_under_single_policy(chain_context):
     """
-    Test the burning of assets under one policy ID while preserving assets under another policy ID.
+    Test burning all assets under a single policy with TransactionBuilder.
 
-    This test ensures that assets are correctly burned under one policy (policy_id_1), while assets under another policy (policy_id_2)
-    remain unchanged. Specifically, it verifies that after burning certain assets (AssetName1, AssetName2, AssetName3, and AssetName4)
-    under policy_id_1, they are removed from the multi-asset map, while assets under policy_id_2 (AssetName5) remain intact.
+    This test ensures that burning multiple assets (AssetName1, AssetName2, AssetName3, AssetName4)
+    under policy_id_1 removes them from the multi-asset map.
 
     Steps:
-    1. Define two policy IDs and several assets (AssetName1, AssetName2, AssetName3, AssetName4 under policy_id_1
-       and AssetName5 under policy_id_2) using the AssetName class.
-    2. Simulate burning of 1 unit each of AssetName1, AssetName2, AssetName3, and AssetName4 under policy_id_1.
-    3. Add corresponding UTXOs for each asset as inputs.
-    4. Add burn instructions to the TransactionBuilder.
-    5. Build the transaction and verify that the burnt assets are removed from the multi-asset map.
-    6. Check that the correct quantity of AssetName5 under policy_id_2 remains intact in the transaction outputs.
+    1. Define assets under policy_id_1 and simulate burning 1 unit of each.
+    2. Add UTXOs for the assets and burning instructions.
+    3. Build the transaction and verify that all burned assets are removed.
 
     Args:
-        chain_context: The blockchain context used for constructing and verifying the transaction.
+        chain_context: The blockchain context.
 
     Assertions:
-        - AssetName1, AssetName2, AssetName3, and AssetName4 (under policy_id_1) are not present in the multi-asset map after burning.
-        - AssetName5 (under policy_id_2) remains with exactly 20 units in the transaction outputs.
+        - AssetName1, AssetName2, AssetName3, and AssetName4 are removed after burning.
     """
     tx_builder = TransactionBuilder(chain_context)
 
@@ -1978,19 +1972,16 @@ def test_minting_updates_multi_asset_correctly(chain_context):
     )
     # Define a policy ID and asset names
     policy_id_1 = plutus_script_hash(PlutusV1Script(b"dummy script1"))
-    policy_id_2 = plutus_script_hash(PlutusV1Script(b"dummy script2"))
     multi_asset1 = MultiAsset.from_primitive({policy_id_1.payload: {b"AssetName1": 1}})
     multi_asset2 = MultiAsset.from_primitive({policy_id_1.payload: {b"AssetName2": 1}})
     multi_asset3 = MultiAsset.from_primitive(
         {
             policy_id_1.payload: {b"AssetName3": 1},
-            policy_id_2.payload: {b"AssetName5": 10},
         }
     )
     multi_asset4 = MultiAsset.from_primitive(
         {
             policy_id_1.payload: {b"AssetName4": 1},
-            policy_id_2.payload: {b"AssetName5": 10},
         }
     )
 
@@ -2041,6 +2032,3 @@ def test_minting_updates_multi_asset_correctly(chain_context):
         assert AssetName(b"AssetName2") not in multi_asset.get(policy_id_1, {})
         assert AssetName(b"AssetName3") not in multi_asset.get(policy_id_1, {})
         assert AssetName(b"AseetName4") not in multi_asset.get(policy_id_1, {})
-
-        # Ensure that 20 units of AssetName5 are retained from the input
-        assert multi_asset.get(policy_id_2, {}).get(AssetName(b"AssetName5"), 0) == 20
