@@ -559,22 +559,6 @@ class TransactionBuilder:
 
                     provided.multi_asset[policy_id][asset_name] += quantity
 
-            for policy_id in list(provided.multi_asset.keys()):
-                new_asset = Asset(
-                    {
-                        asset_name: quantity
-                        for asset_name, quantity in provided.multi_asset[
-                            policy_id
-                        ].items()
-                        if quantity != 0
-                    }
-                )
-
-                if new_asset:
-                    provided.multi_asset[policy_id] = new_asset
-                else:
-                    del provided.multi_asset[policy_id]
-
         if self.withdrawals:
             for v in self.withdrawals.values():
                 provided.coin += v
