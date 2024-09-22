@@ -1509,4 +1509,7 @@ class TransactionBuilder:
                 VerificationKeyWitness(signing_key.to_verification_key(), signature)
             )
 
+        if len(witness_set.vkey_witnesses) == 0:
+            witness_set.vkey_witnesses = None
+
         return Transaction(tx_body, witness_set, auxiliary_data=self.auxiliary_data)
