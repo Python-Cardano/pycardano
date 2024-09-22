@@ -125,6 +125,9 @@ class TransactionBuilder:
 
     initial_stake_pool_registration: Optional[bool] = field(default=False)
 
+    use_redeemer_map: Optional[bool] = field(default=True)
+    """Whether to serialize redeemers as a map or a list. Default is True."""
+
     _inputs: List[UTxO] = field(init=False, default_factory=lambda: [])
 
     _potential_inputs: List[UTxO] = field(init=False, default_factory=lambda: [])
@@ -497,21 +500,27 @@ class TransactionBuilder:
             + [r for _, r in self._withdrawal_script_to_redeemers if r is not None]
         )
 
-    def redeemers(self) -> RedeemerMap:
-        redeemers = RedeemerMap()
-        for r in self._redeemer_list:
-            if r.tag is None:
-                raise InvalidArgumentException(
-                    f"Redeemer tag is not set. Redeemer: {r}"
-                )
-            if r.ex_units is None:
-                raise InvalidArgumentException(
-                    f"Execution units are not set. Redeemer: {r}"
-                )
-            k = RedeemerKey(r.tag, r.index)
-            v = RedeemerValue(r.data, r.ex_units)
-            redeemers[k] = v
-        return redeemers
+    def redeemers(self) -> Redeemers:
+        redeemer_list = self._redeemer_list
+
+        # We have to serialize redeemers as a map if there are no redeemers
+        if self.use_redeemer_map or not redeemer_list:
+            redeemers = RedeemerMap()
+            for r in redeemer_list:
+                if r.tag is None:
+                    raise InvalidArgumentException(
+                        f"Redeemer tag is not set. Redeemer: {r}"
+                    )
+                if r.ex_units is None:
+                    raise InvalidArgumentException(
+                        f"Execution units are not set. Redeemer: {r}"
+                    )
+                k = RedeemerKey(r.tag, r.index)
+                v = RedeemerValue(r.data, r.ex_units)
+                redeemers[k] = v
+            return redeemers
+        else:
+            return redeemer_list
 
     @property
     def script_data_hash(self) -> Optional[ScriptDataHash]:
@@ -972,7 +981,7 @@ class TransactionBuilder:
         return tx
 
     def build_witness_set(
-        self, remove_dup_script: bool = False, post_chang: bool = True
+        self, remove_dup_script: bool = False
     ) -> TransactionWitnessSet:
         """Build a transaction witness set, excluding verification key witnesses.
         This function is especially useful when the transaction involves Plutus scripts.
@@ -980,7 +989,6 @@ class TransactionBuilder:
         Args:
             remove_dup_script (bool): Whether to remove scripts, that are already attached to inputs,
              from the witness set.
-            post_chang (bool): Whether to use chang serialization for the witness.
 
         Returns:
             TransactionWitnessSet: A transaction witness set without verification key witnesses.
@@ -1018,19 +1026,12 @@ class TransactionBuilder:
                         f"Unsupported script type: {type(script)}"
                     )
 
-        redeemers: Optional[Redeemers] = None
-        if self._redeemer_list:
-            if not post_chang:
-                redeemers = self._redeemer_list
-            else:
-                redeemers = self.redeemers()
-
         return TransactionWitnessSet(
             native_scripts=native_scripts if native_scripts else None,
             plutus_v1_script=plutus_v1_scripts if plutus_v1_scripts else None,
             plutus_v2_script=plutus_v2_scripts if plutus_v2_scripts else None,
             plutus_v3_script=plutus_v3_scripts if plutus_v3_scripts else None,
-            redeemer=redeemers,
+            redeemer=self.redeemers() if self._redeemer_list else None,
             plutus_data=list(self.datums.values()) if self.datums else None,
         )
 
