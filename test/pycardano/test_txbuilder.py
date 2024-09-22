@@ -1933,7 +1933,7 @@ def test_transaction_witness_set_no_redeemers(chain_context):
     assert witness_set.redeemer is None
 
 
-def test_burning_assets_with_preserved_policy(chain_context):
+def test_minting_updates_multi_asset_correctly(chain_context):
     """
     Test the burning of assets under one policy ID while preserving assets under another policy ID.
 
