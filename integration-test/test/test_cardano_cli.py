@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 
+import pytest
 from retry import retry
 
 from pycardano import (
@@ -15,6 +16,7 @@ from pycardano.backend.cardano_cli import DockerConfig
 from .base import TEST_RETRIES
 
 
+@pytest.mark.CardanoCLI
 class TestCardanoCli:
     network_env = os.getenv("NETWORK", "local-alonzo")
     host_socket = os.getenv("DOCKER_HOST", None)

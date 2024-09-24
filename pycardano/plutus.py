@@ -8,12 +8,13 @@ import typing
 from dataclasses import dataclass, field, fields
 from enum import Enum
 from hashlib import sha256
-from typing import Any, Optional, Type, Union
+from typing import Any, List, Optional, Type, Union
 
 import cbor2
 from cbor2 import CBORTag
 from nacl.encoding import RawEncoder
 from nacl.hash import blake2b
+from typeguard import typechecked
 
 from pycardano.exception import DeserializeException, InvalidArgumentException
 from pycardano.hash import DATUM_HASH_SIZE, SCRIPT_HASH_SIZE, DatumHash, ScriptHash
@@ -41,8 +42,13 @@ __all__ = [
     "ExecutionUnits",
     "PlutusV1Script",
     "PlutusV2Script",
+    "PlutusV3Script",
     "RawPlutusData",
     "Redeemer",
+    "RedeemerKey",
+    "RedeemerValue",
+    "RedeemerMap",
+    "Redeemers",
     "ScriptType",
     "datum_hash",
     "plutus_script_hash",
@@ -992,6 +998,57 @@ class Redeemer(ArrayCBORSerializable):
         return redeemer
 
 
+@dataclass(repr=False)
+class RedeemerKey(ArrayCBORSerializable):
+    tag: RedeemerTag
+
+    index: int = field(default=0)
+
+    @classmethod
+    @limit_primitive_type(list, tuple)
+    def from_primitive(cls: Type[RedeemerKey], values: list) -> RedeemerKey:
+        tag = RedeemerTag.from_primitive(values[0])
+        index = values[1]
+        return cls(tag, index)
+
+    def __eq__(self, other):
+        if not isinstance(other, RedeemerKey):
+            return False
+        return self.tag == other.tag and self.index == other.index
+
+    def __hash__(self):
+        return hash(self.to_cbor())
+
+
+@dataclass(repr=False)
+class RedeemerValue(ArrayCBORSerializable):
+    data: Any
+
+    ex_units: ExecutionUnits
+
+    @classmethod
+    @limit_primitive_type(list)
+    def from_primitive(cls: Type[RedeemerValue], values: list) -> RedeemerValue:
+        if isinstance(values[0], CBORTag) and cls is RedeemerValue:
+            values[0] = RawPlutusData.from_primitive(values[0])
+        return super(RedeemerValue, cls).from_primitive([values[0], values[1]])
+
+    def __eq__(self, other):
+        if not isinstance(other, RedeemerValue):
+            return False
+        return self.data == other.data and self.ex_units == other.ex_units
+
+
+@typechecked
+class RedeemerMap(DictCBORSerializable):
+    KEY_TYPE = RedeemerKey
+
+    VALUE_TYPE = RedeemerValue
+
+
+Redeemers = Union[List[Redeemer], RedeemerMap]
+
+
 def plutus_script_hash(
     script: Union[bytes, PlutusV1Script, PlutusV2Script]
 ) -> ScriptHash:
@@ -1011,6 +1068,10 @@ class PlutusV1Script(bytes):
 
 
 class PlutusV2Script(bytes):
+    pass
+
+
+class PlutusV3Script(bytes):
     pass
 
 
@@ -1036,6 +1097,10 @@ def script_hash(script: ScriptType) -> ScriptHash:
     elif isinstance(script, PlutusV2Script):
         return ScriptHash(
             blake2b(bytes.fromhex("02") + script, SCRIPT_HASH_SIZE, encoder=RawEncoder)
+        )
+    elif isinstance(script, PlutusV3Script):
+        return ScriptHash(
+            blake2b(bytes.fromhex("03") + script, SCRIPT_HASH_SIZE, encoder=RawEncoder)
         )
     else:
         raise TypeError(f"Unexpected script type: {type(script)}")

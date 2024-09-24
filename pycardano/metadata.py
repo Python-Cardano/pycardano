@@ -10,6 +10,7 @@ from nacl.hash import blake2b
 from pycardano.exception import DeserializeException, InvalidArgumentException
 from pycardano.hash import AUXILIARY_DATA_HASH_SIZE, AuxiliaryDataHash
 from pycardano.nativescript import NativeScript
+from pycardano.plutus import PlutusV1Script, PlutusV2Script, PlutusV3Script
 from pycardano.serialization import (
     ArrayCBORSerializable,
     CBORSerializable,
@@ -87,8 +88,14 @@ class AlonzoMetadata(MapCBORSerializable):
         default=None,
         metadata={"optional": True, "key": 1, "object_hook": list_hook(NativeScript)},
     )
-    plutus_scripts: Optional[List[bytes]] = field(
+    plutus_v1_scripts: Optional[List[PlutusV1Script]] = field(
         default=None, metadata={"optional": True, "key": 2}
+    )
+    plutus_v2_scripts: Optional[List[PlutusV2Script]] = field(
+        default=None, metadata={"optional": True, "key": 3}
+    )
+    plutus_v3_scripts: Optional[List[PlutusV3Script]] = field(
+        default=None, metadata={"optional": True, "key": 4}
     )
 
     def to_primitive(self) -> Primitive:

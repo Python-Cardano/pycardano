@@ -4,7 +4,7 @@ on:
   push:
     branches: "**"
   pull_request:
-    branches: ["main"]
+    branches: ["main", "chang"]
     types: [opened, reopened, edited, synchronize]
 
 jobs:
@@ -14,7 +14,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
-        python-version: [3.8, 3.9, '3.10', '3.11']
+        python-version: ['3.8', '3.9', '3.10', '3.11']
 
     steps:
       - uses: actions/checkout@v4
@@ -59,18 +59,30 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: 'poetry'
 
+      - name: Setup docker-compose
+        uses: KengoTODA/actions-setup-docker-compose@v1.2.2
+        with:
+          version: '2.14.2'
+
       - name: Run integration tests
         run: |
           cd integration-test && ./run_tests.sh
 
+      - name: "Upload coverage to Codecov"
+        if: ${{ matrix.python-version == '3.11' }}
+        uses: codecov/codecov-action@v4
+        with:
+          fail_ci_if_error: true
+          token: ${{ secrets.CODECOV_TOKEN }}
+
       - name: Dump docker logs
         if: failure()
         run: |
-          cd integration-test && docker-compose logs --no-color > integration-test.log
+          cd integration-test && docker compose logs --no-color > integration-test.log
 
       - name: Upload integration-test.log
         if: failure()
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: integration-test.log
           path: integration-test/integration-test.log

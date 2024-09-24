@@ -28,14 +28,22 @@ from pycardano.hash import (
 from pycardano.metadata import AuxiliaryData
 from pycardano.nativescript import NativeScript
 from pycardano.network import Network
-from pycardano.plutus import Datum, PlutusV1Script, PlutusV2Script, RawPlutusData
+from pycardano.plutus import (
+    Datum,
+    PlutusV1Script,
+    PlutusV2Script,
+    PlutusV3Script,
+    RawPlutusData,
+)
 from pycardano.serialization import (
     ArrayCBORSerializable,
     CBORSerializable,
+    DictBase,
     DictCBORSerializable,
     MapCBORSerializable,
     Primitive,
     default_encoder,
+    limit_primitive_type,
     list_hook,
 )
 from pycardano.types import typechecked
@@ -81,6 +89,13 @@ class Asset(DictCBORSerializable):
 
     VALUE_TYPE = int
 
+    def normalize(self) -> Asset:
+        """Normalize the Asset by removing zero values."""
+        for k, v in list(self.items()):
+            if v == 0:
+                self.pop(k)
+        return self
+
     def union(self, other: Asset) -> Asset:
         return self + other
 
@@ -88,18 +103,18 @@ class Asset(DictCBORSerializable):
         new_asset = deepcopy(self)
         for n in other:
             new_asset[n] = new_asset.get(n, 0) + other[n]
-        return new_asset
+        return new_asset.normalize()
 
     def __iadd__(self, other: Asset) -> Asset:
         new_item = self + other
-        self.update(new_item)
-        return self
+        self.data = new_item.data
+        return self.normalize()
 
     def __sub__(self, other: Asset) -> Asset:
         new_asset = deepcopy(self)
         for n in other:
             new_asset[n] = new_asset.get(n, 0) - other[n]
-        return new_asset
+        return new_asset.normalize()
 
     def __eq__(self, other):
         if not isinstance(other, Asset):
@@ -118,6 +133,20 @@ class Asset(DictCBORSerializable):
                 return False
         return True
 
+    @classmethod
+    @limit_primitive_type(dict)
+    def from_primitive(cls: Type[DictBase], value: dict) -> DictBase:
+        res = super().from_primitive(value)
+        # pop zero values
+        for n, v in list(res.items()):
+            if v == 0:
+                res.pop(n)
+        return res
+
+    def to_shallow_primitive(self) -> dict:
+        x = deepcopy(self).normalize()
+        return super(self.__class__, x).to_shallow_primitive()
+
 
 @typechecked
 class MultiAsset(DictCBORSerializable):
@@ -128,22 +157,30 @@ class MultiAsset(DictCBORSerializable):
     def union(self, other: MultiAsset) -> MultiAsset:
         return self + other
 
+    def normalize(self) -> MultiAsset:
+        """Normalize the MultiAsset by removing zero values."""
+        for k, v in list(self.items()):
+            v.normalize()
+            if len(v) == 0:
+                self.pop(k)
+        return self
+
     def __add__(self, other):
         new_multi_asset = deepcopy(self)
         for p in other:
             new_multi_asset[p] = new_multi_asset.get(p, Asset()) + other[p]
-        return new_multi_asset
+        return new_multi_asset.normalize()
 
     def __iadd__(self, other):
         new_item = self + other
-        self.update(new_item)
-        return self
+        self.data = new_item.data
+        return self.normalize()
 
     def __sub__(self, other: MultiAsset) -> MultiAsset:
         new_multi_asset = deepcopy(self)
         for p in other:
             new_multi_asset[p] = new_multi_asset.get(p, Asset()) - other[p]
-        return new_multi_asset
+        return new_multi_asset.normalize()
 
     def __eq__(self, other):
         if not isinstance(other, MultiAsset):
@@ -203,6 +240,20 @@ class MultiAsset(DictCBORSerializable):
 
         return count
 
+    @classmethod
+    @limit_primitive_type(dict)
+    def from_primitive(cls: Type[DictBase], value: dict) -> DictBase:
+        res = super().from_primitive(value)
+        # pop empty values
+        for n, v in list(res.items()):
+            if not v:
+                res.pop(n)
+        return res
+
+    def to_shallow_primitive(self) -> dict:
+        x = deepcopy(self).normalize()
+        return super(self.__class__, x).to_shallow_primitive()
+
 
 @typechecked
 @dataclass(repr=False)
@@ -259,15 +310,17 @@ class Value(ArrayCBORSerializable):
 class _Script(ArrayCBORSerializable):
     _TYPE: int = field(init=False, default=0)
 
-    script: Union[NativeScript, PlutusV1Script, PlutusV2Script]
+    script: Union[NativeScript, PlutusV1Script, PlutusV2Script, PlutusV3Script]
 
     def __post_init__(self):
         if isinstance(self.script, NativeScript):
             self._TYPE = 0
         elif isinstance(self.script, PlutusV1Script):
             self._TYPE = 1
-        else:
+        elif isinstance(self.script, PlutusV2Script):
             self._TYPE = 2
+        else:
+            self._TYPE = 3
 
     @classmethod
     def from_primitive(cls: Type[_Script], values: List[Primitive]) -> _Script:
@@ -276,8 +329,10 @@ class _Script(ArrayCBORSerializable):
         assert isinstance(values[1], bytes)
         if values[0] == 1:
             return cls(PlutusV1Script(values[1]))
-        else:
+        elif values[0] == 2:
             return cls(PlutusV2Script(values[1]))
+        else:
+            return cls(PlutusV3Script(values[1]))
 
 
 @dataclass(repr=False)
@@ -344,7 +399,9 @@ class _TransactionOutputPostAlonzo(MapCBORSerializable):
     )
 
     @property
-    def script(self) -> Optional[Union[NativeScript, PlutusV1Script, PlutusV2Script]]:
+    def script(
+        self,
+    ) -> Optional[Union[NativeScript, PlutusV1Script, PlutusV2Script, PlutusV3Script]]:
         if self.script_ref:
             return self.script_ref.script.script
         else:
@@ -370,7 +427,9 @@ class TransactionOutput(CBORSerializable):
 
     datum: Optional[Datum] = None
 
-    script: Optional[Union[NativeScript, PlutusV1Script, PlutusV2Script]] = None
+    script: Optional[
+        Union[NativeScript, PlutusV1Script, PlutusV2Script, PlutusV3Script]
+    ] = None
 
     post_alonzo: Optional[bool] = False
 

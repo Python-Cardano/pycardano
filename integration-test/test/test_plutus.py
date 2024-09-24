@@ -1,5 +1,6 @@
 import collections
 import time
+from dataclasses import dataclass
 from typing import Dict, Union
 
 import cbor2
@@ -7,9 +8,22 @@ import pytest
 from retry import retry
 
 from pycardano import *
+from pycardano.backend.kupo import KupoChainContextExtension
 
 from .base import TEST_RETRIES, TestBase
 from .test_cardano_cli import TestCardanoCli
+
+
+@dataclass
+class HelloWorldDatum(PlutusData):
+    CONSTR_ID = 0
+    owner: bytes
+
+
+@dataclass
+class HelloWorldRedeemer(PlutusData):
+    CONSTR_ID = 0
+    msg: bytes
 
 
 class TestPlutus(TestBase):
@@ -263,7 +277,7 @@ class TestPlutus(TestBase):
         print(signed_tx.to_cbor_hex())
         print("############### Submitting transaction ###############")
         self.chain_context.submit_tx(signed_tx)
-        time.sleep(3)
+        time.sleep(6)
 
         # ----------- Send ADA to the same script address without datum or script ---------------
 
@@ -280,7 +294,7 @@ class TestPlutus(TestBase):
         print(signed_tx.to_cbor_hex())
         print("############### Submitting transaction ###############")
         self.chain_context.submit_tx(signed_tx)
-        time.sleep(3)
+        time.sleep(6)
 
         # ----------- Taker take ---------------
 
@@ -369,11 +383,72 @@ class TestPlutus(TestBase):
 
         assert utxos[0].output.script == forty_two_script
 
+    @retry(tries=TEST_RETRIES, backoff=1.5, delay=6, jitter=(0, 4))
+    @pytest.mark.post_chang
+    def test_plutus_v3(self):
+        # ----------- Giver give ---------------
 
-# class TestPlutusOgmiosOnly(TestPlutus):
-#     @classmethod
-#     def setup_class(cls):
-#         cls.chain_context._kupo_url = None
+        with open("./plutus_scripts/helloworldV3.plutus", "r") as f:
+            script_hex = f.read()
+            hello_world_script = bytes.fromhex(script_hex)
+
+        script_hash = plutus_script_hash(PlutusV3Script(hello_world_script))
+
+        print("script_hash: ", script_hash)
+
+        script_address = Address(script_hash, network=self.NETWORK)
+
+        giver_address = Address(self.payment_vkey.hash(), network=self.NETWORK)
+
+        builder = TransactionBuilder(self.chain_context)
+        builder.add_input_address(giver_address)
+        datum = HelloWorldDatum(owner=self.payment_vkey.hash().to_primitive())
+        builder.add_output(TransactionOutput(script_address, 50000000, datum=datum))
+
+        signed_tx = builder.build_and_sign([self.payment_skey], giver_address)
+
+        print("############### Transaction created ###############")
+        print(signed_tx)
+        print(signed_tx.to_cbor_hex())
+        print("############### Submitting transaction ###############")
+        self.chain_context.submit_tx(signed_tx)
+        time.sleep(3)
+
+        # ----------- Taker take ---------------
+
+        redeemer = Redeemer(data=HelloWorldRedeemer(msg=b"Hello, World!"))
+
+        utxo_to_spend = self.chain_context.utxos(script_address)[0]
+
+        taker_address = Address(self.payment_vkey.hash(), network=self.NETWORK)
+
+        builder = TransactionBuilder(self.chain_context)
+
+        builder.add_script_input(
+            utxo_to_spend, PlutusV3Script(hello_world_script), redeemer=redeemer
+        )
+        take_output = TransactionOutput(taker_address, 25123456)
+        builder.add_output(take_output)
+
+        builder.required_signers = [self.payment_vkey.hash()]
+
+        signed_tx = builder.build_and_sign([self.payment_skey], taker_address)
+
+        print("############### Transaction created ###############")
+        print(signed_tx)
+        print(signed_tx.to_cbor_hex())
+        print("############### Submitting transaction ###############")
+        self.chain_context.submit_tx(signed_tx)
+
+        time.sleep(3)
+
+        self.assert_output(taker_address, take_output)
+
+
+class TestPlutusKupoOgmios(TestPlutus):
+    @classmethod
+    def setup_class(cls):
+        cls.chain_context = KupoChainContextExtension(cls.chain_context, cls.KUPO_URL)
 
 
 def evaluate_tx(tx: Transaction) -> Dict[str, ExecutionUnits]:
@@ -388,6 +463,7 @@ def evaluate_tx(tx: Transaction) -> Dict[str, ExecutionUnits]:
     return execution_units
 
 
+@pytest.mark.CardanoCLI
 class TestPlutusCardanoCLI(TestPlutus):
     @classmethod
     def setup_class(cls):

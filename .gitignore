@@ -3,6 +3,8 @@
 cov_html
 docs/build
 dist
+.mypy_cache
+coverage.xml
 
 # IDE
 .idea
