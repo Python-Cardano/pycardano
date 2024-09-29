@@ -829,8 +829,8 @@ class DictCBORSerializable(CBORSerializable):
         typeguard.TypeCheckError: int is not an instance of str
     """
 
-    KEY_TYPE = Any
-    VALUE_TYPE = Any
+    KEY_TYPE = Type[Any]
+    VALUE_TYPE = Type[Any]
 
     def __init__(self, *args, **kwargs):
         self.data = dict(*args, **kwargs)
@@ -906,12 +906,12 @@ class DictCBORSerializable(CBORSerializable):
         restored = cls()
         for k, v in value.items():
             k = (
-                cls.KEY_TYPE.from_primitive(k)
+                cls.KEY_TYPE.from_primitive(k)  # type: ignore
                 if isclass(cls.KEY_TYPE) and issubclass(cls.KEY_TYPE, CBORSerializable)
                 else k
             )
             v = (
-                cls.VALUE_TYPE.from_primitive(v)
+                cls.VALUE_TYPE.from_primitive(v)  # type: ignore
                 if isclass(cls.VALUE_TYPE)
                 and issubclass(cls.VALUE_TYPE, CBORSerializable)
                 else v
