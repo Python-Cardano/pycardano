@@ -158,6 +158,10 @@ class TransactionBuilder:
     _withdrawal_script_to_redeemers: List[Tuple[ScriptType, Optional[Redeemer]]] = (
         field(init=False, default_factory=lambda: [])
     )
+    
+    _certificate_script_to_redeemers: List[Tuple[ScriptType, Optional[Redeemer]]] = (
+        field(init=False, default_factory=lambda: [])
+    )
 
     _inputs_to_scripts: Dict[UTxO, ScriptType] = field(
         init=False, default_factory=lambda: {}
@@ -384,6 +388,42 @@ class TransactionBuilder:
             self._withdrawal_script_to_redeemers.append((script, redeemer))
         return self
 
+    def add_certificate_script(
+        self,
+        script: Union[
+            UTxO, NativeScript, PlutusV1Script, PlutusV2Script, PlutusV3Script
+        ],
+        redeemer: Optional[Redeemer] = None,
+    ) -> TransactionBuilder:
+        """Add a certificate script along with its redeemer to this transaction.
+
+        Args:
+            script (Union[UTxO, PlutusV1Script, PlutusV2Script, PlutusV3Script]): A plutus script.
+            redeemer (Optional[Redeemer]): A plutus redeemer to unlock the UTxO.
+
+        Returns:
+            TransactionBuilder: Current transaction builder.
+        """
+        if redeemer:
+            if redeemer.tag is not None and redeemer.tag != RedeemerTag.CERT:
+                raise InvalidArgumentException(
+                    f"Expect the redeemer tag's type to be {RedeemerTag.CERT}, "
+                    f"but got {redeemer.tag} instead."
+                )
+            redeemer.tag = RedeemerTag.CERT
+            self._consolidate_redeemer(redeemer)
+
+        if isinstance(script, UTxO):
+            assert script.output.script is not None
+            self._certificate_script_to_redeemers.append(
+                (script.output.script, redeemer)
+            )
+            self.reference_inputs.add(script)
+            self._reference_scripts.append(script.output.script)
+        else:
+            self._certificate_script_to_redeemers.append((script, redeemer))
+        return self
+
     def add_input_address(self, address: Union[Address, str]) -> TransactionBuilder:
         """Add an address to transaction's input address.
         Unlike :meth:`add_input`, which deterministically adds a UTxO to the transaction's inputs, `add_input_address`
@@ -471,6 +511,9 @@ class TransactionBuilder:
 
         for s, _ in self._withdrawal_script_to_redeemers:
             scripts[script_hash(s)] = s
+        
+        for s, _ in self._certificate_script_to_redeemers:
+            scripts[script_hash(s)] = s
 
         return list(scripts.values())
 
@@ -497,6 +540,7 @@ class TransactionBuilder:
             [r for r in self._inputs_to_redeemers.values() if r is not None]
             + [r for _, r in self._minting_script_to_redeemers if r is not None]
             + [r for _, r in self._withdrawal_script_to_redeemers if r is not None]
+            + [r for _, r in self._certificate_script_to_redeemers if r is not None]
         )
 
     def redeemers(self) -> Redeemers:
@@ -879,6 +923,8 @@ class TransactionBuilder:
     def _set_redeemer_index(self):
         # Set redeemers' index according to section 4.1 in
         # https://hydra.iohk.io/build/13099856/download/1/alonzo-changes.pdf
+        #
+        # There is no way to determine 
 
         if self.mint:
             sorted_mint_policies = sorted(self.mint.keys(), key=lambda x: x.to_cbor())
