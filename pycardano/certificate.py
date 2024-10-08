@@ -61,7 +61,10 @@ class StakeRegistration(ArrayCBORSerializable):
     def from_primitive(
         cls: Type[StakeRegistration], values: Union[list, tuple]
     ) -> StakeRegistration:
-        return cls(stake_credential=StakeCredential.from_primitive(values[1]))
+        if values[0] == 0:
+            return cls(stake_credential=StakeCredential.from_primitive(values[1]))
+        else:
+            raise DeserializeException(f"Invalid StakeRegistration type {values[0]}")
 
 
 @dataclass(repr=False)

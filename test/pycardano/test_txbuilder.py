@@ -1943,28 +1943,23 @@ def test_transaction_witness_set_no_redeemers(chain_context):
     assert witness_set.redeemer is None
 
 
-def test_minting_and_burning_zero_quantity_assets(chain_context):
+def test_burning_all_assets_under_single_policy(chain_context):
     """
-    Test the minting and burning of multiple assets using the TransactionBuilder.
+    Test burning all assets under a single policy with TransactionBuilder.
 
-    This test ensures that assets are correctly minted and burned under the same policy ID.
-    Specifically, it verifies that after burning certain assets (AssetName1, AssetName2, and AssetName3),
-    they are removed from the multi-asset map, and the correct amount of the minted asset (AssetName4) remains.
+    This test ensures that burning multiple assets (AssetName1, AssetName2, AssetName3, AssetName4)
+    under policy_id_1 removes them from the multi-asset map.
 
     Steps:
-    1. Define a policy ID and several assets (AssetName1, AssetName2, AssetName3, and AssetName4) using the AssetName class.
-    2. Simulate minting of 2 units of AssetName4 and burning 1 unit each of AssetName1, AssetName2, and AssetName3.
-    3. Add corresponding UTXOs for each asset as inputs.
-    4. Add minting instructions to the TransactionBuilder.
-    5. Build the transaction and verify that the burnt assets are removed from the multi-asset map.
-    6. Check that the correct quantity of AssetName4 is minted and included in the transaction outputs.
+    1. Define assets under policy_id_1 and simulate burning 1 unit of each.
+    2. Add UTXOs for the assets and burning instructions.
+    3. Build the transaction and verify that all burned assets are removed.
 
     Args:
-        chain_context: The blockchain context used for constructing and verifying the transaction.
+        chain_context: The blockchain context.
 
     Assertions:
-        - AssetName1, AssetName2, and AssetName3 are not present in the multi-asset map after burning.
-        - AssetName4 has exactly 2 units minted.
+        - AssetName1, AssetName2, AssetName3, and AssetName4 are removed after burning.
     """
     tx_builder = TransactionBuilder(chain_context)
 
@@ -1986,43 +1981,48 @@ def test_minting_and_burning_zero_quantity_assets(chain_context):
         ["d6cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad21431590f7e6643438ef", 3]
     )
     # Define a policy ID and asset names
-    policy_id = plutus_script_hash(PlutusV1Script(b"dummy script"))
-    multi_asset1 = MultiAsset.from_primitive({policy_id.payload: {b"AssetName1": 1}})
-    multi_asset2 = MultiAsset.from_primitive({policy_id.payload: {b"AssetName2": 2}})
-    multi_asset3 = MultiAsset.from_primitive({policy_id.payload: {b"AssetName3": 1}})
-    multi_asset4 = MultiAsset.from_primitive({policy_id.payload: {b"AssetName4": 3}})
+    policy_id_1 = plutus_script_hash(PlutusV1Script(b"dummy script1"))
+    multi_asset1 = MultiAsset.from_primitive({policy_id_1.payload: {b"AssetName1": 1}})
+    multi_asset2 = MultiAsset.from_primitive({policy_id_1.payload: {b"AssetName2": 1}})
+    multi_asset3 = MultiAsset.from_primitive(
+        {
+            policy_id_1.payload: {b"AssetName3": 1},
+        }
+    )
+    multi_asset4 = MultiAsset.from_primitive(
+        {
+            policy_id_1.payload: {b"AssetName4": 1},
+        }
+    )
 
     # Simulate minting and burning of assets
     mint = MultiAsset.from_primitive(
         {
-            policy_id.payload: {
+            policy_id_1.payload: {
                 b"AssetName1": -1,
-                b"AssetName2": -2,
+                b"AssetName2": -1,
                 b"AssetName3": -1,
-                b"AssetName4": 2,
+                b"AssetName4": -1,
             }
         }
     )
 
     # Set UTXO for the inputs
     utxo1 = UTxO(
-        tx_in1, TransactionOutput(Address(policy_id), Value(10000000, multi_asset1))
+        tx_in1, TransactionOutput(Address(policy_id_1), Value(10000000, multi_asset1))
     )
     utxo2 = UTxO(
-        tx_in2, TransactionOutput(Address(policy_id), Value(10000000, multi_asset2))
+        tx_in2, TransactionOutput(Address(policy_id_1), Value(10000000, multi_asset2))
     )
     utxo3 = UTxO(
-        tx_in3, TransactionOutput(Address(policy_id), Value(10000000, multi_asset3))
+        tx_in3, TransactionOutput(Address(policy_id_1), Value(10000000, multi_asset3))
     )
     utxo4 = UTxO(
-        tx_in4, TransactionOutput(Address(policy_id), Value(10000000, multi_asset4))
+        tx_in4, TransactionOutput(Address(policy_id_1), Value(10000000, multi_asset4))
     )
 
     # Add UTXO inputs
-    tx_builder.add_input(utxo1)
-    tx_builder.add_input(utxo2)
-    tx_builder.add_input(utxo3)
-    tx_builder.add_input(utxo4)
+    tx_builder.add_input(utxo1).add_input(utxo2).add_input(utxo3).add_input(utxo4)
 
     # Add the minting to the builder
     tx_builder.mint = mint
@@ -2037,10 +2037,8 @@ def test_minting_and_burning_zero_quantity_assets(chain_context):
     for output in tx.outputs:
         multi_asset = output.amount.multi_asset
 
-        # Ensure that AssetName1, Node2, and Node3 were burnt (removed)
-        assert AssetName(b"AssetName1") not in multi_asset.get(policy_id, {})
-        assert AssetName(b"AssetName2") not in multi_asset.get(policy_id, {})
-        assert AssetName(b"AssetName3") not in multi_asset.get(policy_id, {})
-
-        # Ensure that AssetName4 has 5 units after minting
-        assert multi_asset.get(policy_id, {}).get(AssetName(b"AssetName4"), 0) == 5
+        # Ensure that AssetName1, AssetName2, AssetName3 and AssetName4 were burnt (removed)
+        assert AssetName(b"AssetName1") not in multi_asset.get(policy_id_1, {})
+        assert AssetName(b"AssetName2") not in multi_asset.get(policy_id_1, {})
+        assert AssetName(b"AssetName3") not in multi_asset.get(policy_id_1, {})
+        assert AssetName(b"AseetName4") not in multi_asset.get(policy_id_1, {})

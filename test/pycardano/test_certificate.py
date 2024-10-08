@@ -1,3 +1,6 @@
+import os
+
+from pycardano import StakeSigningKey, TransactionBody
 from pycardano.address import Address
 from pycardano.certificate import (
     PoolRegistration,
@@ -121,3 +124,28 @@ def test_pool_retirement():
     )
 
     assert PoolRetirement.from_cbor(pool_retirement_cbor_hex) == pool_retirement
+
+
+def test_staking_certificate_serdes():
+    staking_key = StakeSigningKey.generate()
+    stake_pool_key_hash = os.urandom(28)
+
+    transaction_body = TransactionBody(
+        certificates=[
+            StakeRegistration(
+                stake_credential=StakeCredential(
+                    staking_key.to_verification_key().hash()
+                )
+            ),
+            StakeDelegation(
+                stake_credential=StakeCredential(
+                    staking_key.to_verification_key().hash()
+                ),
+                pool_keyhash=PoolKeyHash(stake_pool_key_hash),
+            ),
+        ]
+    )
+
+    after_serdes = TransactionBody.from_cbor(transaction_body.to_cbor())
+
+    assert after_serdes == transaction_body
