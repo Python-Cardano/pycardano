@@ -5,6 +5,7 @@ from dataclasses import dataclass, field, fields
 from typing import Dict, List, Optional, Set, Tuple, Union
 
 from pycardano import RedeemerMap
+from pycardano import witness
 from pycardano.address import Address, AddressType
 from pycardano.backend.base import ChainContext
 from pycardano.certificate import (
@@ -1264,10 +1265,10 @@ class TransactionBuilder:
                         )
                         raise UTxOSelectionException(
                             f"All UTxO selectors failed.\n"
-                            f"Requested output:\n {requested_amount} \n"
-                            f"Pre-selected inputs:\n {selected_amount} \n"
-                            f"Additional UTxO pool:\n {additional_utxo_pool} \n"
-                            f"Unfulfilled amount:\n {diff}"
+                            f"Requested output:\n {requested_amount} \n"  # noqa: E231
+                            f"Pre-selected inputs:\n {selected_amount} \n"  # noqa: E231
+                            f"Additional UTxO pool:\n {additional_utxo_pool} \n"  # noqa: E231
+                            f"Unfulfilled amount:\n {diff}"  # noqa: E231
                         )
 
         selected_utxos.sort(
@@ -1401,7 +1402,7 @@ class TransactionBuilder:
                     r.tag is not None
                 ), "Expected tag of redeemer to be set, but found None"
                 tagname = r.tag.name.lower()
-                key = f"{tagname}:{r.index}"
+                key = f"{tagname}:{r.index}"  # noqa: E231
                 if (
                     key not in estimated_execution_units
                     or estimated_execution_units[key] is None

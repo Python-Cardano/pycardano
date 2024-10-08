@@ -72,6 +72,9 @@ class ConstrainedBytes(CBORSerializable):
     def payload(self) -> bytes:
         return self._payload
 
+    def to_shallow_primitive(self) -> bytes:
+        return self.payload
+
     def to_primitive(self) -> bytes:
         return self.payload
 
