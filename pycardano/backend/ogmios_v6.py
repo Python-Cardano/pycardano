@@ -261,12 +261,12 @@ class OgmiosV6ChainContext(ChainContext):
         script = utxo.script
         if script:
             # TODO: Need to test with native scripts
-            if script["language"] == "plutus:v3":
-                script = PlutusV3Script(bytes.fromhex(script["cbor"]))
-            if script["language"] == "plutus:v2":
-                script = PlutusV2Script(bytes.fromhex(script["cbor"]))
-            elif script["language"] == "plutus:v1":
-                script = PlutusV1Script(bytes.fromhex(script["cbor"]))
+            if script.language == "plutus:v3":
+                script = PlutusV3Script(bytes.fromhex(script.cbor))
+            elif script.language == "plutus:v2":
+                script = PlutusV2Script(bytes.fromhex(script.cbor))
+            elif script.language == "plutus:v1":
+                script = PlutusV1Script(bytes.fromhex(script.cbor))
             else:
                 raise ValueError("Unknown plutus script type")
         datum_hash = (
