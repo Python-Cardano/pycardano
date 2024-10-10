@@ -356,6 +356,25 @@ class OgmiosV6ChainContext(ChainContext):
                 cost_models["PlutusV3"][f"{i:0{width}d}"] = v
         return cost_models
 
+    def tx_metadata_cbor(
+        self, tx_id: str, slot: Optional[int] = None
+    ) -> Optional[RawCBOR]:
+        """Get metadata CBOR for a transaction using Ogmios.
+
+        Args:
+            tx_id (str): Transaction id for metadata to query.
+            slot (Optional[int]): Slot number (not used in Ogmios implementation).
+
+        Returns:
+            Optional[RawCBOR]: Metadata CBOR if found, None otherwise.
+
+        Raises:
+            NotImplementedError: This method is not yet implemented for Ogmios V6 backend.
+        """
+        raise NotImplementedError(
+            "get_metadata_cbor is not yet implemented for Ogmios V6 backend"
+        )
+
 
 class OgmiosChainContext(OgmiosV6ChainContext):
     """An alias of OgmiosV6ChainContext for backwards compatibility."""
@@ -373,6 +392,7 @@ def KupoOgmiosV6ChainContext(
     network: Network = Network.TESTNET,
     kupo_url: Optional[str] = None,
 ) -> KupoChainContextExtension:
+    """Create a KupoChainContextExtension with an OgmiosV6ChainContext backend and Kupo URL."""
     return KupoChainContextExtension(
         OgmiosV6ChainContext(
             host,

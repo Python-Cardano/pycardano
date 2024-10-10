@@ -49,6 +49,7 @@ class KupoChainContextExtension(ChainContext):
     _kupo_url: Optional[str]
     _utxo_cache: Cache
     _datum_cache: Cache
+    _metadata_cache: Cache
     _refetch_chain_tip_interval: int
 
     def __init__(
@@ -58,6 +59,7 @@ class KupoChainContextExtension(ChainContext):
         refetch_chain_tip_interval: int = 10,
         utxo_cache_size: int = 1000,
         datum_cache_size: int = 1000,
+        metadata_cache_size: int = 1000,
     ):
         self._kupo_url = kupo_url
         self._wrapped_backend = wrapped_backend
@@ -66,6 +68,7 @@ class KupoChainContextExtension(ChainContext):
             ttl=self._refetch_chain_tip_interval, maxsize=utxo_cache_size
         )
         self._datum_cache = LRUCache(maxsize=datum_cache_size)
+        self._metadata_cache = LRUCache(maxsize=metadata_cache_size)
 
     @property
     def genesis_param(self) -> GenesisParameters:
@@ -253,3 +256,47 @@ class KupoChainContextExtension(ChainContext):
             :class:`TransactionFailedException`: When fails to evaluate the transaction.
         """
         return self._wrapped_backend.evaluate_tx_cbor(cbor)
+
+    def tx_metadata_cbor(
+        self, tx_id: str, slot: Optional[int] = None
+    ) -> Optional[RawCBOR]:
+        """Get metadata CBOR from Kupo or fallback to wrapped backend.
+
+        Args:
+            tx_id (str): Transaction id for metadata to query.
+            slot (Optional[int]): Slot number. Required for Kupo backend.
+
+        Returns:
+            Optional[RawCBOR]: Metadata CBOR if found, None otherwise.
+        """
+        if self._kupo_url is None:
+            raise AssertionError(
+                "kupo_url object attribute has not been assigned properly."
+            )
+
+        if slot is None:
+            raise ValueError("Slot number is required for Kupo backend.")
+
+        cache_key = (tx_id, slot)
+        if cache_key in self._metadata_cache:
+            return self._metadata_cache[cache_key]
+
+        kupo_metadata_url = f"{self._kupo_url}/metadata/{slot}?transaction_id={tx_id}"
+
+        try:
+            response = requests.get(kupo_metadata_url, timeout=10)
+            response.raise_for_status()
+            metadata_result = response.json()
+
+            if metadata_result and "raw" in metadata_result[0]:
+                metadata = RawCBOR(bytes.fromhex(metadata_result[0]["raw"]))
+                self._metadata_cache[cache_key] = metadata
+                return metadata
+
+            return None
+
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 404:
+                return None
+
+            raise

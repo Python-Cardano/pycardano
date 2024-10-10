@@ -322,3 +322,29 @@ class BlockFrostChainContext(ChainContext):
                     getattr(result.EvaluationResult, k).steps,
                 )
             return return_val
+
+    def tx_metadata_cbor(
+        self, tx_id: str, slot: Optional[int] = None
+    ) -> Optional[RawCBOR]:
+        """Get metadata CBOR for a transaction using BlockFrost.
+
+        Args:
+            tx_id (str): Transaction id for metadata to query.
+            slot (Optional[int]): Slot number (not used in BlockFrost implementation).
+
+        Returns:
+            Optional[RawCBOR]: Metadata CBOR if found, None otherwise.
+
+        Raises:
+            :class:`ApiError`: When fails to get metadata.
+        """
+        try:
+            response = self.api.transaction_metadata_cbor(tx_id)
+            if response:
+                return RawCBOR(bytes.fromhex(response[0].metadata))
+            return None
+        except ApiError as e:
+            if e.status_code == 404:
+                return None
+            else:
+                raise e
