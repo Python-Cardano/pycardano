@@ -9,6 +9,7 @@ from typing import Dict, List, Union
 import pytest
 from cbor2 import CBORTag
 
+from pycardano import TransactionWitnessSet
 from pycardano.exception import DeserializeException
 from pycardano.plutus import (
     COST_MODELS,
@@ -584,3 +585,11 @@ def test_redeemer_map():
     assert deserialized[key1].ex_units == value1.ex_units
     assert deserialized[key2].data == value2.data
     assert deserialized[key2].ex_units == value2.ex_units
+
+
+def test_empty_map_deser():
+    empty_map = RedeemerMap()
+    witness = TransactionWitnessSet(redeemer=empty_map)
+    serialized = witness.to_primitive()
+    deserialized = TransactionWitnessSet.from_primitive(serialized)
+    assert deserialized.redeemer == empty_map
