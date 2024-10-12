@@ -8,17 +8,11 @@ from typing import Any, List, Optional, Type, Union
 from pycardano.key import ExtendedVerificationKey, VerificationKey
 from pycardano.nativescript import NativeScript
 from pycardano.plutus import (
-    ExecutionUnits,
     PlutusV1Script,
     PlutusV2Script,
     PlutusV3Script,
     RawPlutusData,
-    Redeemer,
-    RedeemerKey,
-    RedeemerMap,
     Redeemers,
-    RedeemerTag,
-    RedeemerValue,
 )
 from pycardano.serialization import (
     ArrayCBORSerializable,
