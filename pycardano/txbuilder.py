@@ -405,12 +405,12 @@ class TransactionBuilder:
             TransactionBuilder: Current transaction builder.
         """
         if redeemer:
-            if redeemer.tag is not None and redeemer.tag != RedeemerTag.CERT:
+            if redeemer.tag is not None and redeemer.tag != RedeemerTag.CERTIFICATE:
                 raise InvalidArgumentException(
-                    f"Expect the redeemer tag's type to be {RedeemerTag.CERT}, "
+                    f"Expect the redeemer tag's type to be {RedeemerTag.CERTIFICATE}, "
                     f"but got {redeemer.tag} instead."
                 )
-            redeemer.tag = RedeemerTag.CERT
+            redeemer.tag = RedeemerTag.CERTIFICATE
             self._consolidate_redeemer(redeemer)
 
         if isinstance(script, UTxO):
