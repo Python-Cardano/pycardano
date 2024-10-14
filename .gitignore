@@ -9,5 +9,6 @@ coverage.xml
 # IDE
 .idea
 .code
+.venv
 /integration-test/.env
 /integration-test/tmp_configs/*
