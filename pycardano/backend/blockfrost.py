@@ -310,7 +310,7 @@ class BlockFrostChainContext(ChainContext):
             cbor = cbor.hex()
         with tempfile.NamedTemporaryFile(delete=False, mode="w") as f:
             f.write(cbor)
-        
+
         result = self.api.transaction_evaluate(f.name)
         os.remove(f.name)
         if not hasattr(result, "result"):
