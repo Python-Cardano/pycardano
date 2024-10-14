@@ -396,6 +396,7 @@ class TransactionBuilder:
         redeemer: Optional[Redeemer] = None,
     ) -> TransactionBuilder:
         """Add a certificate script along with its redeemer to this transaction.
+        WARNING: The order of operations matters. The index of the redeemer will be set to the index of the last certificate added.
 
         Args:
             script (Union[UTxO, PlutusV1Script, PlutusV2Script, PlutusV3Script]): A plutus script.
@@ -410,6 +411,10 @@ class TransactionBuilder:
                     f"Expect the redeemer tag's type to be {RedeemerTag.CERTIFICATE}, "
                     f"but got {redeemer.tag} instead."
                 )
+            assert (
+                self.certificates is not None and len(self.certificates) >= 1
+            ), "self.certificates is None. redeemer.index needs to be set to the index of the corresponding certificate (defaulting to the last certificate) however no certificates could be found"
+            redeemer.index = len(self.certificates) - 1
             redeemer.tag = RedeemerTag.CERTIFICATE
             self._consolidate_redeemer(redeemer)
 
@@ -924,7 +929,7 @@ class TransactionBuilder:
         # Set redeemers' index according to section 4.1 in
         # https://hydra.iohk.io/build/13099856/download/1/alonzo-changes.pdf
         #
-        # There is no way to determine 
+        # There is no way to determine certificate index here
 
         if self.mint:
             sorted_mint_policies = sorted(self.mint.keys(), key=lambda x: x.to_cbor())
