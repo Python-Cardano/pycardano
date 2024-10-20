@@ -1363,6 +1363,40 @@ def test_tx_builder_certificates(chain_context):
     assert expected == tx_body.to_primitive()
 
 
+def test_tx_builder_certificates_script(chain_context):
+    tx_builder = TransactionBuilder(chain_context, [RandomImproveMultiAsset([0, 0])])
+    sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    sender_address = Address.from_primitive(sender)
+
+    plutus_script = PlutusV2Script(b"dummy test script")
+    script_hash = plutus_script_hash(plutus_script)
+
+    stake_credential = StakeCredential(script_hash)
+
+    pool_hash = PoolKeyHash(b"1" * POOL_KEY_HASH_SIZE)
+
+    stake_registration = StakeRegistration(stake_credential)
+
+    stake_delegation = StakeDelegation(stake_credential, pool_hash)
+
+    # Add sender address as input
+    tx_builder.add_input_address(sender).add_output(
+        TransactionOutput.from_primitive([sender, 500000])
+    )
+
+    tx_builder.certificates = [stake_registration, stake_delegation]
+    redeemer = Redeemer(PlutusData(), ExecutionUnits(100000, 1000000))
+    tx_builder.add_certificate_script(plutus_script, redeemer=redeemer)
+    tx_builder.ttl = 123456
+
+    tx_builder.build(change_address=sender_address)
+    tx_builder.use_redeemer_map = False
+    witness = tx_builder.build_witness_set()
+    assert [redeemer] == witness.redeemer
+    assert witness.redeemer[0].index == 1
+    assert [plutus_script] == witness.plutus_v2_script
+
+
 def test_tx_builder_stake_pool_registration(chain_context, pool_params):
     tx_builder = TransactionBuilder(chain_context, [RandomImproveMultiAsset([0, 0])])
     sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
