@@ -40,6 +40,7 @@ __all__ = [
     "Datum",
     "RedeemerTag",
     "ExecutionUnits",
+    "PlutusScript",
     "PlutusV1Script",
     "PlutusV2Script",
     "PlutusV3Script",
@@ -1049,13 +1050,11 @@ class RedeemerMap(DictCBORSerializable):
 Redeemers = Union[List[Redeemer], RedeemerMap]
 
 
-def plutus_script_hash(
-    script: Union[bytes, PlutusV1Script, PlutusV2Script]
-) -> ScriptHash:
+def plutus_script_hash(script: Union[NativeScript, PlutusScript]) -> ScriptHash:
     """Calculates the hash of a Plutus script.
 
     Args:
-        script (Union[bytes, PlutusV1Script, PlutusV2Script]): A plutus script.
+        script (Union[bytes, PlutusScript]): A plutus script.
 
     Returns:
         ScriptHash: blake2b hash of the script.
@@ -1063,19 +1062,54 @@ def plutus_script_hash(
     return script_hash(script)
 
 
-class PlutusV1Script(bytes):
-    pass
+class PlutusScript(bytes):
+    @property
+    def version(self) -> int:
+        raise NotImplementedError("")
+
+    @classmethod
+    def from_version(cls, version: int, script_data: bytes) -> "PlutusScript":
+        if version == 1:
+            return PlutusV1Script(script_data)
+        elif version == 2:
+            return PlutusV2Script(script_data)
+        elif version == 3:
+            return PlutusV3Script(script_data)
+        else:
+            raise ValueError(f"No Plutus script class found for version {version}")
+
+    def get_script_hash_prefix(self) -> bytes:
+        raise NotImplementedError("")
 
 
-class PlutusV2Script(bytes):
-    pass
+class PlutusV1Script(PlutusScript):
+    def get_script_hash_prefix(self) -> bytes:
+        return bytes.fromhex("01")
+
+    @property
+    def version(self) -> int:
+        return 1
 
 
-class PlutusV3Script(bytes):
-    pass
+class PlutusV2Script(PlutusScript):
+    def get_script_hash_prefix(self) -> bytes:
+        return bytes.fromhex("02")
+
+    @property
+    def version(self) -> int:
+        return 2
 
 
-ScriptType = Union[bytes, NativeScript, PlutusV1Script, PlutusV2Script]
+class PlutusV3Script(PlutusScript):
+    def get_script_hash_prefix(self) -> bytes:
+        return bytes.fromhex("03")
+
+    @property
+    def version(self) -> int:
+        return 3
+
+
+ScriptType = Union[NativeScript, PlutusScript]
 """Script type. A Union type that contains all valid script types."""
 
 
@@ -1090,17 +1124,17 @@ def script_hash(script: ScriptType) -> ScriptHash:
     """
     if isinstance(script, NativeScript):
         return script.hash()
-    elif isinstance(script, PlutusV1Script) or type(script) is bytes:
+    elif isinstance(script, PlutusScript):
+        return ScriptHash(
+            blake2b(
+                script.get_script_hash_prefix() + script,
+                SCRIPT_HASH_SIZE,
+                encoder=RawEncoder,
+            )
+        )
+    elif type(script) is bytes:
         return ScriptHash(
             blake2b(bytes.fromhex("01") + script, SCRIPT_HASH_SIZE, encoder=RawEncoder)
-        )
-    elif isinstance(script, PlutusV2Script):
-        return ScriptHash(
-            blake2b(bytes.fromhex("02") + script, SCRIPT_HASH_SIZE, encoder=RawEncoder)
-        )
-    elif isinstance(script, PlutusV3Script):
-        return ScriptHash(
-            blake2b(bytes.fromhex("03") + script, SCRIPT_HASH_SIZE, encoder=RawEncoder)
         )
     else:
         raise TypeError(f"Unexpected script type: {type(script)}")
