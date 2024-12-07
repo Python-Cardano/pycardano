@@ -1381,7 +1381,19 @@ class TransactionBuilder:
             tmp_val = Value()
 
             def _add_collateral_input(cur_total, candidate_inputs):
-                while cur_total.coin < collateral_amount and candidate_inputs:
+                cur_collateral_return = cur_total - collateral_amount
+
+                while (
+                    cur_total.coin < collateral_amount
+                    or 0
+                    <= cur_collateral_return.coin
+                    < min_lovelace_post_alonzo(
+                        TransactionOutput(
+                            collateral_return_address, cur_collateral_return
+                        ),
+                        self.context,
+                    )
+                ) and candidate_inputs:
                     candidate = candidate_inputs.pop()
                     if (
                         not candidate.output.address.address_type.name.startswith(
@@ -1391,6 +1403,7 @@ class TransactionBuilder:
                     ):
                         self.collaterals.append(candidate)
                         cur_total += candidate.output.amount
+                        cur_collateral_return = cur_total - collateral_amount
 
             sorted_inputs = sorted(
                 self.inputs.copy(),
