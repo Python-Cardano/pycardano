@@ -368,6 +368,7 @@ class OgmiosChainContext(OgmiosV6ChainContext):
 def KupoOgmiosV6ChainContext(
     host: str,
     port: int,
+    path: str,
     secure: bool,
     refetch_chain_tip_interval: Optional[float] = None,
     utxo_cache_size: int = 10000,
@@ -379,6 +380,7 @@ def KupoOgmiosV6ChainContext(
         OgmiosV6ChainContext(
             host,
             port,
+            path,
             secure,
             refetch_chain_tip_interval,
             utxo_cache_size,
