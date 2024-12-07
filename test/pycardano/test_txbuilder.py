@@ -1076,7 +1076,12 @@ def test_collateral_return_min_return_amount(chain_context):
         )
 
         original_utxos[0].output.amount.multi_asset = MultiAsset.from_primitive(
-            {b"1" * 28: {b"Token" + i.to_bytes(10, byteorder="big"): i for i in range(500)}}
+            {
+                b"1"
+                * 28: {
+                    b"Token" + i.to_bytes(10, byteorder="big"): i for i in range(500)
+                }
+            }
         )
 
         original_utxos[0].output.amount.coin = min_lovelace_post_alonzo(
