@@ -1,12 +1,17 @@
 import pathlib
 import tempfile
 
+from mnemonic import Mnemonic
+
+from pycardano import HDWallet
 from pycardano.key import (
     ExtendedSigningKey,
     ExtendedVerificationKey,
+    PaymentExtendedSigningKey,
     PaymentKeyPair,
     PaymentSigningKey,
     PaymentVerificationKey,
+    StakeExtendedSigningKey,
     StakePoolKeyPair,
     StakePoolSigningKey,
     StakePoolVerificationKey,
@@ -191,3 +196,15 @@ def test_stake_pool_key_hash():
 
     assert len(sk_set) == 1
     assert len(vk_set) == 1
+
+
+def test_extended_signing_key_from_hd_wallet_uses_type_and_description_from_class():
+    hd_wallet = HDWallet.from_mnemonic(Mnemonic().generate())
+
+    extended_payment_key = PaymentExtendedSigningKey.from_hdwallet(hd_wallet)
+    assert extended_payment_key.key_type == PaymentExtendedSigningKey.KEY_TYPE
+    assert extended_payment_key.description == PaymentExtendedSigningKey.DESCRIPTION
+
+    extended_stake_key = StakeExtendedSigningKey.from_hdwallet(hd_wallet)
+    assert extended_stake_key.key_type == StakeExtendedSigningKey.KEY_TYPE
+    assert extended_stake_key.description == StakeExtendedSigningKey.DESCRIPTION
