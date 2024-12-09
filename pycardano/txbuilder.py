@@ -721,9 +721,6 @@ class TransactionBuilder:
 
         # With changes included, we can estimate the fee more precisely
         self.fee = self._estimate_fee()
-        # Beyond this, the computed fee is not updated anymore so we can add the fee buffer
-        if self.fee_buffer is not None:
-            self.fee += self.fee_buffer
 
         if change_address:
             self._outputs = original_outputs
