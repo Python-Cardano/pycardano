@@ -8,6 +8,9 @@ import random
 from hashlib import sha256
 import urllib.request 
 import json
+from reportlab.pdfgen import canvas
+
+
 
 def split_into_64chars(string):
     return [string[i:i+64] for i in range(0, len(string), 64)]
@@ -17,10 +20,15 @@ network = os.getenv('network')
 wallet_mnemonic = os.getenv('wallet_mnemonic')
 blockfrost_api_key = os.getenv('blockfrost_api_key')
 
-file_url = "https://archive.podaac.earthdata.nasa.gov/podaac-ops-cumulus-docs/web-misc/opera/atbd/D-108763_Rev_A_OPERA_DSWx_S1_NI_ATBD_20240530_SIGNED.pdf"
-filename = "tempfile.pdf"
 
-urllib.request.urlretrieve(file_url, filename)
+filename = "tempfile.pdf"
+pdf = canvas.Canvas(filename)
+pdf.drawString(100, 750, "Hello, this is an example PDF!")
+
+pdf.save()
+
+
+
 
 
 h256 = sha256()

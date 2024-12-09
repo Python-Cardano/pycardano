@@ -8,6 +8,8 @@ import random
 from hashlib import sha256
 import urllib.request 
 import json
+from reportlab.pdfgen import canvas
+
 
 def split_into_64chars(string):
     return [string[i:i+64] for i in range(0, len(string), 64)]
@@ -26,7 +28,13 @@ else:
     base_url = ApiUrls.mainnet.value
     cardano_network = Network.MAINNET
 
+
 filename = "tempfile_copy.pdf"
+pdf = canvas.Canvas(filename)
+pdf.drawString(100, 750, "Hello, this is a copy of the example PDF!")
+
+pdf.save()
+
 h256 = sha256()
 h256.update(open(filename,'rb').read())
 document_hash = h256.hexdigest()
