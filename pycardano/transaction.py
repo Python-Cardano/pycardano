@@ -318,10 +318,7 @@ class _Script(ArrayCBORSerializable):
             return cls(NativeScript.from_primitive(values[1]))
         assert isinstance(values[1], bytes)
         assert isinstance(values[0], int)
-        if 1 <= values[0] <= 3:
-            return cls(PlutusScript.from_version(values[0], values[1]))
-        else:
-            raise ValueError(f"Unsupported version: {values[0]}")
+        return cls(PlutusScript.from_version(values[0], values[1]))
 
 
 @dataclass(repr=False)

@@ -174,15 +174,11 @@ class BlockFrostChainContext(ChainContext):
 
     def _get_script(self, script_hash: str) -> ScriptType:
         script_type = self.api.script(script_hash).type
-        if (
-            script_type == "plutusV1"
-            or script_type == "plutusV2"
-            or script_type == "plutusV3"
-        ):
-            vscript = PlutusScript.from_version(
+        if script_type.startsWith("plutusV"):
+            ps = PlutusScript.from_version(
                 script_type[-1], bytes.fromhex(self.api.script_cbor(script_hash).cbor)
             )
-            return _try_fix_script(script_hash, vscript)
+            return _try_fix_script(script_hash, ps)
         else:
             script_json: JsonDict = self.api.script_json(
                 script_hash, return_type="json"
