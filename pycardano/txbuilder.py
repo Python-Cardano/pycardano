@@ -34,11 +34,10 @@ from pycardano.logging import log_state, logger
 from pycardano.metadata import AuxiliaryData
 from pycardano.nativescript import NativeScript, ScriptAll, ScriptAny, ScriptPubkey
 from pycardano.plutus import (
-    PLUTUS_V1_COST_MODEL,
-    PLUTUS_V2_COST_MODEL,
     CostModels,
     Datum,
     ExecutionUnits,
+    PlutusScript,
     PlutusV1Script,
     PlutusV2Script,
     PlutusV3Script,
@@ -167,9 +166,9 @@ class TransactionBuilder:
         init=False, default_factory=lambda: {}
     )
 
-    _reference_scripts: List[
-        Union[NativeScript, PlutusV1Script, PlutusV2Script, PlutusV3Script]
-    ] = field(init=False, default_factory=lambda: [])
+    _reference_scripts: List[Union[NativeScript, PlutusScript]] = field(
+        init=False, default_factory=lambda: []
+    )
 
     _should_estimate_execution_units: Optional[bool] = field(init=False, default=None)
 
@@ -214,9 +213,7 @@ class TransactionBuilder:
     def add_script_input(
         self,
         utxo: UTxO,
-        script: Optional[
-            Union[UTxO, NativeScript, PlutusV1Script, PlutusV2Script, PlutusV3Script]
-        ] = None,
+        script: Optional[Union[UTxO, NativeScript, PlutusScript]] = None,
         datum: Optional[Datum] = None,
         redeemer: Optional[Redeemer] = None,
     ) -> TransactionBuilder:
@@ -224,7 +221,7 @@ class TransactionBuilder:
 
         Args:
             utxo (UTxO): Script UTxO to be added.
-            script (Optional[Union[UTxO, NativeScript, PlutusV1Script, PlutusV2Script, PlutusV3Script]]):
+            script (Optional[Union[UTxO, NativeScript, PlutusScript]]):
                 A plutus script.
                 If not provided, the script will be inferred from the input UTxO (first arg of this method).
                 The script can also be a specific UTxO whose output contains an inline script.
@@ -277,7 +274,7 @@ class TransactionBuilder:
         # collect potential scripts to fulfill the input
         candidate_scripts: List[
             Tuple[
-                Union[NativeScript, PlutusV1Script, PlutusV2Script, PlutusV3Script],
+                Union[NativeScript, PlutusScript],
                 Optional[UTxO],
             ]
         ] = []
@@ -320,15 +317,13 @@ class TransactionBuilder:
 
     def add_minting_script(
         self,
-        script: Union[
-            UTxO, NativeScript, PlutusV1Script, PlutusV2Script, PlutusV3Script
-        ],
+        script: Union[UTxO, NativeScript, PlutusScript],
         redeemer: Optional[Redeemer] = None,
     ) -> TransactionBuilder:
         """Add a minting script along with its datum and redeemer to this transaction.
 
         Args:
-            script (Union[UTxO, PlutusV1Script, PlutusV2Script, PlutusV3Script]): A plutus script.
+            script (Union[UTxO, PlutusScript): A plutus script.
             redeemer (Optional[Redeemer]): A plutus redeemer to unlock the UTxO.
 
         Returns:
@@ -354,15 +349,13 @@ class TransactionBuilder:
 
     def add_withdrawal_script(
         self,
-        script: Union[
-            UTxO, NativeScript, PlutusV1Script, PlutusV2Script, PlutusV3Script
-        ],
+        script: Union[UTxO, NativeScript, PlutusScript],
         redeemer: Optional[Redeemer] = None,
     ) -> TransactionBuilder:
         """Add a withdrawal script along with its redeemer to this transaction.
 
         Args:
-            script (Union[UTxO, PlutusV1Script, PlutusV2Script, PlutusV3Script]): A plutus script.
+            script (Union[UTxO, PlutusScript]): A plutus script.
             redeemer (Optional[Redeemer]): A plutus redeemer to unlock the UTxO.
 
         Returns:
@@ -390,9 +383,7 @@ class TransactionBuilder:
 
     def add_certificate_script(
         self,
-        script: Union[
-            UTxO, NativeScript, PlutusV1Script, PlutusV2Script, PlutusV3Script
-        ],
+        script: Union[UTxO, NativeScript, PlutusScript],
         redeemer: Optional[Redeemer] = None,
     ) -> TransactionBuilder:
         """Add a certificate script along with its redeemer to this transaction.
@@ -400,7 +391,7 @@ class TransactionBuilder:
         The index of the redeemer will be set to the index of the last certificate added.
 
         Args:
-            script (Union[UTxO, PlutusV1Script, PlutusV2Script, PlutusV3Script]): A plutus script.
+            script (Union[UTxO, PlutusScript]): A plutus script.
             redeemer (Optional[Redeemer]): A plutus redeemer to unlock the UTxO.
 
         Returns:
@@ -577,19 +568,16 @@ class TransactionBuilder:
         if self.datums or self._redeemer_list:
             cost_models = {}
             for s in self.all_scripts:
-                if isinstance(s, PlutusV1Script) or type(s) is bytes:
-                    cost_models[0] = (
-                        self.context.protocol_param.cost_models.get("PlutusV1")
-                        or PLUTUS_V1_COST_MODEL
-                    )
-                if isinstance(s, PlutusV2Script):
-                    cost_models[1] = (
-                        self.context.protocol_param.cost_models.get("PlutusV2")
-                        or PLUTUS_V2_COST_MODEL
-                    )
-                if isinstance(s, PlutusV3Script):
-                    cost_models[2] = self.context.protocol_param.cost_models.get(
-                        "PlutusV3", {}
+                version = -1
+                if isinstance(s, PlutusScript):
+                    version = s.version
+                elif type(s) is bytes:
+                    version = 1
+                if version != -1:
+                    cost_models[version - 1] = (
+                        self.context.protocol_param.cost_models.get(
+                            f"PlutusV{version}", {}
+                        )
                     )
             return script_data_hash(
                 self.redeemers(), list(self.datums.values()), CostModels(cost_models)

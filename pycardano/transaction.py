@@ -28,13 +28,7 @@ from pycardano.hash import (
 from pycardano.metadata import AuxiliaryData
 from pycardano.nativescript import NativeScript
 from pycardano.network import Network
-from pycardano.plutus import (
-    Datum,
-    PlutusV1Script,
-    PlutusV2Script,
-    PlutusV3Script,
-    RawPlutusData,
-)
+from pycardano.plutus import Datum, PlutusScript, RawPlutusData
 from pycardano.serialization import (
     ArrayCBORSerializable,
     CBORSerializable,
@@ -310,29 +304,21 @@ class Value(ArrayCBORSerializable):
 class _Script(ArrayCBORSerializable):
     _TYPE: int = field(init=False, default=0)
 
-    script: Union[NativeScript, PlutusV1Script, PlutusV2Script, PlutusV3Script]
+    script: Union[NativeScript, PlutusScript]
 
     def __post_init__(self):
         if isinstance(self.script, NativeScript):
             self._TYPE = 0
-        elif isinstance(self.script, PlutusV1Script):
-            self._TYPE = 1
-        elif isinstance(self.script, PlutusV2Script):
-            self._TYPE = 2
-        else:
-            self._TYPE = 3
+        elif isinstance(self.script, PlutusScript):
+            self._TYPE = self.script.version
 
     @classmethod
     def from_primitive(cls: Type[_Script], values: List[Primitive]) -> _Script:
         if values[0] == 0:
             return cls(NativeScript.from_primitive(values[1]))
         assert isinstance(values[1], bytes)
-        if values[0] == 1:
-            return cls(PlutusV1Script(values[1]))
-        elif values[0] == 2:
-            return cls(PlutusV2Script(values[1]))
-        else:
-            return cls(PlutusV3Script(values[1]))
+        assert isinstance(values[0], int)
+        return cls(PlutusScript.from_version(values[0], values[1]))
 
 
 @dataclass(repr=False)
@@ -401,7 +387,7 @@ class _TransactionOutputPostAlonzo(MapCBORSerializable):
     @property
     def script(
         self,
-    ) -> Optional[Union[NativeScript, PlutusV1Script, PlutusV2Script, PlutusV3Script]]:
+    ) -> Optional[Union[NativeScript, PlutusScript]]:
         if self.script_ref:
             return self.script_ref.script.script
         else:
@@ -427,9 +413,7 @@ class TransactionOutput(CBORSerializable):
 
     datum: Optional[Datum] = None
 
-    script: Optional[
-        Union[NativeScript, PlutusV1Script, PlutusV2Script, PlutusV3Script]
-    ] = None
+    script: Optional[Union[NativeScript, PlutusScript]] = None
 
     post_alonzo: Optional[bool] = False
 

@@ -35,8 +35,8 @@ jobs:
         if: ${{ matrix.python-version == '3.11' }}
         uses: codecov/codecov-action@v4
         with:
-          fail_ci_if_error: true
-          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN || '' }}
       - name: Run static analyses
         if: ${{ matrix.python-version == '3.11' }}
         run: |
@@ -72,8 +72,8 @@ jobs:
         if: ${{ matrix.python-version == '3.11' }}
         uses: codecov/codecov-action@v4
         with:
-          fail_ci_if_error: true
-          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN || '' }}
 
       - name: Dump docker logs
         if: failure()
