@@ -43,8 +43,6 @@ from pycardano.serialization import (
 from pycardano.types import typechecked
 from pycardano.witness import TransactionWitnessSet
 
-import traceback
-
 __all__ = [
     "TransactionInput",
     "AssetName",

@@ -32,16 +32,14 @@ def test_transaction_input():
     )
     check_two_way_cbor(tx_in)
 
+
 def test_hashable_transaction_input():
     my_inputs = {}
     tx_id_hex1 = "732bfd67e66be8e8288349fcaaa2294973ef6271cc189a239bb431275401b8e5"
     tx_id_hex2 = "732bfd67e66be8e8288349fcaaa2294973ef6271cc189a239bb431275401b8e5"
     tx_in1 = TransactionInput(TransactionId(bytes.fromhex(tx_id_hex1)), 0)
     tx_in2 = TransactionInput(TransactionId(bytes.fromhex(tx_id_hex2)), 0)
-    assert (
-            tx_in1
-            == tx_in2
-    )
+    assert tx_in1 == tx_in2
     my_inputs[tx_in1] = 1
 
 
@@ -355,11 +353,7 @@ def test_asset_comparison():
 
     result = a.union(b)
 
-    assert result == Asset.from_primitive(
-        {
-            b"Token1": 2, b"Token2": 5
-        }
-    )
+    assert result == Asset.from_primitive({b"Token1": 2, b"Token2": 5})
 
     assert a == a
 
@@ -493,12 +487,7 @@ def test_values():
     result = a.union(b)
 
     assert result == Value.from_primitive(
-        [
-            12,
-            {
-                b"1" * SCRIPT_HASH_SIZE: {b"Token1": 12, b"Token2": 24}
-            }
-        ]
+        [12, {b"1" * SCRIPT_HASH_SIZE: {b"Token1": 12, b"Token2": 24}}]
     )
 
     d = 10000000
