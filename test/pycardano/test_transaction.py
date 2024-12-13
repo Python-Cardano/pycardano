@@ -32,6 +32,18 @@ def test_transaction_input():
     )
     check_two_way_cbor(tx_in)
 
+def test_hashable_transaction_input():
+    my_inputs = {}
+    tx_id_hex1 = "732bfd67e66be8e8288349fcaaa2294973ef6271cc189a239bb431275401b8e5"
+    tx_id_hex2 = "732bfd67e66be8e8288349fcaaa2294973ef6271cc189a239bb431275401b8e5"
+    tx_in1 = TransactionInput(TransactionId(bytes.fromhex(tx_id_hex1)), 0)
+    tx_in2 = TransactionInput(TransactionId(bytes.fromhex(tx_id_hex2)), 0)
+    assert (
+            tx_in1
+            == tx_in2
+    )
+    my_inputs[tx_in1] = 1
+
 
 def test_transaction_output():
     addr = Address.decode(
@@ -133,7 +145,7 @@ def test_invalid_transaction_output():
     addr = Address.decode(
         "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
     )
-    output = TransactionOutput(addr, -100000000000)
+    output = TransactionOutput(addr, -1)
     with pytest.raises(InvalidDataException):
         output.to_cbor_hex()
 
@@ -266,15 +278,26 @@ def test_multi_asset_addition():
         }
     )
 
+    result = a.union(b)
+
     assert a + b == MultiAsset.from_primitive(
         {
             b"1" * SCRIPT_HASH_SIZE: {b"Token1": 11, b"Token2": 22},
             b"2" * SCRIPT_HASH_SIZE: {b"Token1": 1, b"Token2": 2},
         }
     )
+
+    assert result == MultiAsset.from_primitive(
+        {
+            b"1" * SCRIPT_HASH_SIZE: {b"Token1": 11, b"Token2": 22},
+            b"2" * SCRIPT_HASH_SIZE: {b"Token1": 1, b"Token2": 2},
+        }
+    )
+
     assert a == MultiAsset.from_primitive(
         {b"1" * SCRIPT_HASH_SIZE: {b"Token1": 1, b"Token2": 2}}
     )
+
     assert b == MultiAsset.from_primitive(
         {
             b"1" * SCRIPT_HASH_SIZE: {b"Token1": 10, b"Token2": 20},
@@ -305,6 +328,7 @@ def test_multi_asset_subtraction():
     assert a == MultiAsset.from_primitive(
         {b"1" * SCRIPT_HASH_SIZE: {b"Token1": 1, b"Token2": 2}}
     )
+
     assert b == MultiAsset.from_primitive(
         {
             b"1" * SCRIPT_HASH_SIZE: {b"Token1": 10, b"Token2": 20},
@@ -329,6 +353,14 @@ def test_asset_comparison():
 
     d = Asset.from_primitive({b"Token3": 1, b"Token4": 2})
 
+    result = a.union(b)
+
+    assert result == Asset.from_primitive(
+        {
+            b"Token1": 2, b"Token2": 5
+        }
+    )
+
     assert a == a
 
     assert a <= b
@@ -340,6 +372,8 @@ def test_asset_comparison():
     assert a != c
 
     assert not any([a == d, a <= d, d <= a])
+
+    assert not a == "abc"
 
     with pytest.raises(TypeCheckError):
         a <= 1
@@ -381,6 +415,8 @@ def test_multi_asset_comparison():
     assert not a <= d
     assert not d <= a
 
+    assert not a == "abc"
+
     with pytest.raises(TypeCheckError):
         a <= 1
 
@@ -413,6 +449,8 @@ def test_values():
 
     assert b <= c
     assert not c <= b
+
+    assert not a == "abc"
 
     assert b - a == Value.from_primitive(
         [10, {b"1" * SCRIPT_HASH_SIZE: {b"Token1": 10, b"Token2": 20}}]
@@ -451,6 +489,23 @@ def test_values():
             },
         ]
     )
+
+    result = a.union(b)
+
+    assert result == Value.from_primitive(
+        [
+            12,
+            {
+                b"1" * SCRIPT_HASH_SIZE: {b"Token1": 12, b"Token2": 24}
+            }
+        ]
+    )
+
+    d = 10000000
+
+    f = Value(1)
+
+    assert f <= d
 
 
 def test_inline_datum_serdes():
