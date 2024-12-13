@@ -1,6 +1,7 @@
 """An example that demonstrates low-level construction of a transaction."""
 
 import os
+import time
 
 import ogmios as python_ogmios
 from retry import retry

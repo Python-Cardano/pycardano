@@ -36,7 +36,7 @@ class TestCardanoCli:
         network_magic_number=int(network_magic),
     )
 
-    @retry(tries=TEST_RETRIES, backoff=1.5, delay=6, jitter=(0, 4))
+    @retry(tries=TEST_RETRIES, backoff=1.3, delay=2, jitter=(0, 10))
     def test_protocol_param(self):
         protocol_param = self.chain_context.protocol_param
 

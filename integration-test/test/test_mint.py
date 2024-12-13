@@ -12,7 +12,7 @@ from .base import TEST_RETRIES, TestBase
 
 
 class TestMint(TestBase):
-    @retry(tries=TEST_RETRIES, backoff=1.5, delay=6, jitter=(0, 4))
+    @retry(tries=TEST_RETRIES, backoff=1.3, delay=2, jitter=(0, 10))
     def test_mint(self):
         address = Address(self.payment_vkey.hash(), network=self.NETWORK)
 
@@ -166,7 +166,7 @@ class TestMint(TestBase):
 
         self.assert_output(address, nft_to_send)
 
-    @retry(tries=TEST_RETRIES, backoff=1.5, delay=6, jitter=(0, 4))
+    @retry(tries=TEST_RETRIES, backoff=1.3, delay=2, jitter=(0, 10))
     def test_mint_nft_with_script(self):
         address = Address(self.payment_vkey.hash(), network=self.NETWORK)
 
@@ -255,7 +255,7 @@ class TestMint(TestBase):
 
         self.assert_output(address, nft_output)
 
-    @retry(tries=TEST_RETRIES, backoff=1.5, delay=6, jitter=(0, 4))
+    @retry(tries=TEST_RETRIES, backoff=1.3, delay=2, jitter=(0, 10))
     @pytest.mark.post_alonzo
     def test_mint_nft_with_script_plutus_v1(self):
         address = Address(self.payment_vkey.hash(), network=self.NETWORK)
