@@ -9,7 +9,7 @@ networks:
 services:
 
   cardano-node:
-    image: ghcr.io/intersectmbo/cardano-node:${CARDANO_NODE_VERSION:-9.1.0}
+    image: ghcr.io/intersectmbo/cardano-node:${CARDANO_NODE_VERSION:-10.1.3}
     platform: linux/amd64
     entrypoint: bash
     environment:
@@ -35,7 +35,7 @@ services:
         max-file: "10"
 
   cardano-pool:
-    image: ghcr.io/intersectmbo/cardano-node:${CARDANO_NODE_VERSION:-9.1.0}
+    image: ghcr.io/intersectmbo/cardano-node:${CARDANO_NODE_VERSION:-10.1.3}
     platform: linux/amd64
     entrypoint: bash
     environment:
@@ -56,14 +56,14 @@ services:
         max-file: "10"
 
   ogmios:
-    image: cardanosolutions/ogmios:v6.8.0
+    image: cardanosolutions/ogmios:v6.9.0
     platform: linux/amd64
     environment:
       NETWORK: "${NETWORK:-local-alonzo}"
 
     command: [
       "--host", "0.0.0.0",
-      "--node-socket", "/ipc/node.socket",
+      "--node-socket", "/ipc/pool.socket",
       "--node-config", "/code/configs/${NETWORK:-local-alonzo}/config.json",
       "--log-level-websocket", "Debug"
     ]
@@ -85,7 +85,7 @@ services:
       NETWORK: "${NETWORK:-local}"
 
     command: [
-      "--node-socket", "/ipc/node.socket",
+      "--node-socket", "/ipc/pool.socket",
       "--node-config", "/code/configs/${NETWORK:-local-alonzo}/config.json",
       "--host", "0.0.0.0",
       "--since", "origin",

@@ -1,6 +1,7 @@
 """An example that demonstrates low-level construction of a transaction."""
 
 import os
+import time
 
 import ogmios as python_ogmios
 from retry import retry
@@ -12,6 +13,8 @@ TEST_RETRIES = 8
 
 @retry(tries=10, delay=4)
 def check_chain_context(chain_context):
+    # while chain_context.last_block_slot < 100:
+    #     time.sleep(2)
     print(f"Current chain tip: {chain_context.last_block_slot}")
 
 
