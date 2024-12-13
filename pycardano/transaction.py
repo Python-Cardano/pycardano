@@ -88,6 +88,7 @@ class Asset(DictCBORSerializable):
         for k, v in list(self.items()):
             if v == 0:
                 self.pop(k)
+
         return self
 
     def union(self, other: Asset) -> Asset:
@@ -425,11 +426,6 @@ class TransactionOutput(CBORSerializable):
 
     def validate(self):
         super().validate()
-        if isinstance(self.amount, int) and self.amount < 0:
-            raise InvalidDataException(
-                f"Transaction output cannot have negative amount of ADA or "
-                f"native asset: \n {self.amount}"
-            )
         if isinstance(self.amount, Value) and (
             self.amount.coin < 0
             or self.amount.multi_asset.count(lambda p, n, v: v < 0) > 0
@@ -441,10 +437,7 @@ class TransactionOutput(CBORSerializable):
 
     @property
     def lovelace(self) -> int:
-        if isinstance(self.amount, int):
-            return self.amount
-        else:
-            return self.amount.coin
+        return self.amount.coin
 
     def to_primitive(self) -> Primitive:
         if self.datum or self.script or self.post_alonzo:
