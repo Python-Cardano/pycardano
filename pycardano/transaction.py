@@ -89,7 +89,6 @@ class Asset(DictCBORSerializable):
             if v == 0:
                 self.pop(k)
 
-        # traceback.print_stack()
         return self
 
     def union(self, other: Asset) -> Asset:
