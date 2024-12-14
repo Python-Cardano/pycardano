@@ -326,7 +326,7 @@ class _Script(ArrayCBORSerializable):
 class _DatumOption(ArrayCBORSerializable):
     _TYPE: int = field(init=False, default=0)
 
-    datum: Union[DatumHash, Any]
+    datum: Union[DatumHash, Datum]
 
     def __post_init__(self):
         if isinstance(self.datum, DatumHash):
@@ -335,7 +335,7 @@ class _DatumOption(ArrayCBORSerializable):
             self._TYPE = 1
 
     def to_shallow_primitive(self) -> Primitive:
-        data: Union[CBORTag, DatumHash]
+        data: Union[CBORTag, DatumHash, Datum]
         if self._TYPE == 1:
             data = CBORTag(24, cbor2.dumps(self.datum, default=default_encoder))
         else:
@@ -442,9 +442,9 @@ class TransactionOutput(CBORSerializable):
     def to_primitive(self) -> Primitive:
         if self.datum or self.script or self.post_alonzo:
             datum = (
-                _DatumOption(self.datum_hash or self.datum)
-                if self.datum is not None or self.datum_hash is not None
-                else None
+                _DatumOption(self.datum_hash)
+                if self.datum_hash is not None
+                else _DatumOption(self.datum) if self.datum is not None else None
             )
             script_ref = (
                 _ScriptRef(_Script(self.script)) if self.script is not None else None

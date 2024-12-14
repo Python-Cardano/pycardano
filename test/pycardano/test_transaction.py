@@ -87,6 +87,7 @@ def test_transaction_output_datum_hash_inline_plutus_script():
     output = TransactionOutput(
         addr, 100000000000, datum_hash=datum_hash(datum), script=script
     )
+    print(output.to_cbor_hex())
     assert (
         output.to_cbor_hex()
         == "a400581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f4011b000000174876"
@@ -514,6 +515,23 @@ def test_inline_datum_serdes():
     cbor = output.to_cbor_hex()
 
     assert cbor == TransactionOutput.from_cbor(cbor).to_cbor_hex()
+
+
+def test_datum_witness():
+    @dataclass
+    class TestDatum(PlutusData):
+        CONSTR_ID = 0
+        a: int
+        b: bytes
+
+    tx_body = make_transaction_body()
+    signed_tx = Transaction(
+        tx_body,
+        TransactionWitnessSet(vkey_witnesses=[], plutus_data=[TestDatum(1, b"test")]),
+    )
+    restored_tx = Transaction.from_cbor(signed_tx.to_cbor())
+
+    assert signed_tx.to_cbor_hex() == restored_tx.to_cbor_hex()
 
 
 def test_out_of_bound_asset():
