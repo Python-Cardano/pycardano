@@ -11,10 +11,17 @@ from pycardano.certificate import (
     Certificate,
     PoolRegistration,
     PoolRetirement,
+    StakeAndVoteDelegation,
     StakeCredential,
     StakeDelegation,
     StakeDeregistration,
+    StakeDeregistrationConway,
     StakeRegistration,
+    StakeRegistrationAndDelegation,
+    StakeRegistrationAndDelegationAndVoteDelegation,
+    StakeRegistrationAndVoteDelegation,
+    StakeRegistrationConway,
+    VoteDelegation,
 )
 from pycardano.coinselection import (
     LargestFirstSelector,
@@ -850,7 +857,19 @@ class TransactionBuilder:
         if self.certificates:
             for cert in self.certificates:
                 if isinstance(
-                    cert, (StakeRegistration, StakeDeregistration, StakeDelegation)
+                    cert,
+                    (
+                        StakeRegistration,
+                        StakeDeregistration,
+                        StakeDelegation,
+                        StakeRegistrationConway,
+                        StakeDeregistrationConway,
+                        VoteDelegation,
+                        StakeAndVoteDelegation,
+                        StakeRegistrationAndDelegation,
+                        StakeRegistrationAndVoteDelegation,
+                        StakeRegistrationAndDelegationAndVoteDelegation,
+                    ),
                 ):
                     _check_and_add_vkey(cert.stake_credential)
                 elif isinstance(cert, PoolRegistration):
@@ -861,6 +880,7 @@ class TransactionBuilder:
 
     def _get_total_key_deposit(self):
         stake_registration_certs = set()
+        stake_registration_certs_with_explicit_deposit = set()
         stake_pool_registration_certs = set()
 
         protocol_params = self.context.protocol_param
@@ -869,6 +889,16 @@ class TransactionBuilder:
             for cert in self.certificates:
                 if isinstance(cert, StakeRegistration):
                     stake_registration_certs.add(cert.stake_credential.credential)
+                elif isinstance(
+                    cert,
+                    (
+                        StakeRegistrationConway,
+                        StakeRegistrationAndDelegation,
+                        StakeRegistrationAndVoteDelegation,
+                        StakeRegistrationAndDelegationAndVoteDelegation,
+                    ),
+                ):
+                    stake_registration_certs_with_explicit_deposit.add(cert.coin)
                 elif (
                     isinstance(cert, PoolRegistration)
                     and self.initial_stake_pool_registration
@@ -877,7 +907,7 @@ class TransactionBuilder:
 
         stake_registration_deposit = protocol_params.key_deposit * len(
             stake_registration_certs
-        )
+        ) + sum(stake_registration_certs_with_explicit_deposit)
         stake_pool_registration_deposit = protocol_params.pool_deposit * len(
             stake_pool_registration_certs
         )
