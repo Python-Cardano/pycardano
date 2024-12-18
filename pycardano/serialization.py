@@ -208,6 +208,8 @@ def default_encoder(
         encoder.write(value.cbor)
     elif isinstance(value, FrozenList):
         encoder.encode(list(value))
+    elif isinstance(value, frozendict):
+        encoder.encode(dict(value))
     else:
         encoder.encode(value.to_validated_primitive())
 
