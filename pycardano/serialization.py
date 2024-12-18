@@ -208,8 +208,6 @@ def default_encoder(
         encoder.write(value.cbor)
     elif isinstance(value, FrozenList):
         encoder.encode(list(value))
-    elif isinstance(value, frozendict):
-        encoder.encode(dict(value))
     else:
         encoder.encode(value.to_validated_primitive())
 
@@ -329,7 +327,7 @@ class CBORSerializable:
                     _check_recursive(k, key_type) and _check_recursive(v, value_type)
                     for k, v in value.items()
                 )
-            elif origin in (list, set, tuple):
+            elif origin in (list, set, tuple, frozenset):
                 if value is None:
                     return True
                 args = type_hint.__args__
@@ -518,6 +516,7 @@ def _restore_typed_primitive(
     Returns:
         Union[:const:`Primitive`, CBORSerializable]: A CBOR primitive or a CBORSerializable.
     """
+
     if t is Any or (t in PRIMITIVE_TYPES and isinstance(v, t)):
         return v
     elif isclass(t) and issubclass(t, CBORSerializable):
@@ -536,11 +535,14 @@ def _restore_typed_primitive(
         if not isinstance(v, bytes):
             raise DeserializeException(f"Expected type bytes but got {type(v)}")
         return ByteString(v)
-    elif isclass(t) and t.__name__ in ["PlutusV1Script", "PlutusV2Script"]:
+    elif isclass(t) and t.__name__ in [
+        "PlutusV1Script",
+        "PlutusV2Script",
+        "PlutusV3Script",
+    ]:
         if not isinstance(v, bytes):
             raise DeserializeException(f"Expected type bytes but got {type(v)}")
         return t(v)
-
     elif isclass(t) and issubclass(t, IndefiniteList):
         try:
             return IndefiniteList(v)
