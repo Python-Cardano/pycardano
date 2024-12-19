@@ -329,7 +329,7 @@ class CBORSerializable:
                     _check_recursive(k, key_type) and _check_recursive(v, value_type)
                     for k, v in value.items()
                 )
-            elif origin in (list, set, tuple):
+            elif origin in (list, set, tuple, frozenset):
                 if value is None:
                     return True
                 args = type_hint.__args__
@@ -518,6 +518,7 @@ def _restore_typed_primitive(
     Returns:
         Union[:const:`Primitive`, CBORSerializable]: A CBOR primitive or a CBORSerializable.
     """
+
     if t is Any or (t in PRIMITIVE_TYPES and isinstance(v, t)):
         return v
     elif isclass(t) and issubclass(t, CBORSerializable):
@@ -536,16 +537,14 @@ def _restore_typed_primitive(
         if not isinstance(v, bytes):
             raise DeserializeException(f"Expected type bytes but got {type(v)}")
         return ByteString(v)
-    elif isclass(t) and t.__name__ in ["PlutusV1Script", "PlutusV2Script"]:
+    elif isclass(t) and t.__name__ in [
+        "PlutusV1Script",
+        "PlutusV2Script",
+        "PlutusV3Script",
+    ]:
         if not isinstance(v, bytes):
             raise DeserializeException(f"Expected type bytes but got {type(v)}")
         return t(v)
-
-    elif isclass(t) and issubclass(t, IndefiniteList):
-        try:
-            return IndefiniteList(v)
-        except TypeError:
-            raise DeserializeException(f"Can not initialize IndefiniteList from {v}")
     elif hasattr(t, "__origin__") and (t.__origin__ is dict):
         t_args = t.__args__
         if len(t_args) != 2:
@@ -572,6 +571,11 @@ def _restore_typed_primitive(
         raise DeserializeException(
             f"Cannot deserialize object: \n{v}\n in any valid type from {t_args}."
         )
+    elif isclass(t) and issubclass(t, IndefiniteList):
+        try:
+            return t(v)
+        except TypeError:
+            raise DeserializeException(f"Can not initialize IndefiniteList from {v}")
     raise DeserializeException(f"Cannot deserialize object: \n{v}\n to type {t}.")
 
 
