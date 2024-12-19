@@ -487,6 +487,19 @@ def test_restore_typed_plutus_script_primitive():
         t = Test1.from_primitive(["123", "b"])
 
 
+def test_restore_typed_indefinitelist():
+    class Test1(IndefiniteList):
+        pass
+
+    @dataclass
+    class Test2(ArrayCBORSerializable):
+        a: Test1
+
+    t = Test2.from_primitive([[1, 2, 3]])
+    assert t.a.data == [1, 2, 3]
+    assert isinstance(t.a, Test1)
+
+
 def test_restore_typed_dict_primitive():
     @dataclass
     class Test1(ArrayCBORSerializable):

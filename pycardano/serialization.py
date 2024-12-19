@@ -545,11 +545,6 @@ def _restore_typed_primitive(
         if not isinstance(v, bytes):
             raise DeserializeException(f"Expected type bytes but got {type(v)}")
         return t(v)
-    elif isclass(t) and issubclass(t, IndefiniteList):
-        try:
-            return IndefiniteList(v)
-        except TypeError:
-            raise DeserializeException(f"Can not initialize IndefiniteList from {v}")
     elif hasattr(t, "__origin__") and (t.__origin__ is dict):
         t_args = t.__args__
         if len(t_args) != 2:
@@ -576,6 +571,11 @@ def _restore_typed_primitive(
         raise DeserializeException(
             f"Cannot deserialize object: \n{v}\n in any valid type from {t_args}."
         )
+    elif isclass(t) and issubclass(t, IndefiniteList):
+        try:
+            return t(v)
+        except TypeError:
+            raise DeserializeException(f"Can not initialize IndefiniteList from {v}")
     raise DeserializeException(f"Cannot deserialize object: \n{v}\n to type {t}.")
 
 
