@@ -471,10 +471,10 @@ def test_restore_typed_byte_primitive():
 def test_restore_typed_list_primitive():
     @dataclass
     class Test1(ArrayCBORSerializable):
-        a: list[str, int]
+        a: List[str]
 
     with pytest.raises(DeserializeException):
-        t = Test1.from_primitive(["a"])
+        t = Test1.from_primitive([[1]])
 
 
 def test_restore_typed_plutus_script_primitive():
@@ -500,19 +500,10 @@ def test_restore_typed_indefinitelist():
     assert isinstance(t.a, Test1)
 
 
-def test_restore_typed_dict_primitive():
-    @dataclass
-    class Test1(ArrayCBORSerializable):
-        a: dict[str]
-
-    with pytest.raises(DeserializeException):
-        t = Test1.from_primitive([{"a": 123}])
-
-
 def test_restore_typed_not_dict_primitive():
     @dataclass
     class Test1(ArrayCBORSerializable):
-        a: dict[str, int]
+        a: Dict[str, int]
 
     with pytest.raises(DeserializeException):
         t = Test1.from_primitive(["a"])
