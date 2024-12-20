@@ -318,6 +318,13 @@ class StakeKeyPair:
     ) -> StakeKeyPair:
         return cls(signing_key, StakeVerificationKey.from_signing_key(signing_key))
 
+    def __eq__(self, other):
+        if isinstance(other, StakeKeyPair):
+            return (
+                other.signing_key == self.signing_key
+                and other.verification_key == self.verification_key
+            )
+
 
 class StakePoolSigningKey(SigningKey):
     KEY_TYPE = "StakePoolSigningKey_ed25519"
