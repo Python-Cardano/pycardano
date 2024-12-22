@@ -1048,6 +1048,69 @@ def test_collateral_return(chain_context):
         )
 
 
+@pytest.mark.parametrize(
+    "collateral_amount, collateral_return_threshold, has_return",
+    [
+        (Value(4_000_000), 0, False),
+        (Value(4_000_000), 1_000_000, False),
+        (Value(6_000_000), 2_000_000, True),
+        (Value(6_000_000), 3_000_000, False),
+        (
+            Value(
+                6_000_000,
+                MultiAsset.from_primitive({b"1" * 28: {b"Token1": 1, b"Token2": 2}}),
+            ),
+            3_000_000,
+            True,
+        ),
+    ],
+)
+def test_no_collateral_return(
+    chain_context, collateral_amount, collateral_return_threshold, has_return
+):
+    original_utxos = chain_context.utxos(
+        "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    )
+    with patch.object(chain_context, "utxos") as mock_utxos:
+        tx_builder = TransactionBuilder(
+            chain_context, collateral_return_threshold=collateral_return_threshold
+        )
+        tx_in1 = TransactionInput.from_primitive(
+            ["18cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad21431590f7e6643438ef", 0]
+        )
+        plutus_script = PlutusV1Script(b"dummy test script")
+        script_hash = plutus_script_hash(plutus_script)
+        script_address = Address(script_hash)
+        datum = PlutusData()
+        utxo1 = UTxO(
+            tx_in1, TransactionOutput(script_address, 10000000, datum_hash=datum.hash())
+        )
+
+        existing_script_utxo = UTxO(
+            TransactionInput.from_primitive(
+                [
+                    "41cb004bec7051621b19b46aea28f0657a586a05ce2013152ea9b9f1a5614cc7",
+                    1,
+                ]
+            ),
+            TransactionOutput(script_address, 1234567, script=plutus_script),
+        )
+
+        original_utxos[0].output.amount = collateral_amount
+
+        mock_utxos.return_value = original_utxos[:1] + [existing_script_utxo]
+
+        redeemer = Redeemer(PlutusData(), ExecutionUnits(1000000, 1000000))
+        tx_builder.add_script_input(utxo1, datum=datum, redeemer=redeemer)
+        receiver = Address.from_primitive(
+            "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+        )
+        tx_builder.add_output(TransactionOutput(receiver, 5000000))
+        tx_body = tx_builder.build(change_address=receiver)
+        assert (tx_body.collateral_return is not None) == has_return
+        assert (tx_body.total_collateral is not None) == has_return
+
+
 def test_collateral_return_min_return_amount(chain_context):
     original_utxos = chain_context.utxos(
         "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"

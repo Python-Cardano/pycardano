@@ -144,6 +144,10 @@ class TransactionBuilder:
 
     _collateral_return: Optional[TransactionOutput] = field(init=False, default=None)
 
+    collateral_return_threshold: int = 1_000_000
+    """The minimum amount of lovelace above which 
+    the remaining collateral (total_collateral_amount - actually_used_amount) will be returned."""
+
     _total_collateral: Optional[int] = field(init=False, default=None)
 
     _inputs_to_redeemers: Dict[UTxO, Redeemer] = field(
@@ -1336,6 +1340,20 @@ class TransactionBuilder:
 
         return tx_body
 
+    def _should_add_collateral_return(self, collateral_return: Value) -> bool:
+        """Check if it is necessary to add a collateral return output.
+
+        Args:
+            collateral_return (Value): The potential collateral return amount.
+
+        Returns:
+            bool: True if a collateral return output should be added, False otherwise.
+        """
+        return (
+            collateral_return.coin > max(self.collateral_return_threshold, 1_000_000)
+            or collateral_return.multi_asset.count(lambda p, n, v: v > 0) > 0
+        )
+
     def _set_collateral_return(self, collateral_return_address: Optional[Address]):
         """Calculate and set the change returned from the collateral inputs.
 
@@ -1370,7 +1388,8 @@ class TransactionBuilder:
 
                 while (
                     cur_total.coin < collateral_amount
-                    or 0
+                    or self._should_add_collateral_return(cur_collateral_return)
+                    and 0
                     <= cur_collateral_return.coin
                     < min_lovelace_post_alonzo(
                         TransactionOutput(
@@ -1422,6 +1441,10 @@ class TransactionBuilder:
             )
         else:
             return_amount = total_input - collateral_amount
+
+            if not self._should_add_collateral_return(return_amount):
+                return  # No need to return collateral if the remaining amount is too small
+
             min_lovelace_val = min_lovelace_post_alonzo(
                 TransactionOutput(collateral_return_address, return_amount),
                 self.context,
