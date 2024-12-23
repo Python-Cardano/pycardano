@@ -145,7 +145,7 @@ class TransactionBuilder:
     _collateral_return: Optional[TransactionOutput] = field(init=False, default=None)
 
     collateral_return_threshold: int = 1_000_000
-    """The minimum amount of lovelace above which 
+    """The minimum amount of lovelace above which
     the remaining collateral (total_collateral_amount - actually_used_amount) will be returned."""
 
     _total_collateral: Optional[int] = field(init=False, default=None)
