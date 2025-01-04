@@ -1,27 +1,29 @@
-from pycardano import *
-from dotenv import load_dotenv
-import os
-from os.path import exists
-from blockfrost import BlockFrostApi, ApiError, ApiUrls,BlockFrostIPFS
-import sys
-import random
-from hashlib import sha256
-import urllib.request 
 import json
+import os
+import random
+import sys
+import urllib.request
+from hashlib import sha256
+from os.path import exists
+
+from blockfrost import ApiError, ApiUrls, BlockFrostApi, BlockFrostIPFS
+from dotenv import load_dotenv
 from reportlab.pdfgen import canvas
+
+from pycardano import *
 
 
 def split_into_64chars(string):
-    return [string[i:i+64] for i in range(0, len(string), 64)]
+    return [string[i : i + 64] for i in range(0, len(string), 64)]
+
 
 load_dotenv()
-network = os.getenv('network')
-wallet_mnemonic = os.getenv('wallet_mnemonic')
-blockfrost_api_key = os.getenv('blockfrost_api_key')
+network = os.getenv("network")
+wallet_mnemonic = os.getenv("wallet_mnemonic")
+blockfrost_api_key = os.getenv("blockfrost_api_key")
 
 
-
-if network=="testnet":
+if network == "testnet":
     base_url = ApiUrls.preprod.value
     cardano_network = Network.TESTNET
 else:
@@ -36,7 +38,7 @@ pdf.drawString(100, 750, "Hello, this is a copy of the example PDF!")
 pdf.save()
 
 h256 = sha256()
-h256.update(open(filename,'rb').read())
+h256.update(open(filename, "rb").read())
 document_hash = h256.hexdigest()
 
 print(f"Trying to verify document with hash: {document_hash}")
@@ -48,19 +50,21 @@ payment_skey = ExtendedSigningKey.from_hdwallet(payment_key)
 staking_skey = ExtendedSigningKey.from_hdwallet(staking_key)
 
 
-main_address=Address(payment_part=payment_skey.to_verification_key().hash(), staking_part=staking_skey.to_verification_key().hash(),network=cardano_network)
-
+main_address = Address(
+    payment_part=payment_skey.to_verification_key().hash(),
+    staking_part=staking_skey.to_verification_key().hash(),
+    network=cardano_network,
+)
 
 
 prefix = "a401010327200621"
 jsonkey = json.loads(payment_skey.to_verification_key().to_non_extended().to_json())
 
 
-
 api = BlockFrostApi(project_id=blockfrost_api_key, base_url=base_url)
 cardano = BlockFrostChainContext(project_id=blockfrost_api_key, base_url=base_url)
 
-#get commandline arguments
+# get commandline arguments
 
 transaction_id = sys.argv[1]
 
@@ -77,7 +81,7 @@ if "1787" in onchain_metadata[0].label:
 
     result = onchain_metadata[0].json_metadata
 
-    if document_hash in str(result): 
+    if document_hash in str(result):
         print("Document hash found onchain.")
 
         if getattr(result, document_hash).signature:
@@ -87,12 +91,11 @@ if "1787" in onchain_metadata[0].label:
             public_key = f"{prefix}{jsonkey['cborHex']}"
 
             signed_message = {
-                "signature": ''.join(signature),
+                "signature": "".join(signature),
                 "key": public_key,
             }
 
             result = cip8.verify(signed_message=signed_message, attach_cose_key=True)
-
 
             if result["verified"]:
                 print("This signature is verified correctly!")
@@ -103,12 +106,8 @@ if "1787" in onchain_metadata[0].label:
         else:
             print("This transaction does not have a signatuer attribute")
     else:
-        print(f"Document hash ({document_hash}) was not found in this transaction. Possible corruption.")
+        print(
+            f"Document hash ({document_hash}) was not found in this transaction. Possible corruption."
+        )
 else:
     print("This transaction DOES NOT have a 1787 metadata label.")
-
-
-
-
-
-

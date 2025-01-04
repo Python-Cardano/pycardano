@@ -1,68 +1,66 @@
-from pycardano import *
-from dotenv import load_dotenv
 import os
-from os.path import exists
-from blockfrost import BlockFrostApi, ApiError, ApiUrls,BlockFrostIPFS
-import sys
 import random
+import sys
+from os.path import exists
 
+from blockfrost import ApiError, ApiUrls, BlockFrostApi, BlockFrostIPFS
+from dotenv import load_dotenv
+
+from pycardano import *
 
 load_dotenv()
-network = os.getenv('network')
-wallet_mnemonic = os.getenv('wallet_mnemonic')
-blockfrost_api_key = os.getenv('blockfrost_api_key')
+network = os.getenv("network")
+wallet_mnemonic = os.getenv("wallet_mnemonic")
+blockfrost_api_key = os.getenv("blockfrost_api_key")
 
 
-types = [
-    "lion", "elephant", "panda", "sloth", "tiger", "wolf"
-]
+types = ["lion", "elephant", "panda", "sloth", "tiger", "wolf"]
 
 assets = [
     {
         "name": "CHARACTER0001",
-        "attack": str(random.randint(1,70)),
-        "speed": str(random.randint(1,70)),
-        "defense": str(random.randint(1,70)),
-        "health": str(random.randint(1,70)),
-        "type": random.choice(types)
+        "attack": str(random.randint(1, 70)),
+        "speed": str(random.randint(1, 70)),
+        "defense": str(random.randint(1, 70)),
+        "health": str(random.randint(1, 70)),
+        "type": random.choice(types),
     },
     {
         "name": "CHARACTER0002",
-        "attack": str(random.randint(1,70)),
-        "speed": str(random.randint(1,70)),
-        "defense": str(random.randint(1,70)),
-        "health": str(random.randint(1,70)),
-        "type": random.choice(types)
-    },        
+        "attack": str(random.randint(1, 70)),
+        "speed": str(random.randint(1, 70)),
+        "defense": str(random.randint(1, 70)),
+        "health": str(random.randint(1, 70)),
+        "type": random.choice(types),
+    },
     {
         "name": "CHARACTER0003",
-        "attack": str(random.randint(1,70)),
-        "speed": str(random.randint(1,70)),
-        "defense": str(random.randint(1,70)),
-        "health": str(random.randint(1,70)),
-        "type": random.choice(types)
+        "attack": str(random.randint(1, 70)),
+        "speed": str(random.randint(1, 70)),
+        "defense": str(random.randint(1, 70)),
+        "health": str(random.randint(1, 70)),
+        "type": random.choice(types),
     },
     {
         "name": "CHARACTER0004",
-        "attack": str(random.randint(1,70)),
-        "speed": str(random.randint(1,70)),
-        "defense": str(random.randint(1,70)),
-        "health": str(random.randint(1,70)),
-        "type": random.choice(types)
+        "attack": str(random.randint(1, 70)),
+        "speed": str(random.randint(1, 70)),
+        "defense": str(random.randint(1, 70)),
+        "health": str(random.randint(1, 70)),
+        "type": random.choice(types),
     },
     {
         "name": "CHARACTER0005",
-        "attack": str(random.randint(1,70)),
-        "speed": str(random.randint(1,70)),
-        "defense": str(random.randint(1,70)),
-        "health": str(random.randint(1,70)),
-        "type": random.choice(types)
-    }    
+        "attack": str(random.randint(1, 70)),
+        "speed": str(random.randint(1, 70)),
+        "defense": str(random.randint(1, 70)),
+        "health": str(random.randint(1, 70)),
+        "type": random.choice(types),
+    },
 ]
 
 
-
-if network=="testnet":
+if network == "testnet":
     base_url = ApiUrls.preprod.value
     cardano_network = Network.TESTNET
 else:
@@ -77,11 +75,19 @@ payment_skey = ExtendedSigningKey.from_hdwallet(payment_key)
 staking_skey = ExtendedSigningKey.from_hdwallet(staking_key)
 
 
-main_address=Address(payment_part=payment_skey.to_verification_key().hash(), staking_part=staking_skey.to_verification_key().hash(),network=cardano_network)
+main_address = Address(
+    payment_part=payment_skey.to_verification_key().hash(),
+    staking_part=staking_skey.to_verification_key().hash(),
+    network=cardano_network,
+)
 
 receive_key = new_wallet.derive_from_path(f"m/1852'/1815'/0'/0/1")
 reeive_skey = ExtendedSigningKey.from_hdwallet(receive_key)
-receive_address=Address(payment_part=reeive_skey.to_verification_key().hash(), staking_part=staking_skey.to_verification_key().hash(),network=cardano_network)
+receive_address = Address(
+    payment_part=reeive_skey.to_verification_key().hash(),
+    staking_part=staking_skey.to_verification_key().hash(),
+    network=cardano_network,
+)
 
 
 print(" ")
@@ -98,8 +104,10 @@ try:
 except Exception as e:
     if e.status_code == 404:
         print("Address does not have any UTXOs. ")
-        if network=="testnet":
-            print("Request tADA from the faucet: https://docs.cardano.org/cardano-testnets/tools/faucet/")
+        if network == "testnet":
+            print(
+                "Request tADA from the faucet: https://docs.cardano.org/cardano-testnets/tools/faucet/"
+            )
     else:
         print(e.message)
     sys.exit(1)
@@ -138,27 +146,21 @@ native_scripts = [policy]
 my_asset = Asset()
 my_nft = MultiAsset()
 
-metadata = {
-            721: {  
-                policy_id_hex: {
-                    
-                }
-            }
-        }
+metadata = {721: {policy_id_hex: {}}}
 
 asset_minted = []
 
 for asset in assets:
-    asset_name = asset['name']
+    asset_name = asset["name"]
     asset_name_bytes = asset_name.encode("utf-8")
     metadata[721][policy_id_hex][asset_name] = {
-                        "name": asset_name,
-                        "type": asset['type'],
-                        "attack": asset['attack'],
-                        "speed": asset['speed'],
-                        "defense": asset['defense'],
-                        "health": asset['health']                                
-                    }
+        "name": asset_name,
+        "type": asset["type"],
+        "attack": asset["attack"],
+        "speed": asset["speed"],
+        "defense": asset["defense"],
+        "health": asset["health"],
+    }
     nft1 = AssetName(asset_name_bytes)
     my_asset[nft1] = 1
 
@@ -179,10 +181,12 @@ builder.add_output(TransactionOutput(receive_address, Value(min_val, my_nft)))
 
 
 builder.add_input_address(main_address)
-signed_tx = builder.build_and_sign([payment_skey, policy_signing_key], change_address=main_address)
+signed_tx = builder.build_and_sign(
+    [payment_skey, policy_signing_key], change_address=main_address
+)
 result = cardano.submit_tx(signed_tx.to_cbor())
 
-print(f"Number of inputs: \t {len(signed_tx.transaction_body.inputs)}") 
-print(f"Number of outputs: \t {len(signed_tx.transaction_body.outputs)}") 
-print(f"Fee: \t\t\t {signed_tx.transaction_body.fee/1000000} ADA") 
+print(f"Number of inputs: \t {len(signed_tx.transaction_body.inputs)}")
+print(f"Number of outputs: \t {len(signed_tx.transaction_body.outputs)}")
+print(f"Fee: \t\t\t {signed_tx.transaction_body.fee/1000000} ADA")
 print(f"Transaction submitted! ID: {result}")
