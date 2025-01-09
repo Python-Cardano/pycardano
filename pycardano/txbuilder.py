@@ -57,6 +57,7 @@ from pycardano.plutus import (
     datum_hash,
     script_hash,
 )
+from pycardano.serialization import NonEmptyOrderedSet
 from pycardano.transaction import (
     Asset,
     AssetName,
@@ -1019,19 +1020,43 @@ class TransactionBuilder:
         vkey_hashes.update(self._withdrawal_vkey_hashes())
         return vkey_hashes
 
-    def _build_fake_vkey_witnesses(self) -> List[VerificationKeyWitness]:
-        vkey_hashes = self._build_required_vkeys()
+    def _witness_count(self) -> int:
+        return self.witness_override or len(self._build_required_vkeys())
 
-        witness_count = self.witness_override or len(vkey_hashes)
-
-        return [
-            VerificationKeyWitness(FAKE_VKEY, FAKE_TX_SIGNATURE)
-            for _ in range(witness_count)
-        ]
+    def _build_fake_vkey_witnesses(self) -> NonEmptyOrderedSet[VerificationKeyWitness]:
+        witnesses = []
+        for i in range(self._witness_count()):
+            # Convert index to 32 bytes and use AND operation to create unique keys
+            i_bytes = i.to_bytes(32, "big")
+            unique_vkey = VerificationKey.from_primitive(
+                bytes(
+                    x & y
+                    for x, y in zip(
+                        bytes.fromhex(
+                            "5797dc2cc919dfec0bb849551ebdf30d96e5cbe0f33f734a87fe826db30f7ef9"
+                        ),
+                        i_bytes,
+                    )
+                )
+            )
+            unique_sig = bytes(
+                x & y
+                for x, y in zip(
+                    bytes.fromhex(
+                        "577ccb5b487b64e396b0976c6f71558e52e44ad254db7d06dfb79843e5441a5d"
+                        "763dd42adcf5e8805d70373722ebbce62a58e3f30dd4560b9a898b8ceeab6a03"
+                    ),
+                    i_bytes + i_bytes,  # 64 bytes for signature
+                )
+            )
+            witnesses.append(VerificationKeyWitness(unique_vkey, unique_sig))
+        return NonEmptyOrderedSet(witnesses)
 
     def _build_fake_witness_set(self) -> TransactionWitnessSet:
         witness_set = self.build_witness_set()
-        witness_set.vkey_witnesses = self._build_fake_vkey_witnesses()
+        if self._witness_count() > 0:
+            witness_set.vkey_witnesses = self._build_fake_vkey_witnesses()
+
         return witness_set
 
     def _build_full_fake_tx(self) -> Transaction:
@@ -1051,6 +1076,9 @@ class TransactionBuilder:
                 f"({self.context.protocol_param.max_tx_size}). Please try reducing the "
                 f"number of inputs or outputs."
             )
+
+        print(f"Estimation: {tx.to_cbor_hex()}")
+
         return tx
 
     def build_witness_set(
@@ -1067,10 +1095,10 @@ class TransactionBuilder:
             TransactionWitnessSet: A transaction witness set without verification key witnesses.
         """
 
-        native_scripts: List[NativeScript] = []
-        plutus_v1_scripts: List[PlutusV1Script] = []
-        plutus_v2_scripts: List[PlutusV2Script] = []
-        plutus_v3_scripts: List[PlutusV3Script] = []
+        native_scripts: NonEmptyOrderedSet[NativeScript] = NonEmptyOrderedSet()
+        plutus_v1_scripts: NonEmptyOrderedSet[PlutusV1Script] = NonEmptyOrderedSet()
+        plutus_v2_scripts: NonEmptyOrderedSet[PlutusV2Script] = NonEmptyOrderedSet()
+        plutus_v3_scripts: NonEmptyOrderedSet[PlutusV3Script] = NonEmptyOrderedSet()
 
         input_scripts = (
             {
@@ -1545,6 +1573,68 @@ class TransactionBuilder:
 
         return self.context.evaluate_tx(tx)
 
+    def sign(
+        self,
+        tx_body: TransactionBody,
+        signing_keys: List[Union[SigningKey, ExtendedSigningKey]],
+    ) -> Transaction:
+        """Sign a transaction body with signing keys provided.
+
+        Args:
+            tx_body (TransactionBody): Transaction body to sign.
+            signing_keys (List[Union[SigningKey, ExtendedSigningKey]]): A list of signing keys that will be used to
+                sign the transaction.
+
+        Returns:
+            Transaction: A signed transaction.
+        """
+        witness_set = TransactionWitnessSet()
+
+        # Add vkey witnesses
+        witness_set.vkey_witnesses = NonEmptyOrderedSet()
+        for signing_key in signing_keys:
+            if isinstance(signing_key, ExtendedSigningKey):
+                signing_key = signing_key.signing_key
+            witness = VerificationKeyWitness.from_signing_key(
+                signing_key, tx_body.hash()
+            )
+            witness_set.vkey_witnesses.append(witness)
+
+        if len(witness_set.vkey_witnesses) == 0:
+            witness_set.vkey_witnesses = None
+
+        # Add native script witnesses
+        if self.native_scripts:
+            witness_set.native_scripts = self.native_scripts
+
+        # Add plutus script witnesses
+        if self.plutus_script_witnesses:
+            witness_set.plutus_v1_script = [
+                w.script
+                for w in self.plutus_script_witnesses
+                if isinstance(w.script, PlutusV1Script)
+            ]
+            witness_set.plutus_v2_script = [
+                w.script
+                for w in self.plutus_script_witnesses
+                if isinstance(w.script, PlutusV2Script)
+            ]
+            witness_set.plutus_v3_script = [
+                w.script
+                for w in self.plutus_script_witnesses
+                if isinstance(w.script, PlutusV3Script)
+            ]
+
+        # Add plutus data
+        if self.plutus_data:
+            witness_set.plutus_data = self.plutus_data
+
+        # Add redeemers
+        if self.redeemers:
+            witness_set.redeemers = self.redeemers
+
+        return Transaction(tx_body, witness_set, self.auxiliary_data)
+
     def build_and_sign(
         self,
         signing_keys: List[Union[SigningKey, ExtendedSigningKey]],
@@ -1586,6 +1676,8 @@ class TransactionBuilder:
         """
         # The given signers should be required signers if they weren't added yet
         if auto_required_signers and self.scripts and not self.required_signers:
+            # Collect all signatories from explicitly defined
+            # transaction inputs and collateral inputs, and input addresses
             self.required_signers = [
                 s.to_verification_key().hash() for s in signing_keys
             ]
@@ -1599,7 +1691,7 @@ class TransactionBuilder:
             auto_required_signers=auto_required_signers,
         )
         witness_set = self.build_witness_set(True)
-        witness_set.vkey_witnesses = []
+        witness_set.vkey_witnesses = NonEmptyOrderedSet()
 
         required_vkeys = self._build_required_vkeys()
 

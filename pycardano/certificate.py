@@ -45,7 +45,7 @@ class StakeCredential(ArrayCBORSerializable):
             self._CODE = 1
 
     @classmethod
-    @limit_primitive_type(list)
+    @limit_primitive_type(list, tuple)
     def from_primitive(
         cls: Type[StakeCredential], values: Union[list, tuple]
     ) -> StakeCredential:
@@ -67,7 +67,7 @@ class StakeRegistration(ArrayCBORSerializable):
         self._CODE = 0
 
     @classmethod
-    @limit_primitive_type(list)
+    @limit_primitive_type(list, tuple)
     def from_primitive(
         cls: Type[StakeRegistration], values: Union[list, tuple]
     ) -> StakeRegistration:
@@ -87,7 +87,7 @@ class StakeDeregistration(ArrayCBORSerializable):
         self._CODE = 1
 
     @classmethod
-    @limit_primitive_type(list)
+    @limit_primitive_type(list, tuple)
     def from_primitive(
         cls: Type[StakeDeregistration], values: Union[list, tuple]
     ) -> StakeDeregistration:
@@ -109,7 +109,7 @@ class StakeDelegation(ArrayCBORSerializable):
         self._CODE = 2
 
     @classmethod
-    @limit_primitive_type(list)
+    @limit_primitive_type(list, tuple)
     def from_primitive(
         cls: Type[StakeDelegation], values: Union[list, tuple]
     ) -> StakeDelegation:
@@ -138,7 +138,7 @@ class PoolRegistration(ArrayCBORSerializable):
         return super().to_primitive()
 
     @classmethod
-    @limit_primitive_type(list)
+    @limit_primitive_type(list, tuple)
     def from_primitive(
         cls: Type[PoolRegistration], values: Union[list, tuple]
     ) -> PoolRegistration:
@@ -166,7 +166,7 @@ class PoolRetirement(ArrayCBORSerializable):
         self._CODE = 4
 
     @classmethod
-    @limit_primitive_type(list)
+    @limit_primitive_type(list, tuple)
     def from_primitive(
         cls: Type[PoolRetirement], values: Union[list, tuple]
     ) -> PoolRetirement:

@@ -35,6 +35,8 @@ from pycardano.serialization import (
     DictBase,
     DictCBORSerializable,
     MapCBORSerializable,
+    NonEmptyOrderedSet,
+    OrderedSet,
     Primitive,
     default_encoder,
     limit_primitive_type,
@@ -516,9 +518,9 @@ class Withdrawals(DictCBORSerializable):
 
 @dataclass(repr=False)
 class TransactionBody(MapCBORSerializable):
-    inputs: List[TransactionInput] = field(
-        default_factory=list,
-        metadata={"key": 0, "object_hook": list_hook(TransactionInput)},
+    inputs: OrderedSet[TransactionInput] = field(
+        default_factory=OrderedSet,
+        metadata={"key": 0},
     )
 
     outputs: List[TransactionOutput] = field(
@@ -542,7 +544,6 @@ class TransactionBody(MapCBORSerializable):
         default=None, metadata={"key": 5, "optional": True}
     )
 
-    # TODO: Add proposal update support
     update: Any = field(default=None, metadata={"key": 6, "optional": True})
 
     auxiliary_data_hash: Optional[AuxiliaryDataHash] = field(
@@ -561,21 +562,19 @@ class TransactionBody(MapCBORSerializable):
         default=None, metadata={"key": 11, "optional": True}
     )
 
-    collateral: Optional[List[TransactionInput]] = field(
+    collateral: Optional[NonEmptyOrderedSet[TransactionInput]] = field(
         default=None,
         metadata={
             "key": 13,
             "optional": True,
-            "object_hook": list_hook(TransactionInput),
         },
     )
 
-    required_signers: Optional[List[VerificationKeyHash]] = field(
+    required_signers: Optional[NonEmptyOrderedSet[VerificationKeyHash]] = field(
         default=None,
         metadata={
             "key": 14,
             "optional": True,
-            "object_hook": list_hook(VerificationKeyHash),
         },
     )
 
@@ -591,11 +590,10 @@ class TransactionBody(MapCBORSerializable):
         default=None, metadata={"key": 17, "optional": True}
     )
 
-    reference_inputs: Optional[List[TransactionInput]] = field(
+    reference_inputs: Optional[NonEmptyOrderedSet[TransactionInput]] = field(
         default=None,
         metadata={
             "key": 18,
-            "object_hook": list_hook(TransactionInput),
             "optional": True,
         },
     )

@@ -146,6 +146,10 @@ def test_staking_certificate_serdes():
         ]
     )
 
-    after_serdes = TransactionBody.from_cbor(transaction_body.to_cbor())
+    primitives = transaction_body.to_validated_primitive()
+
+    cbor_hex = transaction_body.to_cbor_hex()
+
+    after_serdes = TransactionBody.from_cbor(cbor_hex)
 
     assert after_serdes == transaction_body

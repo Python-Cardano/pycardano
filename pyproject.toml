@@ -23,7 +23,7 @@ license = "MIT"
 [tool.poetry.dependencies]
 python = "^3.8.1"
 PyNaCl = "^1.5.0"
-cbor2 = "^5.4.3"
+cbor2 = "^5.6.5"
 typeguard = "^4.3.0"
 blockfrost-python = "0.6.0"
 websocket-client = "^1.4.1"

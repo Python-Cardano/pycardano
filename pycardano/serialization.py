@@ -16,6 +16,7 @@ from typing import (
     Callable,
     ClassVar,
     Dict,
+    Generic,
     List,
     Optional,
     Type,
@@ -44,7 +45,11 @@ __all__ = [
     "RawCBOR",
     "list_hook",
     "limit_primitive_type",
+    "OrderedSet",
+    "NonEmptyOrderedSet",
 ]
+
+T = TypeVar("T")
 
 
 def _identity(x):
@@ -314,10 +319,12 @@ class CBORSerializable:
         def _check_recursive(value, type_hint):
             if type_hint is Any:
                 return True
+
+            if isinstance(value, CBORSerializable):
+                value.validate()
+
             origin = getattr(type_hint, "__origin__", None)
             if origin is None:
-                if isinstance(value, CBORSerializable):
-                    value.validate()
                 return isinstance(value, type_hint)
             elif origin is ClassVar:
                 return _check_recursive(value, type_hint.__args__[0])
@@ -329,7 +336,7 @@ class CBORSerializable:
                     _check_recursive(k, key_type) and _check_recursive(v, value_type)
                     for k, v in value.items()
                 )
-            elif origin in (list, set, tuple, frozenset):
+            elif origin in (list, set, tuple, frozenset, OrderedSet):
                 if value is None:
                     return True
                 args = type_hint.__args__
@@ -941,3 +948,122 @@ def list_hook(
             CBORSerializables.
     """
     return lambda vals: [cls.from_primitive(v) for v in vals]
+
+
+class OrderedSet(list, CBORSerializable):
+    """An ordered set implementation that maintains insertion order and enforces uniqueness.
+    Handles both pre-Conway (list) and Conway era (tagged set) serialization formats."""
+
+    _inner_type: Optional[Type] = None
+
+    def __init__(self, iterable=None, *, use_tag: bool = True):
+        super().__init__()
+        self._set = set()
+        self._use_tag = use_tag
+        if iterable:
+            for item in iterable:
+                self.append(item)
+
+    def append(self, item):
+        # Use string representation for unhashable items
+        item_hash = str(item)
+        if item_hash not in self._set:
+            self._set.add(item_hash)
+            super().append(item)
+
+    def extend(self, items):
+        for item in items:
+            self.append(item)
+
+    def __contains__(self, item):
+        return str(item) in self._set
+
+    def __eq__(self, other):
+        if isinstance(other, list):
+            # For regular lists, only compare values
+            return list(self) == other
+        if isinstance(other, OrderedSet):
+            # For OrderedSets, compare both values and use_tag
+            return list(self) == list(other) and self._use_tag == other._use_tag
+        return NotImplemented
+
+    def to_shallow_primitive(self) -> Primitive:
+        """Convert to a primitive type. Uses tag 258 for Conway era if _use_tag is True."""
+        items = list(self)
+        return CBORTag(258, items) if self._use_tag else items
+
+    @classmethod
+    def __class_getitem__(cls, item):
+        """Support for generic type parameters, e.g., OrderedSet[TransactionInput]."""
+        if cls is OrderedSet:
+            new_cls = type(f"OrderedSet[{item.__name__}]", (_GenericOrderedSet,), {})
+            new_cls._inner_type = item
+            return new_cls
+        return cls
+
+    @classmethod
+    def from_primitive(cls, value: Any) -> "OrderedSet":
+        """Create an OrderedSet from a value. Only accepts list/tuple values, optionally tagged with 258."""
+        try:
+            # Determine if we should use tag 258 when serializing this set
+            use_tag = isinstance(value, CBORTag) and value.tag == 258
+            items = value.value if use_tag else value
+
+            # When decoding CBORTag.258, cbor2 automatically converts it into a tuple or a set
+            # see https://github.com/agronholm/cbor2/blob/d9cee77308056776859d40c81a82fac5f414d4db/cbor2/_decoder.py#L779 # noqa
+            if not isinstance(items, (list, tuple, set)):
+                raise DeserializeException(
+                    f"Expected list, tuple, or set, got {type(items)}"
+                )
+
+            # Use the inner type directly from the class
+            if cls._inner_type and hasattr(cls._inner_type, "from_primitive"):
+                items = [cls._inner_type.from_primitive(item) for item in items]
+
+            return cls(items, use_tag=use_tag)
+        except (AttributeError, TypeError) as e:
+            raise DeserializeException(
+                f"Cannot deserialize {value} to OrderedSet: {str(e)}"
+            )
+
+
+class _GenericOrderedSet(OrderedSet, Generic[T]):
+    """Internal class for handling generic type parameters."""
+
+    pass
+
+
+class NonEmptyOrderedSet(OrderedSet):
+    """An ordered set that must be non-empty when serialized.
+    Used for CDDL nonempty_set definitions in the Conway era."""
+
+    def validate(self):
+        """Validate that the set is not empty before serialization."""
+        if not self:
+            raise SerializeException(
+                "NonEmptyOrderedSet cannot be empty when serialized"
+            )
+
+    def to_validated_primitive(self) -> Primitive:
+        """Convert to a primitive type with validation. Uses tag 258 for Conway era if _use_tag is True."""
+        self.validate()
+        return self.to_primitive()
+
+    @classmethod
+    def __class_getitem__(cls, item):
+        """Support for generic type parameters, e.g., NonEmptyOrderedSet[TransactionInput]."""
+        if cls is NonEmptyOrderedSet:
+            new_cls = type(
+                f"NonEmptyOrderedSet[{item.__name__}]",
+                (_GenericNonEmptyOrderedSet,),
+                {},
+            )
+            new_cls._inner_type = item
+            return new_cls
+        return cls
+
+
+class _GenericNonEmptyOrderedSet(NonEmptyOrderedSet, Generic[T]):
+    """Internal class for handling generic type parameters for NonEmptyOrderedSet."""
+
+    pass
