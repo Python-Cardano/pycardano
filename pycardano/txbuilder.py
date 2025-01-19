@@ -57,7 +57,7 @@ from pycardano.plutus import (
     datum_hash,
     script_hash,
 )
-from pycardano.serialization import NonEmptyOrderedSet
+from pycardano.serialization import NonEmptyOrderedSet, OrderedSet
 from pycardano.transaction import (
     Asset,
     AssetName,
@@ -986,7 +986,7 @@ class TransactionBuilder:
 
     def _build_tx_body(self) -> TransactionBody:
         tx_body = TransactionBody(
-            [i.input for i in self.inputs],
+            OrderedSet([i.input for i in self.inputs]),
             self.outputs,
             fee=self.fee,
             ttl=self.ttl,
@@ -995,17 +995,28 @@ class TransactionBuilder:
                 self.auxiliary_data.hash() if self.auxiliary_data else None
             ),
             script_data_hash=self.script_data_hash,
-            required_signers=self.required_signers if self.required_signers else None,
+            required_signers=(
+                NonEmptyOrderedSet(self.required_signers)
+                if self.required_signers
+                else None
+            ),
             validity_start=self.validity_start,
             collateral=(
-                [c.input for c in self.collaterals] if self.collaterals else None
+                NonEmptyOrderedSet([c.input for c in self.collaterals])
+                if self.collaterals
+                else None
             ),
             certificates=self.certificates,
             withdraws=self.withdrawals,
             collateral_return=self._collateral_return,
             total_collateral=self._total_collateral,
             reference_inputs=(
-                [i.input if isinstance(i, UTxO) else i for i in self.reference_inputs]
+                NonEmptyOrderedSet(
+                    [
+                        i.input if isinstance(i, UTxO) else i
+                        for i in self.reference_inputs
+                    ]
+                )
                 if self.reference_inputs
                 else None
             ),
@@ -1076,8 +1087,6 @@ class TransactionBuilder:
                 f"({self.context.protocol_param.max_tx_size}). Please try reducing the "
                 f"number of inputs or outputs."
             )
-
-        print(f"Estimation: {tx.to_cbor_hex()}")
 
         return tx
 
@@ -1572,68 +1581,6 @@ class TransactionBuilder:
         )
 
         return self.context.evaluate_tx(tx)
-
-    def sign(
-        self,
-        tx_body: TransactionBody,
-        signing_keys: List[Union[SigningKey, ExtendedSigningKey]],
-    ) -> Transaction:
-        """Sign a transaction body with signing keys provided.
-
-        Args:
-            tx_body (TransactionBody): Transaction body to sign.
-            signing_keys (List[Union[SigningKey, ExtendedSigningKey]]): A list of signing keys that will be used to
-                sign the transaction.
-
-        Returns:
-            Transaction: A signed transaction.
-        """
-        witness_set = TransactionWitnessSet()
-
-        # Add vkey witnesses
-        witness_set.vkey_witnesses = NonEmptyOrderedSet()
-        for signing_key in signing_keys:
-            if isinstance(signing_key, ExtendedSigningKey):
-                signing_key = signing_key.signing_key
-            witness = VerificationKeyWitness.from_signing_key(
-                signing_key, tx_body.hash()
-            )
-            witness_set.vkey_witnesses.append(witness)
-
-        if len(witness_set.vkey_witnesses) == 0:
-            witness_set.vkey_witnesses = None
-
-        # Add native script witnesses
-        if self.native_scripts:
-            witness_set.native_scripts = self.native_scripts
-
-        # Add plutus script witnesses
-        if self.plutus_script_witnesses:
-            witness_set.plutus_v1_script = [
-                w.script
-                for w in self.plutus_script_witnesses
-                if isinstance(w.script, PlutusV1Script)
-            ]
-            witness_set.plutus_v2_script = [
-                w.script
-                for w in self.plutus_script_witnesses
-                if isinstance(w.script, PlutusV2Script)
-            ]
-            witness_set.plutus_v3_script = [
-                w.script
-                for w in self.plutus_script_witnesses
-                if isinstance(w.script, PlutusV3Script)
-            ]
-
-        # Add plutus data
-        if self.plutus_data:
-            witness_set.plutus_data = self.plutus_data
-
-        # Add redeemers
-        if self.redeemers:
-            witness_set.redeemers = self.redeemers
-
-        return Transaction(tx_body, witness_set, self.auxiliary_data)
 
     def build_and_sign(
         self,
