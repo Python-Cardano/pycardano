@@ -1009,7 +1009,7 @@ class OrderedSet(list, Generic[T], CBORSerializable):
 
     @classmethod
     def from_primitive(
-        cls: OrderedSet[T], value: Any, type_args: Optional[tuple] = None
+        cls: Type[OrderedSet[T]], value: Primitive, type_args: Optional[tuple] = None
     ) -> OrderedSet[T]:
         assert (
             type_args is None or len(type_args) == 1
@@ -1027,7 +1027,7 @@ class OrderedSet(list, Generic[T], CBORSerializable):
                 value = [type_arg.from_primitive(v) for v in value]
             return cls(list(value), use_tag=False)
 
-        raise ValueError(f"Cannot deserialize {value} to {cls.__name__}")
+        raise ValueError(f"Cannot deserialize {value} to {cls}")
 
 
 class NonEmptyOrderedSet(OrderedSet[T]):
@@ -1040,7 +1040,9 @@ class NonEmptyOrderedSet(OrderedSet[T]):
 
     @classmethod
     def from_primitive(
-        cls: NonEmptyOrderedSet[T], value: Any, type_args: Optional[tuple] = None
+        cls: Type[NonEmptyOrderedSet[T]],
+        value: Primitive,
+        type_args: Optional[tuple] = None,
     ) -> NonEmptyOrderedSet[T]:
         result = cast(NonEmptyOrderedSet[T], super().from_primitive(value, type_args))
         if not result:

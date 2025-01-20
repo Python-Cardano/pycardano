@@ -57,6 +57,9 @@ clean-test: ## remove test and coverage artifacts
 test: ## runs tests
 	poetry run pytest -vv -n 4
 
+test-integration: ## runs integration tests
+	cd integration-test && ./run_tests.sh
+
 test-single: ## runs tests with "single" markers
 	poetry run pytest -s -vv -m single
 

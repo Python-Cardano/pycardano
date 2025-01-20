@@ -316,7 +316,9 @@ class _Script(ArrayCBORSerializable):
             self._TYPE = self.script.version
 
     @classmethod
-    def from_primitive(cls: Type[_Script], values: List[Primitive]) -> _Script:
+    def from_primitive(
+        cls: Type[_Script], values: List[Primitive], type_args: Optional[tuple] = None
+    ) -> _Script:
         if values[0] == 0:
             return cls(NativeScript.from_primitive(values[1]))
         assert isinstance(values[1], bytes)
@@ -346,7 +348,9 @@ class _DatumOption(ArrayCBORSerializable):
 
     @classmethod
     def from_primitive(
-        cls: Type[_DatumOption], values: List[Primitive]
+        cls: Type[_DatumOption],
+        values: List[Primitive],
+        type_args: Optional[tuple] = None,
     ) -> _DatumOption:
         if values[0] == 0:
             assert isinstance(values[1], bytes)
@@ -368,7 +372,9 @@ class _ScriptRef(CBORSerializable):
         return CBORTag(24, cbor2.dumps(self.script, default=default_encoder))
 
     @classmethod
-    def from_primitive(cls: Type[_ScriptRef], value: Primitive) -> _ScriptRef:
+    def from_primitive(
+        cls: Type[_ScriptRef], value: List[Primitive], type_args: Optional[tuple] = None
+    ) -> _ScriptRef:
         assert isinstance(value, CBORTag)
         return cls(_Script.from_primitive(cbor2.loads(value.value)))
 
@@ -461,7 +467,9 @@ class TransactionOutput(CBORSerializable):
 
     @classmethod
     def from_primitive(
-        cls: Type[TransactionOutput], value: Primitive
+        cls: Type[TransactionOutput],
+        value: List[Primitive],
+        type_args: Optional[tuple] = None,
     ) -> TransactionOutput:
         if isinstance(value, list):
             output = _TransactionOutputLegacy.from_primitive(value)
