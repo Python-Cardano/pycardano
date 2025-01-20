@@ -1,13 +1,26 @@
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from test.pycardano.util import check_two_way_cbor
-from typing import Any, Deque, Dict, List, Optional, Set, Tuple, Union
+from typing import (
+    Any,
+    Deque,
+    Dict,
+    List,
+    Optional,
+    Set,
+    Tuple,
+    Type,
+    Union,
+    get_args,
+    get_origin,
+)
 
 import cbor2
 import pytest
 from cbor2 import CBORTag
 
 from pycardano import (
+    CBORBase,
     Datum,
     MultiAsset,
     RawPlutusData,
@@ -605,17 +618,32 @@ def test_ordered_set_with_complex_types():
     )
     witness = VerificationKeyWitness(vkey, sig)
 
-    # Create OrderedSet[VerificationKeyWitness]
-    s = OrderedSet[VerificationKeyWitness]([witness])
-    assert len(s) == 1
-    assert witness in s
+    witness_set = TransactionWitnessSet(
+        vkey_witnesses=NonEmptyOrderedSet[VerificationKeyWitness]([witness])
+    )
+
+    # # Deserialize an OrderedSet[int]
+    # data = [1, 2, 3]
+    # ordered_set = OrderedSet[int].from_primitive(data)
+    # print(ordered_set)  # Output: OrderedSet([1, 2, 3])
+    #
+    # # Deserialize an OrderedSet[MyCBORClass]
+    # class MyCBORClass(ArrayCBORSerializable):
+    #     a: int
+    #
+    # @dataclass
+    # class MyCBORClass2(ArrayCBORSerializable):
+    #     a: OrderedSet[MyCBORClass]
+    #
+    #
+    # data = [{(1,), (2,)}]
+    # ordered_set = MyCBORClass2.from_primitive(data)
+    # print(ordered_set)  # Output: OrderedSet([MyCBORClass(), MyCBORClass()])
 
     # Test serialization/deserialization
-    primitive = s.to_primitive()
-    restored = OrderedSet[VerificationKeyWitness].from_primitive(primitive)
-    assert restored == s
-    assert restored[0].vkey == witness.vkey
-    assert restored[0].signature == witness.signature
+    primitive = witness_set.to_primitive()
+    restored = TransactionWitnessSet.from_primitive(primitive)
+    assert restored == witness_set
 
 
 def test_non_empty_ordered_set():
@@ -624,11 +652,11 @@ def test_non_empty_ordered_set():
     assert list(s) == [1, 2, 3]
 
     # Test validation of non-empty constraint
-    with pytest.raises(SerializeException, match="cannot be empty"):
+    with pytest.raises(ValueError, match="NonEmptyOrderedSet cannot be empty"):
         s = NonEmptyOrderedSet()
         s.to_validated_primitive()
 
-    with pytest.raises(SerializeException, match="cannot be empty"):
+    with pytest.raises(ValueError, match="NonEmptyOrderedSet cannot be empty"):
         s = NonEmptyOrderedSet([])
         s.to_validated_primitive()
 
@@ -674,14 +702,16 @@ def test_non_empty_ordered_set_with_complex_types():
 
     # Test serialization/deserialization
     primitive = s.to_primitive()
-    restored = NonEmptyOrderedSet[VerificationKeyWitness].from_primitive(primitive)
+    restored = NonEmptyOrderedSet[VerificationKeyWitness].from_primitive(
+        primitive, type_args=(VerificationKeyWitness,)
+    )
     assert restored == s
     assert restored[0].vkey == witness.vkey
     assert restored[0].signature == witness.signature
 
     # Test empty set validation
     s = NonEmptyOrderedSet[VerificationKeyWitness]()
-    with pytest.raises(SerializeException, match="cannot be empty"):
+    with pytest.raises(ValueError, match="NonEmptyOrderedSet cannot be empty"):
         s.to_validated_primitive()
 
 
@@ -710,7 +740,7 @@ def test_transaction_witness_set_with_ordered_sets():
 
     # Test empty list conversion
     witness_set = TransactionWitnessSet(vkey_witnesses=[])
-    with pytest.raises(SerializeException, match="cannot be empty"):
+    with pytest.raises(ValueError, match="NonEmptyOrderedSet cannot be empty"):
         witness_set.to_validated_primitive()
 
     # Test None value

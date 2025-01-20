@@ -518,7 +518,7 @@ class Withdrawals(DictCBORSerializable):
 
 @dataclass(repr=False)
 class TransactionBody(MapCBORSerializable):
-    inputs: OrderedSet[TransactionInput] = field(
+    inputs: Union[List[TransactionInput], OrderedSet[TransactionInput]] = field(
         default_factory=OrderedSet,
         metadata={"key": 0},
     )
@@ -562,7 +562,9 @@ class TransactionBody(MapCBORSerializable):
         default=None, metadata={"key": 11, "optional": True}
     )
 
-    collateral: Optional[Union[List[TransactionInput], NonEmptyOrderedSet[TransactionInput]]] = field(
+    collateral: Optional[
+        Union[List[TransactionInput], NonEmptyOrderedSet[TransactionInput]]
+    ] = field(
         default=None,
         metadata={
             "key": 13,
@@ -570,7 +572,9 @@ class TransactionBody(MapCBORSerializable):
         },
     )
 
-    required_signers: Optional[Union[List[VerificationKeyHash], NonEmptyOrderedSet[VerificationKeyHash]]] = field(
+    required_signers: Optional[
+        Union[List[VerificationKeyHash], NonEmptyOrderedSet[VerificationKeyHash]]
+    ] = field(
         default=None,
         metadata={
             "key": 14,
@@ -590,7 +594,9 @@ class TransactionBody(MapCBORSerializable):
         default=None, metadata={"key": 17, "optional": True}
     )
 
-    reference_inputs: Optional[Union[List[TransactionInput], NonEmptyOrderedSet[TransactionInput]]] = field(
+    reference_inputs: Optional[
+        Union[List[TransactionInput], NonEmptyOrderedSet[TransactionInput]]
+    ] = field(
         default=None,
         metadata={
             "key": 18,

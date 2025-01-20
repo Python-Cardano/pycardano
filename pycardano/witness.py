@@ -49,7 +49,9 @@ class VerificationKeyWitness(ArrayCBORSerializable):
 
 @dataclass(repr=False)
 class TransactionWitnessSet(MapCBORSerializable):
-    vkey_witnesses: Optional[Union[List[VerificationKeyWitness], NonEmptyOrderedSet[VerificationKeyWitness]]] = field(
+    vkey_witnesses: Optional[
+        Union[List[VerificationKeyWitness], NonEmptyOrderedSet[VerificationKeyWitness]]
+    ] = field(
         default=None,
         metadata={
             "key": 0,
@@ -57,7 +59,9 @@ class TransactionWitnessSet(MapCBORSerializable):
         },
     )
 
-    native_scripts: Optional[Union[List[NativeScript], NonEmptyOrderedSet[NativeScript]]] = field(
+    native_scripts: Optional[
+        Union[List[NativeScript], NonEmptyOrderedSet[NativeScript]]
+    ] = field(
         default=None,
         metadata={
             "key": 1,
@@ -70,7 +74,9 @@ class TransactionWitnessSet(MapCBORSerializable):
         default=None, metadata={"optional": True, "key": 2}
     )
 
-    plutus_v1_script: Optional[Union[List[PlutusV1Script], NonEmptyOrderedSet[PlutusV1Script]]] = field(
+    plutus_v1_script: Optional[
+        Union[List[PlutusV1Script], NonEmptyOrderedSet[PlutusV1Script]]
+    ] = field(
         default=None,
         metadata={
             "key": 3,
@@ -88,7 +94,9 @@ class TransactionWitnessSet(MapCBORSerializable):
         metadata={"optional": True, "key": 5},
     )
 
-    plutus_v2_script: Optional[Union[List[PlutusV2Script], NonEmptyOrderedSet[PlutusV2Script]]] = field(
+    plutus_v2_script: Optional[
+        Union[List[PlutusV2Script], NonEmptyOrderedSet[PlutusV2Script]]
+    ] = field(
         default=None,
         metadata={
             "key": 6,
@@ -96,7 +104,9 @@ class TransactionWitnessSet(MapCBORSerializable):
         },
     )
 
-    plutus_v3_script: Optional[Union[List[PlutusV3Script], NonEmptyOrderedSet[PlutusV3Script]]] = field(
+    plutus_v3_script: Optional[
+        Union[List[PlutusV3Script], NonEmptyOrderedSet[PlutusV3Script]]
+    ] = field(
         default=None,
         metadata={
             "key": 7,
