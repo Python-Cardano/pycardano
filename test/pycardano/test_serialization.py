@@ -622,24 +622,6 @@ def test_ordered_set_with_complex_types():
         vkey_witnesses=NonEmptyOrderedSet[VerificationKeyWitness]([witness])
     )
 
-    # # Deserialize an OrderedSet[int]
-    # data = [1, 2, 3]
-    # ordered_set = OrderedSet[int].from_primitive(data)
-    # print(ordered_set)  # Output: OrderedSet([1, 2, 3])
-    #
-    # # Deserialize an OrderedSet[MyCBORClass]
-    # class MyCBORClass(ArrayCBORSerializable):
-    #     a: int
-    #
-    # @dataclass
-    # class MyCBORClass2(ArrayCBORSerializable):
-    #     a: OrderedSet[MyCBORClass]
-    #
-    #
-    # data = [{(1,), (2,)}]
-    # ordered_set = MyCBORClass2.from_primitive(data)
-    # print(ordered_set)  # Output: OrderedSet([MyCBORClass(), MyCBORClass()])
-
     # Test serialization/deserialization
     primitive = witness_set.to_primitive()
     restored = TransactionWitnessSet.from_primitive(primitive)

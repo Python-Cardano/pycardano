@@ -543,9 +543,21 @@ def _restore_typed_primitive(
         Union[:const:`Primitive`, CBORSerializable]: A CBOR primitive or a CBORSerializable.
     """
 
+    is_cbor_serializable = False
+    try:
+        is_cbor_serializable = issubclass(t, CBORSerializable)
+    except TypeError:
+        # Handle the case when t is a generic alias
+        origin = typing.get_origin(t)
+        if origin is not None:
+            try:
+                is_cbor_serializable = issubclass(origin, CBORSerializable)
+            except TypeError:
+                pass
+
     if t is Any or (t in PRIMITIVE_TYPES and isinstance(v, t)):
         return v
-    elif isclass(t) and issubclass(t, CBORSerializable):
+    elif is_cbor_serializable:
         if "type_args" in getfullargspec(t.from_primitive).args:
             args = typing.get_args(t)
             return t.from_primitive(v, type_args=args)
