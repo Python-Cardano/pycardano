@@ -35,6 +35,8 @@ from pycardano.serialization import (
     DictBase,
     DictCBORSerializable,
     MapCBORSerializable,
+    NonEmptyOrderedSet,
+    OrderedSet,
     Primitive,
     default_encoder,
     limit_primitive_type,
@@ -314,7 +316,9 @@ class _Script(ArrayCBORSerializable):
             self._TYPE = self.script.version
 
     @classmethod
-    def from_primitive(cls: Type[_Script], values: List[Primitive]) -> _Script:
+    def from_primitive(
+        cls: Type[_Script], values: List[Primitive], type_args: Optional[tuple] = None
+    ) -> _Script:
         if values[0] == 0:
             return cls(NativeScript.from_primitive(values[1]))
         assert isinstance(values[1], bytes)
@@ -344,7 +348,9 @@ class _DatumOption(ArrayCBORSerializable):
 
     @classmethod
     def from_primitive(
-        cls: Type[_DatumOption], values: List[Primitive]
+        cls: Type[_DatumOption],
+        values: List[Primitive],
+        type_args: Optional[tuple] = None,
     ) -> _DatumOption:
         if values[0] == 0:
             assert isinstance(values[1], bytes)
@@ -366,7 +372,9 @@ class _ScriptRef(CBORSerializable):
         return CBORTag(24, cbor2.dumps(self.script, default=default_encoder))
 
     @classmethod
-    def from_primitive(cls: Type[_ScriptRef], value: Primitive) -> _ScriptRef:
+    def from_primitive(
+        cls: Type[_ScriptRef], value: List[Primitive], type_args: Optional[tuple] = None
+    ) -> _ScriptRef:
         assert isinstance(value, CBORTag)
         return cls(_Script.from_primitive(cbor2.loads(value.value)))
 
@@ -459,7 +467,9 @@ class TransactionOutput(CBORSerializable):
 
     @classmethod
     def from_primitive(
-        cls: Type[TransactionOutput], value: Primitive
+        cls: Type[TransactionOutput],
+        value: List[Primitive],
+        type_args: Optional[tuple] = None,
     ) -> TransactionOutput:
         if isinstance(value, list):
             output = _TransactionOutputLegacy.from_primitive(value)
@@ -516,9 +526,9 @@ class Withdrawals(DictCBORSerializable):
 
 @dataclass(repr=False)
 class TransactionBody(MapCBORSerializable):
-    inputs: List[TransactionInput] = field(
-        default_factory=list,
-        metadata={"key": 0, "object_hook": list_hook(TransactionInput)},
+    inputs: Union[List[TransactionInput], OrderedSet[TransactionInput]] = field(
+        default_factory=OrderedSet,
+        metadata={"key": 0},
     )
 
     outputs: List[TransactionOutput] = field(
@@ -542,7 +552,6 @@ class TransactionBody(MapCBORSerializable):
         default=None, metadata={"key": 5, "optional": True}
     )
 
-    # TODO: Add proposal update support
     update: Any = field(default=None, metadata={"key": 6, "optional": True})
 
     auxiliary_data_hash: Optional[AuxiliaryDataHash] = field(
@@ -561,21 +570,23 @@ class TransactionBody(MapCBORSerializable):
         default=None, metadata={"key": 11, "optional": True}
     )
 
-    collateral: Optional[List[TransactionInput]] = field(
+    collateral: Optional[
+        Union[List[TransactionInput], NonEmptyOrderedSet[TransactionInput]]
+    ] = field(
         default=None,
         metadata={
             "key": 13,
             "optional": True,
-            "object_hook": list_hook(TransactionInput),
         },
     )
 
-    required_signers: Optional[List[VerificationKeyHash]] = field(
+    required_signers: Optional[
+        Union[List[VerificationKeyHash], NonEmptyOrderedSet[VerificationKeyHash]]
+    ] = field(
         default=None,
         metadata={
             "key": 14,
             "optional": True,
-            "object_hook": list_hook(VerificationKeyHash),
         },
     )
 
@@ -591,11 +602,12 @@ class TransactionBody(MapCBORSerializable):
         default=None, metadata={"key": 17, "optional": True}
     )
 
-    reference_inputs: Optional[List[TransactionInput]] = field(
+    reference_inputs: Optional[
+        Union[List[TransactionInput], NonEmptyOrderedSet[TransactionInput]]
+    ] = field(
         default=None,
         metadata={
             "key": 18,
-            "object_hook": list_hook(TransactionInput),
             "optional": True,
         },
     )

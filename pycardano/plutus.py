@@ -989,7 +989,7 @@ class Redeemer(ArrayCBORSerializable):
     ex_units: Optional[ExecutionUnits] = None
 
     @classmethod
-    @limit_primitive_type(list)
+    @limit_primitive_type(list, tuple)
     def from_primitive(cls: Type[Redeemer], values: list) -> Redeemer:
         if isinstance(values[2], CBORTag) and cls is Redeemer:
             values[2] = RawPlutusData.from_primitive(values[2])
@@ -1028,7 +1028,7 @@ class RedeemerValue(ArrayCBORSerializable):
     ex_units: ExecutionUnits
 
     @classmethod
-    @limit_primitive_type(list)
+    @limit_primitive_type(list, tuple)
     def from_primitive(cls: Type[RedeemerValue], values: list) -> RedeemerValue:
         if isinstance(values[0], CBORTag) and cls is RedeemerValue:
             values[0] = RawPlutusData.from_primitive(values[0])

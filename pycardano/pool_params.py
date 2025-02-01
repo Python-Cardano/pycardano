@@ -165,7 +165,7 @@ class SingleHostAddr(ArrayCBORSerializable):
         ]
 
     @classmethod
-    @limit_primitive_type(list)
+    @limit_primitive_type(list, tuple)
     def from_primitive(
         cls: Type[SingleHostAddr], values: Union[list, tuple]
     ) -> SingleHostAddr:
@@ -190,7 +190,7 @@ class SingleHostName(ArrayCBORSerializable):
         self._CODE = 1
 
     @classmethod
-    @limit_primitive_type(list)
+    @limit_primitive_type(list, tuple)
     def from_primitive(
         cls: Type[SingleHostName], values: Union[list, tuple]
     ) -> SingleHostName:
@@ -213,7 +213,7 @@ class MultiHostName(ArrayCBORSerializable):
         self._CODE = 2
 
     @classmethod
-    @limit_primitive_type(list)
+    @limit_primitive_type(list, tuple)
     def from_primitive(
         cls: Type[MultiHostName], values: Union[list, tuple]
     ) -> MultiHostName:

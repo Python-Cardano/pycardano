@@ -35,7 +35,7 @@ class NativeScript(ArrayCBORSerializable):
     json_field: ClassVar[str]
 
     @classmethod
-    @limit_primitive_type(list)
+    @limit_primitive_type(list, tuple)
     def from_primitive(
         cls: Type[NativeScript], value: list
     ) -> Union[

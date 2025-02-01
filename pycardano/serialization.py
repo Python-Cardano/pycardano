@@ -10,19 +10,34 @@ from dataclasses import Field, dataclass, fields
 from datetime import datetime
 from decimal import Decimal
 from functools import wraps
-from inspect import isclass
+from inspect import getfullargspec, isclass
 from typing import (
     Any,
     Callable,
     ClassVar,
     Dict,
+    Generic,
+    Iterable,
     List,
     Optional,
+    Set,
     Type,
     TypeVar,
     Union,
+    cast,
     get_type_hints,
 )
+
+import cbor2
+
+from pycardano.logging import logger
+
+# Remove the semantic decoder for 258 (CBOR tag for set) as we care about the order of elements
+try:
+    cbor2._decoder.semantic_decoders.pop(258)
+except Exception as e:
+    logger.warning("Failed to remove semantic decoder for CBOR tag 258", e)
+    pass
 
 from cbor2 import CBOREncoder, CBORSimpleValue, CBORTag, dumps, loads, undefined
 from frozendict import frozendict
@@ -44,7 +59,11 @@ __all__ = [
     "RawCBOR",
     "list_hook",
     "limit_primitive_type",
+    "OrderedSet",
+    "NonEmptyOrderedSet",
 ]
+
+T = TypeVar("T")
 
 
 def _identity(x):
@@ -314,10 +333,12 @@ class CBORSerializable:
         def _check_recursive(value, type_hint):
             if type_hint is Any:
                 return True
+
+            if isinstance(value, CBORSerializable):
+                value.validate()
+
             origin = getattr(type_hint, "__origin__", None)
             if origin is None:
-                if isinstance(value, CBORSerializable):
-                    value.validate()
                 return isinstance(value, type_hint)
             elif origin is ClassVar:
                 return _check_recursive(value, type_hint.__args__[0])
@@ -329,7 +350,7 @@ class CBORSerializable:
                     _check_recursive(k, key_type) and _check_recursive(v, value_type)
                     for k, v in value.items()
                 )
-            elif origin in (list, set, tuple, frozenset):
+            elif origin in (list, set, tuple, frozenset, OrderedSet):
                 if value is None:
                     return True
                 args = type_hint.__args__
@@ -364,12 +385,15 @@ class CBORSerializable:
         return self.to_primitive()
 
     @classmethod
-    def from_primitive(cls: Type[CBORBase], value: Any) -> CBORBase:
+    def from_primitive(
+        cls: Type[CBORBase], value: Any, type_args: Optional[tuple] = None
+    ) -> CBORBase:
         """Turn a CBOR primitive to its original class type.
 
         Args:
             cls (CBORBase): The original class type.
             value (:const:`Primitive`): A CBOR primitive.
+            type_args (Optional[tuple]): Type arguments for the class.
 
         Returns:
             CBORBase: A CBOR serializable object.
@@ -519,10 +543,26 @@ def _restore_typed_primitive(
         Union[:const:`Primitive`, CBORSerializable]: A CBOR primitive or a CBORSerializable.
     """
 
+    is_cbor_serializable = False
+    try:
+        is_cbor_serializable = issubclass(t, CBORSerializable)
+    except TypeError:
+        # Handle the case when t is a generic alias
+        origin = typing.get_origin(t)
+        if origin is not None:
+            try:
+                is_cbor_serializable = issubclass(origin, CBORSerializable)
+            except TypeError:
+                pass
+
     if t is Any or (t in PRIMITIVE_TYPES and isinstance(v, t)):
         return v
-    elif isclass(t) and issubclass(t, CBORSerializable):
-        return t.from_primitive(v)
+    elif is_cbor_serializable:
+        if "type_args" in getfullargspec(t.from_primitive).args:
+            args = typing.get_args(t)
+            return t.from_primitive(v, type_args=args)
+        else:
+            return t.from_primitive(v)
     elif hasattr(t, "__origin__") and (t.__origin__ is list):
         t_args = t.__args__
         if len(t_args) != 1:
@@ -941,3 +981,82 @@ def list_hook(
             CBORSerializables.
     """
     return lambda vals: [cls.from_primitive(v) for v in vals]
+
+
+class OrderedSet(list, Generic[T], CBORSerializable):
+    def __init__(self, iterable: Optional[List[T]] = None, use_tag: bool = True):
+        super().__init__()
+        self._set: Set[str] = set()
+        self._use_tag = use_tag
+        if iterable:
+            self.extend(iterable)
+
+    def append(self, item: T) -> None:
+        item_key = str(item)
+        if item_key not in self._set:
+            super().append(item)
+            self._set.add(item_key)
+
+    def extend(self, items: Iterable[T]) -> None:
+        for item in items:
+            self.append(item)
+
+    def __contains__(self, item: object) -> bool:
+        return str(item) in self._set
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, OrderedSet):
+            if isinstance(other, list):
+                return list(self) == other
+            return False
+        return list(self) == list(other)
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}({list(self)})"
+
+    def to_shallow_primitive(self) -> Union[CBORTag, List[T]]:
+        if self._use_tag:
+            return CBORTag(258, list(self))
+        return list(self)
+
+    @classmethod
+    def from_primitive(
+        cls: Type[OrderedSet[T]], value: Primitive, type_args: Optional[tuple] = None
+    ) -> OrderedSet[T]:
+        assert (
+            type_args is None or len(type_args) == 1
+        ), "OrderedSet should have exactly one type argument"
+        # Retrieve the type arguments from the class
+        type_arg = type_args[0] if type_args else None
+
+        if isinstance(value, CBORTag) and value.tag == 258:
+            if isclass(type_arg) and issubclass(type_arg, CBORSerializable):
+                value.value = [type_arg.from_primitive(v) for v in value.value]
+            return cls(value.value, use_tag=True)
+
+        if isinstance(value, (list, tuple, set)):
+            if isclass(type_arg) and issubclass(type_arg, CBORSerializable):
+                value = [type_arg.from_primitive(v) for v in value]
+            return cls(list(value), use_tag=False)
+
+        raise ValueError(f"Cannot deserialize {value} to {cls}")
+
+
+class NonEmptyOrderedSet(OrderedSet[T]):
+    def __init__(self, iterable: Optional[List[T]] = None, use_tag: bool = True):
+        super().__init__(iterable, use_tag)
+
+    def validate(self):
+        if not self:
+            raise ValueError("NonEmptyOrderedSet cannot be empty")
+
+    @classmethod
+    def from_primitive(
+        cls: Type[NonEmptyOrderedSet[T]],
+        value: Primitive,
+        type_args: Optional[tuple] = None,
+    ) -> NonEmptyOrderedSet[T]:
+        result = cast(NonEmptyOrderedSet[T], super().from_primitive(value, type_args))
+        if not result:
+            raise ValueError("NonEmptyOrderedSet cannot be empty")
+        return result
