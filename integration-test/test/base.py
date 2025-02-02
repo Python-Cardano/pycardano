@@ -8,7 +8,7 @@ from retry import retry
 
 from pycardano import *
 
-TEST_RETRIES = 8
+TEST_RETRIES = 1
 
 
 @retry(tries=10, delay=4)

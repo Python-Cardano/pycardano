@@ -73,7 +73,11 @@ class TestDelegation(TestBase):
             network=self.NETWORK,
         )
 
-        builder.withdrawals = Withdrawals({bytes(stake_address): 0})
+        rewards = self.chain_context.query_account_reward_summaries(keys=[stake_address.encode()])
+
+        stake_address_reward = rewards[stake_address.staking_part.payload.hex()]["rewards"]["ada"]["lovelace"]
+
+        builder.withdrawals = Withdrawals({bytes(stake_address): stake_address_reward})
 
         builder.add_output(TransactionOutput(address, 1000000))
 
