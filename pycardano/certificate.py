@@ -475,18 +475,17 @@ class ResignCommitteeColdCertificate(ArrayCBORSerializable):
 
 
 @dataclass(repr=False)
-class DrepCredential(StakeCredential):
+class DrepCredential(ArrayCBORSerializable):
     """DRep credential is identical to StakeCredential in structure."""
 
     _CODE: int = field(init=False, default=16)
 
     drep_credential: StakeCredential
     coin: int
-    anchor: Optional[Anchor]
+    anchor: Optional[Anchor] = field(default=None)
 
     def __post_init__(self):
         self._CODE = 16
-
 
     @classmethod
     @limit_primitive_type(list)
@@ -503,7 +502,6 @@ class DrepCredential(StakeCredential):
             )
         else:
             raise DeserializeException(f"Invalid DrepCredential type {values[0]}")
-
 
 
 @dataclass(repr=False)

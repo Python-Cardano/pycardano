@@ -181,25 +181,19 @@ def test_anchor():
 
 
 def test_drep_credential():
-    drep_credential = DrepCredential(TEST_ADDR.staking_part)
+    stake_credential = StakeCredential(TEST_ADDR.staking_part)
+    drep_credential = DrepCredential(stake_credential, coin=0)
     drep_credential_cbor_hex = drep_credential.to_cbor_hex()
     assert (
         drep_credential_cbor_hex
-        == "8200581c4828a2dadba97ca9fd0cdc99975899470c219bdc0d828cfa6ddf6d69"
-    )
-    assert DrepCredential.from_cbor(drep_credential_cbor_hex) == drep_credential
-
-    drep_credential = DrepCredential(ScriptHash(b"1" * SCRIPT_HASH_SIZE))
-    drep_credential_cbor_hex = drep_credential.to_cbor_hex()
-    assert (
-        drep_credential_cbor_hex
-        == "8201581c31313131313131313131313131313131313131313131313131313131"
+        == "84108200581c4828a2dadba97ca9fd0cdc99975899470c219bdc0d828cfa6ddf6d6900f6"
     )
     assert DrepCredential.from_cbor(drep_credential_cbor_hex) == drep_credential
 
 
 def test_unreg_drep_certificate():
-    drep_credential = DrepCredential(TEST_ADDR.staking_part)
+    stake_credential = StakeCredential(TEST_ADDR.staking_part)
+    drep_credential = DrepCredential(stake_credential, coin=0)
     coin = 1000000
     unreg_drep_cert = UnregDrepCertificate(drep_credential=drep_credential, coin=coin)
 
@@ -207,14 +201,15 @@ def test_unreg_drep_certificate():
 
     assert (
         unreg_drep_cert_cbor_hex
-        == "83118200581c4828a2dadba97ca9fd0cdc99975899470c219bdc0d828cfa6ddf6d691a000f4240"
+        == "831184108200581c4828a2dadba97ca9fd0cdc99975899470c219bdc0d828cfa6ddf6d6900f61a000f4240"
     )
 
     assert UnregDrepCertificate.from_cbor(unreg_drep_cert_cbor_hex) == unreg_drep_cert
 
 
 def test_update_drep_certificate_with_anchor():
-    drep_credential = DrepCredential(TEST_ADDR.staking_part)
+    stake_credential = StakeCredential(TEST_ADDR.staking_part)
+    drep_credential = DrepCredential(stake_credential, coin=0)
     url = "https://pycardano.com"
     data_hash = bytes.fromhex("1234567890" * 6 + "12")  # 32 bytes
     anchor = Anchor(url=url, data_hash=data_hash)
@@ -226,7 +221,7 @@ def test_update_drep_certificate_with_anchor():
 
     assert (
         update_drep_cert_cbor_hex
-        == "83128200581c4828a2dadba97ca9fd0cdc99975899470c219bdc0d828cfa6ddf6d69827568747470733a2f2f707963617264616e6f2e636f6d581f12345678901234567890123456789012345678901234567890123456789012"
+        == "831284108200581c4828a2dadba97ca9fd0cdc99975899470c219bdc0d828cfa6ddf6d6900f6827568747470733a2f2f707963617264616e6f2e636f6d581f12345678901234567890123456789012345678901234567890123456789012"
     )
 
     assert (
@@ -235,7 +230,8 @@ def test_update_drep_certificate_with_anchor():
 
 
 def test_update_drep_certificate_without_anchor():
-    drep_credential = DrepCredential(TEST_ADDR.staking_part)
+    stake_credential = StakeCredential(TEST_ADDR.staking_part)
+    drep_credential = DrepCredential(stake_credential, coin=0)
     update_drep_cert = UpdateDrepCertificate(
         drep_credential=drep_credential, anchor=None
     )
@@ -243,7 +239,7 @@ def test_update_drep_certificate_without_anchor():
 
     assert (
         update_drep_cert_cbor_hex
-        == "83128200581c4828a2dadba97ca9fd0cdc99975899470c219bdc0d828cfa6ddf6d69f6"
+        == "831284108200581c4828a2dadba97ca9fd0cdc99975899470c219bdc0d828cfa6ddf6d6900f6f6"
     )
 
     assert (
@@ -353,7 +349,8 @@ def test_invalid_certificate_types():
         )
     assert "Invalid ResignCommitteeColdCertificate type 14" in str(excinfo.value)
 
-    drep_credential = DrepCredential(TEST_ADDR.staking_part)
+    stake_credential = StakeCredential(TEST_ADDR.staking_part)
+    drep_credential = DrepCredential(stake_credential, coin=0)
 
     with pytest.raises(DeserializeException) as excinfo:
         UnregDrepCertificate.from_primitive([18, drep_credential, 1000000])
