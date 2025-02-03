@@ -25,11 +25,28 @@ __all__ = [
     "StakeRegistrationAndDelegationAndVoteDelegation",
     "DRep",
     "DRepKind",
+    "AuthCommitteeHotCertificate",
+    "ResignCommitteeColdCertificate",
+    "Anchor",
+    "DrepCredential",
+    "UnregDrepCertificate",
+    "UpdateDrepCertificate",
 ]
 
 from pycardano.pool_params import PoolParams
 
 unit_interval = Tuple[int, int]
+
+
+@dataclass(repr=False)
+class Anchor(ArrayCBORSerializable):
+    url: str
+    data_hash: bytes
+
+    @classmethod
+    @limit_primitive_type(list)
+    def from_primitive(cls: Type[Anchor], values: Union[list, tuple]) -> Anchor:
+        return cls(url=values[0], data_hash=values[1])
 
 
 @dataclass(repr=False)
@@ -403,6 +420,142 @@ class DRep(ArrayCBORSerializable):
         return [self.kind.value]
 
 
+@dataclass(repr=False)
+class AuthCommitteeHotCertificate(ArrayCBORSerializable):
+    _CODE: int = field(init=False, default=14)
+
+    committee_cold_credential: StakeCredential
+    committee_hot_credential: StakeCredential
+
+    def __post_init__(self):
+        self._CODE = 14
+
+    @classmethod
+    @limit_primitive_type(list)
+    def from_primitive(
+        cls: Type[AuthCommitteeHotCertificate], values: Union[list, tuple]
+    ) -> AuthCommitteeHotCertificate:
+        if values[0] == 14:
+            return cls(
+                committee_cold_credential=StakeCredential.from_primitive(values[1]),
+                committee_hot_credential=StakeCredential.from_primitive(values[2]),
+            )
+        else:
+            raise DeserializeException(
+                f"Invalid AuthCommitteeHotCertificate type {values[0]}"
+            )
+
+
+@dataclass(repr=False)
+class ResignCommitteeColdCertificate(ArrayCBORSerializable):
+    _CODE: int = field(init=False, default=15)
+
+    committee_cold_credential: StakeCredential
+    anchor: Optional[Anchor]
+
+    def __post_init__(self):
+        self._CODE = 15
+
+    @classmethod
+    @limit_primitive_type(list)
+    def from_primitive(
+        cls: Type[ResignCommitteeColdCertificate], values: Union[list, tuple]
+    ) -> ResignCommitteeColdCertificate:
+        if values[0] == 15:
+            return cls(
+                committee_cold_credential=StakeCredential.from_primitive(values[1]),
+                anchor=(
+                    Anchor.from_primitive(values[2]) if values[2] is not None else None
+                ),
+            )
+        else:
+            raise DeserializeException(
+                f"Invalid ResignCommitteeColdCertificate type {values[0]}"
+            )
+
+
+@dataclass(repr=False)
+class DrepCredential(ArrayCBORSerializable):
+    """DRep credential is identical to StakeCredential in structure."""
+
+    _CODE: int = field(init=False, default=16)
+
+    drep_credential: StakeCredential
+    coin: int
+    anchor: Optional[Anchor] = field(default=None)
+
+    def __post_init__(self):
+        self._CODE = 16
+
+    @classmethod
+    @limit_primitive_type(list)
+    def from_primitive(
+        cls: Type[DrepCredential], values: Union[list, tuple]
+    ) -> DrepCredential:
+        if values[0] == 16:
+            return cls(
+                drep_credential=StakeCredential.from_primitive(values[1]),
+                coin=values[2],
+                anchor=(
+                    Anchor.from_primitive(values[3]) if values[3] is not None else None
+                ),
+            )
+        else:
+            raise DeserializeException(f"Invalid DrepCredential type {values[0]}")
+
+
+@dataclass(repr=False)
+class UnregDrepCertificate(ArrayCBORSerializable):
+    _CODE: int = field(init=False, default=17)
+
+    drep_credential: DrepCredential
+    coin: int
+
+    def __post_init__(self):
+        self._CODE = 17
+
+    @classmethod
+    @limit_primitive_type(list)
+    def from_primitive(
+        cls: Type[UnregDrepCertificate], values: Union[list, tuple]
+    ) -> UnregDrepCertificate:
+        if values[0] == 17:
+            return cls(
+                drep_credential=DrepCredential.from_primitive(values[1]),
+                coin=values[2],
+            )
+        else:
+            raise DeserializeException(f"Invalid UnregDrepCertificate type {values[0]}")
+
+
+@dataclass(repr=False)
+class UpdateDrepCertificate(ArrayCBORSerializable):
+    _CODE: int = field(init=False, default=18)
+
+    drep_credential: DrepCredential
+    anchor: Optional[Anchor]
+
+    def __post_init__(self):
+        self._CODE = 18
+
+    @classmethod
+    @limit_primitive_type(list)
+    def from_primitive(
+        cls: Type[UpdateDrepCertificate], values: Union[list, tuple]
+    ) -> UpdateDrepCertificate:
+        if values[0] == 18:
+            return cls(
+                drep_credential=DrepCredential.from_primitive(values[1]),
+                anchor=(
+                    Anchor.from_primitive(values[2]) if values[2] is not None else None
+                ),
+            )
+        else:
+            raise DeserializeException(
+                f"Invalid UpdateDrepCertificate type {values[0]}"
+            )
+
+
 Certificate = Union[
     StakeRegistration,
     StakeDeregistration,
@@ -416,4 +569,8 @@ Certificate = Union[
     StakeRegistrationAndDelegation,
     StakeRegistrationAndVoteDelegation,
     StakeRegistrationAndDelegationAndVoteDelegation,
+    AuthCommitteeHotCertificate,
+    ResignCommitteeColdCertificate,
+    UnregDrepCertificate,
+    UpdateDrepCertificate,
 ]
