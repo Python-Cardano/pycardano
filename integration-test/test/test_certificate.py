@@ -42,14 +42,36 @@ class TestDelegation(TestBase):
             )
             stake_registration = StakeRegistration(stake_credential)
             pool_hash = PoolKeyHash(bytes.fromhex(os.environ.get("POOL_ID").strip()))
-            stake_delegation = StakeDelegation(stake_credential, pool_keyhash=pool_hash)
+            # stake_delegation = StakeDelegation(stake_credential, pool_keyhash=pool_hash)
+
+            drep = DRep(
+                DRepKind.VERIFICATION_KEY_HASH,
+                self.stake_key_pair.verification_key.hash(),
+            )
+
+            drep_credential = DRepCredential(
+                self.stake_key_pair.verification_key.hash()
+            )
+
+            anchor = Anchor(
+                url="https://drep.com",
+                data_hash=AnchorDataHash(bytes.fromhex("0" * 64)),
+            )
+
+            drep_registration = RegDRepCert(
+                drep_credential=drep_credential, coin=500000000, anchor=anchor
+            )
+
+            all_in_one_cert = StakeRegistrationAndDelegationAndVoteDelegation(
+                stake_credential, pool_hash, drep, 1000000
+            )
 
             builder = TransactionBuilder(self.chain_context)
 
             builder.add_input_address(address)
             builder.add_output(TransactionOutput(address, 35000000))
 
-            builder.certificates = [stake_registration, stake_delegation]
+            builder.certificates = [drep_registration, all_in_one_cert]
 
             signed_tx = builder.build_and_sign(
                 [self.stake_key_pair.signing_key, self.payment_key_pair.signing_key],
@@ -73,9 +95,13 @@ class TestDelegation(TestBase):
             network=self.NETWORK,
         )
 
-        rewards = self.chain_context.query_account_reward_summaries(keys=[stake_address.encode()])
+        rewards = self.chain_context.query_account_reward_summaries(
+            keys=[stake_address.encode()]
+        )
 
-        stake_address_reward = rewards[stake_address.staking_part.payload.hex()]["rewards"]["ada"]["lovelace"]
+        stake_address_reward = rewards[stake_address.staking_part.payload.hex()][
+            "rewards"
+        ]["ada"]["lovelace"]
 
         builder.withdrawals = Withdrawals({bytes(stake_address): stake_address_reward})
 

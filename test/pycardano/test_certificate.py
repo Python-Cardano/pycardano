@@ -7,7 +7,7 @@ from pycardano.address import Address
 from pycardano.certificate import (
     Anchor,
     AuthCommitteeHotCertificate,
-    DrepCredential,
+    DRepCredential,
     PoolRegistration,
     PoolRetirement,
     ResignCommitteeColdCertificate,
@@ -15,8 +15,8 @@ from pycardano.certificate import (
     StakeDelegation,
     StakeDeregistration,
     StakeRegistration,
-    UnregDrepCertificate,
-    UpdateDrepCertificate,
+    UnregDRepCertificate,
+    UpdateDRepCertificate,
 )
 from pycardano.exception import DeserializeException, InvalidArgumentException
 from pycardano.hash import (  # plutus_script_hash,
@@ -186,20 +186,20 @@ def test_anchor():
 
 def test_drep_credential():
     stake_credential = StakeCredential(TEST_ADDR.staking_part)
-    drep_credential = DrepCredential(stake_credential, coin=0)
+    drep_credential = DRepCredential(stake_credential, coin=0)
     drep_credential_cbor_hex = drep_credential.to_cbor_hex()
     assert (
         drep_credential_cbor_hex
         == "84108200581c4828a2dadba97ca9fd0cdc99975899470c219bdc0d828cfa6ddf6d6900f6"
     )
-    assert DrepCredential.from_cbor(drep_credential_cbor_hex) == drep_credential
+    assert DRepCredential.from_cbor(drep_credential_cbor_hex) == drep_credential
 
 
 def test_unreg_drep_certificate():
     stake_credential = StakeCredential(TEST_ADDR.staking_part)
-    drep_credential = DrepCredential(stake_credential, coin=0)
+    drep_credential = DRepCredential(stake_credential, coin=0)
     coin = 1000000
-    unreg_drep_cert = UnregDrepCertificate(drep_credential=drep_credential, coin=coin)
+    unreg_drep_cert = UnregDRepCertificate(drep_credential=drep_credential, coin=coin)
 
     unreg_drep_cert_cbor_hex = unreg_drep_cert.to_cbor_hex()
 
@@ -208,16 +208,16 @@ def test_unreg_drep_certificate():
         == "831184108200581c4828a2dadba97ca9fd0cdc99975899470c219bdc0d828cfa6ddf6d6900f61a000f4240"
     )
 
-    assert UnregDrepCertificate.from_cbor(unreg_drep_cert_cbor_hex) == unreg_drep_cert
+    assert UnregDRepCertificate.from_cbor(unreg_drep_cert_cbor_hex) == unreg_drep_cert
 
 
 def test_update_drep_certificate_with_anchor():
     stake_credential = StakeCredential(TEST_ADDR.staking_part)
-    drep_credential = DrepCredential(stake_credential, coin=0)
+    drep_credential = DRepCredential(stake_credential, coin=0)
     url = "https://pycardano.com"
     data_hash = bytes.fromhex("1234567890" * 6 + "12")  # 32 bytes
     anchor = Anchor(url=url, data_hash=data_hash)
-    update_drep_cert = UpdateDrepCertificate(
+    update_drep_cert = UpdateDRepCertificate(
         drep_credential=drep_credential, anchor=anchor
     )
 
@@ -229,14 +229,14 @@ def test_update_drep_certificate_with_anchor():
     )
 
     assert (
-        UpdateDrepCertificate.from_cbor(update_drep_cert_cbor_hex) == update_drep_cert
+        UpdateDRepCertificate.from_cbor(update_drep_cert_cbor_hex) == update_drep_cert
     )
 
 
 def test_update_drep_certificate_without_anchor():
     stake_credential = StakeCredential(TEST_ADDR.staking_part)
-    drep_credential = DrepCredential(stake_credential, coin=0)
-    update_drep_cert = UpdateDrepCertificate(
+    drep_credential = DRepCredential(stake_credential, coin=0)
+    update_drep_cert = UpdateDRepCertificate(
         drep_credential=drep_credential, anchor=None
     )
     update_drep_cert_cbor_hex = update_drep_cert.to_cbor_hex()
@@ -247,7 +247,7 @@ def test_update_drep_certificate_without_anchor():
     )
 
     assert (
-        UpdateDrepCertificate.from_cbor(update_drep_cert_cbor_hex) == update_drep_cert
+        UpdateDRepCertificate.from_cbor(update_drep_cert_cbor_hex) == update_drep_cert
     )
 
 
@@ -354,15 +354,15 @@ def test_invalid_certificate_types():
     assert "Invalid ResignCommitteeColdCertificate type 14" in str(excinfo.value)
 
     stake_credential = StakeCredential(TEST_ADDR.staking_part)
-    drep_credential = DrepCredential(stake_credential, coin=0)
+    drep_credential = DRepCredential(stake_credential, coin=0)
 
     with pytest.raises(DeserializeException) as excinfo:
-        UnregDrepCertificate.from_primitive([18, drep_credential, 1000000])
-    assert "Invalid UnregDrepCertificate type 18" in str(excinfo.value)
+        UnregDRepCertificate.from_primitive([18, drep_credential, 1000000])
+    assert "Invalid UnregDRepCertificate type 18" in str(excinfo.value)
 
     with pytest.raises(DeserializeException) as excinfo:
-        UpdateDrepCertificate.from_primitive([17, drep_credential, None])
-    assert "Invalid UpdateDrepCertificate type 17" in str(excinfo.value)
+        UpdateDRepCertificate.from_primitive([17, drep_credential, None])
+    assert "Invalid UpdateDRepCertificate type 17" in str(excinfo.value)
 
 
 def test_certificate_in_transaction():
