@@ -84,7 +84,7 @@ class TestDelegation(TestBase):
             print("############### Submitting transaction ###############")
             self.chain_context.submit_tx(signed_tx)
 
-        time.sleep(8)
+        time.sleep(120)
 
         builder = TransactionBuilder(self.chain_context)
 

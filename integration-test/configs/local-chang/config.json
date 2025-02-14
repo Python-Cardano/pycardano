@@ -99,8 +99,8 @@
   "TestAllegraHardForkAtEpoch": 0,
   "TestMaryHardForkAtEpoch": 0,
   "TestAlonzoHardForkAtEpoch": 0,
-  "TestBabbageHardForkAtEpoch": 10,
-  "TestConwayHardForkAtEpoch": 11,
+  "TestBabbageHardForkAtEpoch": 4,
+  "TestConwayHardForkAtEpoch": 5,
   "EnableDevelopmentHardForkEras": true,
   "ExperimentalProtocolsEnabled": true
 }
