@@ -55,7 +55,7 @@ class TestDelegation(TestBase):
 
             anchor = Anchor(
                 url="https://drep.com",
-                data_hash=AnchorDataHash(bytes.fromhex("0" * 64)),
+                data_hash=AnchorDataHash((bytes.fromhex("0" * 64))),
             )
 
             drep_registration = RegDRepCert(

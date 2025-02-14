@@ -49,11 +49,6 @@ class Anchor(ArrayCBORSerializable):
     url: str
     data_hash: AnchorDataHash
 
-    @classmethod
-    @limit_primitive_type(list)
-    def from_primitive(cls: Type[Anchor], values: Union[list, tuple]) -> Anchor:
-        return cls(url=values[0], data_hash=values[1])
-
 
 @dataclass(repr=False)
 class StakeCredential(ArrayCBORSerializable):
