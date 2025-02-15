@@ -6,7 +6,7 @@ import re
 import typing
 from collections import OrderedDict, UserList, defaultdict
 from copy import deepcopy
-from dataclasses import Field, dataclass, fields
+from dataclasses import Field, dataclass, field, fields
 from datetime import datetime
 from decimal import Decimal
 from functools import wraps
@@ -61,6 +61,7 @@ __all__ = [
     "limit_primitive_type",
     "OrderedSet",
     "NonEmptyOrderedSet",
+    "CodedSerializable",
 ]
 
 T = TypeVar("T")
@@ -1060,3 +1061,48 @@ class NonEmptyOrderedSet(OrderedSet[T]):
         if not result:
             raise ValueError("NonEmptyOrderedSet cannot be empty")
         return result
+
+
+@dataclass(repr=False)
+class CodedSerializable(ArrayCBORSerializable):
+    """A base class for CBORSerializable types that have a specific code.
+
+    This class provides a mechanism to validate the type of the object based on its first element.
+
+    Examples:
+        >>> from dataclasses import dataclass, field
+        >>> @dataclass
+        ... class TestCoded(CodedSerializable):
+        ...     _CODE = 1
+        ...     value: str
+        >>>
+        >>> # Create and serialize an instance
+        >>> test = TestCoded("hello")
+        >>> primitives = test.to_primitive()
+        >>> primitives
+        [1, 'hello']
+        >>>
+        >>> # Deserialize valid data
+        >>> restored = TestCoded.from_primitive(primitives)
+        >>> restored.value
+        'hello'
+        >>>
+        >>> # Attempting to deserialize with wrong code raises exception
+        >>> invalid_data = [2, "hello"]
+        >>> TestCoded.from_primitive(invalid_data)  # doctest: +IGNORE_EXCEPTION_DETAIL
+        Traceback (most recent call last):
+            ...
+        DeserializeException: Invalid TestCoded type 2
+    """
+
+    _CODE: int = field(init=False)
+
+    @classmethod
+    @limit_primitive_type(list, tuple)
+    def from_primitive(
+        cls: Type[CodedSerializable], values: Union[list, tuple]
+    ) -> CodedSerializable:
+        if values[0] != cls._CODE:
+            raise DeserializeException(f"Invalid {cls.__name__} type {values[0]}")
+        # Cast using Type[CodedSerializable] instead of cls directly
+        return cast(Type[CodedSerializable], super()).from_primitive(values[1:])

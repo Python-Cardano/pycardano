@@ -35,6 +35,7 @@ from pycardano.serialization import (
     ArrayCBORSerializable,
     ByteString,
     CBORSerializable,
+    CodedSerializable,
     DictCBORSerializable,
     IndefiniteList,
     MapCBORSerializable,
@@ -730,3 +731,127 @@ def test_transaction_witness_set_with_ordered_sets():
     primitive = witness_set.to_primitive()
     restored = TransactionWitnessSet.from_primitive(primitive)
     assert restored.vkey_witnesses is None
+
+
+# Test fixtures
+@dataclass(repr=False)
+class TestCodedClass(CodedSerializable):
+    """A test class that uses CodedSerializable."""
+
+    _CODE: int = field(init=False, default=1)
+    value: str
+    numbers: List[int]
+
+
+@dataclass(repr=False)
+class AnotherCodedClass(CodedSerializable):
+    """Another test class with a different code."""
+
+    _CODE: int = field(init=False, default=2)
+    name: str
+
+
+def test_coded_serializable_basic():
+    """Test basic serialization and deserialization."""
+    # Create an instance
+    obj = TestCodedClass(value="test", numbers=[1, 2, 3])
+
+    # Test serialization
+    primitive = obj.to_primitive()
+    assert primitive == [1, "test", [1, 2, 3]]
+
+    # Test deserialization
+    restored = TestCodedClass.from_primitive(primitive)
+    assert isinstance(restored, TestCodedClass)
+    assert restored.value == "test"
+    assert restored.numbers == [1, 2, 3]
+
+
+def test_coded_serializable_wrong_code():
+    """Test that wrong codes raise appropriate exceptions."""
+    # Try to deserialize with wrong code
+    with pytest.raises(DeserializeException) as exc_info:
+        TestCodedClass.from_primitive([2, "test", [1, 2, 3]])
+    assert "Invalid TestCodedClass type" in str(exc_info.value)
+
+
+def test_multiple_coded_classes():
+    """Test that different coded classes work independently."""
+    obj1 = TestCodedClass(value="test", numbers=[1, 2, 3])
+    obj2 = AnotherCodedClass(name="example")
+
+    # Serialize both
+    prim1 = obj1.to_primitive()
+    prim2 = obj2.to_primitive()
+
+    # Check they have different codes
+    assert prim1[0] != prim2[0]
+
+    # Restore both
+    restored1 = TestCodedClass.from_primitive(prim1)
+    restored2 = AnotherCodedClass.from_primitive(prim2)
+
+    # Verify restorations
+    assert isinstance(restored1, TestCodedClass)
+    assert isinstance(restored2, AnotherCodedClass)
+    assert restored1.value == "test"
+    assert restored2.name == "example"
+
+
+def test_coded_serializable_cbor():
+    """Test CBOR serialization and deserialization."""
+    original = TestCodedClass(value="test", numbers=[1, 2, 3])
+
+    # Convert to CBOR and back
+    cbor_bytes = original.to_cbor()
+    restored = TestCodedClass.from_cbor(cbor_bytes)
+
+    # Verify restoration
+    assert isinstance(restored, TestCodedClass)
+    assert restored.value == original.value
+    assert restored.numbers == original.numbers
+
+
+def test_invalid_primitive_type():
+    """Test that invalid primitive types raise appropriate exceptions."""
+    # Try to deserialize from invalid types
+    invalid_values = [
+        {"wrong": "type"},  # dict instead of list
+        "not_a_list",  # string instead of list
+        42,  # number instead of list
+    ]
+
+    for invalid_value in invalid_values:
+        with pytest.raises(DeserializeException):
+            TestCodedClass.from_primitive(invalid_value)
+
+
+def test_invliad_coded_serializable():
+    with pytest.raises(DeserializeException):
+        TestCodedClass.from_primitive([2, "test", [1, 2, 3]])
+
+
+def test_coded_serializable_inheritance():
+    """Test that inheritance works properly with CodedSerializable."""
+
+    @dataclass(repr=False)
+    class ChildCodedClass(TestCodedClass):
+        """A child class that inherits from a CodedSerializable."""
+
+        _CODE: int = field(init=False, default=3)
+        extra: str
+
+    # Create and serialize child instance
+    child = ChildCodedClass(value="test", numbers=[1, 2], extra="extra")
+    primitive = child.to_primitive()
+
+    # Verify code and structure
+    assert primitive[0] == 3
+    assert len(primitive) == 4
+
+    # Restore and verify
+    restored = ChildCodedClass.from_primitive(primitive)
+    assert isinstance(restored, ChildCodedClass)
+    assert restored.value == "test"
+    assert restored.numbers == [1, 2]
+    assert restored.extra == "extra"

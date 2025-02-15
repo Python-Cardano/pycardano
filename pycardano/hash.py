@@ -18,6 +18,8 @@ __all__ = [
     "ConstrainedBytes",
     "VerificationKeyHash",
     "ScriptHash",
+    "PolicyHash",
+    "PolicyId",
     "ScriptDataHash",
     "TransactionId",
     "DatumHash",
@@ -107,6 +109,14 @@ class ScriptHash(ConstrainedBytes):
     """Hash of a policy/plutus script."""
 
     MAX_SIZE = MIN_SIZE = SCRIPT_HASH_SIZE
+
+
+class PolicyHash(ScriptHash):
+    pass
+
+
+class PolicyId(ScriptHash):
+    pass
 
 
 class ScriptDataHash(ConstrainedBytes):
