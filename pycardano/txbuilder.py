@@ -11,6 +11,7 @@ from pycardano.certificate import (
     Certificate,
     PoolRegistration,
     PoolRetirement,
+    RegDRepCert,
     StakeAndVoteDelegation,
     StakeCredential,
     StakeDelegation,
@@ -897,6 +898,7 @@ class TransactionBuilder:
                 elif isinstance(
                     cert,
                     (
+                        RegDRepCert,
                         StakeRegistrationConway,
                         StakeRegistrationAndDelegation,
                         StakeRegistrationAndVoteDelegation,

@@ -11,3 +11,4 @@ coverage.xml
 .code
 /integration-test/.env
 /integration-test/tmp_configs/*
+/integration-test/.coverage*

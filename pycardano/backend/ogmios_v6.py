@@ -307,6 +307,15 @@ class OgmiosV6ChainContext(ChainContext):
             return self._utxo_from_ogmios_result(utxos[0])
         return None
 
+    def query_account_reward_summaries(
+        self, scripts: Optional[List[str]] = None, keys: Optional[List[str]] = None
+    ) -> List[dict]:
+        with OgmiosClient(self.host, self.port, self.path, self.secure) as client:
+            summaries, _ = client.query_reward_account_summaries.execute(
+                scripts=scripts, keys=keys
+            )
+            return summaries
+
     def submit_tx_cbor(self, cbor: Union[bytes, str]):
         if isinstance(cbor, bytes):
             cbor = cbor.hex()

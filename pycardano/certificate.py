@@ -5,7 +5,7 @@ from enum import Enum, unique
 from typing import Optional, Tuple, Type, Union
 
 from pycardano.exception import DeserializeException
-from pycardano.hash import PoolKeyHash, ScriptHash, VerificationKeyHash
+from pycardano.hash import AnchorDataHash, PoolKeyHash, ScriptHash, VerificationKeyHash
 from pycardano.serialization import ArrayCBORSerializable, limit_primitive_type
 
 __all__ = [
@@ -28,9 +28,10 @@ __all__ = [
     "AuthCommitteeHotCertificate",
     "ResignCommitteeColdCertificate",
     "Anchor",
-    "DrepCredential",
-    "UnregDrepCertificate",
-    "UpdateDrepCertificate",
+    "DRepCredential",
+    "RegDRepCert",
+    "UnregDRepCertificate",
+    "UpdateDRepCertificate",
 ]
 
 from pycardano.pool_params import PoolParams
@@ -40,17 +41,23 @@ unit_interval = Tuple[int, int]
 
 @dataclass(repr=False)
 class Anchor(ArrayCBORSerializable):
-    url: str
-    data_hash: bytes
+    """Represents an anchor in the Cardano blockchain that contains a URL and associated data hash.
 
-    @classmethod
-    @limit_primitive_type(list)
-    def from_primitive(cls: Type[Anchor], values: Union[list, tuple]) -> Anchor:
-        return cls(url=values[0], data_hash=values[1])
+    Anchors are used to provide additional metadata or reference external resources in certificates.
+    """
+
+    url: str
+    data_hash: AnchorDataHash
 
 
 @dataclass(repr=False)
 class StakeCredential(ArrayCBORSerializable):
+    """Represents a stake credential in the Cardano blockchain.
+
+    A stake credential can either be a verification key hash or a script hash,
+    used to identify stake rights and permissions.
+    """
+
     _CODE: Optional[int] = field(init=False, default=None)
 
     credential: Union[VerificationKeyHash, ScriptHash]
@@ -76,6 +83,12 @@ class StakeCredential(ArrayCBORSerializable):
 
 @dataclass(repr=False)
 class StakeRegistration(ArrayCBORSerializable):
+    """Represents a stake address registration certificate in the Cardano blockchain.
+
+    This certificate is used to register a stake address on the blockchain,
+    enabling participation in staking and delegation.
+    """
+
     _CODE: int = field(init=False, default=0)
 
     stake_credential: StakeCredential
@@ -96,6 +109,12 @@ class StakeRegistration(ArrayCBORSerializable):
 
 @dataclass(repr=False)
 class StakeDeregistration(ArrayCBORSerializable):
+    """Represents a stake address deregistration certificate in the Cardano blockchain.
+
+    This certificate is used to deregister a stake address, withdrawing it from
+    participation in staking and delegation.
+    """
+
     _CODE: int = field(init=False, default=1)
 
     stake_credential: StakeCredential
@@ -116,6 +135,12 @@ class StakeDeregistration(ArrayCBORSerializable):
 
 @dataclass(repr=False)
 class StakeDelegation(ArrayCBORSerializable):
+    """Represents a stake delegation certificate in the Cardano blockchain.
+
+    This certificate is used to delegate stake to a specific stake pool,
+    allowing participation in the proof-of-stake protocol.
+    """
+
     _CODE: int = field(init=False, default=2)
 
     stake_credential: StakeCredential
@@ -141,6 +166,12 @@ class StakeDelegation(ArrayCBORSerializable):
 
 @dataclass(repr=False)
 class PoolRegistration(ArrayCBORSerializable):
+    """Represents a stake pool registration certificate in the Cardano blockchain.
+
+    This certificate is used to register a new stake pool on the network,
+    including all its operational parameters and metadata.
+    """
+
     _CODE: int = field(init=False, default=3)
 
     pool_params: PoolParams
@@ -174,6 +205,12 @@ class PoolRegistration(ArrayCBORSerializable):
 
 @dataclass(repr=False)
 class PoolRetirement(ArrayCBORSerializable):
+    """Represents a stake pool retirement certificate in the Cardano blockchain.
+
+    This certificate is used to signal that a stake pool will cease operations
+    at a specified epoch.
+    """
+
     _CODE: int = field(init=False, default=4)
 
     pool_keyhash: PoolKeyHash
@@ -197,6 +234,12 @@ class PoolRetirement(ArrayCBORSerializable):
 
 @dataclass(repr=False)
 class StakeRegistrationConway(ArrayCBORSerializable):
+    """Represents a stake registration certificate in the Conway era of Cardano.
+
+    This certificate is used to register stake rights with an associated deposit
+    amount in the Conway era.
+    """
+
     _CODE: int = field(init=False, default=7)
 
     stake_credential: StakeCredential
@@ -223,6 +266,12 @@ class StakeRegistrationConway(ArrayCBORSerializable):
 
 @dataclass(repr=False)
 class StakeDeregistrationConway(ArrayCBORSerializable):
+    """Represents a stake deregistration certificate in the Conway era of Cardano.
+
+    This certificate is used to deregister stake rights and reclaim the deposit
+    in the Conway era.
+    """
+
     _CODE: int = field(init=False, default=8)
 
     stake_credential: StakeCredential
@@ -249,6 +298,11 @@ class StakeDeregistrationConway(ArrayCBORSerializable):
 
 @dataclass(repr=False)
 class VoteDelegation(ArrayCBORSerializable):
+    """Represents a vote delegation certificate in the Conway era of Cardano.
+
+    This certificate is used to delegate voting rights to a DRep (Delegate Representative).
+    """
+
     _CODE: int = field(init=False, default=9)
 
     stake_credential: StakeCredential
@@ -273,6 +327,12 @@ class VoteDelegation(ArrayCBORSerializable):
 
 @dataclass(repr=False)
 class StakeAndVoteDelegation(ArrayCBORSerializable):
+    """Represents a combined stake and vote delegation certificate.
+
+    This certificate allows simultaneous delegation of both staking rights to a pool
+    and voting rights to a DRep.
+    """
+
     _CODE: int = field(init=False, default=10)
 
     stake_credential: StakeCredential
@@ -301,6 +361,12 @@ class StakeAndVoteDelegation(ArrayCBORSerializable):
 
 @dataclass(repr=False)
 class StakeRegistrationAndDelegation(ArrayCBORSerializable):
+    """Represents a combined stake registration and delegation certificate.
+
+    This certificate allows simultaneous registration of stake rights and
+    delegation to a stake pool.
+    """
+
     _CODE: int = field(init=False, default=11)
 
     stake_credential: StakeCredential
@@ -327,6 +393,12 @@ class StakeRegistrationAndDelegation(ArrayCBORSerializable):
 
 @dataclass(repr=False)
 class StakeRegistrationAndVoteDelegation(ArrayCBORSerializable):
+    """Represents a combined stake registration and vote delegation certificate.
+
+    This certificate allows simultaneous registration of stake rights and
+    delegation of voting rights to a DRep.
+    """
+
     _CODE: int = field(init=False, default=12)
 
     stake_credential: StakeCredential
@@ -353,6 +425,12 @@ class StakeRegistrationAndVoteDelegation(ArrayCBORSerializable):
 
 @dataclass(repr=False)
 class StakeRegistrationAndDelegationAndVoteDelegation(ArrayCBORSerializable):
+    """Represents a certificate combining stake registration, stake delegation, and vote delegation.
+
+    This certificate allows simultaneous registration of stake rights, delegation to a
+    stake pool, and delegation of voting rights to a DRep.
+    """
+
     _CODE: int = field(init=False, default=13)
 
     stake_credential: StakeCredential
@@ -380,8 +458,28 @@ class StakeRegistrationAndDelegationAndVoteDelegation(ArrayCBORSerializable):
             raise DeserializeException(f"Invalid {cls.__name__} type {values[0]}")
 
 
+@dataclass(repr=False)
+class DRepCredential(StakeCredential):
+    """Represents a Delegate Representative (DRep) credential.
+
+    This credential type is specifically used for DReps in the governance system,
+    inheriting from StakeCredential.
+    """
+
+    pass
+
+
 @unique
 class DRepKind(Enum):
+    """Enumerates the different types of Delegate Representatives (DReps).
+
+    Defines the possible kinds of DReps in the Cardano governance system:
+    - VERIFICATION_KEY_HASH: A DRep identified by a verification key hash
+    - SCRIPT_HASH: A DRep identified by a script hash
+    - ALWAYS_ABSTAIN: A special DRep that always abstains from voting
+    - ALWAYS_NO_CONFIDENCE: A special DRep that always votes no confidence
+    """
+
     VERIFICATION_KEY_HASH = 0
     SCRIPT_HASH = 1
     ALWAYS_ABSTAIN = 2
@@ -390,6 +488,11 @@ class DRepKind(Enum):
 
 @dataclass(repr=False)
 class DRep(ArrayCBORSerializable):
+    """Represents a Delegate Representative (DRep) in the Cardano governance system.
+
+    DReps are entities that can represent stake holders in governance decisions.
+    """
+
     kind: DRepKind
     credential: Optional[Union[VerificationKeyHash, ScriptHash]] = field(
         default=None, metadata={"optional": True}
@@ -422,6 +525,11 @@ class DRep(ArrayCBORSerializable):
 
 @dataclass(repr=False)
 class AuthCommitteeHotCertificate(ArrayCBORSerializable):
+    """Represents an authorization certificate for a Constitutional Committee hot key.
+
+    This certificate authorizes a hot key for use by a Constitutional Committee member.
+    """
+
     _CODE: int = field(init=False, default=14)
 
     committee_cold_credential: StakeCredential
@@ -448,6 +556,11 @@ class AuthCommitteeHotCertificate(ArrayCBORSerializable):
 
 @dataclass(repr=False)
 class ResignCommitteeColdCertificate(ArrayCBORSerializable):
+    """Represents a resignation certificate for a Constitutional Committee member.
+
+    This certificate is used when a committee member wishes to resign their position.
+    """
+
     _CODE: int = field(init=False, default=15)
 
     committee_cold_credential: StakeCredential
@@ -475,12 +588,16 @@ class ResignCommitteeColdCertificate(ArrayCBORSerializable):
 
 
 @dataclass(repr=False)
-class DrepCredential(ArrayCBORSerializable):
-    """DRep credential is identical to StakeCredential in structure."""
+class RegDRepCert(ArrayCBORSerializable):
+    """Represents a certificate for registering a new Delegate Representative (DRep).
+
+    This certificate is used to register a new DRep in the governance system with an
+    associated deposit amount and optional metadata.
+    """
 
     _CODE: int = field(init=False, default=16)
 
-    drep_credential: StakeCredential
+    drep_credential: DRepCredential
     coin: int
     anchor: Optional[Anchor] = field(default=None)
 
@@ -490,25 +607,30 @@ class DrepCredential(ArrayCBORSerializable):
     @classmethod
     @limit_primitive_type(list)
     def from_primitive(
-        cls: Type[DrepCredential], values: Union[list, tuple]
-    ) -> DrepCredential:
+        cls: Type[RegDRepCert], values: Union[list, tuple]
+    ) -> RegDRepCert:
         if values[0] == 16:
             return cls(
-                drep_credential=StakeCredential.from_primitive(values[1]),
+                drep_credential=DRepCredential.from_primitive(values[1]),
                 coin=values[2],
                 anchor=(
                     Anchor.from_primitive(values[3]) if values[3] is not None else None
                 ),
             )
         else:
-            raise DeserializeException(f"Invalid DrepCredential type {values[0]}")
+            raise DeserializeException(f"Invalid RegDRepCert type {values[0]}")
 
 
 @dataclass(repr=False)
-class UnregDrepCertificate(ArrayCBORSerializable):
+class UnregDRepCertificate(ArrayCBORSerializable):
+    """Represents a certificate for unregistering a Delegate Representative (DRep).
+
+    This certificate is used to remove a DRep from the governance system.
+    """
+
     _CODE: int = field(init=False, default=17)
 
-    drep_credential: DrepCredential
+    drep_credential: DRepCredential
     coin: int
 
     def __post_init__(self):
@@ -517,22 +639,27 @@ class UnregDrepCertificate(ArrayCBORSerializable):
     @classmethod
     @limit_primitive_type(list)
     def from_primitive(
-        cls: Type[UnregDrepCertificate], values: Union[list, tuple]
-    ) -> UnregDrepCertificate:
+        cls: Type[UnregDRepCertificate], values: Union[list, tuple]
+    ) -> UnregDRepCertificate:
         if values[0] == 17:
             return cls(
-                drep_credential=DrepCredential.from_primitive(values[1]),
+                drep_credential=DRepCredential.from_primitive(values[1]),
                 coin=values[2],
             )
         else:
-            raise DeserializeException(f"Invalid UnregDrepCertificate type {values[0]}")
+            raise DeserializeException(f"Invalid UnregDRepCertificate type {values[0]}")
 
 
 @dataclass(repr=False)
-class UpdateDrepCertificate(ArrayCBORSerializable):
+class UpdateDRepCertificate(ArrayCBORSerializable):
+    """Represents a certificate for updating a Delegate Representative (DRep)'s metadata.
+
+    This certificate is used to modify the metadata associated with a DRep.
+    """
+
     _CODE: int = field(init=False, default=18)
 
-    drep_credential: DrepCredential
+    drep_credential: DRepCredential
     anchor: Optional[Anchor]
 
     def __post_init__(self):
@@ -541,18 +668,18 @@ class UpdateDrepCertificate(ArrayCBORSerializable):
     @classmethod
     @limit_primitive_type(list)
     def from_primitive(
-        cls: Type[UpdateDrepCertificate], values: Union[list, tuple]
-    ) -> UpdateDrepCertificate:
+        cls: Type[UpdateDRepCertificate], values: Union[list, tuple]
+    ) -> UpdateDRepCertificate:
         if values[0] == 18:
             return cls(
-                drep_credential=DrepCredential.from_primitive(values[1]),
+                drep_credential=DRepCredential.from_primitive(values[1]),
                 anchor=(
                     Anchor.from_primitive(values[2]) if values[2] is not None else None
                 ),
             )
         else:
             raise DeserializeException(
-                f"Invalid UpdateDrepCertificate type {values[0]}"
+                f"Invalid UpdateDRepCertificate type {values[0]}"
             )
 
 
@@ -571,6 +698,6 @@ Certificate = Union[
     StakeRegistrationAndDelegationAndVoteDelegation,
     AuthCommitteeHotCertificate,
     ResignCommitteeColdCertificate,
-    UnregDrepCertificate,
-    UpdateDrepCertificate,
+    UnregDRepCertificate,
+    UpdateDRepCertificate,
 ]
