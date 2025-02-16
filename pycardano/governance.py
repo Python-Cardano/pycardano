@@ -47,7 +47,10 @@ class GovActionId(ArrayCBORSerializable):
     """
 
     transaction_id: TransactionId
-    gov_action_index: int  # uint .size 2
+    """The transaction ID where this governance action was submitted"""
+
+    gov_action_index: int
+    """The index of this governance action within the transaction (0-65535)"""
 
     def __post_init__(self):
         if not 0 <= self.gov_action_index <= 65535:  # uint .size 2
@@ -63,17 +66,29 @@ class GovActionId(ArrayCBORSerializable):
 
 @dataclass(repr=False)
 class ParameterChangeAction(CodedSerializable):
+    """Represents a governance action to change protocol parameters."""
+
     _CODE: int = field(init=False, default=0)
     gov_action_id: Optional[GovActionId]
-    protocol_param_update: Dict  # TODO: Define ProtocolParamUpdate type
+    """Optional reference to a previous governance action"""
+
+    protocol_param_update: Dict
+    """Dictionary containing the protocol parameters to be updated"""
+
     policy_hash: Optional[PolicyHash]
+    """Optional policy hash associated with this parameter change"""
 
 
 @dataclass(repr=False)
 class HardForkInitiationAction(CodedSerializable):
+    """Represents a governance action to initiate a hard fork."""
+
     _CODE: int = field(init=False, default=1)
     gov_action_id: Optional[GovActionId]
-    protocol_version: Tuple[int, int]  # major, minor version
+    """Optional reference to a previous governance action"""
+
+    protocol_version: Tuple[int, int]
+    """The target protocol version as (major, minor) version numbers"""
 
     def __post_init__(self):
         major, minor = self.protocol_version
@@ -83,37 +98,61 @@ class HardForkInitiationAction(CodedSerializable):
 
 @dataclass(repr=False)
 class TreasuryWithdrawalsAction(CodedSerializable):
+    """Represents a governance action to withdraw funds from the treasury."""
+
     _CODE: int = field(init=False, default=2)
     withdrawals: Withdrawals
+    """The withdrawal amounts and their destinations"""
+
     policy_hash: Optional[PolicyHash]
+    """Optional policy hash associated with these withdrawals"""
 
 
 @dataclass(repr=False)
 class NoConfidence(CodedSerializable):
+    """Represents a governance action expressing no confidence."""
+
     _CODE: int = field(init=False, default=3)
     gov_action_id: Optional[GovActionId]
+    """Optional reference to a previous governance action"""
 
 
 @dataclass(repr=False)
 class UpdateCommittee(CodedSerializable):
+    """Represents a governance action to update the constitutional committee."""
+
     _CODE: int = field(init=False, default=4)
     gov_action_id: Optional[GovActionId]
+    """Optional reference to a previous governance action"""
+
     committee_cold_credentials: Set[
         StakeCredential
     ]  # TODO: Define CommitteeColdCredential
+    """Set of cold credentials for committee members"""
+
     committee_expiration: Dict[StakeCredential, int]  # credential -> epoch_no
+    """Mapping of committee members to their expiration epochs"""
+
     quorum: Tuple[int, int]  # unit_interval
+    """The quorum threshold as a unit interval (numerator, denominator)"""
 
 
 @dataclass(repr=False)
 class NewConstitution(CodedSerializable):
+    """Represents a governance action to establish a new constitution."""
+
     _CODE: int = field(init=False, default=5)
     gov_action_id: Optional[GovActionId]
+    """Optional reference to a previous governance action"""
+
     constitution: Tuple[Anchor, Optional[ScriptHash]]
+    """The constitution data as (anchor, optional script hash)"""
 
 
 @dataclass(repr=False)
 class InfoAction(CodedSerializable):
+    """Represents an informational governance action with no direct effect."""
+
     _CODE: int = field(init=False, default=6)
 
 
@@ -125,7 +164,10 @@ class VotingProcedure(ArrayCBORSerializable):
     """
 
     vote: Vote
+    """The vote cast (YES, NO, or ABSTAIN)"""
+
     anchor: Optional[Anchor]
+    """Optional metadata associated with this vote"""
 
     @classmethod
     @limit_primitive_type(list)
@@ -148,7 +190,10 @@ class Voter(ArrayCBORSerializable):
     _CODE: Optional[int] = field(init=False, default=None)
 
     credential: Union[VerificationKeyHash, ScriptHash]
-    voter_type: str  # One of: "committee_hot", "drep", "staking_pool"
+    """The credential identifying the voter"""
+
+    voter_type: str
+    """The type of voter ('committee_hot', 'drep', or 'staking_pool')"""
 
     def __post_init__(self):
         if self.voter_type == "committee_hot":

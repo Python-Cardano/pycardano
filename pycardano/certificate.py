@@ -51,7 +51,10 @@ class Anchor(ArrayCBORSerializable):
     """
 
     url: str
+    """The URL pointing to the anchor's resource location"""
+
     data_hash: AnchorDataHash
+    """The hash of the data associated with this anchor"""
 
 
 @dataclass(repr=False)
@@ -65,6 +68,7 @@ class StakeCredential(ArrayCBORSerializable):
     _CODE: Optional[int] = field(init=False, default=None)
 
     credential: Union[VerificationKeyHash, ScriptHash]
+    """The actual credential, either a verification key hash or script hash"""
 
     def __post_init__(self):
         if isinstance(self.credential, VerificationKeyHash):
@@ -121,9 +125,12 @@ class DRep(ArrayCBORSerializable):
     """
 
     kind: DRepKind
+    """The type of DRep (verification key, script hash, always abstain, or always no confidence)"""
+
     credential: Optional[Union[VerificationKeyHash, ScriptHash]] = field(
         default=None, metadata={"optional": True}
     )
+    """The credential associated with this DRep, if applicable"""
 
     @classmethod
     @limit_primitive_type(list)
@@ -156,6 +163,7 @@ class StakeRegistration(CodedSerializable):
 
     _CODE: int = field(init=False, default=0)
     stake_credential: StakeCredential
+    """The stake credential being registered"""
 
 
 @dataclass(repr=False)
@@ -164,6 +172,7 @@ class StakeDeregistration(CodedSerializable):
 
     _CODE: int = field(init=False, default=1)
     stake_credential: StakeCredential
+    """The stake credential being deregistered"""
 
 
 @dataclass(repr=False)
@@ -172,7 +181,10 @@ class StakeDelegation(CodedSerializable):
 
     _CODE: int = field(init=False, default=2)
     stake_credential: StakeCredential
+    """The stake credential being delegated"""
+    
     pool_keyhash: PoolKeyHash
+    """The hash of the pool's key to delegate to"""
 
 
 @dataclass(repr=False)
@@ -181,6 +193,7 @@ class PoolRegistration(CodedSerializable):
 
     _CODE: int = field(init=False, default=3)
     pool_params: PoolParams
+    """The parameters defining the stake pool's configuration"""
 
     def to_primitive(self):
         pool_params = self.pool_params.to_primitive()
@@ -212,7 +225,10 @@ class PoolRetirement(CodedSerializable):
 
     _CODE: int = field(init=False, default=4)
     pool_keyhash: PoolKeyHash
+    """The hash of the pool's key that is being retired"""
+    
     epoch: int
+    """The epoch number when the pool will retire"""
 
 
 @dataclass(repr=False)
@@ -221,7 +237,10 @@ class StakeRegistrationConway(CodedSerializable):
 
     _CODE: int = field(init=False, default=7)
     stake_credential: StakeCredential
+    """The stake credential being registered"""
+    
     coin: int
+    """The amount of coins associated with this registration"""
 
 
 @dataclass(repr=False)
@@ -230,7 +249,10 @@ class StakeDeregistrationConway(CodedSerializable):
 
     _CODE: int = field(init=False, default=8)
     stake_credential: StakeCredential
+    """The stake credential being deregistered"""
+    
     coin: int
+    """The amount of coins associated with this deregistration"""
 
 
 @dataclass(repr=False)
@@ -239,7 +261,10 @@ class VoteDelegation(CodedSerializable):
 
     _CODE: int = field(init=False, default=9)
     stake_credential: StakeCredential
+    """The stake credential delegating its voting power"""
+    
     drep: DRep
+    """The DRep receiving the voting power delegation"""
 
 
 @dataclass(repr=False)
@@ -248,8 +273,13 @@ class StakeAndVoteDelegation(CodedSerializable):
 
     _CODE: int = field(init=False, default=10)
     stake_credential: StakeCredential
+    """The stake credential being delegated"""
+    
     pool_keyhash: PoolKeyHash
+    """The hash of the pool's key receiving the stake delegation"""
+    
     drep: DRep
+    """The DRep receiving the voting power delegation"""
 
 
 @dataclass(repr=False)
@@ -258,8 +288,13 @@ class StakeRegistrationAndDelegation(CodedSerializable):
 
     _CODE: int = field(init=False, default=11)
     stake_credential: StakeCredential
+    """The stake credential being registered and delegated"""
+    
     pool_keyhash: PoolKeyHash
+    """The hash of the pool's key receiving the delegation"""
+    
     coin: int
+    """The amount of coins associated with this registration"""
 
 
 @dataclass(repr=False)
@@ -268,8 +303,13 @@ class StakeRegistrationAndVoteDelegation(CodedSerializable):
 
     _CODE: int = field(init=False, default=12)
     stake_credential: StakeCredential
+    """The stake credential being registered"""
+    
     drep: DRep
+    """The DRep receiving the voting power delegation"""
+    
     coin: int
+    """The amount of coins associated with this registration"""
 
 
 @dataclass(repr=False)
@@ -278,9 +318,16 @@ class StakeRegistrationAndDelegationAndVoteDelegation(CodedSerializable):
 
     _CODE: int = field(init=False, default=13)
     stake_credential: StakeCredential
+    """The stake credential being registered and delegated"""
+    
     pool_keyhash: PoolKeyHash
+    """The hash of the pool's key receiving the stake delegation"""
+    
     drep: DRep
+    """The DRep receiving the voting power delegation"""
+    
     coin: int
+    """The amount of coins associated with this registration"""
 
 
 @dataclass(repr=False)
@@ -289,7 +336,10 @@ class AuthCommitteeHotCertificate(CodedSerializable):
 
     _CODE: int = field(init=False, default=14)
     committee_cold_credential: StakeCredential
+    """The cold credential of the committee member"""
+    
     committee_hot_credential: StakeCredential
+    """The hot credential being authorized"""
 
 
 @dataclass(repr=False)
@@ -298,7 +348,10 @@ class ResignCommitteeColdCertificate(CodedSerializable):
 
     _CODE: int = field(init=False, default=15)
     committee_cold_credential: StakeCredential
+    """The cold credential of the resigning committee member"""
+    
     anchor: Optional[Anchor]
+    """Optional anchor containing additional metadata about the resignation"""
 
 
 @dataclass(repr=False)
@@ -307,8 +360,13 @@ class RegDRepCert(CodedSerializable):
 
     _CODE: int = field(init=False, default=16)
     drep_credential: DRepCredential
+    """The credential of the DRep being registered"""
+    
     coin: int
+    """The amount of coins associated with this registration"""
+    
     anchor: Optional[Anchor] = field(default=None)
+    """Optional anchor containing additional metadata about the DRep"""
 
 
 @dataclass(repr=False)
@@ -317,7 +375,10 @@ class UnregDRepCertificate(CodedSerializable):
 
     _CODE: int = field(init=False, default=17)
     drep_credential: DRepCredential
+    """The credential of the DRep being unregistered"""
+    
     coin: int
+    """The amount of coins associated with this unregistration"""
 
 
 @dataclass(repr=False)
@@ -326,7 +387,10 @@ class UpdateDRepCertificate(CodedSerializable):
 
     _CODE: int = field(init=False, default=18)
     drep_credential: DRepCredential
+    """The credential of the DRep being updated"""
+    
     anchor: Optional[Anchor]
+    """Optional anchor containing the updated metadata"""
 
 
 Certificate = Union[
