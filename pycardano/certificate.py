@@ -88,6 +88,9 @@ class StakeCredential(ArrayCBORSerializable):
         else:
             raise DeserializeException(f"Invalid StakeCredential type {values[0]}")
 
+    def __hash__(self):
+        return hash(self.to_cbor())
+
 
 @dataclass(repr=False)
 class DRepCredential(StakeCredential):

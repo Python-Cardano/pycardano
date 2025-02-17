@@ -36,6 +36,17 @@ from pycardano.exception import (
     TransactionBuilderException,
     UTxOSelectionException,
 )
+from pycardano.governance import (
+    Anchor,
+    GovAction,
+    GovActionId,
+    GovActionIdToVotingProcedure,
+    ProposalProcedure,
+    Vote,
+    Voter,
+    VotingProcedure,
+    VotingProcedures,
+)
 from pycardano.hash import DatumHash, ScriptDataHash, ScriptHash, VerificationKeyHash
 from pycardano.key import ExtendedSigningKey, SigningKey, VerificationKey
 from pycardano.logging import log_state, logger
@@ -134,6 +145,16 @@ class TransactionBuilder:
 
     use_redeemer_map: Optional[bool] = field(default=True)
     """Whether to serialize redeemers as a map or a list. Default is True."""
+
+    voting_procedures: Optional[VotingProcedures] = field(init=False, default=None)
+
+    proposal_procedures: Optional[NonEmptyOrderedSet[ProposalProcedure]] = field(
+        init=False, default=None
+    )
+
+    current_treasury_value: Optional[int] = field(init=False, default=None)
+
+    donation: Optional[int] = field(init=False, default=None)
 
     _inputs: List[UTxO] = field(init=False, default_factory=lambda: [])
 
@@ -617,6 +638,7 @@ class TransactionBuilder:
                 provided.coin += v
 
         provided.coin -= self._get_total_key_deposit()
+        provided.coin -= self._get_total_proposal_deposit()
 
         if not requested < provided:
             raise InvalidTransactionException(
@@ -878,10 +900,21 @@ class TransactionBuilder:
                     ),
                 ):
                     _check_and_add_vkey(cert.stake_credential)
+                elif isinstance(cert, RegDRepCert):
+                    _check_and_add_vkey(cert.drep_credential)
                 elif isinstance(cert, PoolRegistration):
                     results.add(cert.pool_params.operator)
                 elif isinstance(cert, PoolRetirement):
                     results.add(cert.pool_keyhash)
+        return results
+
+    def _vote_vkey_hashes(self) -> Set[VerificationKeyHash]:
+        results = set()
+
+        if self.voting_procedures:
+            for voter in self.voting_procedures:
+                if isinstance(voter.credential, VerificationKeyHash):
+                    results.add(voter.credential)
         return results
 
     def _get_total_key_deposit(self):
@@ -919,6 +952,13 @@ class TransactionBuilder:
             stake_pool_registration_certs
         )
         return stake_registration_deposit + stake_pool_registration_deposit
+
+    def _get_total_proposal_deposit(self):
+        proposal_deposit = 0
+        if self.proposal_procedures:
+            for proposal in self.proposal_procedures:
+                proposal_deposit += proposal.deposit
+        return proposal_deposit
 
     def _withdrawal_vkey_hashes(self) -> Set[VerificationKeyHash]:
         results = set()
@@ -1022,6 +1062,17 @@ class TransactionBuilder:
                 if self.reference_inputs
                 else None
             ),
+            # Add new governance fields
+            voting_procedures=(
+                self.voting_procedures if self.voting_procedures else None
+            ),
+            proposal_procedures=(
+                self.proposal_procedures if self.proposal_procedures else None
+            ),
+            current_treasury_value=(
+                self.current_treasury_value if self.current_treasury_value else None
+            ),
+            donation=self.donation if self.donation else None,
         )
         return tx_body
 
@@ -1031,6 +1082,7 @@ class TransactionBuilder:
         vkey_hashes.update(self._native_scripts_vkey_hashes())
         vkey_hashes.update(self._certificate_vkey_hashes())
         vkey_hashes.update(self._withdrawal_vkey_hashes())
+        vkey_hashes.update(self._vote_vkey_hashes())
         return vkey_hashes
 
     def _witness_count(self) -> int:
@@ -1261,6 +1313,7 @@ class TransactionBuilder:
                     break
 
         selected_amount.coin -= self._get_total_key_deposit()
+        selected_amount.coin -= self._get_total_proposal_deposit()
 
         requested_amount = Value()
         for o in self.outputs:
@@ -1660,3 +1713,79 @@ class TransactionBuilder:
             witness_set.vkey_witnesses = None
 
         return Transaction(tx_body, witness_set, auxiliary_data=self.auxiliary_data)
+
+    # Add helper methods for governance operations
+    def add_vote(
+        self,
+        voter: Voter,
+        gov_action_id: GovActionId,
+        vote: Vote,
+        anchor: Optional[Anchor] = None,
+    ) -> TransactionBuilder:
+        """Add a vote to the transaction.
+
+        Args:
+            voter: The voter casting the vote
+            gov_action_id: The ID of the governance action being voted on
+            vote: The vote being cast (YES/NO/ABSTAIN)
+            anchor: Optional metadata about the vote
+
+        Returns:
+            self: The transaction builder instance
+        """
+        if self.voting_procedures is None:
+            self.voting_procedures = VotingProcedures()
+
+        # Initialize the inner map if this is the first vote for this voter
+        if voter not in self.voting_procedures:
+            self.voting_procedures[voter] = GovActionIdToVotingProcedure()
+
+        # Add the voting procedure for this specific governance action
+        self.voting_procedures[voter][gov_action_id] = VotingProcedure(vote, anchor)
+
+        return self
+
+    def add_proposal(
+        self,
+        deposit: int,
+        reward_account: bytes,
+        gov_action: GovAction,
+        anchor: Anchor,
+    ) -> TransactionBuilder:
+        """Add a governance proposal to the transaction.
+
+        Args:
+            deposit: The deposit amount required for the proposal
+            reward_account: The reward account for the proposal
+            gov_action: The governance action being proposed
+            anchor: Metadata about the proposal
+
+        Returns:
+            self: The transaction builder instance
+        """
+        if self.proposal_procedures is None:
+            self.proposal_procedures = NonEmptyOrderedSet()
+
+        self.proposal_procedures.append(
+            ProposalProcedure(
+                deposit=deposit,
+                reward_account=reward_account,
+                gov_action=gov_action,
+                anchor=anchor,
+            )
+        )
+        return self
+
+    def add_treasury_donation(self, amount: int) -> TransactionBuilder:
+        """Add a donation to the treasury.
+
+        Args:
+            amount: The amount to donate (must be positive)
+
+        Returns:
+            self: The transaction builder instance
+        """
+        if amount <= 0:
+            raise ValueError("Treasury donation amount must be positive")
+        self.donation = amount
+        return self

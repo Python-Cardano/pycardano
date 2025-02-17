@@ -9,6 +9,7 @@ from copy import deepcopy
 from dataclasses import Field, dataclass, field, fields
 from datetime import datetime
 from decimal import Decimal
+from fractions import Fraction
 from functools import wraps
 from inspect import getfullargspec, isclass
 from typing import (
@@ -123,6 +124,7 @@ Primitive = Union[
     CBORSimpleValue,
     CBORTag,
     set,
+    Fraction,
     frozenset,
     frozendict,
     FrozenList,
@@ -153,6 +155,7 @@ PRIMITIVE_TYPES = (
     set,
     frozenset,
     frozendict,
+    Fraction,
     FrozenList,
     IndefiniteFrozenList,
 )

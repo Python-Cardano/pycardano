@@ -23,7 +23,6 @@ from pycardano.pool_params import (  # Fraction,
     PoolParams,
     SingleHostAddr,
     SingleHostName,
-    fraction_parser,
     is_bech32_cardano_pool_id,
 )
 
@@ -192,28 +191,6 @@ def test_pool_metadata(url, pool_metadata_hash):
 
 
 @pytest.mark.parametrize(
-    "input_value",
-    [
-        [30, [1, 2]],
-        "1/2",
-        "3/4",
-        "0/1",
-        "1/1",
-        Fraction(123456, 1),
-        Fraction(5, 6),
-        Fraction(7, 8),
-        Fraction(5, 6),
-    ],
-)
-def test_fraction_serializer(input_value):
-    # Act
-    result = fraction_parser(input_value)
-
-    # Assert
-    assert isinstance(result, Fraction)
-
-
-@pytest.mark.parametrize(
     "operator, vrf_keyhash, pledge, cost, margin, reward_account, pool_owners, relays, pool_metadata",
     [
         # Test case ID: HP-1
@@ -222,7 +199,7 @@ def test_fraction_serializer(input_value):
             b"1" * VRF_KEY_HASH_SIZE,
             10_000_000,
             340_000_000,
-            "1/10",
+            Fraction(1, 10),
             b"1" * REWARD_ACCOUNT_HASH_SIZE,
             [b"1" * VERIFICATION_KEY_HASH_SIZE],
             [
@@ -267,7 +244,7 @@ def test_pool_params(
         vrf_keyhash,
         pledge,
         cost,
-        fraction_parser(margin),
+        margin,
         reward_account,
         pool_owners,
         relays,

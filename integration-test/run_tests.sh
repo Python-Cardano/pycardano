@@ -72,6 +72,9 @@ docker compose -f docker-compose-chang.yml up -d
 
 export PAYMENT_KEY="$ROOT"/configs/local-chang/shelley/utxo-keys/utxo1.skey
 export EXTENDED_PAYMENT_KEY="$ROOT"/keys/extended.skey
+export POOL_COLD_KEY="$ROOT"/keys/pool/cold.skey
+export POOL_PAYMENT_KEY="$ROOT"/keys/pool/payment.skey
+export POOL_STAKE_KEY="$ROOT"/keys/pool/stake.skey
 export POOL_ID=$(cat "$ROOT"/keys/pool/pool.id)
 
 sleep 10
