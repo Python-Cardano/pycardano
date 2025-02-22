@@ -97,9 +97,11 @@ class TestDelegation(TestBase):
             keys=[stake_address.encode()]
         )
 
-        stake_address_reward = rewards[stake_address.staking_part.payload.hex()][
-            "rewards"
-        ]["ada"]["lovelace"]
+        stake_address_reward = 0
+        if stake_address.staking_part.payload.hex() in rewards:
+            stake_address_reward = rewards[stake_address.staking_part.payload.hex()][
+                "rewards"
+            ]["ada"]["lovelace"]
 
         builder.withdrawals = Withdrawals({bytes(stake_address): stake_address_reward})
 
