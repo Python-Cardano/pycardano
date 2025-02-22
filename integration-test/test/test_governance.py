@@ -85,7 +85,12 @@ class TestGovernanceAction(TestBase):
         time.sleep(5)
 
         # Step 2: Create and submit parameter change action
-        info_proposal = InfoAction()
+        param_update = ProtocolParamUpdate(
+            max_block_body_size=75536,
+            max_transaction_size=26384,
+        )
+
+        parameter_change_action = ParameterChangeAction(None, param_update, None)
 
         # Create transaction for parameter change
         builder = TransactionBuilder(self.chain_context)
@@ -97,9 +102,9 @@ class TestGovernanceAction(TestBase):
         builder.add_proposal(
             100000000000,
             bytes(reward_account),
-            info_proposal,
+            parameter_change_action,
             Anchor(
-                url="https://test-info.com",
+                url="https://test-param-update.com",
                 data_hash=AnchorDataHash(bytes.fromhex("0" * 64)),
             ),
         )
