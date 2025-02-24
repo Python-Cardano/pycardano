@@ -948,6 +948,8 @@ class RedeemerTag(CBORSerializable, Enum):
     MINT = 1
     CERTIFICATE = 2
     WITHDRAWAL = 3
+    VOTING = 4
+    PROPOSING = 5
 
     def to_primitive(self) -> int:
         return self.value

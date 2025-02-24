@@ -40,9 +40,7 @@ class TestDelegation(TestBase):
             stake_credential = StakeCredential(
                 self.stake_key_pair.verification_key.hash()
             )
-            stake_registration = StakeRegistration(stake_credential)
             pool_hash = PoolKeyHash(bytes.fromhex(os.environ.get("POOL_ID").strip()))
-            # stake_delegation = StakeDelegation(stake_credential, pool_keyhash=pool_hash)
 
             drep = DRep(
                 DRepKind.VERIFICATION_KEY_HASH,
@@ -99,9 +97,11 @@ class TestDelegation(TestBase):
             keys=[stake_address.encode()]
         )
 
-        stake_address_reward = rewards[stake_address.staking_part.payload.hex()][
-            "rewards"
-        ]["ada"]["lovelace"]
+        stake_address_reward = 0
+        if stake_address.staking_part.payload.hex() in rewards:
+            stake_address_reward = rewards[stake_address.staking_part.payload.hex()][
+                "rewards"
+            ]["ada"]["lovelace"]
 
         builder.withdrawals = Withdrawals({bytes(stake_address): stake_address_reward})
 

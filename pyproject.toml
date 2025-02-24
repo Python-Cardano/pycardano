@@ -53,6 +53,9 @@ Flask = "^2.0.3"
 pytest-xdist = "^3.5.0"
 mypy = "1.11.2"
 
+[tool.poetry.group.dev.dependencies]
+standard-imghdr = "^3.13.0"
+
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"

@@ -15,6 +15,7 @@ from nacl.hash import blake2b
 from pycardano.address import Address
 from pycardano.certificate import Certificate
 from pycardano.exception import InvalidDataException
+from pycardano.governance import ProposalProcedure, VotingProcedures
 from pycardano.hash import (
     TRANSACTION_HASH_SIZE,
     AuxiliaryDataHash,
@@ -610,6 +611,22 @@ class TransactionBody(MapCBORSerializable):
             "key": 18,
             "optional": True,
         },
+    )
+
+    voting_procedures: Optional[VotingProcedures] = field(
+        default=None, metadata={"key": 19, "optional": True}
+    )
+
+    proposal_procedures: Optional[NonEmptyOrderedSet[ProposalProcedure]] = field(
+        default=None, metadata={"key": 20, "optional": True}
+    )
+
+    current_treasury_value: Optional[int] = field(
+        default=None, metadata={"key": 21, "optional": True}
+    )
+
+    donation: Optional[int] = field(
+        default=None, metadata={"key": 22, "optional": True}
     )
 
     def validate(self):

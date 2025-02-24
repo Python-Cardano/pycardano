@@ -6,9 +6,10 @@ import re
 import typing
 from collections import OrderedDict, UserList, defaultdict
 from copy import deepcopy
-from dataclasses import Field, dataclass, fields
+from dataclasses import Field, dataclass, field, fields
 from datetime import datetime
 from decimal import Decimal
+from fractions import Fraction
 from functools import wraps
 from inspect import getfullargspec, isclass
 from typing import (
@@ -39,8 +40,15 @@ except Exception as e:
     logger.warning("Failed to remove semantic decoder for CBOR tag 258", e)
     pass
 
-from cbor2 import CBOREncoder, CBORSimpleValue, CBORTag, dumps, loads, undefined
-from frozendict import frozendict
+from cbor2 import (
+    CBOREncoder,
+    CBORSimpleValue,
+    CBORTag,
+    FrozenDict,
+    dumps,
+    loads,
+    undefined,
+)
 from frozenlist import FrozenList
 from pprintpp import pformat
 
@@ -61,6 +69,7 @@ __all__ = [
     "limit_primitive_type",
     "OrderedSet",
     "NonEmptyOrderedSet",
+    "CodedSerializable",
 ]
 
 T = TypeVar("T")
@@ -122,8 +131,9 @@ Primitive = Union[
     CBORSimpleValue,
     CBORTag,
     set,
+    Fraction,
     frozenset,
-    frozendict,
+    FrozenDict,
     FrozenList,
     IndefiniteFrozenList,
     ByteString,
@@ -151,7 +161,8 @@ PRIMITIVE_TYPES = (
     CBORTag,
     set,
     frozenset,
-    frozendict,
+    FrozenDict,
+    Fraction,
     FrozenList,
     IndefiniteFrozenList,
 )
@@ -201,7 +212,7 @@ def default_encoder(
             RawCBOR,
             FrozenList,
             IndefiniteFrozenList,
-            frozendict,
+            FrozenDict,
         ),
     ), (
         f"Type of input value is not CBORSerializable, " f"got {type(value)} instead."
@@ -227,7 +238,7 @@ def default_encoder(
         encoder.write(value.cbor)
     elif isinstance(value, FrozenList):
         encoder.encode(list(value))
-    elif isinstance(value, frozendict):
+    elif isinstance(value, FrozenDict):
         encoder.encode(dict(value))
     else:
         encoder.encode(value.to_validated_primitive())
@@ -292,7 +303,7 @@ class CBORSerializable:
                 for k, v in value.items():
                     _dict[_dfs(k, freeze=True)] = _dfs(v, freeze)
                 if freeze:
-                    return frozendict(_dict)
+                    return FrozenDict(_dict)
                 return _dict
             elif isinstance(value, set):
                 _set = set(_dfs(v, freeze=True) for v in value)
@@ -344,7 +355,7 @@ class CBORSerializable:
                 return _check_recursive(value, type_hint.__args__[0])
             elif origin is Union:
                 return any(_check_recursive(value, arg) for arg in type_hint.__args__)
-            elif origin is Dict or isinstance(value, (dict, frozendict)):
+            elif origin is Dict or isinstance(value, (dict, FrozenDict)):
                 key_type, value_type = type_hint.__args__
                 return all(
                     _check_recursive(k, key_type) and _check_recursive(v, value_type)
@@ -810,8 +821,8 @@ class MapCBORSerializable(CBORSerializable):
         return primitives
 
     @classmethod
-    @limit_primitive_type(dict)
-    def from_primitive(cls: Type[MapBase], values: dict) -> MapBase:
+    @limit_primitive_type(dict, FrozenDict)
+    def from_primitive(cls: Type[MapBase], values: Union[dict, FrozenDict]) -> MapBase:
         """Restore a primitive value to its original class type.
 
         Args:
@@ -1034,10 +1045,14 @@ class OrderedSet(list, Generic[T], CBORSerializable):
                 value.value = [type_arg.from_primitive(v) for v in value.value]
             return cls(value.value, use_tag=True)
 
+        use_tag = isinstance(value, set)
+
         if isinstance(value, (list, tuple, set)):
             if isclass(type_arg) and issubclass(type_arg, CBORSerializable):
                 value = [type_arg.from_primitive(v) for v in value]
-            return cls(list(value), use_tag=False)
+
+            # If the value is a set, we know it is coming from a CBORTag (#6.258)
+            return cls(list(value), use_tag=use_tag)
 
         raise ValueError(f"Cannot deserialize {value} to {cls}")
 
@@ -1060,3 +1075,48 @@ class NonEmptyOrderedSet(OrderedSet[T]):
         if not result:
             raise ValueError("NonEmptyOrderedSet cannot be empty")
         return result
+
+
+@dataclass(repr=False)
+class CodedSerializable(ArrayCBORSerializable):
+    """A base class for CBORSerializable types that have a specific code.
+
+    This class provides a mechanism to validate the type of the object based on its first element.
+
+    Examples:
+        >>> from dataclasses import dataclass, field
+        >>> @dataclass
+        ... class TestCoded(CodedSerializable):
+        ...     _CODE = 1
+        ...     value: str
+        >>>
+        >>> # Create and serialize an instance
+        >>> test = TestCoded("hello")
+        >>> primitives = test.to_primitive()
+        >>> primitives
+        [1, 'hello']
+        >>>
+        >>> # Deserialize valid data
+        >>> restored = TestCoded.from_primitive(primitives)
+        >>> restored.value
+        'hello'
+        >>>
+        >>> # Attempting to deserialize with wrong code raises exception
+        >>> invalid_data = [2, "hello"]
+        >>> TestCoded.from_primitive(invalid_data)  # doctest: +IGNORE_EXCEPTION_DETAIL
+        Traceback (most recent call last):
+            ...
+        DeserializeException: Invalid TestCoded type 2
+    """
+
+    _CODE: int = field(init=False)
+
+    @classmethod
+    @limit_primitive_type(list, tuple)
+    def from_primitive(
+        cls: Type[CodedSerializable], values: Union[list, tuple]
+    ) -> CodedSerializable:
+        if values[0] != cls._CODE:
+            raise DeserializeException(f"Invalid {cls.__name__} type {values[0]}")
+        # Cast using Type[CodedSerializable] instead of cls directly
+        return cast(Type[CodedSerializable], super()).from_primitive(values[1:])
