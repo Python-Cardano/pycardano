@@ -11,9 +11,11 @@ from .base import TEST_RETRIES, TestBase
 class TestDelegation(TestBase):
     @retry(tries=TEST_RETRIES, backoff=1.3, delay=2, jitter=(0, 10))
     def test_stake_delegation(self):
+        stake_key_pair = StakeKeyPair.generate()
+
         address = Address(
             self.payment_key_pair.verification_key.hash(),
-            self.stake_key_pair.verification_key.hash(),
+            stake_key_pair.verification_key.hash(),
             self.NETWORK,
         )
 
@@ -38,17 +40,17 @@ class TestDelegation(TestBase):
             time.sleep(3)
 
             stake_credential = StakeCredential(
-                self.stake_key_pair.verification_key.hash()
+                stake_key_pair.verification_key.hash()
             )
             pool_hash = PoolKeyHash(bytes.fromhex(os.environ.get("POOL_ID").strip()))
 
             drep = DRep(
                 DRepKind.VERIFICATION_KEY_HASH,
-                self.stake_key_pair.verification_key.hash(),
+                stake_key_pair.verification_key.hash(),
             )
 
             drep_credential = DRepCredential(
-                self.stake_key_pair.verification_key.hash()
+                stake_key_pair.verification_key.hash()
             )
 
             anchor = Anchor(
@@ -72,7 +74,7 @@ class TestDelegation(TestBase):
             builder.certificates = [drep_registration, all_in_one_cert]
 
             signed_tx = builder.build_and_sign(
-                [self.stake_key_pair.signing_key, self.payment_key_pair.signing_key],
+                [stake_key_pair.signing_key, self.payment_key_pair.signing_key],
                 address,
             )
 
@@ -82,14 +84,14 @@ class TestDelegation(TestBase):
             print("############### Submitting transaction ###############")
             self.chain_context.submit_tx(signed_tx)
 
-        time.sleep(120)
+        time.sleep(5)
 
         builder = TransactionBuilder(self.chain_context)
 
         builder.add_input_address(address)
 
         stake_address = Address(
-            staking_part=self.stake_key_pair.verification_key.hash(),
+            staking_part=stake_key_pair.verification_key.hash(),
             network=self.NETWORK,
         )
 
@@ -108,7 +110,7 @@ class TestDelegation(TestBase):
         builder.add_output(TransactionOutput(address, 1000000))
 
         signed_tx = builder.build_and_sign(
-            [self.stake_key_pair.signing_key, self.payment_key_pair.signing_key],
+            [stake_key_pair.signing_key, self.payment_key_pair.signing_key],
             address,
         )
 
