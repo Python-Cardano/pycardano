@@ -39,9 +39,7 @@ class TestDelegation(TestBase):
 
             time.sleep(3)
 
-            stake_credential = StakeCredential(
-                stake_key_pair.verification_key.hash()
-            )
+            stake_credential = StakeCredential(stake_key_pair.verification_key.hash())
             pool_hash = PoolKeyHash(bytes.fromhex(os.environ.get("POOL_ID").strip()))
 
             drep = DRep(
@@ -49,9 +47,7 @@ class TestDelegation(TestBase):
                 stake_key_pair.verification_key.hash(),
             )
 
-            drep_credential = DRepCredential(
-                stake_key_pair.verification_key.hash()
-            )
+            drep_credential = DRepCredential(stake_key_pair.verification_key.hash())
 
             anchor = Anchor(
                 url="https://drep.com",
