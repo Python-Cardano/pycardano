@@ -176,7 +176,8 @@ class BlockFrostChainContext(ChainContext):
         script_type = self.api.script(script_hash).type
         if script_type.startswith("plutusV"):
             ps = PlutusScript.from_version(
-                int(script_type[-1]), bytes.fromhex(self.api.script_cbor(script_hash).cbor)
+                int(script_type[-1]),
+                bytes.fromhex(self.api.script_cbor(script_hash).cbor),
             )
             return _try_fix_script(script_hash, ps)
         else:
