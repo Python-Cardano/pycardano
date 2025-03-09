@@ -21,6 +21,7 @@ from pycardano.hash import (
 from pycardano.serialization import (
     ArrayCBORSerializable,
     CBORSerializable,
+    OrderedSet,
     limit_primitive_type,
 )
 
@@ -242,7 +243,7 @@ class PoolParams(ArrayCBORSerializable):
     cost: int
     margin: Fraction
     reward_account: RewardAccountHash
-    pool_owners: List[VerificationKeyHash]
+    pool_owners: Union[List[VerificationKeyHash], OrderedSet[VerificationKeyHash]]
     relays: Optional[List[Relay]] = None
     pool_metadata: Optional[PoolMetadata] = None
     id: Optional[PoolId] = field(default=None, metadata={"optional": True})
