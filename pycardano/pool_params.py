@@ -21,8 +21,8 @@ from pycardano.hash import (
 from pycardano.serialization import (
     ArrayCBORSerializable,
     CBORSerializable,
+    OrderedSet,
     limit_primitive_type,
-    OrderedSet
 )
 
 __all__ = [
