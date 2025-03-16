@@ -49,7 +49,6 @@ from cbor2 import (
     CBORTag,
     FrozenDict,
     dumps,
-    loads,
     undefined,
 )
 from frozenlist import FrozenList
@@ -208,7 +207,9 @@ class IndefiniteDecoder(CBORDecoder):
         length = self._decode_length(subtype, allow_indefinite=True)
 
         if length is None:
-            return IndefiniteList(super().decode_array(subtype=subtype))
+            return IndefiniteList(
+                cast(Primitive, super().decode_array(subtype=subtype))
+            )
         else:
             return super().decode_array(subtype=subtype)
 
@@ -531,7 +532,7 @@ class CBORSerializable:
         if type(payload) is str:
             payload = bytes.fromhex(payload)
 
-        with BytesIO(payload) as fp:
+        with BytesIO(cast(bytes, payload)) as fp:
             value = IndefiniteDecoder(fp).decode()
 
         return cls.from_primitive(value)
@@ -555,7 +556,7 @@ def _restore_dataclass_field(
 
     if "object_hook" in f.metadata:
         return f.metadata["object_hook"](v)
-    return _restore_typed_primitive(f.type, v)
+    return _restore_typed_primitive(cast(Any, f.type), v)
 
 
 def _restore_typed_primitive(
