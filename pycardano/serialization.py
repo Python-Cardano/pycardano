@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from io import BytesIO
 import re
 import typing
 from collections import OrderedDict, UserList, defaultdict
@@ -21,6 +22,7 @@ from typing import (
     Iterable,
     List,
     Optional,
+    Sequence,
     Set,
     Type,
     TypeVar,
@@ -41,6 +43,7 @@ except Exception as e:
     pass
 
 from cbor2 import (
+    CBORDecoder,
     CBOREncoder,
     CBORSimpleValue,
     CBORTag,
@@ -199,6 +202,17 @@ def limit_primitive_type(*allowed_types):
 CBORBase = TypeVar("CBORBase", bound="CBORSerializable")
 
 
+class IndefiniteDecoder(CBORDecoder):
+    def decode_array(self, subtype: int) -> Sequence[Any]:
+        # Major tag 4
+        length = self._decode_length(subtype, allow_indefinite=True)
+
+        if length is None:
+            return IndefiniteList(super().decode_array(subtype=subtype))
+        else:
+            return super().decode_array(subtype=subtype)
+
+
 def default_encoder(
     encoder: CBOREncoder, value: Union[CBORSerializable, IndefiniteList]
 ):
@@ -265,7 +279,7 @@ class CBORSerializable:
         does not refer to itself, which could cause infinite loops.
     """
 
-    def to_shallow_primitive(self) -> Primitive:
+    def to_shallow_primitive(self) -> Union[Primitive, CBORSerializable]:
         """
         Convert the instance to a CBOR primitive. If the primitive is a container, e.g. list, dict, the type of
         its elements could be either a Primitive or a CBORSerializable.
@@ -516,7 +530,10 @@ class CBORSerializable:
         """
         if type(payload) is str:
             payload = bytes.fromhex(payload)
-        value = loads(payload)  # type: ignore
+
+        with BytesIO(payload) as fp:
+            value = IndefiniteDecoder(fp).decode()
+
         return cls.from_primitive(value)
 
     def __repr__(self):
@@ -580,10 +597,14 @@ def _restore_typed_primitive(
             raise DeserializeException(
                 f"List types need exactly one type argument, but got {t_args}"
             )
-        t = t_args[0]
-        if not isinstance(v, list):
+        t_subtype = t_args[0]
+        if not isinstance(v, (list, IndefiniteList)):
             raise DeserializeException(f"Expected type list but got {type(v)}")
-        return IndefiniteList([_restore_typed_primitive(t, w) for w in v])
+        v_list = [_restore_typed_primitive(t_subtype, w) for w in v]
+        if t == IndefiniteList:
+            return IndefiniteList(v_list)
+        else:
+            return v_list
     elif isclass(t) and t == ByteString:
         if not isinstance(v, bytes):
             raise DeserializeException(f"Expected type bytes but got {type(v)}")

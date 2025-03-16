@@ -30,7 +30,7 @@ from pycardano import (
     VerificationKeyWitness,
 )
 from pycardano.exception import DeserializeException, SerializeException
-from pycardano.plutus import PlutusV1Script, PlutusV2Script
+from pycardano.plutus import PlutusData, PlutusV1Script, PlutusV2Script
 from pycardano.serialization import (
     ArrayCBORSerializable,
     ByteString,
@@ -366,6 +366,31 @@ def test_unexpected_validate_type():
 
     obj = Test1(a=None, b=dq)
     obj.validate()
+
+
+@pytest.mark.xfail
+def test_datum_raw_round_trip():
+    @dataclass
+    class TestDatum(PlutusData):
+        CONSTR_ID = 0
+        a: int
+        b: List[bytes]
+
+    datum = TestDatum(a=1, b=[b"test", b"datum"])
+    restored = RawPlutusData.from_cbor(datum.to_cbor())
+    assert datum.to_cbor_hex() == restored.to_cbor_hex()
+
+
+def test_datum_round_trip():
+    @dataclass
+    class TestDatum(PlutusData):
+        CONSTR_ID = 0
+        a: int
+        b: List[bytes]
+
+    datum = TestDatum(a=1, b=[b"test", b"datum"])
+    restored = TestDatum.from_cbor(datum.to_cbor())
+    assert datum.to_cbor_hex() == restored.to_cbor_hex()
 
 
 def test_wrong_primitive_type():
