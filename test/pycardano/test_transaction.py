@@ -416,6 +416,7 @@ def test_multi_asset_comparison():
     with pytest.raises(TypeCheckError):
         a <= 1
 
+
 def test_datum_witness():
     @dataclass
     class TestDatum(PlutusData):
@@ -431,6 +432,7 @@ def test_datum_witness():
     restored_tx = Transaction.from_cbor(signed_tx.to_cbor())
 
     assert signed_tx.to_cbor_hex() == restored_tx.to_cbor_hex()
+
 
 def test_values():
     a = Value.from_primitive(

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from io import BytesIO
 import re
 import typing
 from collections import OrderedDict, UserList, defaultdict
@@ -43,7 +42,6 @@ except Exception as e:
     pass
 
 from cbor2 import (
-    CBORDecoder,
     CBOREncoder,
     CBORSimpleValue,
     CBORTag,
@@ -200,21 +198,22 @@ def limit_primitive_type(*allowed_types):
 
 CBORBase = TypeVar("CBORBase", bound="CBORSerializable")
 
+
 def decode_array(self, subtype: int) -> Sequence[Any]:
     # Major tag 4
     length = self._decode_length(subtype, allow_indefinite=True)
 
     if length is None:
-        return IndefiniteList(
-            cast(Primitive, self.decode_array(subtype=subtype))
-        )
+        return IndefiniteList(cast(Primitive, self.decode_array(subtype=subtype)))
     else:
         return self.decode_array(subtype=subtype)
+
 
 try:
     cbor2._decoder.major_decoders[4] = decode_array
 except Exception as e:
     logger.warning("Failed to replace major decoder for indefinite array", e)
+
 
 def default_encoder(
     encoder: CBOREncoder, value: Union[CBORSerializable, IndefiniteList]
@@ -534,6 +533,8 @@ class CBORSerializable:
         if type(payload) is str:
             payload = bytes.fromhex(payload)
 
+        assert isinstance(payload, bytes)
+
         value = cbor2.loads(payload)
 
         return cls.from_primitive(value)
@@ -736,7 +737,9 @@ class ArrayCBORSerializable(CBORSerializable):
 
     @classmethod
     @limit_primitive_type(list, tuple, IndefiniteList)
-    def from_primitive(cls: Type[ArrayBase], values: Union[list, tuple, IndefiniteList]) -> ArrayBase:
+    def from_primitive(
+        cls: Type[ArrayBase], values: Union[list, tuple, IndefiniteList]
+    ) -> ArrayBase:
         """Restore a primitive value to its original class type.
 
         Args:
