@@ -200,19 +200,21 @@ def limit_primitive_type(*allowed_types):
 
 CBORBase = TypeVar("CBORBase", bound="CBORSerializable")
 
+def decode_array(self, subtype: int) -> Sequence[Any]:
+    # Major tag 4
+    length = self._decode_length(subtype, allow_indefinite=True)
 
-class IndefiniteDecoder(CBORDecoder):
-    def decode_array(self, subtype: int) -> Sequence[Any]:
-        # Major tag 4
-        length = self._decode_length(subtype, allow_indefinite=True)
+    if length is None:
+        return IndefiniteList(
+            cast(Primitive, self.decode_array(subtype=subtype))
+        )
+    else:
+        return self.decode_array(subtype=subtype)
 
-        if length is None:
-            return IndefiniteList(
-                cast(Primitive, super().decode_array(subtype=subtype))
-            )
-        else:
-            return super().decode_array(subtype=subtype)
-
+try:
+    cbor2._decoder.major_decoders[4] = decode_array
+except Exception as e:
+    logger.warning("Failed to replace major decoder for indefinite array", e)
 
 def default_encoder(
     encoder: CBOREncoder, value: Union[CBORSerializable, IndefiniteList]
@@ -532,8 +534,7 @@ class CBORSerializable:
         if type(payload) is str:
             payload = bytes.fromhex(payload)
 
-        with BytesIO(cast(bytes, payload)) as fp:
-            value = IndefiniteDecoder(fp).decode()
+        value = cbor2.loads(payload)
 
         return cls.from_primitive(value)
 
