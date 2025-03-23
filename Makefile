@@ -34,7 +34,8 @@ ensure-pure-cbor2: ## ensures cbor2 is installed with pure Python implementation
 	print(f'Using C extension: {using_c_ext}'); \
 	exit(1 if using_c_ext else 0)" || \
 	(echo "Reinstalling cbor2 with pure Python implementation..." && \
-	poetry run pip install --no-binary cbor2 "cbor2==$$(cat .cbor2_version)" --force-reinstall && \
+	poetry run pip uninstall -y cbor2 && \
+	CBOR2_BUILD_C_EXTENSION=0 poetry run pip install --no-binary cbor2 "cbor2==$$(cat .cbor2_version)" --force-reinstall && \
 	rm .cbor2_version)
 
 help:

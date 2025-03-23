@@ -6,6 +6,7 @@ set -o pipefail
 ROOT=$(pwd)
 
 poetry install -C ..
+make ensure-pure-cbor2 -f ../Makefile
 #poetry run pip install ogmios
 
 ##########
