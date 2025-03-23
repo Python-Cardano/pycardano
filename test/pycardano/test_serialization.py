@@ -368,7 +368,6 @@ def test_unexpected_validate_type():
     obj.validate()
 
 
-@pytest.mark.xfail
 def test_datum_raw_round_trip():
     @dataclass
     class TestDatum(PlutusData):

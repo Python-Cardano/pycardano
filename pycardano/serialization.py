@@ -735,8 +735,8 @@ class ArrayCBORSerializable(CBORSerializable):
         return primitives
 
     @classmethod
-    @limit_primitive_type(list, tuple)
-    def from_primitive(cls: Type[ArrayBase], values: Union[list, tuple]) -> ArrayBase:
+    @limit_primitive_type(list, tuple, IndefiniteList)
+    def from_primitive(cls: Type[ArrayBase], values: Union[list, tuple, IndefiniteList]) -> ArrayBase:
         """Restore a primitive value to its original class type.
 
         Args:
