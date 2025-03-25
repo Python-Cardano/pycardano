@@ -417,6 +417,23 @@ def test_multi_asset_comparison():
         a <= 1
 
 
+def test_datum_witness():
+    @dataclass
+    class TestDatum(PlutusData):
+        CONSTR_ID = 0
+        a: int
+        b: bytes
+
+    tx_body = make_transaction_body()
+    signed_tx = Transaction(
+        tx_body,
+        TransactionWitnessSet(vkey_witnesses=None, plutus_data=[TestDatum(1, b"test")]),
+    )
+    restored_tx = Transaction.from_cbor(signed_tx.to_cbor())
+
+    assert signed_tx.to_cbor_hex() == restored_tx.to_cbor_hex()
+
+
 def test_values():
     a = Value.from_primitive(
         [1, {b"1" * SCRIPT_HASH_SIZE: {b"Token1": 1, b"Token2": 2}}]

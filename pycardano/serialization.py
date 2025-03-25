@@ -21,6 +21,7 @@ from typing import (
     Iterable,
     List,
     Optional,
+    Sequence,
     Set,
     Type,
     TypeVar,
@@ -46,7 +47,6 @@ from cbor2 import (
     CBORTag,
     FrozenDict,
     dumps,
-    loads,
     undefined,
 )
 from frozenlist import FrozenList
@@ -199,6 +199,22 @@ def limit_primitive_type(*allowed_types):
 CBORBase = TypeVar("CBORBase", bound="CBORSerializable")
 
 
+def decode_array(self, subtype: int) -> Sequence[Any]:
+    # Major tag 4
+    length = self._decode_length(subtype, allow_indefinite=True)
+
+    if length is None:
+        return IndefiniteList(cast(Primitive, self.decode_array(subtype=subtype)))
+    else:
+        return self.decode_array(subtype=subtype)
+
+
+try:
+    cbor2._decoder.major_decoders[4] = decode_array
+except Exception as e:
+    logger.warning("Failed to replace major decoder for indefinite array", e)
+
+
 def default_encoder(
     encoder: CBOREncoder, value: Union[CBORSerializable, IndefiniteList]
 ):
@@ -265,7 +281,7 @@ class CBORSerializable:
         does not refer to itself, which could cause infinite loops.
     """
 
-    def to_shallow_primitive(self) -> Primitive:
+    def to_shallow_primitive(self) -> Union[Primitive, CBORSerializable]:
         """
         Convert the instance to a CBOR primitive. If the primitive is a container, e.g. list, dict, the type of
         its elements could be either a Primitive or a CBORSerializable.
@@ -516,7 +532,11 @@ class CBORSerializable:
         """
         if type(payload) is str:
             payload = bytes.fromhex(payload)
-        value = loads(payload)  # type: ignore
+
+        assert isinstance(payload, bytes)
+
+        value = cbor2.loads(payload)
+
         return cls.from_primitive(value)
 
     def __repr__(self):
@@ -538,7 +558,7 @@ def _restore_dataclass_field(
 
     if "object_hook" in f.metadata:
         return f.metadata["object_hook"](v)
-    return _restore_typed_primitive(f.type, v)
+    return _restore_typed_primitive(cast(Any, f.type), v)
 
 
 def _restore_typed_primitive(
@@ -580,10 +600,14 @@ def _restore_typed_primitive(
             raise DeserializeException(
                 f"List types need exactly one type argument, but got {t_args}"
             )
-        t = t_args[0]
-        if not isinstance(v, list):
+        t_subtype = t_args[0]
+        if not isinstance(v, (list, IndefiniteList)):
             raise DeserializeException(f"Expected type list but got {type(v)}")
-        return IndefiniteList([_restore_typed_primitive(t, w) for w in v])
+        v_list = [_restore_typed_primitive(t_subtype, w) for w in v]
+        if t == IndefiniteList:
+            return IndefiniteList(v_list)
+        else:
+            return v_list
     elif isclass(t) and t == ByteString:
         if not isinstance(v, bytes):
             raise DeserializeException(f"Expected type bytes but got {type(v)}")
@@ -712,8 +736,10 @@ class ArrayCBORSerializable(CBORSerializable):
         return primitives
 
     @classmethod
-    @limit_primitive_type(list, tuple)
-    def from_primitive(cls: Type[ArrayBase], values: Union[list, tuple]) -> ArrayBase:
+    @limit_primitive_type(list, tuple, IndefiniteList)
+    def from_primitive(
+        cls: Type[ArrayBase], values: Union[list, tuple, IndefiniteList]
+    ) -> ArrayBase:
         """Restore a primitive value to its original class type.
 
         Args:

@@ -5,6 +5,7 @@ docs/build
 dist
 .mypy_cache
 coverage.xml
+.cbor2_version
 
 # IDE
 .idea
