@@ -81,7 +81,7 @@ class CostModels(DictCBORSerializable):
                 cm = IndefiniteList([cost_model[k] for k in sorted(cost_model.keys())])
                 result[l_cbor] = cbor2.dumps(cm, default=default_encoder)
             else:
-                result[language] = [cost_model[k] for k in sorted(cost_model.keys())]
+                result[language] = [cost_model[k] for k in cost_model.keys()]
         return result
 
     @classmethod
