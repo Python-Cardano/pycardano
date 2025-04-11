@@ -1,12 +1,21 @@
+import json
 import pathlib
 import tempfile
 
+import pytest
+from mnemonic import Mnemonic
+
+from pycardano import HDWallet, StakeKeyPair, StakeSigningKey, StakeVerificationKey
+from pycardano.exception import InvalidKeyTypeException
 from pycardano.key import (
     ExtendedSigningKey,
     ExtendedVerificationKey,
+    Key,
+    PaymentExtendedSigningKey,
     PaymentKeyPair,
     PaymentSigningKey,
     PaymentVerificationKey,
+    StakeExtendedSigningKey,
     StakePoolKeyPair,
     StakePoolSigningKey,
     StakePoolVerificationKey,
@@ -59,6 +68,53 @@ EXTENDED_VK = ExtendedVerificationKey.from_json(
         "cborHex": "58409b693a62bce7a3cad1b9c02d22125767201c65db27484bb67d3cee7df7288d62c099ac0ce4a215355b149fd3114a2a7ef0438f01f8872c4487a61b469e26aae4"
     }"""
 )
+
+
+def test_invalid_key_type():
+    data = json.dumps(
+        {
+            "type": "invalid_type",
+            "payload": "example_payload",
+            "description": "example_description",
+        }
+    )
+
+    with pytest.raises(InvalidKeyTypeException):
+        Key.from_json(data, validate_type=True)
+
+
+def test_bytes_conversion():
+    assert bytes(Key(b"1234")) == b"1234"
+
+
+def test_eq_not_instance():
+    assert Key(b"hello") != "1234"
+
+
+def test_from_hdwallet_missing_xprivate_key():
+    with pytest.raises(InvalidKeyTypeException):
+        ExtendedSigningKey(b"1234").from_hdwallet(
+            HDWallet(
+                b"root_xprivate_key",
+                b"root_public_key",
+                b"root_chain_code",
+                None,
+                b"valid_public_key",
+                chain_code=b"valid_chain_code",
+            )
+        )
+
+    with pytest.raises(InvalidKeyTypeException):
+        ExtendedSigningKey(b"1234").from_hdwallet(
+            HDWallet(
+                b"root_xprivate_key",
+                b"root_public_key",
+                b"root_chain_code",
+                b"valid_xprivate_key",
+                b"valid_public_key",
+                None,
+            )
+        )
 
 
 def test_payment_key():
@@ -118,12 +174,25 @@ def test_extended_payment_key_sign():
 
 
 def test_key_pair():
+    PaymentSigningKey.generate()
+
+
+def test_payment_key_pair():
+    PaymentKeyPair.generate()
     sk = PaymentSigningKey.generate()
     vk = PaymentVerificationKey.from_signing_key(sk)
     assert PaymentKeyPair(sk, vk) == PaymentKeyPair.from_signing_key(sk)
 
 
+def test_stake_key_pair():
+    StakeKeyPair.generate()
+    sk = StakeSigningKey.generate()
+    vk = StakeVerificationKey.from_signing_key(sk)
+    assert StakeKeyPair(sk, vk) == StakeKeyPair.from_signing_key(sk)
+
+
 def test_stake_pool_key_pair():
+    StakePoolKeyPair.generate()
     sk = StakePoolSigningKey.generate()
     vk = StakePoolVerificationKey.from_signing_key(sk)
     assert StakePoolKeyPair(sk, vk) == StakePoolKeyPair.from_signing_key(sk)
@@ -151,6 +220,13 @@ def test_key_save():
         SK.save(f.name)
         sk = PaymentSigningKey.load(f.name)
         assert SK == sk
+
+
+def test_key_save_invalid_address():
+    with tempfile.NamedTemporaryFile() as f:
+        SK.save(f.name)
+        with pytest.raises(IOError):
+            VK.save(f.name)
 
 
 def test_stake_pool_key_save():
@@ -191,3 +267,15 @@ def test_stake_pool_key_hash():
 
     assert len(sk_set) == 1
     assert len(vk_set) == 1
+
+
+def test_extended_signing_key_from_hd_wallet_uses_type_and_description_from_class():
+    hd_wallet = HDWallet.from_mnemonic(Mnemonic().generate())
+
+    extended_payment_key = PaymentExtendedSigningKey.from_hdwallet(hd_wallet)
+    assert extended_payment_key.key_type == PaymentExtendedSigningKey.KEY_TYPE
+    assert extended_payment_key.description == PaymentExtendedSigningKey.DESCRIPTION
+
+    extended_stake_key = StakeExtendedSigningKey.from_hdwallet(hd_wallet)
+    assert extended_stake_key.key_type == StakeExtendedSigningKey.KEY_TYPE
+    assert extended_stake_key.description == StakeExtendedSigningKey.DESCRIPTION

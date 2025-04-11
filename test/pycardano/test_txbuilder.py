@@ -7,8 +7,15 @@ from test.pycardano.util import check_two_way_cbor
 from unittest.mock import patch
 
 import pytest
+from cbor2 import CBORTag
 
-from pycardano import AssetName, RedeemerKey, RedeemerMap, RedeemerValue
+from pycardano import (
+    AssetName,
+    RedeemerKey,
+    RedeemerMap,
+    RedeemerValue,
+    min_lovelace_post_alonzo,
+)
 from pycardano.address import Address
 from pycardano.certificate import (
     PoolRegistration,
@@ -74,14 +81,14 @@ def test_tx_builder(chain_context):
     tx_body = tx_builder.build(change_address=sender_address)
 
     expected = {
-        0: [[b"11111111111111111111111111111111", 0]],
+        0: CBORTag(258, [[b"11111111111111111111111111111111", 0]]),
         1: [
             # First output
             [sender_address.to_primitive(), 500000],
             # Second output as change
-            [sender_address.to_primitive(), 4334587],
+            [sender_address.to_primitive(), 4334323],
         ],
-        2: 165413,
+        2: 165677,
     }
 
     assert expected == tx_body.to_primitive()
@@ -101,21 +108,24 @@ def test_tx_builder_no_change(chain_context):
 
 
 def test_tx_builder_with_certain_input(chain_context):
-    tx_builder = TransactionBuilder(chain_context, [RandomImproveMultiAsset([0, 0])])
+    tx_builder = TransactionBuilder(chain_context)
     sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
     sender_address = Address.from_primitive(sender)
 
-    utxos = chain_context.utxos(sender)
+    tx_in1 = TransactionInput.from_primitive([b"2" * 32, 1])
+    tx_out1 = TransactionOutput.from_primitive(
+        [sender, [6000000, {b"1" * 28: {b"Token1": 1, b"Token2": 2}}]]
+    )
+    utxo1 = UTxO(tx_in1, tx_out1)
 
-    # Add sender address as input
-    tx_builder.add_input_address(sender).add_input(utxos[1]).add_output(
+    tx_builder.add_input(utxo1).add_output(
         TransactionOutput.from_primitive([sender, 500000])
     )
 
     tx_body = tx_builder.build(change_address=sender_address)
 
     expected = {
-        0: [[b"22222222222222222222222222222222", 1]],
+        0: CBORTag(258, [[b"2" * 32, 1]]),
         1: [
             # First output
             [sender_address.to_primitive(), 500000],
@@ -123,12 +133,12 @@ def test_tx_builder_with_certain_input(chain_context):
             [
                 sender_address.to_primitive(),
                 [
-                    5332431,
+                    5332167,
                     {b"1111111111111111111111111111": {b"Token1": 1, b"Token2": 2}},
                 ],
             ],
         ],
-        2: 167569,
+        2: 167833,
     }
 
     assert expected == tx_body.to_primitive()
@@ -178,10 +188,13 @@ def test_tx_builder_multi_asset(chain_context):
     tx_body = tx_builder.build(change_address=sender_address)
 
     expected = {
-        0: [
-            [b"11111111111111111111111111111111", 0],
-            [b"22222222222222222222222222222222", 1],
-        ],
+        0: CBORTag(
+            258,
+            [
+                [b"11111111111111111111111111111111", 0],
+                [b"22222222222222222222222222222222", 1],
+            ],
+        ),
         1: [
             # First output
             [sender_address.to_primitive(), 3000000],
@@ -193,10 +206,10 @@ def test_tx_builder_multi_asset(chain_context):
             # Third output as change
             [
                 sender_address.to_primitive(),
-                [5827767, {b"1111111111111111111111111111": {b"Token2": 2}}],
+                [5827503, {b"1111111111111111111111111111": {b"Token2": 2}}],
             ],
         ],
-        2: 172233,
+        2: 172497,
     }
 
     assert expected == tx_body.to_primitive()
@@ -221,9 +234,9 @@ def test_tx_builder_raises_utxo_selection(chain_context):
             change_address=sender_address,
         )
 
-    # The unfulfilled amount includes requested (991000000) and estimated fees (161277)
-    assert "Unfulfilled amount:\n {\n  'coin': 991161277" in e.value.args[0]
-    assert "{AssetName(b'NewToken'): 1}" in e.value.args[0]
+    # The unfulfilled amount includes requested amount and estimated fees
+    assert "'coin': 991161321" in e.value.args[0]
+    assert "AssetName(b'NewToken'): 1" in e.value.args[0]
 
 
 def test_tx_builder_state_logger_warning_level(chain_context, caplog):
@@ -282,16 +295,14 @@ def test_tx_small_utxo_precise_fee(chain_context):
     tx_body = tx_builder.build(change_address=sender_address)
 
     expect = {
-        0: [
-            [b"11111111111111111111111111111111", 3],
-        ],
+        0: CBORTag(258, [[b"11111111111111111111111111111111", 3]]),
         1: [
             # First output
             [sender_address.to_primitive(), 2500000],
             # Second output as change
-            [sender_address.to_primitive(), 1334587],
+            [sender_address.to_primitive(), 1334323],
         ],
-        2: 165413,
+        2: 165677,
     }
 
     assert expect == tx_body.to_primitive()
@@ -334,17 +345,20 @@ def test_tx_small_utxo_balance_pass(chain_context):
     tx_body = tx_builder.build(change_address=sender_address)
 
     expected = {
-        0: [
-            [b"11111111111111111111111111111111", 0],
-            [b"11111111111111111111111111111111", 3],
-        ],
+        0: CBORTag(
+            258,
+            [
+                [b"11111111111111111111111111111111", 0],
+                [b"11111111111111111111111111111111", 3],
+            ],
+        ),
         1: [
             # First output
             [sender_address.to_primitive(), 3000000],
             # Second output as change
-            [sender_address.to_primitive(), 5833003],
+            [sender_address.to_primitive(), 5832739],
         ],
-        2: 166997,
+        2: 167261,
     }
 
     assert expected == tx_body.to_primitive()
@@ -380,10 +394,13 @@ def test_tx_builder_mint_multi_asset(chain_context):
     tx_body = tx_builder.build(change_address=sender_address)
 
     expected = {
-        0: [
-            [b"11111111111111111111111111111111", 0],
-            [b"22222222222222222222222222222222", 1],
-        ],
+        0: CBORTag(
+            258,
+            [
+                [b"11111111111111111111111111111111", 0],
+                [b"22222222222222222222222222222222", 1],
+            ],
+        ),
         1: [
             # First output
             [sender_address.to_primitive(), 3000000],
@@ -393,16 +410,16 @@ def test_tx_builder_mint_multi_asset(chain_context):
             [
                 sender_address.to_primitive(),
                 [
-                    5809683,
+                    5809155,
                     {b"1111111111111111111111111111": {b"Token1": 1, b"Token2": 2}},
                 ],
             ],
         ],
-        2: 190317,
+        2: 190845,
         3: 123456789,
         8: 1000,
         9: mint,
-        14: [sender_address.payment_part.to_primitive()],
+        14: CBORTag(258, [sender_address.payment_part.to_primitive()]),
     }
 
     assert expected == tx_body.to_primitive()
@@ -464,10 +481,13 @@ def test_tx_add_change_split_nfts(chain_context):
     tx_body = tx_builder.build(change_address=sender_address)
 
     expected = {
-        0: [
-            [b"11111111111111111111111111111111", 0],
-            [b"22222222222222222222222222222222", 1],
-        ],
+        0: CBORTag(
+            258,
+            [
+                [b"11111111111111111111111111111111", 0],
+                [b"22222222222222222222222222222222", 1],
+            ],
+        ),
         1: [
             # First output
             [sender_address.to_primitive(), 7000000],
@@ -480,10 +500,10 @@ def test_tx_add_change_split_nfts(chain_context):
             # Fourth output as change
             [
                 sender_address.to_primitive(),
-                [2793367, {b"1111111111111111111111111111": {b"Token2": 2}}],
+                [2793103, {b"1111111111111111111111111111": {b"Token2": 2}}],
             ],
         ],
-        2: 172233,
+        2: 172497,
     }
 
     assert expected == tx_body.to_primitive()
@@ -625,8 +645,7 @@ def test_add_script_input_payment_script(chain_context):
     script_address = Address(vk1.hash())
     datum = PlutusData()
     utxo1 = UTxO(
-        tx_in1,
-        TransactionOutput(script_address, 10000000, datum_hash=datum.hash()),
+        tx_in1, TransactionOutput(script_address, 10000000, datum_hash=datum.hash())
     )
     redeemer = Redeemer(PlutusData(), ExecutionUnits(1000000, 1000000))
     pytest.raises(
@@ -1042,6 +1061,124 @@ def test_collateral_return(chain_context):
         )
 
 
+@pytest.mark.parametrize(
+    "collateral_amount, collateral_return_threshold, has_return",
+    [
+        (Value(4_000_000), 0, False),
+        (Value(4_000_000), 1_000_000, False),
+        (Value(6_000_000), 2_000_000, True),
+        (Value(6_000_000), 3_000_000, False),
+        (
+            Value(
+                6_000_000,
+                MultiAsset.from_primitive({b"1" * 28: {b"Token1": 1, b"Token2": 2}}),
+            ),
+            3_000_000,
+            True,
+        ),
+    ],
+)
+def test_no_collateral_return(
+    chain_context, collateral_amount, collateral_return_threshold, has_return
+):
+    original_utxos = chain_context.utxos(
+        "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    )
+    with patch.object(chain_context, "utxos") as mock_utxos:
+        tx_builder = TransactionBuilder(
+            chain_context, collateral_return_threshold=collateral_return_threshold
+        )
+        tx_in1 = TransactionInput.from_primitive(
+            ["18cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad21431590f7e6643438ef", 0]
+        )
+        plutus_script = PlutusV1Script(b"dummy test script")
+        script_hash = plutus_script_hash(plutus_script)
+        script_address = Address(script_hash)
+        datum = PlutusData()
+        utxo1 = UTxO(
+            tx_in1, TransactionOutput(script_address, 10000000, datum_hash=datum.hash())
+        )
+
+        existing_script_utxo = UTxO(
+            TransactionInput.from_primitive(
+                [
+                    "41cb004bec7051621b19b46aea28f0657a586a05ce2013152ea9b9f1a5614cc7",
+                    1,
+                ]
+            ),
+            TransactionOutput(script_address, 1234567, script=plutus_script),
+        )
+
+        original_utxos[0].output.amount = collateral_amount
+
+        mock_utxos.return_value = original_utxos[:1] + [existing_script_utxo]
+
+        redeemer = Redeemer(PlutusData(), ExecutionUnits(1000000, 1000000))
+        tx_builder.add_script_input(utxo1, datum=datum, redeemer=redeemer)
+        receiver = Address.from_primitive(
+            "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+        )
+        tx_builder.add_output(TransactionOutput(receiver, 5000000))
+        tx_body = tx_builder.build(change_address=receiver)
+        assert (tx_body.collateral_return is not None) == has_return
+        assert (tx_body.total_collateral is not None) == has_return
+
+
+def test_collateral_return_min_return_amount(chain_context):
+    original_utxos = chain_context.utxos(
+        "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    )
+    with patch.object(chain_context, "utxos") as mock_utxos:
+        tx_builder = TransactionBuilder(chain_context)
+        tx_in1 = TransactionInput.from_primitive(
+            ["18cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad21431590f7e6643438ef", 0]
+        )
+        plutus_script = PlutusV1Script(b"dummy test script")
+        script_hash = plutus_script_hash(plutus_script)
+        script_address = Address(script_hash)
+        datum = PlutusData()
+        utxo1 = UTxO(
+            tx_in1, TransactionOutput(script_address, 10000000, datum_hash=datum.hash())
+        )
+
+        existing_script_utxo = UTxO(
+            TransactionInput.from_primitive(
+                [
+                    "41cb004bec7051621b19b46aea28f0657a586a05ce2013152ea9b9f1a5614cc7",
+                    1,
+                ]
+            ),
+            TransactionOutput(script_address, 1234567, script=plutus_script),
+        )
+
+        original_utxos[0].output.amount.multi_asset = MultiAsset.from_primitive(
+            {
+                b"1"
+                * 28: {
+                    b"Token" + i.to_bytes(10, byteorder="big"): i for i in range(500)
+                }
+            }
+        )
+
+        original_utxos[0].output.amount.coin = min_lovelace_post_alonzo(
+            original_utxos[0].output, chain_context
+        )
+
+        mock_utxos.return_value = original_utxos + [existing_script_utxo]
+
+        redeemer = Redeemer(PlutusData(), ExecutionUnits(1000000, 1000000))
+        tx_builder.add_script_input(utxo1, datum=datum, redeemer=redeemer)
+        receiver = Address.from_primitive(
+            "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+        )
+        tx_builder.add_output(TransactionOutput(receiver, 5000000))
+        tx_body = tx_builder.build(change_address=receiver)
+        assert tx_body.collateral_return.address == receiver
+        assert tx_body.collateral_return.amount.coin >= min_lovelace_post_alonzo(
+            tx_body.collateral_return, chain_context
+        )
+
+
 def test_wrong_redeemer_execution_units(chain_context):
     tx_builder = TransactionBuilder(chain_context)
     tx_in1 = TransactionInput.from_primitive(
@@ -1156,7 +1293,9 @@ def test_add_minting_script_wrong_redeemer_type(chain_context):
 
 
 def test_excluded_input(chain_context):
-    tx_builder = TransactionBuilder(chain_context, [RandomImproveMultiAsset([0, 0])])
+    tx_builder = TransactionBuilder(
+        chain_context, [RandomImproveMultiAsset([0, 0, 0, 0, 0])]
+    )
     sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
     sender_address = Address.from_primitive(sender)
 
@@ -1170,7 +1309,7 @@ def test_excluded_input(chain_context):
     tx_body = tx_builder.build(change_address=sender_address)
 
     expected = {
-        0: [[b"22222222222222222222222222222222", 1]],
+        0: CBORTag(258, [[b"22222222222222222222222222222222", 1]]),
         1: [
             # First output
             [sender_address.to_primitive(), 500000],
@@ -1178,12 +1317,12 @@ def test_excluded_input(chain_context):
             [
                 sender_address.to_primitive(),
                 [
-                    5332431,
+                    5332167,
                     {b"1111111111111111111111111111": {b"Token1": 1, b"Token2": 2}},
                 ],
             ],
         ],
-        2: 167569,
+        2: 167833,
     }
 
     assert expected == tx_body.to_primitive()
@@ -1218,10 +1357,8 @@ def test_build_and_sign(chain_context):
         VerificationKeyWitness(SK.to_verification_key(), SK.sign(tx_body.hash()))
     ]
     assert (
-        "a300818258203131313131313131313131313131313131313131313131313131313131313131"
-        "00018282581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f41a0007"
-        "a12082581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f41a004223"
-        "fb021a00028625" == tx_body.to_cbor_hex()
+        "a300d9010281825820313131313131313131313131313131313131313131313131313131313131313100018282581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f41a0007a12082581d60f6532850e1bccee9c72a9113ad98bcc5dbb30d2ac960262444f6e5f41a004222f3021a0002872d"
+        == tx_body.to_cbor_hex()
     )
 
 
@@ -1310,11 +1447,11 @@ def test_tx_builder_exact_fee_no_change(chain_context):
     tx = tx_builder.build_and_sign([SK])
 
     expected = {
-        0: [[b"11111111111111111111111111111111", 3]],
+        0: CBORTag(258, [[b"11111111111111111111111111111111", 3]]),
         1: [
-            [sender_address.to_primitive(), 9836215],
+            [sender_address.to_primitive(), 9835951],
         ],
-        2: 163785,
+        2: 164049,
     }
 
     assert expected == tx.transaction_body.to_primitive()
@@ -1346,14 +1483,14 @@ def test_tx_builder_certificates(chain_context):
     tx_body = tx_builder.build(change_address=sender_address)
 
     expected = {
-        0: [[b"11111111111111111111111111111111", 0]],
+        0: CBORTag(258, [[b"11111111111111111111111111111111", 0]]),
         1: [
             # First output
             [sender_address.to_primitive(), 500000],
             # Second output as change
-            [sender_address.to_primitive(), 2325743],
+            [sender_address.to_primitive(), 2325479],
         ],
-        2: 174257,
+        2: 174521,
         4: [
             [0, [0, b"1111111111111111111111111111"]],
             [2, [0, b"1111111111111111111111111111"], b"1111111111111111111111111111"],
@@ -1465,14 +1602,14 @@ def test_tx_builder_stake_pool_registration(chain_context, pool_params):
     tx_body = tx_builder.build(change_address=sender_address)
 
     expected = {
-        0: [[b"22222222222222222222222222222222", 2]],
+        0: CBORTag(258, [[b"22222222222222222222222222222222", 2]]),
         1: [
             [
                 b"`\xf6S(P\xe1\xbc\xce\xe9\xc7*\x91\x13\xad\x98\xbc\xc5\xdb\xb3\r*\xc9`&$D\xf6\xe5\xf4",
-                4819407,
+                4819143,
             ]
         ],
-        2: 180593,
+        2: 180857,
         4: [
             [
                 3,
@@ -1521,14 +1658,14 @@ def test_tx_builder_withdrawal(chain_context):
     tx_body = tx_builder.build(change_address=sender_address)
 
     expected = {
-        0: [[b"11111111111111111111111111111111", 0]],
+        0: CBORTag(258, [[b"11111111111111111111111111111111", 0]]),
         1: [
             # First output
             [sender_address.to_primitive(), 500000],
             # Second output as change
-            [sender_address.to_primitive(), 4338559],
+            [sender_address.to_primitive(), 4338295],
         ],
-        2: 171441,
+        2: 171705,
         5: {
             b"\xe0H(\xa2\xda\xdb\xa9|\xa9\xfd\x0c\xdc\x99\x97X\x99G\x0c!\x9b\xdc\r\x82\x8c\xfam\xdfmi": 10000
         },
@@ -1556,11 +1693,11 @@ def test_tx_builder_no_output(chain_context):
     )
 
     expected = {
-        0: [[b"11111111111111111111111111111111", 3]],
+        0: CBORTag(258, [[b"11111111111111111111111111111111", 3]]),
         1: [
-            [sender_address.to_primitive(), 9836215],
+            [sender_address.to_primitive(), 9835951],
         ],
-        2: 163785,
+        2: 164049,
     }
 
     assert expected == tx_body.to_primitive()
@@ -1586,11 +1723,11 @@ def test_tx_builder_merge_change_to_output(chain_context):
     )
 
     expected = {
-        0: [[b"11111111111111111111111111111111", 3]],
+        0: CBORTag(258, [[b"11111111111111111111111111111111", 3]]),
         1: [
-            [sender_address.to_primitive(), 9836215],
+            [sender_address.to_primitive(), 9835951],
         ],
-        2: 163785,
+        2: 164049,
     }
 
     assert expected == tx_body.to_primitive()
@@ -1620,13 +1757,13 @@ def test_tx_builder_merge_change_to_output_2(chain_context):
     )
 
     expected = {
-        0: [[b"11111111111111111111111111111111", 3]],
+        0: CBORTag(258, [[b"11111111111111111111111111111111", 3]]),
         1: [
             [sender_address.to_primitive(), 10000],
             [receiver_address.to_primitive(), 10000],
-            [sender_address.to_primitive(), 9813135],
+            [sender_address.to_primitive(), 9812871],
         ],
-        2: 166865,
+        2: 167129,
     }
 
     assert expected == tx_body.to_primitive()
@@ -1652,11 +1789,11 @@ def test_tx_builder_merge_change_to_zero_amount_output(chain_context):
     )
 
     expected = {
-        0: [[b"11111111111111111111111111111111", 3]],
+        0: CBORTag(258, [[b"11111111111111111111111111111111", 3]]),
         1: [
-            [sender_address.to_primitive(), 9836215],
+            [sender_address.to_primitive(), 9835951],
         ],
-        2: 163785,
+        2: 164049,
     }
 
     assert expected == tx_body.to_primitive()
@@ -1682,11 +1819,11 @@ def test_tx_builder_merge_change_smaller_than_min_utxo(chain_context):
     )
 
     expected = {
-        0: [[b"11111111111111111111111111111111", 3]],
+        0: CBORTag(258, [[b"11111111111111111111111111111111", 3]]),
         1: [
-            [sender_address.to_primitive(), 9836215],
+            [sender_address.to_primitive(), 9835951],
         ],
-        2: 163785,
+        2: 164049,
     }
 
     assert expected == tx_body.to_primitive()
@@ -2122,5 +2259,8 @@ def test_burning_all_assets_under_single_policy(chain_context):
         # Ensure that AssetName1, AssetName2, AssetName3 and AssetName4 were burnt (removed)
         assert AssetName(b"AssetName1") not in multi_asset.get(policy_id_1, {})
         assert AssetName(b"AssetName2") not in multi_asset.get(policy_id_1, {})
+        assert AssetName(b"AssetName3") not in multi_asset.get(policy_id_1, {})
+        assert AssetName(b"AseetName4") not in multi_asset.get(policy_id_1, {})
+
         assert AssetName(b"AssetName3") not in multi_asset.get(policy_id_1, {})
         assert AssetName(b"AseetName4") not in multi_asset.get(policy_id_1, {})

@@ -288,8 +288,7 @@
     "anchor": {
       "url": "ipfs://QmQq5hWDNzvDR1ForEktAHrdCQmfSL2u5yctNpzDwoSBu4",
       "dataHash": "23b43bebac48a4acc39e578715aa06635d6d900fa3ea7441dfffd6e43b914f7b"
-    },
-    "script": "edcd84c10e36ae810dc50847477083069db796219b39ccde790484e0"
+    }
   },
   "committee": {
     "members": {

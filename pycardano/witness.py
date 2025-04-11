@@ -17,6 +17,7 @@ from pycardano.plutus import (
 from pycardano.serialization import (
     ArrayCBORSerializable,
     MapCBORSerializable,
+    NonEmptyOrderedSet,
     limit_primitive_type,
     list_hook,
 )
@@ -36,7 +37,7 @@ class VerificationKeyWitness(ArrayCBORSerializable):
             self.vkey = self.vkey.to_non_extended()
 
     @classmethod
-    @limit_primitive_type(list)
+    @limit_primitive_type(list, tuple)
     def from_primitive(
         cls: Type[VerificationKeyWitness], values: Union[list, tuple]
     ) -> VerificationKeyWitness:
@@ -48,18 +49,24 @@ class VerificationKeyWitness(ArrayCBORSerializable):
 
 @dataclass(repr=False)
 class TransactionWitnessSet(MapCBORSerializable):
-    vkey_witnesses: Optional[List[VerificationKeyWitness]] = field(
+    vkey_witnesses: Optional[
+        Union[List[VerificationKeyWitness], NonEmptyOrderedSet[VerificationKeyWitness]]
+    ] = field(
         default=None,
         metadata={
-            "optional": True,
             "key": 0,
-            "object_hook": list_hook(VerificationKeyWitness),
+            "optional": True,
         },
     )
 
-    native_scripts: Optional[List[NativeScript]] = field(
+    native_scripts: Optional[
+        Union[List[NativeScript], NonEmptyOrderedSet[NativeScript]]
+    ] = field(
         default=None,
-        metadata={"optional": True, "key": 1, "object_hook": list_hook(NativeScript)},
+        metadata={
+            "key": 1,
+            "optional": True,
+        },
     )
 
     # TODO: Add bootstrap witness (byron) support
@@ -67,8 +74,14 @@ class TransactionWitnessSet(MapCBORSerializable):
         default=None, metadata={"optional": True, "key": 2}
     )
 
-    plutus_v1_script: Optional[List[PlutusV1Script]] = field(
-        default=None, metadata={"optional": True, "key": 3}
+    plutus_v1_script: Optional[
+        Union[List[PlutusV1Script], NonEmptyOrderedSet[PlutusV1Script]]
+    ] = field(
+        default=None,
+        metadata={
+            "key": 3,
+            "optional": True,
+        },
     )
 
     plutus_data: Optional[List[Any]] = field(
@@ -81,10 +94,35 @@ class TransactionWitnessSet(MapCBORSerializable):
         metadata={"optional": True, "key": 5},
     )
 
-    plutus_v2_script: Optional[List[PlutusV2Script]] = field(
-        default=None, metadata={"optional": True, "key": 6}
+    plutus_v2_script: Optional[
+        Union[List[PlutusV2Script], NonEmptyOrderedSet[PlutusV2Script]]
+    ] = field(
+        default=None,
+        metadata={
+            "key": 6,
+            "optional": True,
+        },
     )
 
-    plutus_v3_script: Optional[List[PlutusV3Script]] = field(
-        default=None, metadata={"optional": True, "key": 7}
+    plutus_v3_script: Optional[
+        Union[List[PlutusV3Script], NonEmptyOrderedSet[PlutusV3Script]]
+    ] = field(
+        default=None,
+        metadata={
+            "key": 7,
+            "optional": True,
+        },
     )
+
+    def __post_init__(self):
+        # Convert lists to NonEmptyOrderedSet for fields that should use NonEmptyOrderedSet
+        if isinstance(self.vkey_witnesses, list):
+            self.vkey_witnesses = NonEmptyOrderedSet(self.vkey_witnesses)
+        if isinstance(self.native_scripts, list):
+            self.native_scripts = NonEmptyOrderedSet(self.native_scripts)
+        if isinstance(self.plutus_v1_script, list):
+            self.plutus_v1_script = NonEmptyOrderedSet(self.plutus_v1_script)
+        if isinstance(self.plutus_v2_script, list):
+            self.plutus_v2_script = NonEmptyOrderedSet(self.plutus_v2_script)
+        if isinstance(self.plutus_v3_script, list):
+            self.plutus_v3_script = NonEmptyOrderedSet(self.plutus_v3_script)

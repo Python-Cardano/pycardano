@@ -27,7 +27,7 @@ class HelloWorldRedeemer(PlutusData):
 
 
 class TestPlutus(TestBase):
-    @retry(tries=TEST_RETRIES, backoff=1.5, delay=6, jitter=(0, 4))
+    @retry(tries=TEST_RETRIES, backoff=1.3, delay=2, jitter=(0, 10))
     def test_plutus_v1(self):
         # ----------- Giver give ---------------
 
@@ -110,7 +110,7 @@ class TestPlutus(TestBase):
 
         self.assert_output(taker_address, take_output)
 
-    @retry(tries=TEST_RETRIES, backoff=1.5, delay=6, jitter=(0, 4))
+    @retry(tries=TEST_RETRIES, backoff=1.3, delay=2, jitter=(0, 10))
     @pytest.mark.post_alonzo
     def test_plutus_v2_datum_hash(self):
         # ----------- Giver give ---------------
@@ -185,7 +185,7 @@ class TestPlutus(TestBase):
 
         self.assert_output(taker_address, take_output)
 
-    @retry(tries=TEST_RETRIES, backoff=1.5, delay=6, jitter=(0, 4))
+    @retry(tries=TEST_RETRIES, backoff=1.3, delay=2, jitter=(0, 10))
     @pytest.mark.post_alonzo
     def test_plutus_v2_inline_script_inline_datum(self):
         # ----------- Giver give ---------------
@@ -248,7 +248,7 @@ class TestPlutus(TestBase):
 
         self.assert_output(taker_address, take_output)
 
-    @retry(tries=TEST_RETRIES, backoff=1.5, delay=6, jitter=(0, 4))
+    @retry(tries=TEST_RETRIES, backoff=1.3, delay=2, jitter=(0, 10))
     @pytest.mark.post_alonzo
     def test_plutus_v2_ref_script(self):
         # ----------- Create a reference script ---------------
@@ -329,7 +329,7 @@ class TestPlutus(TestBase):
 
         self.assert_output(taker_address, take_output)
 
-    @retry(tries=TEST_RETRIES, backoff=1.5, delay=6, jitter=(0, 4))
+    @retry(tries=TEST_RETRIES, backoff=1.3, delay=2, jitter=(0, 10))
     @pytest.mark.post_alonzo
     def test_transaction_chaining(self):
         giver_address = Address(self.payment_vkey.hash(), network=self.NETWORK)
@@ -350,7 +350,7 @@ class TestPlutus(TestBase):
         self.chain_context.submit_tx(tx1)
         self.chain_context.submit_tx(tx2)
 
-    @retry(tries=TEST_RETRIES, backoff=1.5, delay=6, jitter=(0, 4))
+    @retry(tries=TEST_RETRIES, backoff=1.3, delay=2, jitter=(0, 10))
     @pytest.mark.post_alonzo
     def test_get_plutus_script(self):
         # ----------- Giver give ---------------
@@ -383,7 +383,7 @@ class TestPlutus(TestBase):
 
         assert utxos[0].output.script == forty_two_script
 
-    @retry(tries=TEST_RETRIES, backoff=1.5, delay=6, jitter=(0, 4))
+    @retry(tries=TEST_RETRIES, backoff=1.3, delay=2, jitter=(0, 10))
     @pytest.mark.post_chang
     def test_plutus_v3(self):
         # ----------- Giver give ---------------

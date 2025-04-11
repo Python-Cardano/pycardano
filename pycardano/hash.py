@@ -18,6 +18,8 @@ __all__ = [
     "ConstrainedBytes",
     "VerificationKeyHash",
     "ScriptHash",
+    "PolicyHash",
+    "PolicyId",
     "ScriptDataHash",
     "TransactionId",
     "DatumHash",
@@ -26,6 +28,7 @@ __all__ = [
     "PoolMetadataHash",
     "VrfKeyHash",
     "RewardAccountHash",
+    "AnchorDataHash",
 ]
 
 VERIFICATION_KEY_HASH_SIZE = 28
@@ -38,6 +41,7 @@ POOL_KEY_HASH_SIZE = 28
 POOL_METADATA_HASH_SIZE = 32
 VRF_KEY_HASH_SIZE = 32
 REWARD_ACCOUNT_HASH_SIZE = 29
+ANCHOR_DATA_HASH_SIZE = 32
 
 
 T = TypeVar("T", bound="ConstrainedBytes")
@@ -107,6 +111,14 @@ class ScriptHash(ConstrainedBytes):
     MAX_SIZE = MIN_SIZE = SCRIPT_HASH_SIZE
 
 
+class PolicyHash(ScriptHash):
+    pass
+
+
+class PolicyId(ScriptHash):
+    pass
+
+
 class ScriptDataHash(ConstrainedBytes):
     """Hash of script data. See
     https://github.com/input-output-hk/cardano-ledger/blob/525844be05adae151e82069dcd0000f3301ca0d0/eras/alonzo/
@@ -155,3 +167,9 @@ class RewardAccountHash(ConstrainedBytes):
     """Hash of a Cardano VRF key."""
 
     MAX_SIZE = MIN_SIZE = REWARD_ACCOUNT_HASH_SIZE
+
+
+class AnchorDataHash(ConstrainedBytes):
+    """Hash of anchor data."""
+
+    MAX_SIZE = MIN_SIZE = ANCHOR_DATA_HASH_SIZE

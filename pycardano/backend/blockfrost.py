@@ -20,13 +20,7 @@ from pycardano.exception import TransactionFailedException
 from pycardano.hash import SCRIPT_HASH_SIZE, DatumHash, ScriptHash
 from pycardano.nativescript import NativeScript
 from pycardano.network import Network
-from pycardano.plutus import (
-    ExecutionUnits,
-    PlutusV1Script,
-    PlutusV2Script,
-    PlutusV3Script,
-    script_hash,
-)
+from pycardano.plutus import ExecutionUnits, PlutusScript, ScriptType, script_hash
 from pycardano.serialization import RawCBOR
 from pycardano.transaction import (
     Asset,
@@ -42,9 +36,7 @@ from pycardano.types import JsonDict
 __all__ = ["BlockFrostChainContext"]
 
 
-def _try_fix_script(
-    scripth: str, script: Union[PlutusV1Script, PlutusV2Script, PlutusV3Script]
-) -> Union[PlutusV1Script, PlutusV2Script, PlutusV3Script]:
+def _try_fix_script(scripth: str, script: PlutusScript) -> PlutusScript:
     if str(script_hash(script)) == scripth:
         return script
     else:
@@ -180,25 +172,14 @@ class BlockFrostChainContext(ChainContext):
             )
         return self._protocol_param
 
-    def _get_script(
-        self, script_hash: str
-    ) -> Union[PlutusV1Script, PlutusV2Script, PlutusV3Script, NativeScript]:
+    def _get_script(self, script_hash: str) -> ScriptType:
         script_type = self.api.script(script_hash).type
-        if script_type == "plutusV1":
-            v1script = PlutusV1Script(
-                bytes.fromhex(self.api.script_cbor(script_hash).cbor)
+        if script_type.lower().startswith("plutusv"):
+            ps = PlutusScript.from_version(
+                int(script_type[-1]),
+                bytes.fromhex(self.api.script_cbor(script_hash).cbor),
             )
-            return _try_fix_script(script_hash, v1script)
-        elif script_type == "plutusV2":
-            v2script = PlutusV2Script(
-                bytes.fromhex(self.api.script_cbor(script_hash).cbor)
-            )
-            return _try_fix_script(script_hash, v2script)
-        elif script_type == "plutusV3":
-            v3script = PlutusV3Script(
-                bytes.fromhex(self.api.script_cbor(script_hash).cbor)
-            )
-            return _try_fix_script(script_hash, v3script)
+            return _try_fix_script(script_hash, ps)
         else:
             script_json: JsonDict = self.api.script_json(
                 script_hash, return_type="json"

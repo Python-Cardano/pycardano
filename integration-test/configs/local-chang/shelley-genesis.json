@@ -21,7 +21,7 @@
         "keyDeposit": 1000000,
         "protocolVersion": {
             "minor": 0,
-            "major": 9
+            "major": 10
         },
         "poolDeposit": 1000000,
         "a0": 0.0,
@@ -46,5 +46,5 @@
         "pools": {},
         "stake": {}
     },
-    "epochLength": 4
+    "epochLength": 10
 }

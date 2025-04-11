@@ -5,9 +5,11 @@ docs/build
 dist
 .mypy_cache
 coverage.xml
+.cbor2_version
 
 # IDE
 .idea
 .code
 /integration-test/.env
 /integration-test/tmp_configs/*
+/integration-test/.coverage*

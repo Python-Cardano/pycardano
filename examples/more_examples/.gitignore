@@ -1,0 +1,5 @@
+.env
+/keys/*
+!keys/.gitkeep 
+tempfile.pdf
+tempfile_copy.pdf

@@ -1,6 +1,7 @@
 """An example that demonstrates low-level construction of a transaction."""
 
 import os
+import time
 
 import ogmios as python_ogmios
 from retry import retry
@@ -33,6 +34,9 @@ class TestBase:
 
     payment_key_path = os.environ.get("PAYMENT_KEY")
     extended_key_path = os.environ.get("EXTENDED_PAYMENT_KEY")
+    pool_cold_key_path = os.environ.get("POOL_COLD_KEY")
+    pool_payment_key_path = os.environ.get("POOL_PAYMENT_KEY")
+    pool_stake_key_path = os.environ.get("POOL_STAKE_KEY")
     if not payment_key_path or not extended_key_path:
         raise Exception(
             "Cannot find payment key. Please specify environment variable PAYMENT_KEY and extended_key_path"
@@ -43,6 +47,12 @@ class TestBase:
     extended_payment_vkey = PaymentExtendedVerificationKey.from_signing_key(
         extended_payment_skey
     )
+    pool_cold_skey = PaymentSigningKey.load(pool_cold_key_path)
+    pool_cold_vkey = PaymentVerificationKey.from_signing_key(pool_cold_skey)
+    pool_payment_skey = PaymentSigningKey.load(pool_payment_key_path)
+    pool_payment_vkey = PaymentVerificationKey.from_signing_key(pool_payment_skey)
+    pool_stake_skey = StakeSigningKey.load(pool_stake_key_path)
+    pool_stake_vkey = StakeVerificationKey.from_signing_key(pool_stake_skey)
 
     payment_key_pair = PaymentKeyPair.generate()
     stake_key_pair = StakeKeyPair.generate()
