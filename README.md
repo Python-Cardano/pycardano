@@ -254,6 +254,5 @@ You can support us by 1) sponsoring through Github, or 2) donating ADA to our AD
 ## Sponsors :heart:
 
 <p align="left">
-  <a href="https://github.com/KtorZ"><img src="https://avatars.githubusercontent.com/u/5680256?s=50&v=4"/></a>
   <a href="https://github.com/blockfrost"><img src="https://avatars.githubusercontent.com/u/70073210?s=50&v=4"/></a>
 </p>

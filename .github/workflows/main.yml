@@ -14,7 +14,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
-        python-version: ['3.8', '3.9', '3.10', '3.11']
+        python-version: ['3.8', '3.9', '3.10', '3.11', '3.12', '3.13']
 
     steps:
       - uses: actions/checkout@v4
@@ -28,6 +28,9 @@ jobs:
       - name: Install dependencies
         run: |
           poetry install
+      - name: Ensure pure cbor2 is installed
+        run: |
+          make ensure-pure-cbor2
       - name: Run unit tests
         run: |
           poetry run pytest --doctest-modules --ignore=examples --cov=pycardano --cov-config=.coveragerc --cov-report=xml
@@ -35,8 +38,8 @@ jobs:
         if: ${{ matrix.python-version == '3.11' }}
         uses: codecov/codecov-action@v4
         with:
-          fail_ci_if_error: true
-          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN || '' }}
       - name: Run static analyses
         if: ${{ matrix.python-version == '3.11' }}
         run: |
@@ -72,8 +75,8 @@ jobs:
         if: ${{ matrix.python-version == '3.11' }}
         uses: codecov/codecov-action@v4
         with:
-          fail_ci_if_error: true
-          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN || '' }}
 
       - name: Dump docker logs
         if: failure()

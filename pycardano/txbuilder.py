@@ -11,10 +11,18 @@ from pycardano.certificate import (
     Certificate,
     PoolRegistration,
     PoolRetirement,
+    RegDRepCert,
+    StakeAndVoteDelegation,
     StakeCredential,
     StakeDelegation,
     StakeDeregistration,
+    StakeDeregistrationConway,
     StakeRegistration,
+    StakeRegistrationAndDelegation,
+    StakeRegistrationAndDelegationAndVoteDelegation,
+    StakeRegistrationAndVoteDelegation,
+    StakeRegistrationConway,
+    VoteDelegation,
 )
 from pycardano.coinselection import (
     LargestFirstSelector,
@@ -28,17 +36,27 @@ from pycardano.exception import (
     TransactionBuilderException,
     UTxOSelectionException,
 )
+from pycardano.governance import (
+    Anchor,
+    GovAction,
+    GovActionId,
+    GovActionIdToVotingProcedure,
+    ProposalProcedure,
+    Vote,
+    Voter,
+    VotingProcedure,
+    VotingProcedures,
+)
 from pycardano.hash import DatumHash, ScriptDataHash, ScriptHash, VerificationKeyHash
 from pycardano.key import ExtendedSigningKey, SigningKey, VerificationKey
 from pycardano.logging import log_state, logger
 from pycardano.metadata import AuxiliaryData
 from pycardano.nativescript import NativeScript, ScriptAll, ScriptAny, ScriptPubkey
 from pycardano.plutus import (
-    PLUTUS_V1_COST_MODEL,
-    PLUTUS_V2_COST_MODEL,
     CostModels,
     Datum,
     ExecutionUnits,
+    PlutusScript,
     PlutusV1Script,
     PlutusV2Script,
     PlutusV3Script,
@@ -51,6 +69,7 @@ from pycardano.plutus import (
     datum_hash,
     script_hash,
 )
+from pycardano.serialization import NonEmptyOrderedSet, OrderedSet
 from pycardano.transaction import (
     Asset,
     AssetName,
@@ -127,6 +146,16 @@ class TransactionBuilder:
     use_redeemer_map: Optional[bool] = field(default=True)
     """Whether to serialize redeemers as a map or a list. Default is True."""
 
+    voting_procedures: Optional[VotingProcedures] = field(init=False, default=None)
+
+    proposal_procedures: Optional[NonEmptyOrderedSet[ProposalProcedure]] = field(
+        init=False, default=None
+    )
+
+    current_treasury_value: Optional[int] = field(init=False, default=None)
+
+    donation: Optional[int] = field(init=False, default=None)
+
     _inputs: List[UTxO] = field(init=False, default_factory=lambda: [])
 
     _potential_inputs: List[UTxO] = field(init=False, default_factory=lambda: [])
@@ -144,6 +173,10 @@ class TransactionBuilder:
     _datums: Dict[DatumHash, Datum] = field(init=False, default_factory=lambda: {})
 
     _collateral_return: Optional[TransactionOutput] = field(init=False, default=None)
+
+    collateral_return_threshold: int = 1_000_000
+    """The minimum amount of lovelace above which
+    the remaining collateral (total_collateral_amount - actually_used_amount) will be returned."""
 
     _total_collateral: Optional[int] = field(init=False, default=None)
 
@@ -167,9 +200,9 @@ class TransactionBuilder:
         init=False, default_factory=lambda: {}
     )
 
-    _reference_scripts: List[
-        Union[NativeScript, PlutusV1Script, PlutusV2Script, PlutusV3Script]
-    ] = field(init=False, default_factory=lambda: [])
+    _reference_scripts: List[Union[NativeScript, PlutusScript]] = field(
+        init=False, default_factory=lambda: []
+    )
 
     _should_estimate_execution_units: Optional[bool] = field(init=False, default=None)
 
@@ -214,9 +247,7 @@ class TransactionBuilder:
     def add_script_input(
         self,
         utxo: UTxO,
-        script: Optional[
-            Union[UTxO, NativeScript, PlutusV1Script, PlutusV2Script, PlutusV3Script]
-        ] = None,
+        script: Optional[Union[UTxO, NativeScript, PlutusScript]] = None,
         datum: Optional[Datum] = None,
         redeemer: Optional[Redeemer] = None,
     ) -> TransactionBuilder:
@@ -224,7 +255,7 @@ class TransactionBuilder:
 
         Args:
             utxo (UTxO): Script UTxO to be added.
-            script (Optional[Union[UTxO, NativeScript, PlutusV1Script, PlutusV2Script, PlutusV3Script]]):
+            script (Optional[Union[UTxO, NativeScript, PlutusScript]]):
                 A plutus script.
                 If not provided, the script will be inferred from the input UTxO (first arg of this method).
                 The script can also be a specific UTxO whose output contains an inline script.
@@ -277,7 +308,7 @@ class TransactionBuilder:
         # collect potential scripts to fulfill the input
         candidate_scripts: List[
             Tuple[
-                Union[NativeScript, PlutusV1Script, PlutusV2Script, PlutusV3Script],
+                Union[NativeScript, PlutusScript],
                 Optional[UTxO],
             ]
         ] = []
@@ -320,15 +351,13 @@ class TransactionBuilder:
 
     def add_minting_script(
         self,
-        script: Union[
-            UTxO, NativeScript, PlutusV1Script, PlutusV2Script, PlutusV3Script
-        ],
+        script: Union[UTxO, NativeScript, PlutusScript],
         redeemer: Optional[Redeemer] = None,
     ) -> TransactionBuilder:
         """Add a minting script along with its datum and redeemer to this transaction.
 
         Args:
-            script (Union[UTxO, PlutusV1Script, PlutusV2Script, PlutusV3Script]): A plutus script.
+            script (Union[UTxO, PlutusScript): A plutus script.
             redeemer (Optional[Redeemer]): A plutus redeemer to unlock the UTxO.
 
         Returns:
@@ -354,15 +383,13 @@ class TransactionBuilder:
 
     def add_withdrawal_script(
         self,
-        script: Union[
-            UTxO, NativeScript, PlutusV1Script, PlutusV2Script, PlutusV3Script
-        ],
+        script: Union[UTxO, NativeScript, PlutusScript],
         redeemer: Optional[Redeemer] = None,
     ) -> TransactionBuilder:
         """Add a withdrawal script along with its redeemer to this transaction.
 
         Args:
-            script (Union[UTxO, PlutusV1Script, PlutusV2Script, PlutusV3Script]): A plutus script.
+            script (Union[UTxO, PlutusScript]): A plutus script.
             redeemer (Optional[Redeemer]): A plutus redeemer to unlock the UTxO.
 
         Returns:
@@ -390,9 +417,7 @@ class TransactionBuilder:
 
     def add_certificate_script(
         self,
-        script: Union[
-            UTxO, NativeScript, PlutusV1Script, PlutusV2Script, PlutusV3Script
-        ],
+        script: Union[UTxO, NativeScript, PlutusScript],
         redeemer: Optional[Redeemer] = None,
     ) -> TransactionBuilder:
         """Add a certificate script along with its redeemer to this transaction.
@@ -400,7 +425,7 @@ class TransactionBuilder:
         The index of the redeemer will be set to the index of the last certificate added.
 
         Args:
-            script (Union[UTxO, PlutusV1Script, PlutusV2Script, PlutusV3Script]): A plutus script.
+            script (Union[UTxO, PlutusScript]): A plutus script.
             redeemer (Optional[Redeemer]): A plutus redeemer to unlock the UTxO.
 
         Returns:
@@ -577,19 +602,16 @@ class TransactionBuilder:
         if self.datums or self._redeemer_list:
             cost_models = {}
             for s in self.all_scripts:
-                if isinstance(s, PlutusV1Script) or type(s) is bytes:
-                    cost_models[0] = (
-                        self.context.protocol_param.cost_models.get("PlutusV1")
-                        or PLUTUS_V1_COST_MODEL
-                    )
-                if isinstance(s, PlutusV2Script):
-                    cost_models[1] = (
-                        self.context.protocol_param.cost_models.get("PlutusV2")
-                        or PLUTUS_V2_COST_MODEL
-                    )
-                if isinstance(s, PlutusV3Script):
-                    cost_models[2] = self.context.protocol_param.cost_models.get(
-                        "PlutusV3", {}
+                version = -1
+                if isinstance(s, PlutusScript):
+                    version = s.version
+                elif type(s) is bytes:
+                    version = 1
+                if version != -1:
+                    cost_models[version - 1] = (
+                        self.context.protocol_param.cost_models.get(
+                            f"PlutusV{version}", {}
+                        )
                     )
             return script_data_hash(
                 self.redeemers(), list(self.datums.values()), CostModels(cost_models)
@@ -616,6 +638,7 @@ class TransactionBuilder:
                 provided.coin += v
 
         provided.coin -= self._get_total_key_deposit()
+        provided.coin -= self._get_total_proposal_deposit()
 
         if not requested < provided:
             raise InvalidTransactionException(
@@ -721,9 +744,6 @@ class TransactionBuilder:
 
         # With changes included, we can estimate the fee more precisely
         self.fee = self._estimate_fee()
-        # Beyond this, the computed fee is not updated anymore so we can add the fee buffer
-        if self.fee_buffer is not None:
-            self.fee += self.fee_buffer
 
         if change_address:
             self._outputs = original_outputs
@@ -865,17 +885,41 @@ class TransactionBuilder:
         if self.certificates:
             for cert in self.certificates:
                 if isinstance(
-                    cert, (StakeRegistration, StakeDeregistration, StakeDelegation)
+                    cert,
+                    (
+                        StakeRegistration,
+                        StakeDeregistration,
+                        StakeDelegation,
+                        StakeRegistrationConway,
+                        StakeDeregistrationConway,
+                        VoteDelegation,
+                        StakeAndVoteDelegation,
+                        StakeRegistrationAndDelegation,
+                        StakeRegistrationAndVoteDelegation,
+                        StakeRegistrationAndDelegationAndVoteDelegation,
+                    ),
                 ):
                     _check_and_add_vkey(cert.stake_credential)
+                elif isinstance(cert, RegDRepCert):
+                    _check_and_add_vkey(cert.drep_credential)
                 elif isinstance(cert, PoolRegistration):
                     results.add(cert.pool_params.operator)
                 elif isinstance(cert, PoolRetirement):
                     results.add(cert.pool_keyhash)
         return results
 
+    def _vote_vkey_hashes(self) -> Set[VerificationKeyHash]:
+        results = set()
+
+        if self.voting_procedures:
+            for voter in self.voting_procedures:
+                if isinstance(voter.credential, VerificationKeyHash):
+                    results.add(voter.credential)
+        return results
+
     def _get_total_key_deposit(self):
         stake_registration_certs = set()
+        stake_registration_certs_with_explicit_deposit = set()
         stake_pool_registration_certs = set()
 
         protocol_params = self.context.protocol_param
@@ -884,6 +928,17 @@ class TransactionBuilder:
             for cert in self.certificates:
                 if isinstance(cert, StakeRegistration):
                     stake_registration_certs.add(cert.stake_credential.credential)
+                elif isinstance(
+                    cert,
+                    (
+                        RegDRepCert,
+                        StakeRegistrationConway,
+                        StakeRegistrationAndDelegation,
+                        StakeRegistrationAndVoteDelegation,
+                        StakeRegistrationAndDelegationAndVoteDelegation,
+                    ),
+                ):
+                    stake_registration_certs_with_explicit_deposit.add(cert.coin)
                 elif (
                     isinstance(cert, PoolRegistration)
                     and self.initial_stake_pool_registration
@@ -892,11 +947,18 @@ class TransactionBuilder:
 
         stake_registration_deposit = protocol_params.key_deposit * len(
             stake_registration_certs
-        )
+        ) + sum(stake_registration_certs_with_explicit_deposit)
         stake_pool_registration_deposit = protocol_params.pool_deposit * len(
             stake_pool_registration_certs
         )
         return stake_registration_deposit + stake_pool_registration_deposit
+
+    def _get_total_proposal_deposit(self):
+        proposal_deposit = 0
+        if self.proposal_procedures:
+            for proposal in self.proposal_procedures:
+                proposal_deposit += proposal.deposit
+        return proposal_deposit
 
     def _withdrawal_vkey_hashes(self) -> Set[VerificationKeyHash]:
         results = set()
@@ -966,7 +1028,7 @@ class TransactionBuilder:
 
     def _build_tx_body(self) -> TransactionBody:
         tx_body = TransactionBody(
-            [i.input for i in self.inputs],
+            OrderedSet([i.input for i in self.inputs]),
             self.outputs,
             fee=self.fee,
             ttl=self.ttl,
@@ -975,20 +1037,42 @@ class TransactionBuilder:
                 self.auxiliary_data.hash() if self.auxiliary_data else None
             ),
             script_data_hash=self.script_data_hash,
-            required_signers=self.required_signers if self.required_signers else None,
+            required_signers=(
+                NonEmptyOrderedSet(self.required_signers)
+                if self.required_signers
+                else None
+            ),
             validity_start=self.validity_start,
             collateral=(
-                [c.input for c in self.collaterals] if self.collaterals else None
+                NonEmptyOrderedSet([c.input for c in self.collaterals])
+                if self.collaterals
+                else None
             ),
             certificates=self.certificates,
             withdraws=self.withdrawals,
             collateral_return=self._collateral_return,
             total_collateral=self._total_collateral,
             reference_inputs=(
-                [i.input if isinstance(i, UTxO) else i for i in self.reference_inputs]
+                NonEmptyOrderedSet(
+                    [
+                        i.input if isinstance(i, UTxO) else i
+                        for i in self.reference_inputs
+                    ]
+                )
                 if self.reference_inputs
                 else None
             ),
+            # Add new governance fields
+            voting_procedures=(
+                self.voting_procedures if self.voting_procedures else None
+            ),
+            proposal_procedures=(
+                self.proposal_procedures if self.proposal_procedures else None
+            ),
+            current_treasury_value=(
+                self.current_treasury_value if self.current_treasury_value else None
+            ),
+            donation=self.donation if self.donation else None,
         )
         return tx_body
 
@@ -998,21 +1082,46 @@ class TransactionBuilder:
         vkey_hashes.update(self._native_scripts_vkey_hashes())
         vkey_hashes.update(self._certificate_vkey_hashes())
         vkey_hashes.update(self._withdrawal_vkey_hashes())
+        vkey_hashes.update(self._vote_vkey_hashes())
         return vkey_hashes
 
-    def _build_fake_vkey_witnesses(self) -> List[VerificationKeyWitness]:
-        vkey_hashes = self._build_required_vkeys()
+    def _witness_count(self) -> int:
+        return self.witness_override or len(self._build_required_vkeys())
 
-        witness_count = self.witness_override or len(vkey_hashes)
-
-        return [
-            VerificationKeyWitness(FAKE_VKEY, FAKE_TX_SIGNATURE)
-            for _ in range(witness_count)
-        ]
+    def _build_fake_vkey_witnesses(self) -> NonEmptyOrderedSet[VerificationKeyWitness]:
+        witnesses = []
+        for i in range(self._witness_count()):
+            # Convert index to 32 bytes and use AND operation to create unique keys
+            i_bytes = i.to_bytes(32, "big")
+            unique_vkey = VerificationKey.from_primitive(
+                bytes(
+                    x & y
+                    for x, y in zip(
+                        bytes.fromhex(
+                            "5797dc2cc919dfec0bb849551ebdf30d96e5cbe0f33f734a87fe826db30f7ef9"
+                        ),
+                        i_bytes,
+                    )
+                )
+            )
+            unique_sig = bytes(
+                x & y
+                for x, y in zip(
+                    bytes.fromhex(
+                        "577ccb5b487b64e396b0976c6f71558e52e44ad254db7d06dfb79843e5441a5d"
+                        "763dd42adcf5e8805d70373722ebbce62a58e3f30dd4560b9a898b8ceeab6a03"
+                    ),
+                    i_bytes + i_bytes,  # 64 bytes for signature
+                )
+            )
+            witnesses.append(VerificationKeyWitness(unique_vkey, unique_sig))
+        return NonEmptyOrderedSet(witnesses)
 
     def _build_fake_witness_set(self) -> TransactionWitnessSet:
         witness_set = self.build_witness_set()
-        witness_set.vkey_witnesses = self._build_fake_vkey_witnesses()
+        if self._witness_count() > 0:
+            witness_set.vkey_witnesses = self._build_fake_vkey_witnesses()
+
         return witness_set
 
     def _build_full_fake_tx(self) -> Transaction:
@@ -1032,6 +1141,7 @@ class TransactionBuilder:
                 f"({self.context.protocol_param.max_tx_size}). Please try reducing the "
                 f"number of inputs or outputs."
             )
+
         return tx
 
     def build_witness_set(
@@ -1048,10 +1158,10 @@ class TransactionBuilder:
             TransactionWitnessSet: A transaction witness set without verification key witnesses.
         """
 
-        native_scripts: List[NativeScript] = []
-        plutus_v1_scripts: List[PlutusV1Script] = []
-        plutus_v2_scripts: List[PlutusV2Script] = []
-        plutus_v3_scripts: List[PlutusV3Script] = []
+        native_scripts: NonEmptyOrderedSet[NativeScript] = NonEmptyOrderedSet()
+        plutus_v1_scripts: NonEmptyOrderedSet[PlutusV1Script] = NonEmptyOrderedSet()
+        plutus_v2_scripts: NonEmptyOrderedSet[PlutusV2Script] = NonEmptyOrderedSet()
+        plutus_v3_scripts: NonEmptyOrderedSet[PlutusV3Script] = NonEmptyOrderedSet()
 
         input_scripts = (
             {
@@ -1203,6 +1313,7 @@ class TransactionBuilder:
                     break
 
         selected_amount.coin -= self._get_total_key_deposit()
+        selected_amount.coin -= self._get_total_proposal_deposit()
 
         requested_amount = Value()
         for o in self.outputs:
@@ -1351,6 +1462,20 @@ class TransactionBuilder:
 
         return tx_body
 
+    def _should_add_collateral_return(self, collateral_return: Value) -> bool:
+        """Check if it is necessary to add a collateral return output.
+
+        Args:
+            collateral_return (Value): The potential collateral return amount.
+
+        Returns:
+            bool: True if a collateral return output should be added, False otherwise.
+        """
+        return (
+            collateral_return.coin > max(self.collateral_return_threshold, 1_000_000)
+            or collateral_return.multi_asset.count(lambda p, n, v: v > 0) > 0
+        )
+
     def _set_collateral_return(self, collateral_return_address: Optional[Address]):
         """Calculate and set the change returned from the collateral inputs.
 
@@ -1381,7 +1506,20 @@ class TransactionBuilder:
             tmp_val = Value()
 
             def _add_collateral_input(cur_total, candidate_inputs):
-                while cur_total.coin < collateral_amount and candidate_inputs:
+                cur_collateral_return = cur_total - collateral_amount
+
+                while (
+                    cur_total.coin < collateral_amount
+                    or self._should_add_collateral_return(cur_collateral_return)
+                    and 0
+                    <= cur_collateral_return.coin
+                    < min_lovelace_post_alonzo(
+                        TransactionOutput(
+                            collateral_return_address, cur_collateral_return
+                        ),
+                        self.context,
+                    )
+                ) and candidate_inputs:
                     candidate = candidate_inputs.pop()
                     if (
                         not candidate.output.address.address_type.name.startswith(
@@ -1391,6 +1529,7 @@ class TransactionBuilder:
                     ):
                         self.collaterals.append(candidate)
                         cur_total += candidate.output.amount
+                        cur_collateral_return = cur_total - collateral_amount
 
             sorted_inputs = sorted(
                 self.inputs.copy(),
@@ -1424,6 +1563,10 @@ class TransactionBuilder:
             )
         else:
             return_amount = total_input - collateral_amount
+
+            if not self._should_add_collateral_return(return_amount):
+                return  # No need to return collateral if the remaining amount is too small
+
             min_lovelace_val = min_lovelace_post_alonzo(
                 TransactionOutput(collateral_return_address, return_amount),
                 self.context,
@@ -1535,6 +1678,8 @@ class TransactionBuilder:
         """
         # The given signers should be required signers if they weren't added yet
         if auto_required_signers and self.scripts and not self.required_signers:
+            # Collect all signatories from explicitly defined
+            # transaction inputs and collateral inputs, and input addresses
             self.required_signers = [
                 s.to_verification_key().hash() for s in signing_keys
             ]
@@ -1548,7 +1693,7 @@ class TransactionBuilder:
             auto_required_signers=auto_required_signers,
         )
         witness_set = self.build_witness_set(True)
-        witness_set.vkey_witnesses = []
+        witness_set.vkey_witnesses = NonEmptyOrderedSet()
 
         required_vkeys = self._build_required_vkeys()
 
@@ -1568,3 +1713,79 @@ class TransactionBuilder:
             witness_set.vkey_witnesses = None
 
         return Transaction(tx_body, witness_set, auxiliary_data=self.auxiliary_data)
+
+    # Add helper methods for governance operations
+    def add_vote(
+        self,
+        voter: Voter,
+        gov_action_id: GovActionId,
+        vote: Vote,
+        anchor: Optional[Anchor] = None,
+    ) -> TransactionBuilder:
+        """Add a vote to the transaction.
+
+        Args:
+            voter: The voter casting the vote
+            gov_action_id: The ID of the governance action being voted on
+            vote: The vote being cast (YES/NO/ABSTAIN)
+            anchor: Optional metadata about the vote
+
+        Returns:
+            self: The transaction builder instance
+        """
+        if self.voting_procedures is None:
+            self.voting_procedures = VotingProcedures()
+
+        # Initialize the inner map if this is the first vote for this voter
+        if voter not in self.voting_procedures:
+            self.voting_procedures[voter] = GovActionIdToVotingProcedure()
+
+        # Add the voting procedure for this specific governance action
+        self.voting_procedures[voter][gov_action_id] = VotingProcedure(vote, anchor)
+
+        return self
+
+    def add_proposal(
+        self,
+        deposit: int,
+        reward_account: bytes,
+        gov_action: GovAction,
+        anchor: Anchor,
+    ) -> TransactionBuilder:
+        """Add a governance proposal to the transaction.
+
+        Args:
+            deposit: The deposit amount required for the proposal
+            reward_account: The reward account for the proposal
+            gov_action: The governance action being proposed
+            anchor: Metadata about the proposal
+
+        Returns:
+            self: The transaction builder instance
+        """
+        if self.proposal_procedures is None:
+            self.proposal_procedures = NonEmptyOrderedSet()
+
+        self.proposal_procedures.append(
+            ProposalProcedure(
+                deposit=deposit,
+                reward_account=reward_account,
+                gov_action=gov_action,
+                anchor=anchor,
+            )
+        )
+        return self
+
+    def add_treasury_donation(self, amount: int) -> TransactionBuilder:
+        """Add a donation to the treasury.
+
+        Args:
+            amount: The amount to donate (must be positive)
+
+        Returns:
+            self: The transaction builder instance
+        """
+        if amount <= 0:
+            raise ValueError("Treasury donation amount must be positive")
+        self.donation = amount
+        return self

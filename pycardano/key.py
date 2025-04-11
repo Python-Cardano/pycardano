@@ -211,8 +211,8 @@ class ExtendedSigningKey(Key):
 
         return cls(
             payload=hdwallet.xprivate_key + hdwallet.public_key + hdwallet.chain_code,
-            key_type="PaymentExtendedSigningKeyShelley_ed25519_bip32",
-            description="Payment Signing Key",
+            key_type=cls.KEY_TYPE,
+            description=cls.DESCRIPTION,
         )
 
 
@@ -317,6 +317,13 @@ class StakeKeyPair:
         cls: Type[StakeKeyPair], signing_key: SigningKey
     ) -> StakeKeyPair:
         return cls(signing_key, StakeVerificationKey.from_signing_key(signing_key))
+
+    def __eq__(self, other):
+        if isinstance(other, StakeKeyPair):
+            return (
+                other.signing_key == self.signing_key
+                and other.verification_key == self.verification_key
+            )
 
 
 class StakePoolSigningKey(SigningKey):

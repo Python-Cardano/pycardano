@@ -123,7 +123,9 @@ class AuxiliaryData(CBORSerializable):
         return self.data.to_primitive()
 
     @classmethod
-    def from_primitive(cls: Type[AuxiliaryData], value: Primitive) -> AuxiliaryData:
+    def from_primitive(
+        cls: Type[AuxiliaryData], value: Primitive, type_args: Optional[tuple] = None
+    ) -> AuxiliaryData:
         for t in [AlonzoMetadata, ShelleyMarryMetadata, Metadata]:
             # The schema of metadata in different eras are mutually exclusive, so we can try deserializing
             # them one by one without worrying about mismatch.

@@ -21,6 +21,7 @@ from pycardano.hash import (
 from pycardano.serialization import (
     ArrayCBORSerializable,
     CBORSerializable,
+    OrderedSet,
     limit_primitive_type,
 )
 
@@ -165,7 +166,7 @@ class SingleHostAddr(ArrayCBORSerializable):
         ]
 
     @classmethod
-    @limit_primitive_type(list)
+    @limit_primitive_type(list, tuple)
     def from_primitive(
         cls: Type[SingleHostAddr], values: Union[list, tuple]
     ) -> SingleHostAddr:
@@ -190,7 +191,7 @@ class SingleHostName(ArrayCBORSerializable):
         self._CODE = 1
 
     @classmethod
-    @limit_primitive_type(list)
+    @limit_primitive_type(list, tuple)
     def from_primitive(
         cls: Type[SingleHostName], values: Union[list, tuple]
     ) -> SingleHostName:
@@ -213,7 +214,7 @@ class MultiHostName(ArrayCBORSerializable):
         self._CODE = 2
 
     @classmethod
-    @limit_primitive_type(list)
+    @limit_primitive_type(list, tuple)
     def from_primitive(
         cls: Type[MultiHostName], values: Union[list, tuple]
     ) -> MultiHostName:
@@ -234,28 +235,15 @@ class PoolMetadata(ArrayCBORSerializable):
     pool_metadata_hash: PoolMetadataHash
 
 
-def fraction_parser(fraction: Union[Fraction, str, list]) -> Fraction:
-    if isinstance(fraction, Fraction):
-        return Fraction(int(fraction.numerator), int(fraction.denominator))
-    elif isinstance(fraction, str):
-        numerator, denominator = fraction.split("/")
-        return Fraction(int(numerator), int(denominator))
-    elif isinstance(fraction, list):
-        numerator, denominator = fraction[1]
-        return Fraction(int(numerator), int(denominator))
-    else:
-        raise ValueError(f"Invalid fraction type {fraction}")
-
-
 @dataclass(repr=False)
 class PoolParams(ArrayCBORSerializable):
     operator: PoolKeyHash
     vrf_keyhash: VrfKeyHash
     pledge: int
     cost: int
-    margin: Fraction = field(metadata={"object_hook": fraction_parser})
+    margin: Fraction
     reward_account: RewardAccountHash
-    pool_owners: List[VerificationKeyHash]
+    pool_owners: Union[List[VerificationKeyHash], OrderedSet[VerificationKeyHash]]
     relays: Optional[List[Relay]] = None
     pool_metadata: Optional[PoolMetadata] = None
     id: Optional[PoolId] = field(default=None, metadata={"optional": True})
