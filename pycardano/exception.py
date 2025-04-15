@@ -60,3 +60,7 @@ class MaxInputCountExceededException(UTxOSelectionException):
 
 class InputUTxODepletedException(UTxOSelectionException):
     pass
+
+
+class CardanoCliError(PyCardanoException):
+    pass

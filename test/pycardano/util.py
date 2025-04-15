@@ -6,7 +6,7 @@ from pycardano import ExecutionUnits
 from pycardano.backend.base import ChainContext, GenesisParameters, ProtocolParameters
 from pycardano.network import Network
 from pycardano.serialization import CBORSerializable
-from pycardano.transaction import TransactionInput, TransactionOutput, UTxO, Value
+from pycardano.transaction import TransactionInput, TransactionOutput, UTxO
 
 TEST_ADDR = "addr_test1vr2p8st5t5cxqglyjky7vk98k7jtfhdpvhl4e97cezuhn0cqcexl7"
 
@@ -46,6 +46,8 @@ class FixedChainContext(ChainContext):
         coins_per_utxo_word=34482,
         coins_per_utxo_byte=4310,
         cost_models={},
+        min_fee_reference_scripts={"base": 44, "range": 25600, "multiplier": 1.2},
+        maximum_reference_scripts_size={"bytes": 200_000},
     )
 
     _genesis_param = GenesisParameters(

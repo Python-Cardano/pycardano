@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from typing import Dict, List, Optional, Union
 
 import cbor2
@@ -10,7 +11,7 @@ from nacl.hash import blake2b
 
 from pycardano.backend.base import ChainContext
 from pycardano.hash import SCRIPT_DATA_HASH_SIZE, SCRIPT_HASH_SIZE, ScriptDataHash
-from pycardano.plutus import COST_MODELS, CostModels, Datum, Redeemer
+from pycardano.plutus import COST_MODELS, CostModels, Datum, Redeemers
 from pycardano.serialization import default_encoder
 from pycardano.transaction import MultiAsset, TransactionOutput, Value
 
@@ -22,7 +23,49 @@ __all__ = [
     "min_lovelace_pre_alonzo",
     "min_lovelace_post_alonzo",
     "script_data_hash",
+    "tiered_reference_script_fee",
 ]
+
+
+def tiered_reference_script_fee(context: ChainContext, scripts_size: int) -> int:
+    """Calculate fee for reference scripts.
+
+    Args:
+        context (ChainContext): A chain context.
+        scripts_size (int): Size of reference scripts in bytes.
+
+    Returns:
+        int: Fee for reference scripts.
+
+    Raises:
+        ValueError: If scripts size exceeds maximum allowed size
+    """
+    if (
+        context.protocol_param.maximum_reference_scripts_size is None
+        or context.protocol_param.min_fee_reference_scripts is None
+    ):
+        return 0
+
+    max_size = context.protocol_param.maximum_reference_scripts_size["bytes"]
+    if scripts_size > max_size:
+        raise ValueError(
+            f"Reference scripts size: {scripts_size} exceeds maximum allowed size ({max_size})."
+        )
+
+    total = 0.0
+    if scripts_size:
+        b = context.protocol_param.min_fee_reference_scripts["base"]
+        r = math.ceil(context.protocol_param.min_fee_reference_scripts["range"])
+        m = context.protocol_param.min_fee_reference_scripts["multiplier"]
+
+        while scripts_size > r:
+            total += b * r
+            scripts_size = scripts_size - r
+            b = b * m
+
+        total += b * scripts_size
+
+    return math.ceil(total)
 
 
 def fee(
@@ -30,6 +73,7 @@ def fee(
     length: int,
     exec_steps: int = 0,
     max_mem_unit: int = 0,
+    ref_script_size: int = 0,
 ) -> int:
     """Calculate fee based on the length of a transaction's CBOR bytes and script execution.
 
@@ -37,25 +81,28 @@ def fee(
         context (ChainConext): A chain context.
         length (int): The length of CBOR bytes, which could usually be derived
             by `len(tx.to_cbor())`.
-        exec_steps (Optional[int]): Number of execution steps run by plutus scripts in the transaction.
-        max_mem_unit (Optional[int]): Max numer of memory units run by plutus scripts in the transaction.
+        exec_steps (int): Number of execution steps run by plutus scripts in the transaction.
+        max_mem_unit (int): Max numer of memory units run by plutus scripts in the transaction.
+        ref_script_size (int): Size of referenced scripts in the transaction.
 
     Return:
         int: Minimum acceptable transaction fee.
     """
-    return (
-        int(length * context.protocol_param.min_fee_coefficient)
-        + int(context.protocol_param.min_fee_constant)
-        + int(exec_steps * context.protocol_param.price_step)
-        + int(max_mem_unit * context.protocol_param.price_mem)
+    return int(
+        math.ceil(length * context.protocol_param.min_fee_coefficient)
+        + math.ceil(context.protocol_param.min_fee_constant)
+        + math.ceil(exec_steps * context.protocol_param.price_step)
+        + math.ceil(max_mem_unit * context.protocol_param.price_mem)
+        + tiered_reference_script_fee(context, ref_script_size)
     )
 
 
-def max_tx_fee(context: ChainContext) -> int:
+def max_tx_fee(context: ChainContext, ref_script_size: int = 0) -> int:
     """Calculate the maximum possible transaction fee based on protocol parameters.
 
     Args:
         context (ChainContext): A chain context.
+        ref_script_size (int): Size of reference scripts in the transaction.
 
     Returns:
         int: Maximum possible tx fee in lovelace.
@@ -65,6 +112,7 @@ def max_tx_fee(context: ChainContext) -> int:
         context.protocol_param.max_tx_size,
         context.protocol_param.max_tx_ex_steps,
         context.protocol_param.max_tx_ex_mem,
+        ref_script_size,
     )
 
 
@@ -138,7 +186,7 @@ def min_lovelace_pre_alonzo(
         int: Minimum required lovelace amount for this transaction output.
     """
     if amount is None or isinstance(amount, int) or not amount.multi_asset:
-        return context.protocol_param.min_utxo
+        return context.protocol_param.min_utxo or 1_000_000
 
     b_size = bundle_size(amount.multi_asset)
     utxo_entry_size = 27
@@ -185,14 +233,14 @@ def min_lovelace_post_alonzo(output: TransactionOutput, context: ChainContext) -
 
 
 def script_data_hash(
-    redeemers: List[Redeemer],
+    redeemers: Redeemers,
     datums: List[Datum],
     cost_models: Optional[Union[CostModels, Dict]] = None,
 ) -> ScriptDataHash:
     """Calculate plutus script data hash
 
     Args:
-        redeemers (List[Redeemer]): Redeemers to include.
+        redeemers (Redeemers): Redeemers to include.
         datums (List[Datum]): Datums to include.
         cost_models (Optional[CostModels]): Cost models.
 

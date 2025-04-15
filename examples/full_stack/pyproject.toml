@@ -5,9 +5,9 @@ description = ""
 authors = ["Your Name <you@example.com>"]
 
 [tool.poetry.dependencies]
-python = "^3.7"
+python = "^3.8.1"
 Flask = "^2.0.3"
-pycardano = "^0.7.2"
+pycardano = "^0.12.0"
 
 [tool.poetry.dev-dependencies]
 

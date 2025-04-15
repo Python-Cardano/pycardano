@@ -2,6 +2,7 @@ import os
 import tempfile
 import time
 import warnings
+from fractions import Fraction
 from typing import Dict, List, Optional, Union
 
 import cbor2
@@ -19,7 +20,7 @@ from pycardano.exception import TransactionFailedException
 from pycardano.hash import SCRIPT_HASH_SIZE, DatumHash, ScriptHash
 from pycardano.nativescript import NativeScript
 from pycardano.network import Network
-from pycardano.plutus import ExecutionUnits, PlutusV1Script, PlutusV2Script, script_hash
+from pycardano.plutus import ExecutionUnits, PlutusScript, ScriptType, script_hash
 from pycardano.serialization import RawCBOR
 from pycardano.transaction import (
     Asset,
@@ -35,9 +36,7 @@ from pycardano.types import JsonDict
 __all__ = ["BlockFrostChainContext"]
 
 
-def _try_fix_script(
-    scripth: str, script: Union[PlutusV1Script, PlutusV2Script]
-) -> Union[PlutusV1Script, PlutusV2Script]:
+def _try_fix_script(scripth: str, script: PlutusScript) -> PlutusScript:
     if str(script_hash(script)) == scripth:
         return script
     else:
@@ -81,10 +80,17 @@ class BlockFrostChainContext(ChainContext):
         self._base_url = (
             base_url
             if base_url
-            else ApiUrls.preprod.value
-            if self.network == Network.TESTNET
-            else ApiUrls.mainnet.value
+            else (
+                ApiUrls.preprod.value
+                if self.network == Network.TESTNET
+                else ApiUrls.mainnet.value
+            )
         )
+
+        # Set network value to mainnet if base_url contains "mainnet".
+        if "mainnet" in self._base_url:
+            self._network = Network.MAINNET
+
         self.api = BlockFrostApi(project_id=self._project_id, base_url=self._base_url)
         self._epoch_info = self.api.epoch_latest()
         self._epoch = None
@@ -133,17 +139,17 @@ class BlockFrostChainContext(ChainContext):
                 max_block_header_size=int(params.max_block_header_size),
                 key_deposit=int(params.key_deposit),
                 pool_deposit=int(params.pool_deposit),
-                pool_influence=float(params.a0),
-                monetary_expansion=float(params.rho),
-                treasury_expansion=float(params.tau),
-                decentralization_param=float(params.decentralisation_param),
+                pool_influence=Fraction(params.a0),
+                monetary_expansion=Fraction(params.rho),
+                treasury_expansion=Fraction(params.tau),
+                decentralization_param=Fraction(params.decentralisation_param),
                 extra_entropy=params.extra_entropy,
                 protocol_major_version=int(params.protocol_major_ver),
                 protocol_minor_version=int(params.protocol_minor_ver),
                 min_utxo=int(params.min_utxo),
                 min_pool_cost=int(params.min_pool_cost),
-                price_mem=float(params.price_mem),
-                price_step=float(params.price_step),
+                price_mem=Fraction(params.price_mem),
+                price_step=Fraction(params.price_step),
                 max_tx_ex_mem=int(params.max_tx_ex_mem),
                 max_tx_ex_steps=int(params.max_tx_ex_steps),
                 max_block_ex_mem=int(params.max_block_ex_mem),
@@ -157,23 +163,23 @@ class BlockFrostChainContext(ChainContext):
                 cost_models={
                     k: v.to_dict() for k, v in params.cost_models.to_dict().items()
                 },
+                maximum_reference_scripts_size={"bytes": 200000},
+                min_fee_reference_scripts={
+                    "base": params.min_fee_ref_script_cost_per_byte,
+                    "range": 200000,
+                    "multiplier": 1,
+                },
             )
         return self._protocol_param
 
-    def _get_script(
-        self, script_hash: str
-    ) -> Union[PlutusV1Script, PlutusV2Script, NativeScript]:
+    def _get_script(self, script_hash: str) -> ScriptType:
         script_type = self.api.script(script_hash).type
-        if script_type == "plutusV1":
-            v1script = PlutusV1Script(
-                bytes.fromhex(self.api.script_cbor(script_hash).cbor)
+        if script_type.lower().startswith("plutusv"):
+            ps = PlutusScript.from_version(
+                int(script_type[-1]),
+                bytes.fromhex(self.api.script_cbor(script_hash).cbor),
             )
-            return _try_fix_script(script_hash, v1script)
-        elif script_type == "plutusV2":
-            v2script = PlutusV2Script(
-                bytes.fromhex(self.api.script_cbor(script_hash).cbor)
-            )
-            return _try_fix_script(script_hash, v2script)
+            return _try_fix_script(script_hash, ps)
         else:
             script_json: JsonDict = self.api.script_json(
                 script_hash, return_type="json"
@@ -285,8 +291,13 @@ class BlockFrostChainContext(ChainContext):
             cbor = cbor.hex()
         with tempfile.NamedTemporaryFile(delete=False, mode="w") as f:
             f.write(cbor)
-        result = self.api.transaction_evaluate(f.name).result
+
+        result = self.api.transaction_evaluate(f.name)
         os.remove(f.name)
+        if not hasattr(result, "result"):
+            raise TransactionFailedException(result)
+        else:
+            result = result.result
         return_val = {}
         if not hasattr(result, "EvaluationResult"):
             raise TransactionFailedException(result)

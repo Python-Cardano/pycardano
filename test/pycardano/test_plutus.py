@@ -9,6 +9,7 @@ from typing import Dict, List, Union
 import pytest
 from cbor2 import CBORTag
 
+from pycardano import TransactionWitnessSet
 from pycardano.exception import DeserializeException
 from pycardano.plutus import (
     COST_MODELS,
@@ -17,7 +18,10 @@ from pycardano.plutus import (
     PlutusData,
     RawPlutusData,
     Redeemer,
+    RedeemerKey,
+    RedeemerMap,
     RedeemerTag,
+    RedeemerValue,
     Unit,
     id_map,
     plutus_script_hash,
@@ -205,6 +209,50 @@ def test_plutus_data_from_json_wrong_data_structure_type():
     )
     with pytest.raises(TypeError):
         MyTest.from_json(test)
+
+
+def test_raw_plutus_data_json():
+    key_hash = bytes.fromhex("c2ff616e11299d9094ce0a7eb5b7284b705147a822f4ffbd471f971a")
+    deadline = 1643235300000
+    testa = BigTest(MyTest(123, b"1234", IndefiniteList([4, 5, 6]), {1: b"1", 2: b"2"}))
+    testb = LargestTest()
+
+    my_vesting = VestingParam(
+        beneficiary=key_hash, deadline=deadline, testa=testa, testb=testb
+    )
+
+    my_vesting_primitive = my_vesting.to_primitive()
+    encoded_json = RawPlutusData(my_vesting_primitive).to_json(separators=(",", ":"))
+
+    assert (
+        '{"constructor":1,"fields":[{"bytes":"c2ff616e11299d9094ce0a7eb5b7284b705147a822f4ffbd471f971a"},'
+        '{"int":1643235300000},{"constructor":8,"fields":[{"constructor":130,"fields":[{"int":123},'
+        '{"bytes":"31323334"},{"list":[{"int":4},{"int":5},{"int":6}]},{"map":[{"v":{"bytes":"31"},'
+        '"k":{"int":1}},{"v":{"bytes":"32"},"k":{"int":2}}]}]}]},{"constructor":9,"fields":[]}]}'
+        == encoded_json
+    )
+
+    # note that json encoding is lossy, so we can't compare the original object with the one decoded from json
+    # but we can compare the jsons
+    assert encoded_json == RawPlutusData.from_json(encoded_json).to_json(
+        separators=(",", ":")
+    )
+
+    @dataclass
+    class C(PlutusData):
+        CONSTR_ID = 2
+        x: Datum
+        y: Datum
+        z: int
+
+    c = C(RawPlutusData(testb.to_primitive()), RawCBOR(testa.to_cbor()), 1)
+    encoded_json = c.to_json(separators=(",", ":"))
+
+    assert (
+        '{"constructor":2,"fields":[{"constructor":9,"fields":[]},{"constructor":8,"fields":[{"constructor":130,"fields":[{"int":123},{"bytes":"31323334"},{"list":[{"int":4},{"int":5},{"int":6}]},{"map":[{"v":{"bytes":"31"},"k":{"int":1}},{"v":{"bytes":"32"},"k":{"int":2}}]}]}]},{"int":1}]}'
+        == encoded_json
+    )
+    assert encoded_json == C.from_json(encoded_json).to_json(separators=(",", ":"))
 
 
 def test_plutus_data_hash():
@@ -446,3 +494,102 @@ def test_plutus_data_long_bytes():
     assert (
         A_tmp.to_cbor_hex() == quote_hex
     ), "Long metadata bytestring is encoded incorrectly."
+
+
+def test_plutus_raw_plutus_data():
+
+    @dataclass
+    class A(PlutusData):
+        CONSTR_ID = 0
+        payload: bytes
+
+    @dataclass
+    class B(PlutusData):
+        CONSTR_ID = 0
+
+        a: A
+        b: RawPlutusData
+        c: int
+        d: RawPlutusData
+        e: RawPlutusData
+        f: Union[RawPlutusData, bytes]
+
+    cbor = (
+        "d8799fd8799f581c2f36866691fa75a9aab66dec99f7cc2d297ca09e34d9ce68cde04773ffd879"
+        + "9f581cf0e17b51bc18962397450eb625222bce9c510cb82b213bd9cf17ea82ff1a0007a120d8"
+        + "799fd8799fd8799f581ce0b68e229f9c043ab610067ed7f3c6d662b8f3c6bb4ec452c11f6411"
+        + "ffd8799fd8799fd8799f581cf0e17b51bc18962397450eb625222bce9c510cb82b213bd9cf17"
+        + "ea82ffffffffd87980ffd87a9f9f40401a00989680ff9f581c9a9693a9a37912a5097918f979"
+        + "18d15240c92ab729a0b7c4aa144d774653554e4441451a1d5a82fdffff43d87980ff"
+    )
+
+    assert B.from_cbor(cbor).to_cbor_hex() == cbor
+
+
+def test_redeemer_key():
+    # Test creation and equality
+    key1 = RedeemerKey(RedeemerTag.SPEND, 0)
+    key2 = RedeemerKey(RedeemerTag.SPEND, 0)
+    key3 = RedeemerKey(RedeemerTag.MINT, 1)
+
+    assert key1 == key2
+    assert key1 != key3
+
+    # Test hashing
+    assert hash(key1) == hash(key2)
+    assert hash(key1) != hash(key3)
+
+    # Test serialization and deserialization
+    serialized = key1.to_primitive()
+    deserialized = RedeemerKey.from_primitive(serialized)
+    assert key1 == deserialized
+
+
+def test_redeemer_value():
+    # Test creation
+    data = RawPlutusData(42)
+    ex_units = ExecutionUnits(10, 20)
+    value = RedeemerValue(data, ex_units)
+
+    assert value.data == data
+    assert value.ex_units == ex_units
+
+    # Test serialization and deserialization
+    serialized = value.to_primitive()
+    deserialized = RedeemerValue.from_primitive(serialized)
+    assert value.data.data == deserialized.data
+    assert value.ex_units == deserialized.ex_units
+
+
+def test_redeemer_map():
+    # Test creation and adding items
+    redeemer_map = RedeemerMap()
+    key1 = RedeemerKey(RedeemerTag.SPEND, 0)
+    value1 = RedeemerValue(42, ExecutionUnits(10, 20))
+    key2 = RedeemerKey(RedeemerTag.MINT, 1)
+    value2 = RedeemerValue(b"test", ExecutionUnits(30, 40))
+
+    redeemer_map[key1] = value1
+    redeemer_map[key2] = value2
+
+    assert len(redeemer_map) == 2
+    assert redeemer_map[key1] == value1
+    assert redeemer_map[key2] == value2
+
+    # Test serialization and deserialization
+    serialized = redeemer_map.to_cbor()
+    deserialized = RedeemerMap.from_cbor(serialized)
+
+    assert len(deserialized) == 2
+    assert deserialized[key1].data == value1.data
+    assert deserialized[key1].ex_units == value1.ex_units
+    assert deserialized[key2].data == value2.data
+    assert deserialized[key2].ex_units == value2.ex_units
+
+
+def test_empty_map_deser():
+    empty_map = RedeemerMap()
+    witness = TransactionWitnessSet(redeemer=empty_map)
+    serialized = witness.to_primitive()
+    deserialized = TransactionWitnessSet.from_primitive(serialized)
+    assert deserialized.redeemer == empty_map

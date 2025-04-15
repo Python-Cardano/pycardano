@@ -4,7 +4,7 @@ on:
   push:
     branches: "**"
   pull_request:
-    branches: ["main"]
+    branches: ["main", "chang"]
     types: [opened, reopened, edited, synchronize]
 
 jobs:
@@ -14,29 +14,34 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
-        python-version: [3.7, 3.8, 3.9, '3.10', '3.11']
+        python-version: ['3.8', '3.9', '3.10', '3.11', '3.12', '3.13']
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Install poetry
         run: pipx install poetry
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
           cache: 'poetry'
       - name: Install dependencies
         run: |
           poetry install
+      - name: Ensure pure cbor2 is installed
+        run: |
+          make ensure-pure-cbor2
       - name: Run unit tests
         run: |
           poetry run pytest --doctest-modules --ignore=examples --cov=pycardano --cov-config=.coveragerc --cov-report=xml
       - name: "Upload coverage to Codecov"
         if: ${{ matrix.python-version == '3.11' }}
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         with:
-          fail_ci_if_error: true
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN || '' }}
       - name: Run static analyses
+        if: ${{ matrix.python-version == '3.11' }}
         run: |
           make qa
 
@@ -48,27 +53,39 @@ jobs:
         python-version: ['3.11']
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Install poetry
         run: pipx install poetry
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
           cache: 'poetry'
+
+      - name: Setup docker-compose
+        uses: KengoTODA/actions-setup-docker-compose@v1.2.2
+        with:
+          version: '2.14.2'
 
       - name: Run integration tests
         run: |
           cd integration-test && ./run_tests.sh
 
+      - name: "Upload coverage to Codecov"
+        if: ${{ matrix.python-version == '3.11' }}
+        uses: codecov/codecov-action@v4
+        with:
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN || '' }}
+
       - name: Dump docker logs
         if: failure()
         run: |
-          cd integration-test && docker-compose logs --no-color > integration-test.log
+          cd integration-test && docker compose logs --no-color > integration-test.log
 
       - name: Upload integration-test.log
         if: failure()
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: integration-test.log
           path: integration-test/integration-test.log

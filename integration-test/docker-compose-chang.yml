@@ -1,0 +1,103 @@
+version: "3.5"
+
+networks:
+  cluster:
+    ipam:
+      config:
+        - subnet: 172.20.0.0/24
+
+services:
+
+  cardano-node:
+    image: ghcr.io/intersectmbo/cardano-node:${CARDANO_NODE_VERSION:-10.1.4}
+    platform: linux/amd64
+    entrypoint: bash
+    environment:
+      NETWORK: "${NETWORK:-local-alonzo}"
+      CARDANO_NODE_SOCKET_PATH: "/ipc/node.socket"
+    command: /code/run_node.sh
+
+    networks:
+      cluster:
+        ipv4_address: 172.20.0.101
+
+    volumes:
+      - .:/code
+      - /tmp:/tmp
+      - node-db:/data/db
+      - node-ipc:/ipc
+    ports:
+      - ${BFT_NODE_PORT:-3000}:3000
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10"
+
+  cardano-pool:
+    image: ghcr.io/intersectmbo/cardano-node:${CARDANO_NODE_VERSION:-10.1.4}
+    platform: linux/amd64
+    entrypoint: bash
+    environment:
+      NETWORK: "${NETWORK:-local-alonzo}"
+    command: /code/run_pool.sh
+
+    networks:
+      cluster:
+        ipv4_address: 172.20.0.102
+
+    volumes:
+      - .:/code
+      - node-ipc:/ipc
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10"
+
+  ogmios:
+    image: cardanosolutions/ogmios:v6.11.2
+    platform: linux/amd64
+    environment:
+      NETWORK: "${NETWORK:-local-alonzo}"
+
+    command: [
+      "--host", "0.0.0.0",
+      "--node-socket", "/ipc/pool.socket",
+      "--node-config", "/code/configs/${NETWORK:-local-alonzo}/config.json",
+      "--log-level-websocket", "Debug"
+    ]
+    volumes:
+      - .:/code
+      - node-ipc:/ipc
+    ports:
+      - ${OGMIOS_PORT:-1337}:1337
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10"
+
+  kupo:
+    image: cardanosolutions/kupo:v2.9.0
+    platform: linux/amd64
+    environment:
+      NETWORK: "${NETWORK:-local}"
+
+    command: [
+      "--node-socket", "/ipc/pool.socket",
+      "--node-config", "/code/configs/${NETWORK:-local-alonzo}/config.json",
+      "--host", "0.0.0.0",
+      "--since", "origin",
+      "--match", "*",
+      "--in-memory"
+    ]
+    volumes:
+      - .:/code
+      - node-ipc:/ipc
+    ports:
+      - ${KUPO_PORT:-1442}:1442
+
+volumes:
+  node-db:
+  node-ipc:
