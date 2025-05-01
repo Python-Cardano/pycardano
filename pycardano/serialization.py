@@ -41,14 +41,7 @@ except Exception as e:
     logger.warning("Failed to remove semantic decoder for CBOR tag 258", e)
     pass
 
-from cbor2 import (
-    CBOREncoder,
-    CBORSimpleValue,
-    CBORTag,
-    FrozenDict,
-    dumps,
-    undefined,
-)
+from cbor2 import CBOREncoder, CBORSimpleValue, CBORTag, FrozenDict, dumps, undefined
 from frozenlist import FrozenList
 from pprintpp import pformat
 
@@ -948,8 +941,8 @@ class DictCBORSerializable(CBORSerializable):
     def __copy__(self):
         return self.__class__(self)
 
-    def __deepcopy__(self, memodict={}):
-        return self.__class__(deepcopy(self.data))
+    def __deepcopy__(self, memo):
+        return self.__class__(deepcopy(self.data, memo))
 
     def validate(self):
         for key, value in self.data.items():
@@ -1081,6 +1074,9 @@ class OrderedSet(list, Generic[T], CBORSerializable):
             return cls(list(value), use_tag=use_tag)
 
         raise ValueError(f"Cannot deserialize {value} to {cls}")
+
+    def __deepcopy__(self, memo):
+        return self.__class__(deepcopy(list(self), memo), use_tag=self._use_tag)
 
 
 class NonEmptyOrderedSet(OrderedSet[T]):

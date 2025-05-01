@@ -93,7 +93,7 @@ while true; do
     sleep 2
 done
 
-poetry run pytest -m "not (CardanoCLI)" -s -vv -n 4 "$ROOT"/test  --cov=pycardano --cov-config=../.coveragerc --cov-report=xml:../coverage.xml
+poetry run pytest -m "not (CardanoCLI)" -s -vv "$ROOT"/test  --cov=pycardano --cov-config=../.coveragerc --cov-report=xml:../coverage.xml
 
 # Cleanup
 docker compose -f docker-compose-chang.yml down --volumes --remove-orphans
