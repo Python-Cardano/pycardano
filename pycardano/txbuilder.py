@@ -129,7 +129,9 @@ class TransactionBuilder:
 
     required_signers: Optional[List[VerificationKeyHash]] = field(default=None)
 
-    collaterals: List[UTxO] = field(default_factory=lambda: [])
+    collaterals: NonEmptyOrderedSet[UTxO] = field(
+        default_factory=lambda: NonEmptyOrderedSet[UTxO]()
+    )
 
     certificates: Optional[List[Certificate]] = field(default=None)
 
@@ -870,7 +872,7 @@ class TransactionBuilder:
 
     def _input_vkey_hashes(self) -> Set[VerificationKeyHash]:
         results = set()
-        for i in self.inputs + self.collaterals:
+        for i in self.inputs + list(self.collaterals):
             if isinstance(i.output.address.payment_part, VerificationKeyHash):
                 results.add(i.output.address.payment_part)
         return results
@@ -1526,6 +1528,7 @@ class TransactionBuilder:
                             "SCRIPT"
                         )
                         and candidate.output.amount.coin > 2000000
+                        and candidate not in self.collaterals
                     ):
                         self.collaterals.append(candidate)
                         cur_total += candidate.output.amount

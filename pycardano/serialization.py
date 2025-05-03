@@ -461,14 +461,14 @@ class CBORSerializable:
         return self.to_cbor().hex()
 
     @classmethod
-    def from_cbor(cls, payload: Union[str, bytes]) -> CBORSerializable:
+    def from_cbor(cls: Type[CBORBase], payload: Union[str, bytes]) -> CBORBase:
         """Restore a CBORSerializable object from a CBOR.
 
         Args:
             payload (Union[str, bytes]): CBOR bytes or hex string to restore from.
 
         Returns:
-            CBORSerializable: Restored CBORSerializable object.
+            CBORBase: Restored CBORSerializable object of the specific subclass type.
 
         Examples:
 

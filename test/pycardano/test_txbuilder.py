@@ -2264,3 +2264,65 @@ def test_burning_all_assets_under_single_policy(chain_context):
 
         assert AssetName(b"AssetName3") not in multi_asset.get(policy_id_1, {})
         assert AssetName(b"AseetName4") not in multi_asset.get(policy_id_1, {})
+
+
+def test_collateral_no_duplicates(chain_context):
+    """
+    Test that a UTxO explicitly added as input is not reused for collateral.
+    """
+    # Setup: Define sender and a Plutus script for minting (requires collateral)
+    sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    sender_address = Address.from_primitive(sender)
+    plutus_v2_script = PlutusV2Script(b"dummy mint script collateral reuse test")
+    policy_id = plutus_script_hash(plutus_v2_script)
+    redeemer = Redeemer(PlutusData(), ExecutionUnits(1000000, 1000000))
+
+    input_utxo = UTxO(
+        TransactionInput(TransactionId.from_primitive("a" * 64), 0),
+        TransactionOutput(sender_address, Value(coin=2_800_000)),
+    )
+    collateral_utxo = UTxO(
+        TransactionInput(TransactionId.from_primitive("b" * 64), 1),
+        TransactionOutput(sender_address, Value(coin=3_000_000)),
+    )
+
+    with patch.object(chain_context, "utxos") as mock_utxos:
+        mock_utxos.return_value = [input_utxo, collateral_utxo]
+
+        builder = TransactionBuilder(chain_context)
+
+        builder.add_input(input_utxo)
+        builder.add_input_address(sender_address)
+
+        mint_amount = 1
+        builder.mint = MultiAsset.from_primitive(
+            {policy_id.payload: {b"TestCollateralToken": mint_amount}}
+        )
+        builder.add_minting_script(plutus_v2_script, redeemer)
+
+        output_value = Value(coin=1_000_000)  # Send some ADA back
+        builder.add_output(TransactionOutput(sender_address, output_value))
+
+        tx_body = builder.build(change_address=sender_address)
+
+        assert input_utxo.input in tx_body.inputs
+
+        assert tx_body.collateral is not None
+        assert len(tx_body.collateral) > 0, "Collateral should have been selected"
+
+        assert (
+            collateral_utxo.input in tx_body.collateral
+        ), "The designated collateral UTxO was not selected"
+
+        assert (
+            input_utxo.input in tx_body.collateral
+        ), "The explicit input UTxO should be reused as collateral"
+
+        total_collateral_input = (
+            collateral_utxo.output.amount + input_utxo.output.amount
+        )
+
+        assert (
+            total_collateral_input
+            == Value(tx_body.total_collateral) + tx_body.collateral_return.amount
+        ), "The total collateral input amount should match the sum of the selected UTxOs"
