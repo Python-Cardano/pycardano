@@ -105,7 +105,7 @@ class TransactionBuilder:
     context: ChainContext
 
     utxo_selectors: List[UTxOSelector] = field(
-        default_factory=lambda: [RandomImproveMultiAsset(), LargestFirstSelector()]
+        default_factory=lambda: [LargestFirstSelector(), RandomImproveMultiAsset()]
     )
 
     execution_memory_buffer: float = 0.2
@@ -641,8 +641,13 @@ class TransactionBuilder:
 
         provided.coin -= self._get_total_key_deposit()
         provided.coin -= self._get_total_proposal_deposit()
-
-        if not requested < provided:
+        provided.multi_asset.filter(
+            lambda p, n, v: p in requested.multi_asset and n in requested.multi_asset[p]
+        )
+        if (
+            provided.coin < requested.coin
+            or requested.multi_asset > provided.multi_asset
+        ):
             raise InvalidTransactionException(
                 f"The input UTxOs cannot cover the transaction outputs and tx fee. \n"
                 f"Inputs: {inputs} \n"
@@ -733,6 +738,7 @@ class TransactionBuilder:
 
             # Set fee to max
             self.fee = self._estimate_fee()
+
             changes = self._calc_change(
                 self.fee,
                 self.inputs,
@@ -1344,10 +1350,18 @@ class TransactionBuilder:
 
         unfulfilled_amount = requested_amount - trimmed_selected_amount
 
+        can_use_again_multi_asset = unfulfilled_amount.multi_asset.filter(
+            lambda p, n, v: v < 0
+        )
+        can_use_again = Value(
+            min(0, unfulfilled_amount.coin) * -1, can_use_again_multi_asset
+        )
+
         if change_address is not None and not can_merge_change:
             # If change address is provided and remainder is smaller than minimum ADA required in change,
             # we need to select additional UTxOs available from the address
             if unfulfilled_amount.coin < 0:
+
                 unfulfilled_amount.coin = max(
                     0,
                     unfulfilled_amount.coin
@@ -1401,11 +1415,12 @@ class TransactionBuilder:
                         self.context,
                         include_max_fee=False,
                         respect_min_utxo=not can_merge_change,
+                        existing_amount=can_use_again,
                     )
+
                     for s in selected:
                         selected_amount += s.output.amount
                         selected_utxos.append(s)
-
                     break
 
                 except UTxOSelectionException as e:

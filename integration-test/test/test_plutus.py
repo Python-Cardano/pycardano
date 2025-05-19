@@ -463,7 +463,8 @@ class TestPlutus(TestBase):
 
         builder = TransactionBuilder(self.chain_context)
         builder.add_input_address(giver_address)
-        builder.add_output(TransactionOutput(script_address, 50000000, datum=Unit()))
+        output = TransactionOutput(script_address, 50000000, datum=Unit())
+        builder.add_output(output)
 
         signed_tx = builder.build_and_sign([self.payment_skey], giver_address)
 
@@ -472,7 +473,7 @@ class TestPlutus(TestBase):
         print(signed_tx.to_cbor_hex())
         print("############### Submitting transaction ###############")
         self.chain_context.submit_tx(signed_tx)
-        time.sleep(3)
+        time.sleep(6)
 
         # ----------- Taker take ---------------
 

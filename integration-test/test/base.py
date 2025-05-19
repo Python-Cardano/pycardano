@@ -57,15 +57,21 @@ class TestBase:
     payment_key_pair = PaymentKeyPair.generate()
     stake_key_pair = StakeKeyPair.generate()
 
-    @retry(tries=TEST_RETRIES, delay=3)
-    def assert_output(self, target_address, target_output):
+    @retry(tries=10, delay=3)
+    def assert_output(self, target_address, target):
         utxos = self.chain_context.utxos(target_address)
         found = False
 
         for utxo in utxos:
-            output = utxo.output
-            if output == target_output:
-                found = True
+            if isinstance(target, UTxO):
+                if utxo == target:
+                    found = True
+            if isinstance(target, TransactionOutput):
+                if utxo.output == target:
+                    found = True
+            if isinstance(target, TransactionId):
+                if utxo.input.transaction_id == target:
+                    found = True
 
         assert found, f"Cannot find target UTxO in address: {target_address}"
 
@@ -84,4 +90,5 @@ class TestBase:
         print(signed_tx.to_cbor_hex())
         print("############### Submitting transaction ###############")
         self.chain_context.submit_tx(signed_tx)
-        self.assert_output(target_address, target_output=output)
+        target_utxo = UTxO(TransactionInput(signed_tx.id, 0), output)
+        self.assert_output(target_address, target_utxo)
