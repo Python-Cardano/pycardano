@@ -358,13 +358,18 @@ def test_asset_comparison():
     assert result == Asset.from_primitive({b"Token1": 2, b"Token2": 5})
 
     assert a == a
-
+    assert a < b
     assert a <= b
     assert not b <= a
+    assert b > a
+    assert b >= a
     assert a != b
 
+    assert a < c
     assert a <= c
     assert not c <= a
+    assert c > a
+    assert c >= a
     assert a != c
 
     assert not any([a == d, a <= d, d <= a])
@@ -401,10 +406,15 @@ def test_multi_asset_comparison():
 
     assert a != b
     assert a <= b
+    assert a < c
+    assert b > a
+    assert b >= a
     assert not b <= a
 
     assert a != c
     assert a <= c
+    assert c > a
+    assert c >= a
     assert not c <= a
 
     assert a != d
@@ -452,12 +462,20 @@ def test_values():
             },
         ]
     )
+    e = Value.from_primitive([1000])
+    d = 1000
+    assert e >= d
 
     assert a != b
     assert a <= b
+    assert a < b
+    assert b > a
+    assert b >= a
     assert not b <= a
 
     assert a <= c
+    assert c > a
+    assert c >= a
     assert not c <= a
 
     assert b <= c
