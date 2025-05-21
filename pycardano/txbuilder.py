@@ -1350,12 +1350,9 @@ class TransactionBuilder:
 
         unfulfilled_amount = requested_amount - trimmed_selected_amount
 
-        can_use_again_multi_asset = unfulfilled_amount.multi_asset.filter(
-            lambda p, n, v: v < 0
-        )
-        can_use_again = Value(
-            min(0, unfulfilled_amount.coin) * -1, can_use_again_multi_asset
-        )
+        remaining = trimmed_selected_amount - requested_amount
+        remaining.multi_asset = remaining.multi_asset.filter(lambda p, n, v: v > 0)
+        remaining.coin = max(0, remaining.coin)
 
         if change_address is not None and not can_merge_change:
             # If change address is provided and remainder is smaller than minimum ADA required in change,
@@ -1415,7 +1412,7 @@ class TransactionBuilder:
                         self.context,
                         include_max_fee=False,
                         respect_min_utxo=not can_merge_change,
-                        existing_amount=can_use_again,
+                        existing_amount=remaining,
                     )
 
                     for s in selected:

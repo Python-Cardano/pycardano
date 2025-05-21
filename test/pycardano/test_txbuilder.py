@@ -443,7 +443,7 @@ def test_tx_builder_burn_multi_asset(chain_context):
     tx_builder = TransactionBuilder(chain_context)
     sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
     sender_address: Address = Address.from_primitive(sender)
-    print("1")
+
     # Add sender address as input
     to_burn = MultiAsset.from_primitive({policy_id.payload: {b"Token1": -1}})
     tx_input = TransactionInput.from_primitive([b"1" * 32, 123])
@@ -455,13 +455,12 @@ def test_tx_builder_burn_multi_asset(chain_context):
             ),
         )
     )
-    print("2")
+
     tx_builder.add_input_address(sender).add_output(
         TransactionOutput.from_primitive([sender, 3000000])
     ).add_output(TransactionOutput.from_primitive([sender, 2000000]))
 
     tx_builder.mint = to_burn
-    print("3")
     tx_body = tx_builder.build(change_address=sender_address)
 
     assert tx_input in tx_body.inputs
@@ -2401,7 +2400,6 @@ def test_token_transfer_with_change(chain_context):
             ),
         )
         tx_builder.add_output(TransactionOutput(receiver_address, output_value))
-        # print(tx_builder)
 
         # Build transaction with change going back to vault
         tx = tx_builder.build(change_address=vault_address, merge_change=True)
