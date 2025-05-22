@@ -49,7 +49,6 @@ class TestLargestFirst:
 
     def test_ada_only(self, chain_context):
         request = [TransactionOutput.from_primitive([address, [15000000]])]
-
         selected, change = self.selector.select(UTXOS, request, chain_context)
 
         assert selected == [UTXOS[-1], UTXOS[-2]]
@@ -60,7 +59,6 @@ class TestLargestFirst:
             TransactionOutput.from_primitive([address, [9000000]]),
             TransactionOutput.from_primitive([address, [6000000]]),
         ]
-
         selected, change = self.selector.select(UTXOS, request, chain_context)
 
         assert selected == [UTXOS[-1], UTXOS[-2]]
@@ -77,26 +75,33 @@ class TestLargestFirst:
     def test_no_fee_effect(self, chain_context):
         request = [TransactionOutput.from_primitive([address, [10000000]])]
         selected, change = self.selector.select(
-            UTXOS, request, chain_context, include_max_fee=False, respect_min_utxo=False
+            UTXOS,
+            request,
+            chain_context,
+            include_max_fee=False,
+            respect_min_utxo=False,
         )
         assert selected == [UTXOS[-1]]
 
     def test_no_fee_but_respect_min_utxo(self, chain_context):
         request = [TransactionOutput.from_primitive([address, [10000000]])]
         selected, change = self.selector.select(
-            UTXOS, request, chain_context, include_max_fee=False, respect_min_utxo=True
+            UTXOS,
+            request,
+            chain_context,
+            include_max_fee=False,
+            respect_min_utxo=True,
         )
+
         assert selected == [UTXOS[-1], UTXOS[-2]]
 
     def test_insufficient_balance(self, chain_context):
         request = [TransactionOutput.from_primitive([address, [1000000000]])]
-
         with pytest.raises(InsufficientUTxOBalanceException):
             self.selector.select(UTXOS, request, chain_context)
 
     def test_max_input_count(self, chain_context):
         request = [TransactionOutput.from_primitive([address, [15000000]])]
-
         with pytest.raises(MaxInputCountExceededException):
             self.selector.select(UTXOS, request, chain_context, max_input_count=1)
 
@@ -117,7 +122,6 @@ class TestLargestFirst:
                 ]
             )
         ]
-
         selected, change = self.selector.select(UTXOS, request, chain_context)
 
         # token0 is attached to the smallest utxo, which will be the last utxo during selection,
@@ -133,7 +137,6 @@ class TestRandomImproveMultiAsset:
 
     def test_ada_only(self, chain_context):
         request = [TransactionOutput.from_primitive([address, [15000000]])]
-
         selected, change = self.selector.select(UTXOS, request, chain_context)
 
         assert selected == list(reversed(UTXOS[-4:]))
@@ -168,7 +171,11 @@ class TestRandomImproveMultiAsset:
         # Only the first two UTxOs should be selected in this test case.
         # The first one is for the request amount, the second one is to respect min UTxO size.
         selected, change = RandomImproveMultiAsset(random_generator=[0, 0]).select(
-            UTXOS, request, chain_context, include_max_fee=False, respect_min_utxo=True
+            UTXOS,
+            request,
+            chain_context,
+            include_max_fee=False,
+            respect_min_utxo=True,
         )
         assert selected == [
             UTXOS[0],
@@ -178,13 +185,11 @@ class TestRandomImproveMultiAsset:
 
     def test_utxo_depleted(self, chain_context):
         request = [TransactionOutput.from_primitive([address, [1000000000]])]
-
         with pytest.raises(InputUTxODepletedException):
             self.selector.select(UTXOS, request, chain_context)
 
     def test_max_input_count(self, chain_context):
         request = [TransactionOutput.from_primitive([address, [15000000]])]
-
         with pytest.raises(MaxInputCountExceededException):
             self.selector.select(UTXOS, request, chain_context, max_input_count=1)
 

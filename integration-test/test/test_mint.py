@@ -169,6 +169,8 @@ class TestMint(TestBase):
     @retry(tries=TEST_RETRIES, backoff=1.3, delay=2, jitter=(0, 10))
     def test_mint_nft_with_script(self):
         address = Address(self.payment_vkey.hash(), network=self.NETWORK)
+        # Create a collateral
+        self.fund(address, self.payment_skey, address)
 
         with open("./plutus_scripts/fortytwoV2.plutus", "r") as f:
             script_hex = f.read()
@@ -229,13 +231,13 @@ class TestMint(TestBase):
         nft_output = TransactionOutput(address, Value(min_val, my_nft))
         builder.add_output(nft_output)
 
-        # Create a collateral
-        self.fund(address, self.payment_skey, address)
-
         non_nft_utxo = None
         for utxo in self.chain_context.utxos(address):
             # multi_asset should be empty for collateral utxo
-            if not utxo.output.amount.multi_asset:
+            if (
+                not utxo.output.amount.multi_asset
+                and utxo.output.amount.coin >= 5000000
+            ):
                 non_nft_utxo = utxo
                 break
 

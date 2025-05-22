@@ -131,6 +131,18 @@ class Asset(DictCBORSerializable):
                 return False
         return True
 
+    def __lt__(self, other: Asset):
+        return self <= other and self != other
+
+    def __ge__(self, other: Asset) -> bool:
+        for n in other:
+            if n not in self or self[n] < other[n]:
+                return False
+        return True
+
+    def __gt__(self, other: Asset) -> bool:
+        return self >= other and self != other
+
     @classmethod
     @limit_primitive_type(dict)
     def from_primitive(cls: Type[DictBase], value: dict) -> DictBase:
@@ -191,11 +203,27 @@ class MultiAsset(DictCBORSerializable):
                     return False
             return True
 
-    def __le__(self, other: MultiAsset):
-        for p in self:
-            if p not in other or not self[p] <= other[p]:
+    def __ge__(self, other: MultiAsset) -> bool:
+        for n in other:
+            if n not in self:
+                return False
+            if not self[n] >= other[n]:
                 return False
         return True
+
+    def __gt__(self, other: MultiAsset) -> bool:
+        return self >= other and self != other
+
+    def __le__(self, other: MultiAsset):
+        for p in self:
+            if p not in other:
+                return False
+            if not self[p] <= other[p]:
+                return False
+        return True
+
+    def __lt__(self, other: MultiAsset):
+        return self <= other and self != other
 
     def filter(
         self, criteria=Callable[[ScriptHash, AssetName, int], bool]
@@ -296,6 +324,14 @@ class Value(ArrayCBORSerializable):
 
     def __lt__(self, other: Union[Value, int]):
         return self <= other and self != other
+
+    def __ge__(self, other: Union[Value, int]):
+        if isinstance(other, int):
+            other = Value(other)
+        return self.coin >= other.coin and self.multi_asset >= other.multi_asset
+
+    def __gt__(self, other: Union[Value, int]):
+        return self >= other and self != other
 
     def to_shallow_primitive(self):
         if self.multi_asset:
