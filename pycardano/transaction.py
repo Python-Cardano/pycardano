@@ -579,7 +579,7 @@ class TransactionBody(MapCBORSerializable):
 
     certificates: Optional[
         Union[List[Certificate], NonEmptyOrderedSet[Certificate]]
-    ]  = field(
+    ] = field(
         default=None,
         metadata={
             "key": 4,
