@@ -8,15 +8,17 @@ import pytest
 from pycardano import (
     ALONZO_COINS_PER_UTXO_WORD,
     CardanoCliChainContext,
+    CardanoCliError,
     CardanoCliNetwork,
     DatumHash,
     GenesisParameters,
     MultiAsset,
     PlutusV2Script,
     ProtocolParameters,
+    PyCardanoException,
     RawPlutusData,
+    TransactionFailedException,
     TransactionInput,
-    CardanoCliError,
 )
 
 QUERY_TIP_RESULT = {
@@ -484,50 +486,6 @@ QUERY_UTXO_RESULT = {
 }
 
 
-def override_run_command_older_version(cmd: List[str]):
-    """
-    Override the run_command method of CardanoCliChainContext to return a mock result of older versions of cardano-cli.
-    Args:
-        cmd: The command to run
-
-    Returns:
-        The mock result
-    """
-    if "latest" in cmd:
-        raise CardanoCliError(
-            "Older versions of cardano-cli do not support the latest command"
-        )
-    if "tip" in cmd:
-        return json.dumps(QUERY_TIP_RESULT)
-    if "protocol-parameters" in cmd:
-        return json.dumps(QUERY_PROTOCOL_PARAMETERS_RESULT)
-    if "utxo" in cmd:
-        return json.dumps(QUERY_UTXO_RESULT)
-    if "txid" in cmd:
-        return "270be16fa17cdb3ef683bf2c28259c978d4b7088792074f177c8efda247e23f7"
-    if "version" in cmd:
-        return "cardano-cli 8.1.2 - linux-x86_64 - ghc-8.10\ngit rev d2d90b48c5577b4412d5c9c9968b55f8ab4b9767"
-    else:
-        return None
-
-
-def override_run_command_latest(cmd: List[str]):
-    """
-    Override the run_command method of CardanoCliChainContext to return a mock result of the latest versions of cardano-cli.
-    Args:
-        cmd: The command to run
-
-    Returns:
-        The mock result
-    """
-    if "tip" in cmd:
-        return json.dumps(QUERY_TIP_RESULT)
-    if "txid" in cmd:
-        return "270be16fa17cdb3ef683bf2c28259c978d4b7088792074f177c8efda247e23f7"
-    else:
-        return None
-
-
 @pytest.fixture
 def chain_context(genesis_file, config_file):
     """
@@ -539,6 +497,33 @@ def chain_context(genesis_file, config_file):
     Returns:
         The CardanoCliChainContext
     """
+
+    def override_run_command_older_version(cmd: List[str]):
+        """
+        Override the run_command method of CardanoCliChainContext to return a mock result of older versions of cardano-cli.
+        Args:
+            cmd: The command to run
+
+        Returns:
+            The mock result
+        """
+        if "latest" in cmd:
+            raise CardanoCliError(
+                "Older versions of cardano-cli do not support the latest command"
+            )
+        if "tip" in cmd:
+            return json.dumps(QUERY_TIP_RESULT)
+        if "protocol-parameters" in cmd:
+            return json.dumps(QUERY_PROTOCOL_PARAMETERS_RESULT)
+        if "utxo" in cmd:
+            return json.dumps(QUERY_UTXO_RESULT)
+        if "txid" in cmd:
+            return "270be16fa17cdb3ef683bf2c28259c978d4b7088792074f177c8efda247e23f7"
+        if "version" in cmd:
+            return "cardano-cli 8.1.2 - linux-x86_64 - ghc-8.10\ngit rev d2d90b48c5577b4412d5c9c9968b55f8ab4b9767"
+        else:
+            return None
+
     with patch(
         "pycardano.backend.cardano_cli.CardanoCliChainContext._run_command",
         side_effect=override_run_command_older_version,
@@ -564,6 +549,23 @@ def chain_context_latest(genesis_file, config_file):
     Returns:
         The CardanoCliChainContext
     """
+
+    def override_run_command_latest(cmd: List[str]):
+        """
+        Override the run_command method of CardanoCliChainContext to return a mock result of the latest versions of cardano-cli.
+        Args:
+            cmd: The command to run
+
+        Returns:
+            The mock result
+        """
+        if "tip" in cmd:
+            return json.dumps(QUERY_TIP_RESULT)
+        if "txid" in cmd:
+            return "270be16fa17cdb3ef683bf2c28259c978d4b7088792074f177c8efda247e23f7"
+        else:
+            return None
+
     with patch(
         "pycardano.backend.cardano_cli.CardanoCliChainContext._run_command",
         side_effect=override_run_command_latest,
@@ -575,6 +577,72 @@ def chain_context_latest(genesis_file, config_file):
             network=CardanoCliNetwork.PREPROD,
         )
         context._run_command = override_run_command_latest
+    return context
+
+
+@pytest.fixture
+def chain_context_tx_fail(genesis_file, config_file):
+    """
+    Create a CardanoCliChainContext with a mock run_command method
+    Args:
+        genesis_file: The genesis file
+        config_file: The config file
+
+    Returns:
+        The CardanoCliChainContext
+    """
+
+    def override_run_command_fail(cmd: List[str]):
+        if "transaction" in cmd:
+            raise CardanoCliError("Intentionally raised error for testing purposes")
+        if "tip" in cmd:
+            return json.dumps(QUERY_TIP_RESULT)
+        return None
+
+    with patch(
+        "pycardano.backend.cardano_cli.CardanoCliChainContext._run_command",
+        side_effect=override_run_command_fail,
+    ):
+        context = CardanoCliChainContext(
+            binary=Path("cardano-cli"),
+            socket=Path("node.socket"),
+            config_file=config_file,
+            network=CardanoCliNetwork.PREPROD,
+        )
+        context._run_command = override_run_command_fail
+    return context
+
+
+@pytest.fixture
+def chain_context_tx_id_fail(genesis_file, config_file):
+    """
+    Create a CardanoCliChainContext with a mock run_command method
+    Args:
+        genesis_file: The genesis file
+        config_file: The config file
+
+    Returns:
+        The CardanoCliChainContext
+    """
+
+    def override_run_command_fail(cmd: List[str]):
+        if "txid" in cmd:
+            raise CardanoCliError("Intentionally raised error for testing purposes")
+        if "tip" in cmd:
+            return json.dumps(QUERY_TIP_RESULT)
+        return None
+
+    with patch(
+        "pycardano.backend.cardano_cli.CardanoCliChainContext._run_command",
+        side_effect=override_run_command_fail,
+    ):
+        context = CardanoCliChainContext(
+            binary=Path("cardano-cli"),
+            socket=Path("node.socket"),
+            config_file=config_file,
+            network=CardanoCliNetwork.PREPROD,
+        )
+        context._run_command = override_run_command_fail
     return context
 
 
@@ -792,6 +860,16 @@ class TestCardanoCliChainContext:
             results
             == "270be16fa17cdb3ef683bf2c28259c978d4b7088792074f177c8efda247e23f7"
         )
+
+    def test_submit_tx_fail(self, chain_context_tx_fail):
+        with pytest.raises(TransactionFailedException) as exc_info:
+            chain_context_tx_fail.submit_tx("testcborhexfromtransaction")
+        assert str(exc_info.value) == "Failed to submit transaction"
+
+    def test_submit_tx_id_fail(self, chain_context_tx_id_fail):
+        with pytest.raises(PyCardanoException) as exc_info:
+            chain_context_tx_id_fail.submit_tx("testcborhexfromtransaction")
+        assert str(exc_info.value).startswith("Unable to get transaction id for")
 
     def test_epoch(self, chain_context):
         assert chain_context.epoch == 98
