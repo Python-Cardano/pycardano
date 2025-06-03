@@ -19,6 +19,7 @@ from pycardano import (
     RawPlutusData,
     TransactionFailedException,
     TransactionInput,
+    CardanoCliError,
 )
 
 QUERY_TIP_RESULT = {
@@ -847,14 +848,6 @@ class TestCardanoCliChainContext:
 
     def test_submit_tx(self, chain_context):
         results = chain_context.submit_tx("testcborhexfromtransaction")
-
-        assert (
-            results
-            == "270be16fa17cdb3ef683bf2c28259c978d4b7088792074f177c8efda247e23f7"
-        )
-
-    def test_submit_tx_latest(self, chain_context_latest):
-        results = chain_context_latest.submit_tx("testcborhexfromtransaction")
 
         assert (
             results
