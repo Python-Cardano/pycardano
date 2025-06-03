@@ -16,6 +16,7 @@ from pycardano import (
     ProtocolParameters,
     RawPlutusData,
     TransactionInput,
+    CardanoCliError,
 )
 
 QUERY_TIP_RESULT = {
@@ -483,15 +484,19 @@ QUERY_UTXO_RESULT = {
 }
 
 
-def override_run_command(cmd: List[str]):
+def override_run_command_older_version(cmd: List[str]):
     """
-    Override the run_command method of CardanoCliChainContext to return a mock result
+    Override the run_command method of CardanoCliChainContext to return a mock result of older versions of cardano-cli.
     Args:
         cmd: The command to run
 
     Returns:
         The mock result
     """
+    if "latest" in cmd:
+        raise CardanoCliError(
+            "Older versions of cardano-cli do not support the latest command"
+        )
     if "tip" in cmd:
         return json.dumps(QUERY_TIP_RESULT)
     if "protocol-parameters" in cmd:
@@ -502,6 +507,23 @@ def override_run_command(cmd: List[str]):
         return "270be16fa17cdb3ef683bf2c28259c978d4b7088792074f177c8efda247e23f7"
     if "version" in cmd:
         return "cardano-cli 8.1.2 - linux-x86_64 - ghc-8.10\ngit rev d2d90b48c5577b4412d5c9c9968b55f8ab4b9767"
+    else:
+        return None
+
+
+def override_run_command_latest(cmd: List[str]):
+    """
+    Override the run_command method of CardanoCliChainContext to return a mock result of the latest versions of cardano-cli.
+    Args:
+        cmd: The command to run
+
+    Returns:
+        The mock result
+    """
+    if "tip" in cmd:
+        return json.dumps(QUERY_TIP_RESULT)
+    if "txid" in cmd:
+        return "270be16fa17cdb3ef683bf2c28259c978d4b7088792074f177c8efda247e23f7"
     else:
         return None
 
@@ -519,7 +541,7 @@ def chain_context(genesis_file, config_file):
     """
     with patch(
         "pycardano.backend.cardano_cli.CardanoCliChainContext._run_command",
-        side_effect=override_run_command,
+        side_effect=override_run_command_older_version,
     ):
         context = CardanoCliChainContext(
             binary=Path("cardano-cli"),
@@ -527,7 +549,32 @@ def chain_context(genesis_file, config_file):
             config_file=config_file,
             network=CardanoCliNetwork.PREPROD,
         )
-        context._run_command = override_run_command
+        context._run_command = override_run_command_older_version
+    return context
+
+
+@pytest.fixture
+def chain_context_latest(genesis_file, config_file):
+    """
+    Create a CardanoCliChainContext with a mock run_command method
+    Args:
+        genesis_file: The genesis file
+        config_file: The config file
+
+    Returns:
+        The CardanoCliChainContext
+    """
+    with patch(
+        "pycardano.backend.cardano_cli.CardanoCliChainContext._run_command",
+        side_effect=override_run_command_latest,
+    ):
+        context = CardanoCliChainContext(
+            binary=Path("cardano-cli"),
+            socket=Path("node.socket"),
+            config_file=config_file,
+            network=CardanoCliNetwork.PREPROD,
+        )
+        context._run_command = override_run_command_latest
     return context
 
 
@@ -722,8 +769,24 @@ class TestCardanoCliChainContext:
             "55fe36f482e21ff6ae2caf2e33c3565572b568852dccd3f317ddecb91463d780"
         )
 
+    def test_submit_tx_bytes(self, chain_context):
+        results = chain_context.submit_tx("testcborhexfromtransaction".encode("utf-8"))
+
+        assert (
+            results
+            == "270be16fa17cdb3ef683bf2c28259c978d4b7088792074f177c8efda247e23f7"
+        )
+
     def test_submit_tx(self, chain_context):
         results = chain_context.submit_tx("testcborhexfromtransaction")
+
+        assert (
+            results
+            == "270be16fa17cdb3ef683bf2c28259c978d4b7088792074f177c8efda247e23f7"
+        )
+
+    def test_submit_tx_latest(self, chain_context_latest):
+        results = chain_context_latest.submit_tx("testcborhexfromtransaction")
 
         assert (
             results
