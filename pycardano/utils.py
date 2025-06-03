@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import math
 import sys
-from typing import Dict, List, Optional, Union, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
 import cbor2
 from nacl.encoding import RawEncoder
