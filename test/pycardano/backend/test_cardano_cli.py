@@ -861,6 +861,14 @@ class TestCardanoCliChainContext:
             == "270be16fa17cdb3ef683bf2c28259c978d4b7088792074f177c8efda247e23f7"
         )
 
+    def test_submit_tx_latest(self, chain_context_latest):
+        results = chain_context_latest.submit_tx("testcborhexfromtransaction")
+
+        assert (
+            results
+            == "270be16fa17cdb3ef683bf2c28259c978d4b7088792074f177c8efda247e23f7"
+        )
+
     def test_submit_tx_fail(self, chain_context_tx_fail):
         with pytest.raises(TransactionFailedException) as exc_info:
             chain_context_tx_fail.submit_tx("testcborhexfromtransaction")
