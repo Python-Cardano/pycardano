@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import math
-from typing import Dict, List, Optional, Union
+import sys
+from typing import Dict, List, Optional, Tuple, Union
 
 import cbor2
 from nacl.encoding import RawEncoder
@@ -24,6 +25,7 @@ __all__ = [
     "min_lovelace_post_alonzo",
     "script_data_hash",
     "tiered_reference_script_fee",
+    "greater_than_version",
 ]
 
 
@@ -266,3 +268,15 @@ def script_data_hash(
             encoder=RawEncoder,
         )
     )
+
+
+def greater_than_version(version: Tuple[int, int]) -> bool:
+    """Check if the current Python version is greater than or equal to the specified version
+
+    Args:
+        version (Tuple[int, int]): Tuple of major and minor version
+
+    Returns:
+        True if the current Python version is greater than or equal to the specified version
+    """
+    return sys.version_info >= version
