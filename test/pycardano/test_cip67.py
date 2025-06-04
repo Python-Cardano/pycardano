@@ -15,7 +15,7 @@ from pycardano.transaction import AssetName
     ('001bc2804d7943617264', 444),          # User RFT with label 444
 ])
 
-def test_token_name_format(valid_token):
+def test_CIP67_token_name_format(valid_token):
     token_str, expected_label = valid_token
     token = CIP67TokenName(token_str)
     assert token.label == expected_label
