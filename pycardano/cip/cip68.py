@@ -1,12 +1,11 @@
-from typing import Union, Dict, List, Any, Optional, TypedDict, Required
-from dataclasses import dataclass, field
+from typing import Union, Dict, List, Any, TypedDict, Required
+from dataclasses import dataclass
 from cbor2 import CBORTag
-import cbor2
+
 from pycardano.cip.cip67 import CIP67TokenName
-from pycardano.plutus import PlutusData, Unit, get_tag, Primitive, ArrayCBORSerializable
+from pycardano.plutus import PlutusData, Unit, Primitive
 from pycardano.transaction import AssetName
-from pycardano.serialization import IndefiniteList, CBORSerializable
-from pycardano.exception import DeserializeException
+from pycardano.serialization import IndefiniteList
 
 
 class InvalidCIP68ReferenceNFT(Exception):
@@ -28,38 +27,6 @@ class CIP68ReferenceNFTName(CIP68TokenName):
         if self.label != 100:
             raise InvalidCIP68ReferenceNFT("Reference NFT must have label 100.")
 
-    
-# class CIP68BaseMetadata(DictCBORSerializable):
-#     """Base class for CIP-68 metadata"""
-#     KEY_TYPE = bytes
-#     VALUE_TYPE = Any  # Validation handled in each child class using FIELD_TYPES
-#     MAX_ITEM_SIZE = 64
-#     FIELD_TYPES = {}
-
-#     def __init__(self, *args, **kwargs):
-#         super().__init__(args[0] if args else kwargs)
-#         self._validate()
-
-#     def _validate(self):
-#         """Validate field types and sizes"""
-#         for k, v in self.items():
-#             if not isinstance(k, bytes):
-#                 raise ValueError(f"Keys must be bytes, got {type(k)} instead")
-            
-#             if k in self.FIELD_TYPES:
-#                 expected_type = self.FIELD_TYPES[k]
-#                 if not isinstance(v, expected_type):
-#                     raise ValueError(f"Field {k} must be {expected_type}, got {type(v)} instead")
-            
-#             if isinstance(v, bytes) and len(v) > self.MAX_ITEM_SIZE:
-#                 raise ValueError(f"The size of {v} exceeds {self.MAX_ITEM_SIZE} bytes.")
-
-#     # def to_primitive(self) -> dict:
-#     #     """Convert to primitive form with string keys for JSON compatibility"""
-#     #     primitive = super().to_primitive()
-#     #     # Convert bytes keys to strings for JSON serialization
-#     #     return {k.decode() if isinstance(k, bytes) else k: v for k, v in primitive.items()}
-
 
 class CIP68UserNFTName(CIP68TokenName):
     def __init__(self, data: Union[bytes, str, AssetName]):
@@ -75,41 +42,11 @@ class CIP68UserNFTFiles(TypedDict, total=False):
     src: Required[bytes]
 
 
-# class CIP68UserNFTFiles(CIP68BaseMetadata):
-#     """Files metadata for User NFTs"""
-#     FIELD_TYPES = {
-#         b"name": bytes,
-#         b"mediaType": bytes,
-#         b"src": bytes
-#     }
-
-#     def _validate(self):
-#         super()._validate()
-#         if self and not all(k in self.keys() for k in [b"mediaType", b"src"]):
-#             print("self.keys():", self.keys())
-#             print("self.items():", self.items())
-#             print("self:", self)
-#             raise ValueError("mediaType and src are required fields")
-
 class CIP68UserNFTMetadata(TypedDict, total=False):
     name: Required[bytes]
     image: Required[bytes]
     description: bytes
     files: Union[List[Dict[bytes, bytes]], None]
-
-# class CIP68UserNFTMetadata(CIP68BaseMetadata):
-#     """Metadata for User NFTs"""
-#     FIELD_TYPES = {
-#         b"name": bytes,
-#         b"image": bytes,
-#         b"description": bytes,
-#         b"files": (CIP68UserNFTFiles, list, dict, None)
-#     }
-
-#     def _validate(self):
-#         super()._validate()
-#         if not all(k in self.keys() for k in [b"name", b"image"]):
-#             raise ValueError("name and image are required fields")
 
 
 class CIP68UserFTName(CIP68TokenName):
@@ -128,22 +65,6 @@ class CIP68UserFTMetadata(TypedDict, total=False):
     logo: bytes
     decimals: int
 
-# class CIP68UserFTMetadata(CIP68BaseMetadata):
-#     """Metadata for User FTs"""
-#     FIELD_TYPES = {
-#         "name": bytes,
-#         "description": bytes,
-#         "ticker": bytes,
-#         "url": bytes,
-#         "logo": bytes,
-#         "decimals": int
-#     }
-
-#     def _validate(self):
-#         super()._validate()
-#         if not all(k in self for k in ["name", "description"]):
-#             raise ValueError("name and description are required fields")
-
 
 class CIP68UserRFTName(CIP68TokenName):
     def __init__(self, data: Union[bytes, str, AssetName]):
@@ -157,20 +78,6 @@ class CIP68UserRFTMetadata(TypedDict, total=False):
     name: Required[bytes]
     image: Required[bytes]
     description: bytes
-
-
-# class CIP68UserRFTMetadata(CIP68BaseMetadata):
-#     """Metadata for User RFTs"""
-#     FIELD_TYPES = {
-#         "name": bytes,
-#         "image": bytes,
-#         "description": bytes
-#     }
-
-#     def _validate(self):
-#         super()._validate()
-#         if not all(k in self for k in ["name", "image"]):
-#             raise ValueError("name and image are required fields")
 
 
 @dataclass
