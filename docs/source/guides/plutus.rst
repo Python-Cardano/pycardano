@@ -116,7 +116,7 @@ Note that there are specific fields you may need.
 Example - Gift Contract
 -----------------------
 
-We demonstrate how these concepts come into play using a simple example from `opshin <https://github.com/ImperatorLang/opshin>`_.
+We demonstrate how these concepts come into play using a simple example from `opshin <https://github.com/OpShin/opshin>`_.
 A user can lock funds together with a public key hash.
 The contract will make sure that only the owner of the matching private key can redeem the gift.
 
