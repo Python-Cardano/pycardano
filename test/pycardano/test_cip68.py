@@ -1,5 +1,4 @@
 import pytest
-from cbor2 import CBORTag
 from dataclasses import dataclass
 
 from pycardano.cip.cip68 import (
@@ -96,6 +95,9 @@ def test_cip68_multiple_files():
     assert b"mediaType" in datum.metadata[b"files"][1]
     assert b"src" in datum.metadata[b"files"][1]
     assert_roundtrip(datum)
+    restored = datum.from_cbor(datum.to_cbor_hex())
+    print(restored)
+    print(datum)
 
 
 def test_cip68_with_extra():
@@ -111,7 +113,7 @@ def test_cip68_with_extra():
         count: int
 
     extra_data = CustomData(value=b"test value", count=42)
-    
+
     datum_with_extra = CIP68Datum(
         metadata=metadata,
         version=1,
