@@ -39,6 +39,7 @@ from pycardano.serialization import (
     NonEmptyOrderedSet,
     OrderedSet,
     Primitive,
+    TextEnvelope,
     default_encoder,
     limit_primitive_type,
     list_hook,
@@ -685,7 +686,7 @@ class TransactionBody(MapCBORSerializable):
 
 
 @dataclass(repr=False)
-class Transaction(ArrayCBORSerializable):
+class Transaction(ArrayCBORSerializable, TextEnvelope):
     transaction_body: TransactionBody
 
     transaction_witness_set: TransactionWitnessSet
@@ -693,6 +694,35 @@ class Transaction(ArrayCBORSerializable):
     valid: bool = True
 
     auxiliary_data: Optional[AuxiliaryData] = None
+
+    def __init__(
+        self,
+        transaction_body: TransactionBody,
+        transaction_witness_set: TransactionWitnessSet,
+        valid: bool = True,
+        auxiliary_data: Optional[AuxiliaryData] = None,
+        payload: Optional[bytes] = None,
+        key_type: Optional[str] = None,
+        description: Optional[str] = None,
+    ):
+        self.transaction_body = transaction_body
+        self.transaction_witness_set = transaction_witness_set
+        self.valid = valid
+        self.auxiliary_data = auxiliary_data
+        ArrayCBORSerializable.__init__(self)
+        TextEnvelope.__init__(self, payload, key_type, description)
+
+    @property
+    def DESCRIPTION(self):
+        return "Ledger Cddl Format"
+
+    @property
+    def KEY_TYPE(self):
+        return (
+            "Unwitnessed Tx ConwayEra"
+            if self.transaction_witness_set.is_empty()
+            else "Signed Tx ConwayEra"
+        )
 
     @property
     def id(self) -> TransactionId:

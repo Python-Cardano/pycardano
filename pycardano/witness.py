@@ -18,6 +18,7 @@ from pycardano.serialization import (
     ArrayCBORSerializable,
     MapCBORSerializable,
     NonEmptyOrderedSet,
+    TextEnvelope,
     limit_primitive_type,
     list_hook,
 )
@@ -26,9 +27,25 @@ __all__ = ["VerificationKeyWitness", "TransactionWitnessSet"]
 
 
 @dataclass(repr=False)
-class VerificationKeyWitness(ArrayCBORSerializable):
+class VerificationKeyWitness(ArrayCBORSerializable, TextEnvelope):
     vkey: Union[VerificationKey, ExtendedVerificationKey]
     signature: bytes
+
+    KEY_TYPE = "TxWitness ConwayEra"
+    DESCRIPTION = "Key Witness ShelleyEra"
+
+    def __init__(
+        self,
+        vkey: Union[VerificationKey, ExtendedVerificationKey],
+        signature: bytes,
+        payload: Optional[bytes] = None,
+        key_type: Optional[str] = None,
+        description: Optional[str] = None,
+    ):
+        self.vkey = vkey
+        self.signature = signature
+        ArrayCBORSerializable.__init__(self)
+        TextEnvelope.__init__(self, payload, key_type, description)
 
     def __post_init__(self):
         # When vkey is in extended format, we need to convert it to non-extended, so it can match the
@@ -45,6 +62,19 @@ class VerificationKeyWitness(ArrayCBORSerializable):
             vkey=VerificationKey.from_primitive(values[0]),
             signature=values[1],
         )
+
+    def to_shallow_primitive(self) -> Union[list, tuple]:
+        """Convert to a shallow primitive representation."""
+        return [self.vkey.to_primitive(), self.signature]
+
+    def __eq__(self, other):
+        if not isinstance(other, VerificationKeyWitness):
+            return False
+        else:
+            return (
+                self.vkey.payload == other.vkey.payload
+                and self.signature == other.signature
+            )
 
 
 @dataclass(repr=False)
@@ -126,3 +156,16 @@ class TransactionWitnessSet(MapCBORSerializable):
             self.plutus_v2_script = NonEmptyOrderedSet(self.plutus_v2_script)
         if isinstance(self.plutus_v3_script, list):
             self.plutus_v3_script = NonEmptyOrderedSet(self.plutus_v3_script)
+
+    def is_empty(self) -> bool:
+        """Check if the witness set is empty."""
+        return (
+            not self.vkey_witnesses
+            and not self.native_scripts
+            and not self.bootstrap_witness
+            and not self.plutus_v1_script
+            and not self.plutus_data
+            and not self.redeemer
+            and not self.plutus_v2_script
+            and not self.plutus_v3_script
+        )
