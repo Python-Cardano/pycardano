@@ -19,7 +19,6 @@ from pycardano import (
     RawPlutusData,
     TransactionFailedException,
     TransactionInput,
-    CardanoCliError,
 )
 from pycardano.backend.cardano_cli import network_magic
 

@@ -1,10 +1,6 @@
 import tempfile
 
-from pycardano import (
-    PaymentSigningKey,
-    PaymentVerificationKey,
-    VerificationKeyWitness,
-)
+from pycardano import PaymentSigningKey, PaymentVerificationKey, VerificationKeyWitness
 
 
 def test_witness_save_load():
