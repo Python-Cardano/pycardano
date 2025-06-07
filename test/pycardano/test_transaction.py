@@ -214,6 +214,7 @@ def test_full_tx():
         "3e646e616d656a3c72657175697265643e667368613235366a3c72657175697265643e64747970656a3c72657175697265643e"
     )
     tx = Transaction.from_cbor(tx_cbor)
+    tx.__repr__()
     check_two_way_cbor(tx)
 
 
