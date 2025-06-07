@@ -4,13 +4,13 @@ from __future__ import annotations
 
 from copy import deepcopy
 from dataclasses import dataclass, field
-from pprint import pformat
 from typing import Any, Callable, List, Optional, Type, Union
 
 import cbor2
 from cbor2 import CBORTag
 from nacl.encoding import RawEncoder
 from nacl.hash import blake2b
+from pprintpp import pformat
 
 from pycardano.address import Address
 from pycardano.certificate import Certificate
@@ -705,12 +705,21 @@ class Transaction(ArrayCBORSerializable, TextEnvelope):
         key_type: Optional[str] = None,
         description: Optional[str] = None,
     ):
+        super().__init__()
         self.transaction_body = transaction_body
         self.transaction_witness_set = transaction_witness_set
         self.valid = valid
         self.auxiliary_data = auxiliary_data
-        ArrayCBORSerializable.__init__(self)
-        TextEnvelope.__init__(self, payload, key_type, description)
+        self._payload = payload
+        self._key_type = key_type or self.KEY_TYPE
+        self._description = description or self.DESCRIPTION
+
+    def __repr__(self):
+        fields = vars(self)
+        fields.pop("_payload", None)
+        fields.pop("_key_type", None)
+        fields.pop("_description", None)
+        return pformat(vars(self), indent=2)
 
     @property
     def DESCRIPTION(self):
