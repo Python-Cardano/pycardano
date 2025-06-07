@@ -1,7 +1,6 @@
 import tempfile
 
 from pycardano import (
-    PaymentKeyPair,
     PaymentSigningKey,
     PaymentVerificationKey,
     VerificationKeyWitness,
@@ -20,3 +19,5 @@ def test_witness_save_load():
         witness.save(f.name)
         loaded_witness = VerificationKeyWitness.load(f.name)
         assert witness == loaded_witness
+
+        assert witness != vk

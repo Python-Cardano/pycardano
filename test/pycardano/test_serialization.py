@@ -1,3 +1,5 @@
+import json
+import tempfile
 from collections import defaultdict, deque
 from copy import deepcopy
 from dataclasses import dataclass, field
@@ -30,7 +32,11 @@ from pycardano import (
     VerificationKey,
     VerificationKeyWitness,
 )
-from pycardano.exception import DeserializeException, SerializeException
+from pycardano.exception import (
+    DeserializeException,
+    SerializeException,
+    InvalidKeyTypeException,
+)
 from pycardano.plutus import PlutusData, PlutusV1Script, PlutusV2Script
 from pycardano.serialization import (
     ArrayCBORSerializable,
@@ -45,6 +51,7 @@ from pycardano.serialization import (
     RawCBOR,
     default_encoder,
     limit_primitive_type,
+    TextEnvelope,
 )
 
 
@@ -982,3 +989,46 @@ def test_non_empty_ordered_set_deepcopy():
     s_copy[0].value = 100
     assert s[0].value == 1
     assert s_copy[0].value == 100
+
+
+def test_text_envelope():
+    @dataclass
+    class Test1(ArrayCBORSerializable, TextEnvelope):
+        a: str
+        b: Union[str, None] = None
+
+        KEY_TYPE = "Test1"
+        DESCRIPTION = "A test class for TextEnvelope serialization"
+
+        def __init__(
+            self,
+            a: str,
+            b: Union[str, None] = None,
+            payload: Optional[bytes] = None,
+            key_type: Optional[str] = None,
+            description: Optional[str] = None,
+        ):
+            self.a = a
+            self.b = b
+            TextEnvelope.__init__(self, payload, key_type, description)
+
+    test1 = Test1(a="a")
+
+    wrong_type = {
+        "type": "Test2",
+        "description": "A test class for TextEnvelope serialization",
+        "cborHex": "826161f6",
+    }
+
+    with pytest.raises(InvalidKeyTypeException):
+        invalid_test1 = Test1.from_json(json.dumps(wrong_type), validate_type=True)
+
+    assert test1.payload == b"\x82aa\xf6"
+
+    with tempfile.NamedTemporaryFile() as f:
+        test1.save(f.name)
+        loaded = Test1.load(f.name)
+        assert test1 == loaded
+
+        with pytest.raises(IOError):
+            test1.save(f.name)
