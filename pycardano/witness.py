@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, List, Optional, Type, Union
 
+from pprintpp import pformat
+
 from pycardano.key import ExtendedVerificationKey, VerificationKey
 from pycardano.nativescript import NativeScript
 from pycardano.plutus import (
@@ -42,16 +44,17 @@ class VerificationKeyWitness(ArrayCBORSerializable, TextEnvelope):
         key_type: Optional[str] = None,
         description: Optional[str] = None,
     ):
-        self.vkey = vkey
-        self.signature = signature
-        ArrayCBORSerializable.__init__(self)
-        TextEnvelope.__init__(self, payload, key_type, description)
-
-    def __post_init__(self):
         # When vkey is in extended format, we need to convert it to non-extended, so it can match the
         # key hash of the input address we are trying to spend.
-        if isinstance(self.vkey, ExtendedVerificationKey):
-            self.vkey = self.vkey.to_non_extended()
+        super().__init__()
+        if isinstance(vkey, ExtendedVerificationKey):
+            self.vkey = vkey.to_non_extended()
+        else:
+            self.vkey = vkey
+        self.signature = signature
+        self._payload = payload
+        self._key_type = key_type or self.KEY_TYPE
+        self._description = description or self.DESCRIPTION
 
     @classmethod
     @limit_primitive_type(list, tuple)
@@ -75,6 +78,13 @@ class VerificationKeyWitness(ArrayCBORSerializable, TextEnvelope):
                 self.vkey.payload == other.vkey.payload
                 and self.signature == other.signature
             )
+
+    def __repr__(self):
+        fields = {
+            "vkey": self.vkey.payload.hex(),
+            "signature": self.signature.hex(),
+        }
+        return pformat(fields, indent=2)
 
 
 @dataclass(repr=False)
