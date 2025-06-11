@@ -26,6 +26,7 @@ from pycardano import (
     CBORBase,
     Datum,
     MultiAsset,
+    Primitive,
     RawPlutusData,
     Transaction,
     TransactionWitnessSet,
@@ -49,7 +50,6 @@ from pycardano.serialization import (
     NonEmptyOrderedSet,
     OrderedSet,
     RawCBOR,
-    TextEnvelope,
     default_encoder,
     limit_primitive_type,
 )
@@ -991,39 +991,37 @@ def test_non_empty_ordered_set_deepcopy():
     assert s_copy[0].value == 100
 
 
-def test_text_envelope():
+def test_save_load():
     @dataclass
-    class Test1(ArrayCBORSerializable, TextEnvelope):
+    class Test1(CBORSerializable):
         a: str
         b: Union[str, None] = None
 
-        KEY_TYPE = "Test1"
-        DESCRIPTION = "A test class for TextEnvelope serialization"
+        @property
+        def json_type(self) -> str:
+            return "Test Type"
 
-        def __init__(
-            self,
-            a: str,
-            b: Union[str, None] = None,
-            payload: Optional[bytes] = None,
-            key_type: Optional[str] = None,
-            description: Optional[str] = None,
-        ):
-            self.a = a
-            self.b = b
-            TextEnvelope.__init__(self, payload, key_type, description)
+        @property
+        def json_description(self) -> str:
+            return "Test Description"
+
+        @classmethod
+        def from_primitive(
+            cls: Type[CBORSerializable], value: Any, type_args: Optional[tuple] = None
+        ) -> CBORSerializable:
+            if not isinstance(value, dict):
+                raise DeserializeException(f"Expected dict, got {type(value)}")
+            return Test1(a=value["a"], b=value.get("b"))
+
+        def to_shallow_primitive(self) -> Union[Primitive, CBORSerializable]:
+            return {"a": self.a, "b": self.b}
 
     test1 = Test1(a="a")
+    test1_json = json.loads(test1.to_json())
 
-    wrong_type = {
-        "type": "Test2",
-        "description": "A test class for TextEnvelope serialization",
-        "cborHex": "826161f6",
-    }
-
-    with pytest.raises(InvalidKeyTypeException):
-        invalid_test1 = Test1.from_json(json.dumps(wrong_type), validate_type=True)
-
-    assert test1.payload == b"\x82aa\xf6"
+    assert test1_json["type"] == "Test Type"
+    assert test1_json["description"] == "Test Description"
+    assert test1_json["cborHex"] == test1.to_cbor_hex()
 
     with tempfile.NamedTemporaryFile() as f:
         test1.save(f.name)
