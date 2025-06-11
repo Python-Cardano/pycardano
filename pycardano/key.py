@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
 from typing import Optional, Type
 
 from nacl.encoding import RawEncoder
@@ -74,7 +73,7 @@ class Key(CBORSerializable):
     def from_primitive(cls: Type["Key"], value: bytes) -> Key:
         return cls(value)
 
-    def to_json(self) -> str:
+    def to_json(self, **kwargs) -> str:
         """Serialize the key to JSON.
 
         The json output has three fields: "type", "description", and "cborHex".
@@ -122,18 +121,6 @@ class Key(CBORSerializable):
             key_type=obj["type"],
             description=obj["description"],
         )
-
-    def save(self, path: str):
-        if os.path.isfile(path):
-            if os.stat(path).st_size > 0:
-                raise IOError(f"File {path} already exists!")
-        with open(path, "w") as f:
-            f.write(self.to_json())
-
-    @classmethod
-    def load(cls, path: str):
-        with open(path) as f:
-            return cls.from_json(f.read())
 
     def __bytes__(self):
         return self.payload
