@@ -47,11 +47,7 @@ from cbor2 import CBOREncoder, CBORSimpleValue, CBORTag, FrozenDict, dumps, unde
 from frozenlist import FrozenList
 from pprintpp import pformat
 
-from pycardano.exception import (
-    DeserializeException,
-    InvalidKeyTypeException,
-    SerializeException,
-)
+from pycardano.exception import DeserializeException, SerializeException
 from pycardano.types import check_type, typechecked
 
 __all__ = [
@@ -69,7 +65,6 @@ __all__ = [
     "OrderedSet",
     "NonEmptyOrderedSet",
     "CodedSerializable",
-    "TextEnvelope",
 ]
 
 T = TypeVar("T")
@@ -541,6 +536,118 @@ class CBORSerializable:
 
     def __repr__(self):
         return pformat(vars(self), indent=2)
+
+    @property
+    def json_type(self) -> str:
+        """
+        Return the class name of the CBORSerializable object.
+
+        This property provides a default string representing the type of the object for use in JSON serialization.
+
+        Returns:
+            str: The class name of the object.
+        """
+        return self.__class__.__name__
+
+    @property
+    def json_description(self) -> str:
+        """
+        Return the docstring of the CBORSerializable object's class.
+
+        This property provides a default string description of the object for use in JSON serialization.
+
+        Returns:
+            str: The docstring of the object's class.
+        """
+        return "Generated with PyCardano"
+
+    def to_json(self, **kwargs) -> str:
+        """
+        Convert the CBORSerializable object to a JSON string containing type, description, and CBOR hex.
+
+        This method returns a JSON representation of the object, including its type, description, and CBOR hex encoding.
+
+        Args:
+            **kwargs: Additional keyword arguments that can include:
+                - key_type (str): The type to use in the JSON output. Defaults to the class name.
+                - description (str): The description to use in the JSON output. Defaults to the class docstring.
+
+        Returns:
+            str: The JSON string representation of the object.
+        """
+        key_type = kwargs.pop("key_type", self.json_type)
+        description = kwargs.pop("description", self.json_description)
+        return json.dumps(
+            {
+                "type": key_type,
+                "description": description,
+                "cborHex": self.to_cbor_hex(),
+            }
+        )
+
+    @classmethod
+    def from_json(cls: Type[CBORSerializable], data: str) -> CBORSerializable:
+        """
+        Load a CBORSerializable object from a JSON string containing its CBOR hex representation.
+
+        Args:
+            data (str): The JSON string to load the object from.
+
+        Returns:
+            CBORSerializable: The loaded CBORSerializable object.
+
+        Raises:
+            DeserializeException: If the loaded object is not of the expected type.
+        """
+        obj = json.loads(data)
+
+        k = cls.from_cbor(obj["cborHex"])
+
+        if not isinstance(k, cls):
+            raise DeserializeException(
+                f"Expected type {cls.__name__} but got {type(k).__name__}."
+            )
+
+        return k
+
+    def save(
+        self,
+        path: str,
+        key_type: Optional[str] = None,
+        description: Optional[str] = None,
+    ):
+        """
+        Save the CBORSerializable object to a file in JSON format.
+
+        This method writes the object's JSON representation to the specified file path.
+         It raises an error if the file already exists and is not empty.
+
+        Args:
+            path (str): The file path to save the object to.
+            key_type (str, optional): The type to use in the JSON output.
+            description (str, optional): The description to use in the JSON output.
+
+        Raises:
+            IOError: If the file already exists and is not empty.
+        """
+        if os.path.isfile(path) and os.stat(path).st_size > 0:
+            raise IOError(f"File {path} already exists!")
+        with open(path, "w") as f:
+            f.write(self.to_json(key_type=key_type, description=description))
+
+    @classmethod
+    def load(cls, path: str):
+        """
+        Load a CBORSerializable object from a file containing its JSON representation.
+
+        Args:
+            path (str): The file path to load the object from.
+
+        Returns:
+            CBORSerializable: The loaded CBORSerializable object.
+        """
+        with open(path) as f:
+            return cls.from_json(f.read())
 
 
 def _restore_dataclass_field(
@@ -1149,98 +1256,3 @@ class CodedSerializable(ArrayCBORSerializable):
             raise DeserializeException(f"Invalid {cls.__name__} type {values[0]}")
         # Cast using Type[CodedSerializable] instead of cls directly
         return cast(Type[CodedSerializable], super()).from_primitive(values[1:])
-
-
-@dataclass(repr=False)
-class TextEnvelope(CBORSerializable):
-    """A base class for TextEnvelope types that can be saved and loaded as JSON."""
-
-    KEY_TYPE = ""
-    DESCRIPTION = ""
-
-    def __init__(
-        self,
-        payload: Optional[bytes] = None,
-        key_type: Optional[str] = None,
-        description: Optional[str] = None,
-    ):
-        self._payload = payload
-        self._key_type = key_type or self.KEY_TYPE
-        self._description = description or self.DESCRIPTION
-
-    @property
-    def payload(self) -> bytes:
-        if self._payload is None:
-            self._payload = self.to_cbor()
-        return self._payload
-
-    @property
-    def key_type(self) -> str:
-        return self._key_type
-
-    @property
-    def description(self) -> str:
-        return self._description
-
-    def to_json(self) -> str:
-        """Serialize the key to JSON.
-
-        The json output has three fields: "type", "description", and "cborHex".
-
-        Returns:
-            str: JSON representation of the key.
-        """
-        return json.dumps(
-            {
-                "type": self.key_type,
-                "description": self.description,
-                "cborHex": self.to_cbor_hex(),
-            }
-        )
-
-    @classmethod
-    def from_json(
-        cls: Type[TextEnvelope], data: str, validate_type=False
-    ) -> TextEnvelope:
-        """Restore a TextEnvelope from a JSON string.
-
-        Args:
-            data (str): JSON string.
-            validate_type (bool): Checks whether the type specified in json object is the same
-                as the class's default type.
-
-        Returns:
-            Key: The key restored from JSON.
-
-        Raises:
-            InvalidKeyTypeException: When `validate_type=True` and the type in json is not equal to the default type
-                of the Key class used.
-        """
-        obj = json.loads(data)
-
-        if validate_type and obj["type"] != cls.KEY_TYPE:
-            raise InvalidKeyTypeException(
-                f"Expect key type: {cls.KEY_TYPE}, got {obj['type']} instead."
-            )
-
-        k = cls.from_cbor(obj["cborHex"])
-
-        assert isinstance(k, cls)
-
-        k._key_type = obj["type"]
-        k._description = obj["description"]
-        k._payload = k.to_cbor()
-
-        return k
-
-    def save(self, path: str):
-        if os.path.isfile(path):
-            if os.stat(path).st_size > 0:
-                raise IOError(f"File {path} already exists!")
-        with open(path, "w") as f:
-            f.write(self.to_json())
-
-    @classmethod
-    def load(cls, path: str):
-        with open(path) as f:
-            return cls.from_json(f.read())
