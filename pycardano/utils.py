@@ -80,7 +80,7 @@ def fee(
     """Calculate fee based on the length of a transaction's CBOR bytes and script execution.
 
     Args:
-        context (ChainConext): A chain context.
+        context (ChainContext): A chain context.
         length (int): The length of CBOR bytes, which could usually be derived
             by `len(tx.to_cbor())`.
         exec_steps (int): Number of execution steps run by plutus scripts in the transaction.
@@ -201,7 +201,7 @@ def min_lovelace_pre_alonzo(
 def min_lovelace_post_alonzo(output: TransactionOutput, context: ChainContext) -> int:
     """Calculate minimum lovelace a transaction output needs to hold post alonzo.
 
-    This implementation is copied from the origianl Haskell implementation:
+    This implementation is copied from the original Haskell implementation:
     https://github.com/input-output-hk/cardano-ledger/blob/eb053066c1d3bb51fb05978eeeab88afc0b049b2/eras/babbage/impl/src/Cardano/Ledger/Babbage/Rules/Utxo.hs#L242-L265
 
     Args:
