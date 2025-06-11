@@ -20,7 +20,6 @@ from pycardano.serialization import (
     ArrayCBORSerializable,
     MapCBORSerializable,
     NonEmptyOrderedSet,
-    TextEnvelope,
     limit_primitive_type,
     list_hook,
 )
@@ -29,32 +28,23 @@ __all__ = ["VerificationKeyWitness", "TransactionWitnessSet"]
 
 
 @dataclass(repr=False)
-class VerificationKeyWitness(ArrayCBORSerializable, TextEnvelope):
+class VerificationKeyWitness(ArrayCBORSerializable):
     vkey: Union[VerificationKey, ExtendedVerificationKey]
     signature: bytes
 
-    KEY_TYPE = "TxWitness ConwayEra"
-    DESCRIPTION = "Key Witness ShelleyEra"
+    @property
+    def json_type(self) -> str:
+        return "TxWitness ConwayEra"
 
-    def __init__(
-        self,
-        vkey: Union[VerificationKey, ExtendedVerificationKey],
-        signature: bytes,
-        payload: Optional[bytes] = None,
-        key_type: Optional[str] = None,
-        description: Optional[str] = None,
-    ):
+    @property
+    def json_description(self) -> str:
+        return "Key Witness ShelleyEra"
+
+    def __post_init__(self):
         # When vkey is in extended format, we need to convert it to non-extended, so it can match the
         # key hash of the input address we are trying to spend.
-        super().__init__()
-        if isinstance(vkey, ExtendedVerificationKey):
-            self.vkey = vkey.to_non_extended()
-        else:
-            self.vkey = vkey
-        self.signature = signature
-        self._payload = payload
-        self._key_type = key_type or self.KEY_TYPE
-        self._description = description or self.DESCRIPTION
+        if isinstance(self.vkey, ExtendedVerificationKey):
+            self.vkey = self.vkey.to_non_extended()
 
     @classmethod
     @limit_primitive_type(list, tuple)
@@ -65,10 +55,6 @@ class VerificationKeyWitness(ArrayCBORSerializable, TextEnvelope):
             vkey=VerificationKey.from_primitive(values[0]),
             signature=values[1],
         )
-
-    def to_shallow_primitive(self) -> Union[list, tuple]:
-        """Convert to a shallow primitive representation."""
-        return [self.vkey.to_primitive(), self.signature]
 
     def __eq__(self, other):
         if not isinstance(other, VerificationKeyWitness):

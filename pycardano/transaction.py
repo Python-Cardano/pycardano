@@ -39,7 +39,6 @@ from pycardano.serialization import (
     NonEmptyOrderedSet,
     OrderedSet,
     Primitive,
-    TextEnvelope,
     default_encoder,
     limit_primitive_type,
     list_hook,
@@ -686,7 +685,7 @@ class TransactionBody(MapCBORSerializable):
 
 
 @dataclass(repr=False)
-class Transaction(ArrayCBORSerializable, TextEnvelope):
+class Transaction(ArrayCBORSerializable):
     transaction_body: TransactionBody
 
     transaction_witness_set: TransactionWitnessSet
@@ -695,43 +694,17 @@ class Transaction(ArrayCBORSerializable, TextEnvelope):
 
     auxiliary_data: Optional[AuxiliaryData] = None
 
-    def __init__(
-        self,
-        transaction_body: TransactionBody,
-        transaction_witness_set: TransactionWitnessSet,
-        valid: bool = True,
-        auxiliary_data: Optional[AuxiliaryData] = None,
-        payload: Optional[bytes] = None,
-        key_type: Optional[str] = None,
-        description: Optional[str] = None,
-    ):
-        super().__init__()
-        self.transaction_body = transaction_body
-        self.transaction_witness_set = transaction_witness_set
-        self.valid = valid
-        self.auxiliary_data = auxiliary_data
-        self._payload = payload
-        self._key_type = key_type or self.KEY_TYPE
-        self._description = description or self.DESCRIPTION
-
-    def __repr__(self):
-        fields = vars(self)
-        fields.pop("_payload", None)
-        fields.pop("_key_type", None)
-        fields.pop("_description", None)
-        return pformat(vars(self), indent=2)
-
     @property
-    def DESCRIPTION(self):
-        return "Ledger Cddl Format"
-
-    @property
-    def KEY_TYPE(self):
+    def json_type(self) -> str:
         return (
             "Unwitnessed Tx ConwayEra"
             if self.transaction_witness_set.is_empty()
             else "Signed Tx ConwayEra"
         )
+
+    @property
+    def json_description(self) -> str:
+        return "Ledger Cddl Format"
 
     @property
     def id(self) -> TransactionId:
