@@ -41,8 +41,8 @@ requests = "^2.32.3"
 websockets = "^13.0"
 
 [tool.poetry.group.dev.dependencies]
-Sphinx = "^5.0.0"
-sphinx-rtd-theme = "^2.0.0"
+Sphinx = "^7.2.3"
+sphinx-rtd-theme = "^3.0.2"
 pytest = "^8.2.0"
 pytest-cov = "^5.0.0"
 flake8 = "^7.0.0"

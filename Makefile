@@ -88,6 +88,7 @@ format: ## runs code style and formatter
 	poetry run black .
 
 docs: ## build the documentation
+	pipx inject poetry poetry-plugin-export
 	poetry export --dev --without-hashes > docs/requirements.txt
 	rm -r -f docs/build
 	poetry run sphinx-build docs/source docs/build/html

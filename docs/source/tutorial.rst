@@ -39,7 +39,7 @@ Create a payment key and a payment address::
 
 
 Fund the address with some tADA (test ADA) through the
-`faucet <https://testnets.cardano.org/en/testnets/cardano/tools/faucet/>`_ here.
+`faucet <https://docs.cardano.org/cardano-testnets/tools/faucet>`_ here.
 
 With the address and key created above, you can now create and sign transactions, and submit the
 transaction to Cardano network. `Transaction usage guide <guides/transaction.html>`_ provides detailed steps about
