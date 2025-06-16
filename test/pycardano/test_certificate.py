@@ -7,7 +7,9 @@ from pycardano.address import Address
 from pycardano.certificate import (
     Anchor,
     AuthCommitteeHotCertificate,
+    DRep,
     DRepCredential,
+    DRepKind,
     PoolRegistration,
     PoolRetirement,
     ResignCommitteeColdCertificate,
@@ -22,8 +24,10 @@ from pycardano.exception import DeserializeException, InvalidArgumentException
 from pycardano.hash import (  # plutus_script_hash,
     POOL_KEY_HASH_SIZE,
     SCRIPT_HASH_SIZE,
+    VERIFICATION_KEY_HASH_SIZE,
     PoolKeyHash,
     ScriptHash,
+    VerificationKeyHash,
 )
 
 TEST_ADDR = Address.from_primitive(
@@ -195,6 +199,104 @@ def test_drep_credential():
         == "8200581c4828a2dadba97ca9fd0cdc99975899470c219bdc0d828cfa6ddf6d69"
     )
     assert DRepCredential.from_cbor(drep_credential_cbor_hex) == drep_credential
+
+
+@pytest.mark.parametrize(
+    "input_values,expected_kind,expected_credential,expected_exception,case_id",
+    [
+        # Happy path: VERIFICATION_KEY_HASH
+        (
+            [DRepKind.VERIFICATION_KEY_HASH.value, b"1" * VERIFICATION_KEY_HASH_SIZE],
+            DRepKind.VERIFICATION_KEY_HASH,
+            VerificationKeyHash(b"1" * VERIFICATION_KEY_HASH_SIZE),
+            None,
+            "verification_key_hash",
+        ),
+        # Happy path: SCRIPT_HASH
+        (
+            [DRepKind.SCRIPT_HASH.value, b"1" * SCRIPT_HASH_SIZE],
+            DRepKind.SCRIPT_HASH,
+            ScriptHash(b"1" * SCRIPT_HASH_SIZE),
+            None,
+            "script_hash",
+        ),
+        # Happy path: ALWAYS_ABSTAIN
+        (
+            [DRepKind.ALWAYS_ABSTAIN.value],
+            DRepKind.ALWAYS_ABSTAIN,
+            None,
+            None,
+            "always_abstain",
+        ),
+        # Happy path: ALWAYS_NO_CONFIDENCE
+        (
+            [DRepKind.ALWAYS_NO_CONFIDENCE.value],
+            DRepKind.ALWAYS_NO_CONFIDENCE,
+            None,
+            None,
+            "always_no_confidence",
+        ),
+        # Error: invalid DRepKind value (not in enum)
+        ([99], None, None, DeserializeException, "invalid_drep_kind"),
+        # Error: valid kind but missing credential for VERIFICATION_KEY_HASH
+        (
+            [DRepKind.VERIFICATION_KEY_HASH.value],
+            None,
+            None,
+            IndexError,
+            "missing_credential_verification_key_hash",
+        ),
+        # Error: valid kind but missing credential for SCRIPT_HASH
+        (
+            [DRepKind.SCRIPT_HASH.value],
+            None,
+            None,
+            IndexError,
+            "missing_credential_script_hash",
+        ),
+        # Error: valid kind but extra credential for ALWAYS_ABSTAIN
+        (
+            [DRepKind.ALWAYS_ABSTAIN.value, b"extra"],
+            DRepKind.ALWAYS_ABSTAIN,
+            None,
+            None,
+            "abstain_with_extra",
+        ),
+        # Error: valid kind but extra credential for ALWAYS_NO_CONFIDENCE
+        (
+            [DRepKind.ALWAYS_NO_CONFIDENCE.value, b"extra"],
+            DRepKind.ALWAYS_NO_CONFIDENCE,
+            None,
+            None,
+            "no_confidence_with_extra",
+        ),
+        # Error: input is empty
+        ([], None, None, IndexError, "empty_input"),
+        # Error: input is not a list or tuple
+        ("notalist", None, None, DeserializeException, "input_not_list"),
+    ],
+    ids=lambda p: p if isinstance(p, str) else None,
+)
+def test_drep_from_primitive(
+    input_values, expected_kind, expected_credential, expected_exception, case_id
+):
+
+    # Arrange
+    # (All input values are provided via test parameters)
+
+    # Act / Assert
+    if expected_exception:
+        with pytest.raises(expected_exception):
+            DRep.from_primitive(input_values)
+    else:
+        result = DRep.from_primitive(input_values)
+        # Assert
+        assert result.kind == expected_kind
+        if expected_credential is not None:
+            assert isinstance(result.credential, type(expected_credential))
+            assert result.credential.payload == expected_credential.payload
+        else:
+            assert result.credential is None
 
 
 def test_unreg_drep_certificate():

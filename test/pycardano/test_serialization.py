@@ -1,3 +1,5 @@
+import json
+import tempfile
 from collections import defaultdict, deque
 from copy import deepcopy
 from dataclasses import dataclass, field
@@ -24,13 +26,18 @@ from pycardano import (
     CBORBase,
     Datum,
     MultiAsset,
+    Primitive,
     RawPlutusData,
     Transaction,
     TransactionWitnessSet,
     VerificationKey,
     VerificationKeyWitness,
 )
-from pycardano.exception import DeserializeException, SerializeException
+from pycardano.exception import (
+    DeserializeException,
+    InvalidKeyTypeException,
+    SerializeException,
+)
 from pycardano.plutus import PlutusData, PlutusV1Script, PlutusV2Script
 from pycardano.serialization import (
     ArrayCBORSerializable,
@@ -982,3 +989,44 @@ def test_non_empty_ordered_set_deepcopy():
     s_copy[0].value = 100
     assert s[0].value == 1
     assert s_copy[0].value == 100
+
+
+def test_save_load():
+    @dataclass
+    class Test1(CBORSerializable):
+        a: str
+        b: Union[str, None] = None
+
+        @property
+        def json_type(self) -> str:
+            return "Test Type"
+
+        @property
+        def json_description(self) -> str:
+            return "Test Description"
+
+        @classmethod
+        def from_primitive(
+            cls: Type[CBORSerializable], value: Any, type_args: Optional[tuple] = None
+        ) -> CBORSerializable:
+            if not isinstance(value, dict):
+                raise DeserializeException(f"Expected dict, got {type(value)}")
+            return Test1(a=value["a"], b=value.get("b"))
+
+        def to_shallow_primitive(self) -> Union[Primitive, CBORSerializable]:
+            return {"a": self.a, "b": self.b}
+
+    test1 = Test1(a="a")
+    test1_json = json.loads(test1.to_json())
+
+    assert test1_json["type"] == "Test Type"
+    assert test1_json["description"] == "Test Description"
+    assert test1_json["cborHex"] == test1.to_cbor_hex()
+
+    with tempfile.NamedTemporaryFile() as f:
+        test1.save(f.name)
+        loaded = Test1.load(f.name)
+        assert test1 == loaded
+
+        with pytest.raises(IOError):
+            test1.save(f.name)
