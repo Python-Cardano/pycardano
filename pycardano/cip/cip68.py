@@ -49,21 +49,22 @@ class CIP68UserNFTName(CIP68TokenName):
             raise InvalidCIP68ReferenceNFT("User NFT must have label 222.")
 
 
-class CIP68UserNFTFiles(TypedDict, total=False):
-    """Multiple files may be included in metadata by using a list of dictionaries.
-    
-    Example:    files: [file_dict_1, file_dict_2]
-    """
+class CIP68UserNFTFile(TypedDict, total=False):
+    """Metadata for a single file in NFT metadata."""
     name: bytes
     mediaType: Required[bytes]
     src: Required[bytes]
 
 
 class CIP68UserNFTMetadata(TypedDict, total=False):
+    """Metadata for a user NFT.
+
+    Multiple files can be included as a list of dictionaries or CIP68UserNFTFile objects.
+    """
     name: Required[bytes]
     image: Required[bytes]
     description: bytes
-    files: Union[List[Dict[bytes, bytes]], None]
+    files: Union[List[CIP68UserNFTFile], None]
 
 
 class CIP68UserFTName(CIP68TokenName):
