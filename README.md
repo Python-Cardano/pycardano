@@ -11,7 +11,7 @@
 [![PyPI download month](https://img.shields.io/pypi/dm/pycardano)](https://pypi.python.org/pypi/pycardano/)
 
 [![PyCardano](https://github.com/Python-Cardano/pycardano/actions/workflows/main.yml/badge.svg)](https://github.com/Python-Cardano/pycardano/actions/workflows/main.yml)
-[![codecov](https://codecov.io/gh/Python-Cardano/pycardano/branch/main/graph/badge.svg?token=62N0IL9IMQ)](https://codecov.io/gh/Python-Cardano/pycardano)
+[![codecov](https://codecov.io/gh/Python-Cardano/pycardano/graph/badge.svg?token=62N0IL9IMQ)](https://codecov.io/gh/Python-Cardano/pycardano)
 [![Documentation Status](https://readthedocs.org/projects/pycardano/badge/?version=latest)](https://pycardano.readthedocs.io/en/latest/?badge=latest)
 
 [![Discord](https://img.shields.io/discord/949404918903631923.svg?label=chat&logo=discord&logoColor=ffffff&color=7389D8&labelColor=6A7EC2)](https://discord.gg/qT9Mn9xjgz)
