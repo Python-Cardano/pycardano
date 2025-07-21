@@ -20,6 +20,7 @@ from pycardano import (
     TransactionFailedException,
     TransactionInput,
 )
+from pycardano.backend.cardano_cli import network_magic
 
 QUERY_TIP_RESULT = {
     "block": 1460093,
@@ -644,6 +645,10 @@ def chain_context_tx_id_fail(genesis_file, config_file):
         )
         context._run_command = override_run_command_fail
     return context
+
+
+def test_network_magic():
+    assert network_magic(1) == ["--testnet-magic", "1"]
 
 
 class TestCardanoCliChainContext:

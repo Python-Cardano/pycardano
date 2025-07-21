@@ -4,13 +4,13 @@ from __future__ import annotations
 
 from copy import deepcopy
 from dataclasses import dataclass, field
-from pprint import pformat
 from typing import Any, Callable, List, Optional, Type, Union
 
 import cbor2
 from cbor2 import CBORTag
 from nacl.encoding import RawEncoder
 from nacl.hash import blake2b
+from pprintpp import pformat
 
 from pycardano.address import Address
 from pycardano.certificate import Certificate
@@ -693,6 +693,18 @@ class Transaction(ArrayCBORSerializable):
     valid: bool = True
 
     auxiliary_data: Optional[AuxiliaryData] = None
+
+    @property
+    def json_type(self) -> str:
+        return (
+            "Unwitnessed Tx ConwayEra"
+            if self.transaction_witness_set.is_empty()
+            else "Signed Tx ConwayEra"
+        )
+
+    @property
+    def json_description(self) -> str:
+        return "Ledger Cddl Format"
 
     @property
     def id(self) -> TransactionId:

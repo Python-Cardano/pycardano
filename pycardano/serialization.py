@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+import os
 import re
 import typing
 from collections import OrderedDict, UserList, defaultdict
@@ -534,6 +536,119 @@ class CBORSerializable:
 
     def __repr__(self):
         return pformat(vars(self), indent=2)
+
+    @property
+    def json_type(self) -> str:
+        """
+        Return the class name of the CBORSerializable object.
+
+        This property provides a default string representing the type of the object for use in JSON serialization.
+
+        Returns:
+            str: The class name of the object.
+        """
+        return self.__class__.__name__
+
+    @property
+    def json_description(self) -> str:
+        """
+        Return the docstring of the CBORSerializable object's class.
+
+        This property provides a default string description of the object for use in JSON serialization.
+
+        Returns:
+            str: The docstring of the object's class.
+        """
+        return self.__class__.__doc__ or "Generated with PyCardano"
+
+    def to_json(self, **kwargs) -> str:
+        """
+        Convert the CBORSerializable object to a JSON string containing type, description, and CBOR hex.
+
+        This method returns a JSON representation of the object, including its type, description, and CBOR hex encoding.
+
+        Args:
+            **kwargs: Additional keyword arguments that can include:
+                - key_type (str): The type to use in the JSON output. Defaults to the class name.
+                - description (str): The description to use in the JSON output. Defaults to the class docstring.
+
+        Returns:
+            str: The JSON string representation of the object.
+        """
+        key_type = kwargs.pop("key_type", self.json_type)
+        description = kwargs.pop("description", self.json_description)
+        return json.dumps(
+            {
+                "type": key_type,
+                "description": description,
+                "cborHex": self.to_cbor_hex(),
+            },
+            indent=2,
+        )
+
+    @classmethod
+    def from_json(cls: Type[CBORSerializable], data: str) -> CBORSerializable:
+        """
+        Load a CBORSerializable object from a JSON string containing its CBOR hex representation.
+
+        Args:
+            data (str): The JSON string to load the object from.
+
+        Returns:
+            CBORSerializable: The loaded CBORSerializable object.
+
+        Raises:
+            DeserializeException: If the loaded object is not of the expected type.
+        """
+        obj = json.loads(data)
+
+        k = cls.from_cbor(obj["cborHex"])
+
+        if not isinstance(k, cls):
+            raise DeserializeException(
+                f"Expected type {cls.__name__} but got {type(k).__name__}."
+            )
+
+        return k
+
+    def save(
+        self,
+        path: str,
+        key_type: Optional[str] = None,
+        description: Optional[str] = None,
+    ):
+        """
+        Save the CBORSerializable object to a file in JSON format.
+
+        This method writes the object's JSON representation to the specified file path.
+         It raises an error if the file already exists and is not empty.
+
+        Args:
+            path (str): The file path to save the object to.
+            key_type (str, optional): The type to use in the JSON output.
+            description (str, optional): The description to use in the JSON output.
+
+        Raises:
+            IOError: If the file already exists and is not empty.
+        """
+        if os.path.isfile(path) and os.stat(path).st_size > 0:
+            raise IOError(f"File {path} already exists!")
+        with open(path, "w") as f:
+            f.write(self.to_json(key_type=key_type, description=description))
+
+    @classmethod
+    def load(cls, path: str):
+        """
+        Load a CBORSerializable object from a file containing its JSON representation.
+
+        Args:
+            path (str): The file path to load the object from.
+
+        Returns:
+            CBORSerializable: The loaded CBORSerializable object.
+        """
+        with open(path) as f:
+            return cls.from_json(f.read())
 
 
 def _restore_dataclass_field(

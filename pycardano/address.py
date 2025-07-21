@@ -8,8 +8,11 @@ Specifications and references could be found in:
 
 from __future__ import annotations
 
+import os
 from enum import Enum
-from typing import Type, Union
+from typing import Optional, Type, Union
+
+from typing_extensions import override
 
 from pycardano.crypto.bech32 import decode, encode
 from pycardano.exception import (
@@ -406,3 +409,43 @@ class Address(CBORSerializable):
 
     def __repr__(self):
         return f"{self.encode()}"
+
+    @override
+    def save(
+        self,
+        path: str,
+        key_type: Optional[str] = None,
+        description: Optional[str] = None,
+    ):
+        """
+        Save the Address object to a file.
+
+        This method writes the object's JSON representation to the specified file path.
+         It raises an error if the file already exists and is not empty.
+
+        Args:
+            path (str): The file path to save the object to.
+            key_type (str, optional): Not used in this context, but can be included for consistency.
+            description (str, optional): Not used in this context, but can be included for consistency.
+
+        Raises:
+            IOError: If the file already exists and is not empty.
+        """
+        if os.path.isfile(path) and os.stat(path).st_size > 0:
+            raise IOError(f"File {path} already exists!")
+        with open(path, "w") as f:
+            f.write(self.encode())
+
+    @classmethod
+    def load(cls, path: str) -> Address:
+        """
+        Load an Address object from a file.
+
+        Args:
+            path (str): The file path to load the object from.
+
+        Returns:
+            Address: The loaded Address object.
+        """
+        with open(path) as f:
+            return cls.decode(f.read())
