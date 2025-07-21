@@ -582,7 +582,8 @@ class CBORSerializable:
                 "type": key_type,
                 "description": description,
                 "cborHex": self.to_cbor_hex(),
-            }
+            },
+            indent=2,
         )
 
     @classmethod
