@@ -559,7 +559,7 @@ class CBORSerializable:
         Returns:
             str: The docstring of the object's class.
         """
-        return "Generated with PyCardano"
+        return self.__class__.__doc__ or "Generated with PyCardano"
 
     def to_json(self, **kwargs) -> str:
         """
