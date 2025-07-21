@@ -56,6 +56,10 @@ class VerificationKeyWitness(ArrayCBORSerializable):
             signature=values[1],
         )
 
+    def to_shallow_primitive(self) -> Union[list, tuple]:
+        """Convert to a shallow primitive representation."""
+        return [self.vkey.to_primitive(), self.signature]
+
     def __eq__(self, other):
         if not isinstance(other, VerificationKeyWitness):
             return False
