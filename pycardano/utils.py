@@ -12,7 +12,7 @@ from nacl.hash import blake2b
 
 from pycardano.backend.base import ChainContext
 from pycardano.hash import SCRIPT_DATA_HASH_SIZE, SCRIPT_HASH_SIZE, ScriptDataHash
-from pycardano.plutus import COST_MODELS, CostModels, Datum, Redeemers, RedeemerMap
+from pycardano.plutus import COST_MODELS, CostModels, Datum, RedeemerMap, Redeemers
 from pycardano.serialization import NonEmptyOrderedSet, default_encoder
 from pycardano.transaction import MultiAsset, TransactionOutput, Value
 
@@ -260,13 +260,13 @@ def script_data_hash(
 
     # Handle datums - if no datums, use empty bytestring
     if datums:
-        if isinstance(datums, list):
-            # If datums is a NonEmptyOrderedSet, convert it to a shallow primitive representation
-            # to ensure correct CBOR encoding
-            datums = NonEmptyOrderedSet(datums)
-        datum_bytes = cbor2.dumps(
-            datums.to_shallow_primitive(), default=default_encoder
-        )
+        if not isinstance(datums, NonEmptyOrderedSet):
+            # If datums is not a NonEmptyOrderedSet, handle it as a list
+            datum_bytes = cbor2.dumps(datums, default=default_encoder)
+        else:
+            datum_bytes = cbor2.dumps(
+                datums.to_shallow_primitive(), default=default_encoder
+            )
     else:
         datum_bytes = b""
 
