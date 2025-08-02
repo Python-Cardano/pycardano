@@ -3,7 +3,17 @@ from test.pycardano.util import chain_context
 import pytest
 
 from pycardano.hash import SCRIPT_HASH_SIZE, ScriptDataHash
-from pycardano.plutus import ExecutionUnits, PlutusData, Redeemer, RedeemerTag, Unit
+from pycardano.plutus import (
+    COST_MODELS,
+    ExecutionUnits,
+    PlutusData,
+    Redeemer,
+    RedeemerKey,
+    RedeemerMap,
+    RedeemerTag,
+    RedeemerValue,
+    Unit,
+)
 from pycardano.transaction import Value
 from pycardano.utils import (
     min_lovelace_pre_alonzo,
@@ -156,14 +166,31 @@ def test_script_data_hash():
     redeemers = [Redeemer(unit, ExecutionUnits(1000000, 1000000))]
     redeemers[0].tag = RedeemerTag.SPEND
     assert ScriptDataHash.from_primitive(
-        "032d812ee0731af78fe4ec67e4d30d16313c09e6fb675af28f825797e8b5621d"
+        "2ad155a692b0ddb6752df485de0a6bdb947757f9f998ff34a6f4b06ca0664fbe"
     ) == script_data_hash(redeemers=redeemers, datums=[unit])
+
+
+def test_script_data_hash_redeemer_map():
+    unit = Unit()
+    redeemer = Redeemer(42, ExecutionUnits(573240, 253056459))
+    redeemer.tag = RedeemerTag.SPEND
+    redeemers = RedeemerMap(
+        {
+            RedeemerKey(redeemer.tag, redeemer.index): RedeemerValue(
+                redeemer.data, redeemer.ex_units
+            )
+        }
+    )
+    cost_models = COST_MODELS
+    assert ScriptDataHash.from_primitive(
+        "04ad5eb241d1ede2bbbd60c5853de7659d2ecfb1a29d6cbb6921ef7bdd46ca3c"
+    ) == script_data_hash(redeemers=redeemers, datums=[unit], cost_models=cost_models)
 
 
 def test_script_data_hash_datum_only():
     unit = Unit()
     assert ScriptDataHash.from_primitive(
-        "2f50ea2546f8ce020ca45bfcf2abeb02ff18af2283466f888ae489184b3d2d39"
+        "264ea21d9904cd72ce5038fa60e0ddd0859383f7fbf60ecec6df22e4c4e34a1f"
     ) == script_data_hash(redeemers=[], datums=[unit])
 
 
@@ -171,7 +198,7 @@ def test_script_data_hash_redeemer_only():
     unit = Unit()
     redeemers = []
     assert ScriptDataHash.from_primitive(
-        "a88fe2947b8d45d1f8b798e52174202579ecf847b8f17038c7398103df2d27b0"
+        "9eb0251b2e85b082c3706a3e79b4cf2a2e96f936e912a398591e2486c757f8c1"
     ) == script_data_hash(redeemers=redeemers, datums=[])
 
 
