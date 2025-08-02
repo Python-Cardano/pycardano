@@ -2,6 +2,7 @@ from test.pycardano.util import chain_context
 
 import pytest
 
+from pycardano import NonEmptyOrderedSet
 from pycardano.hash import SCRIPT_HASH_SIZE, ScriptDataHash
 from pycardano.plutus import (
     COST_MODELS,
@@ -166,7 +167,7 @@ def test_script_data_hash():
     redeemers = [Redeemer(unit, ExecutionUnits(1000000, 1000000))]
     redeemers[0].tag = RedeemerTag.SPEND
     assert ScriptDataHash.from_primitive(
-        "2ad155a692b0ddb6752df485de0a6bdb947757f9f998ff34a6f4b06ca0664fbe"
+        "032d812ee0731af78fe4ec67e4d30d16313c09e6fb675af28f825797e8b5621d"
     ) == script_data_hash(redeemers=redeemers, datums=[unit])
 
 
@@ -184,13 +185,15 @@ def test_script_data_hash_redeemer_map():
     cost_models = COST_MODELS
     assert ScriptDataHash.from_primitive(
         "04ad5eb241d1ede2bbbd60c5853de7659d2ecfb1a29d6cbb6921ef7bdd46ca3c"
-    ) == script_data_hash(redeemers=redeemers, datums=[unit], cost_models=cost_models)
+    ) == script_data_hash(
+        redeemers=redeemers, datums=NonEmptyOrderedSet([unit]), cost_models=cost_models
+    )
 
 
 def test_script_data_hash_datum_only():
     unit = Unit()
     assert ScriptDataHash.from_primitive(
-        "264ea21d9904cd72ce5038fa60e0ddd0859383f7fbf60ecec6df22e4c4e34a1f"
+        "244926529564c04ffdea89005076a6b6aac5e4a2f38182cd48bfbc734b3be296"
     ) == script_data_hash(redeemers=[], datums=[unit])
 
 
