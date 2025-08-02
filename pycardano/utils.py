@@ -12,7 +12,7 @@ from nacl.hash import blake2b
 
 from pycardano.backend.base import ChainContext
 from pycardano.hash import SCRIPT_DATA_HASH_SIZE, SCRIPT_HASH_SIZE, ScriptDataHash
-from pycardano.plutus import COST_MODELS, CostModels, Datum, Redeemers
+from pycardano.plutus import COST_MODELS, CostModels, Datum, Redeemers, RedeemerMap
 from pycardano.serialization import NonEmptyOrderedSet, default_encoder
 from pycardano.transaction import MultiAsset, TransactionOutput, Value
 
@@ -249,14 +249,14 @@ def script_data_hash(
     Returns:
         ScriptDataHash: Plutus script data hash
     """
-    # Handle empty redeemers case - should be encoded as an empty map (A0 in hex)
+    # Handle empty redeemers case - should be encoded as an empty RedeemerMap (A0 in hex)
     if not redeemers:
-        redeemer_bytes = cbor2.dumps({}, default=default_encoder)
+        redeemers = RedeemerMap()
         cost_models = {}
-    else:
-        redeemer_bytes = cbor2.dumps(redeemers, default=default_encoder)
-        if not cost_models:
-            cost_models = COST_MODELS
+    elif not cost_models:
+        cost_models = COST_MODELS
+
+    redeemer_bytes = cbor2.dumps(redeemers, default=default_encoder)
 
     # Handle datums - if no datums, use empty bytestring
     if datums:
