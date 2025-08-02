@@ -1128,12 +1128,18 @@ def list_hook(
     return lambda vals: [cls.from_primitive(v) for v in vals]
 
 
-class OrderedSet(list, Generic[T], CBORSerializable):
-    def __init__(self, iterable: Optional[List[T]] = None, use_tag: bool = True):
+class OrderedSet(list, IndefiniteList, Generic[T], CBORSerializable):  # type: ignore
+    def __init__(
+        self,
+        iterable: Optional[Union[List[T], IndefiniteList]] = None,
+        use_tag: bool = True,
+    ):
         super().__init__()
         self._set: Set[str] = set()
         self._use_tag = use_tag
+        self._is_indefinite_list = False
         if iterable:
+            self._is_indefinite_list = isinstance(iterable, IndefiniteList)
             self.extend(iterable)
 
     def append(self, item: T) -> None:
@@ -1143,6 +1149,7 @@ class OrderedSet(list, Generic[T], CBORSerializable):
             self._set.add(item_key)
 
     def extend(self, items: Iterable[T]) -> None:
+        self._is_indefinite_list = isinstance(items, IndefiniteList)
         for item in items:
             self.append(item)
 
@@ -1159,10 +1166,13 @@ class OrderedSet(list, Generic[T], CBORSerializable):
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({list(self)})"
 
-    def to_shallow_primitive(self) -> Union[CBORTag, List[T]]:
+    def to_shallow_primitive(self) -> Union[CBORTag, Union[List[T], IndefiniteList]]:
         if self._use_tag:
-            return CBORTag(258, list(self))
-        return list(self)
+            return CBORTag(
+                258,
+                IndefiniteList(list(self)) if self._is_indefinite_list else list(self),
+            )
+        return IndefiniteList(list(self)) if self._is_indefinite_list else list(self)
 
     @classmethod
     def from_primitive(
@@ -1195,7 +1205,11 @@ class OrderedSet(list, Generic[T], CBORSerializable):
 
 
 class NonEmptyOrderedSet(OrderedSet[T]):
-    def __init__(self, iterable: Optional[List[T]] = None, use_tag: bool = True):
+    def __init__(
+        self,
+        iterable: Optional[Union[List[T], IndefiniteList]] = None,
+        use_tag: bool = True,
+    ):
         super().__init__(iterable, use_tag)
 
     def validate(self):
