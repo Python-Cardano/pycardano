@@ -13,7 +13,7 @@ from nacl.hash import blake2b
 from pycardano.backend.base import ChainContext
 from pycardano.hash import SCRIPT_DATA_HASH_SIZE, SCRIPT_HASH_SIZE, ScriptDataHash
 from pycardano.plutus import COST_MODELS, CostModels, Datum, Redeemers
-from pycardano.serialization import default_encoder
+from pycardano.serialization import NonEmptyOrderedSet, default_encoder
 from pycardano.transaction import MultiAsset, TransactionOutput, Value
 
 __all__ = [
@@ -235,35 +235,54 @@ def min_lovelace_post_alonzo(output: TransactionOutput, context: ChainContext) -
 
 
 def script_data_hash(
-    redeemers: Redeemers,
-    datums: List[Datum],
+    redeemers: Optional[Redeemers] = None,
+    datums: Optional[Union[List[Datum], NonEmptyOrderedSet[Datum]]] = None,
     cost_models: Optional[Union[CostModels, Dict]] = None,
 ) -> ScriptDataHash:
     """Calculate plutus script data hash
 
     Args:
-        redeemers (Redeemers): Redeemers to include.
-        datums (List[Datum]): Datums to include.
+        redeemers (Optional[Redeemers]): Redeemers to include.
+        datums (Optional[Union[List[Datum], NonEmptyOrderedSet[Datum]]]): Datums to include.
         cost_models (Optional[CostModels]): Cost models.
 
     Returns:
         ScriptDataHash: Plutus script data hash
     """
+    # Handle empty redeemers case - should be encoded as an empty map (A0 in hex)
     if not redeemers:
+        redeemer_bytes = cbor2.dumps({}, default=default_encoder)
         cost_models = {}
-    elif not cost_models:
-        cost_models = COST_MODELS
+    else:
+        redeemer_bytes = cbor2.dumps(redeemers, default=default_encoder)
+        if not cost_models:
+            cost_models = COST_MODELS
 
-    redeemer_bytes = cbor2.dumps(redeemers, default=default_encoder)
+    # Handle datums - if no datums, use empty bytestring
     if datums:
-        datum_bytes = cbor2.dumps(datums, default=default_encoder)
+        if isinstance(datums, list):
+            # If datums is a NonEmptyOrderedSet, convert it to a shallow primitive representation
+            # to ensure correct CBOR encoding
+            datums = NonEmptyOrderedSet(datums)
+        datum_bytes = cbor2.dumps(
+            datums.to_shallow_primitive(), default=default_encoder
+        )
     else:
         datum_bytes = b""
-    cost_models_bytes = cbor2.dumps(cost_models, default=default_encoder)
+
+    # Encode cost models - must use definite length encoding
+    cost_models_bytes = cbor2.dumps(
+        cost_models,
+        default=default_encoder,
+        canonical=True,  # Ensures definite length encoding and canonical map keys
+    )
+
+    # Concatenate in order: redeemers || datums || language views
+    data = redeemer_bytes + datum_bytes + cost_models_bytes
 
     return ScriptDataHash(
         blake2b(
-            redeemer_bytes + datum_bytes + cost_models_bytes,
+            data,
             SCRIPT_DATA_HASH_SIZE,
             encoder=RawEncoder,
         )
