@@ -616,7 +616,9 @@ class TransactionBuilder:
                         )
                     )
             return script_data_hash(
-                self.redeemers(), list(self.datums.values()), CostModels(cost_models)
+                self.redeemers(),
+                NonEmptyOrderedSet(list(self.datums.values())),
+                CostModels(cost_models),
             )
         else:
             return None
