@@ -249,16 +249,16 @@ def script_data_hash(
     Returns:
         ScriptDataHash: Plutus script data hash
     """
-    # Handle empty redeemers case - should be encoded as an empty RedeemerMap (A0 in hex)
-    if not redeemers:
+    if redeemers is None:
         redeemers = RedeemerMap()
+        cost_models = {}
+    elif len(redeemers) == 0:
         cost_models = {}
     elif not cost_models:
         cost_models = COST_MODELS
 
     redeemer_bytes = cbor2.dumps(redeemers, default=default_encoder)
 
-    # Handle datums - if no datums, use empty bytestring
     if datums:
         if not isinstance(datums, NonEmptyOrderedSet):
             # If datums is not a NonEmptyOrderedSet, handle it as a list
@@ -270,19 +270,11 @@ def script_data_hash(
     else:
         datum_bytes = b""
 
-    # Encode cost models - must use definite length encoding
-    cost_models_bytes = cbor2.dumps(
-        cost_models,
-        default=default_encoder,
-        canonical=True,  # Ensures definite length encoding and canonical map keys
-    )
-
-    # Concatenate in order: redeemers || datums || language views
-    data = redeemer_bytes + datum_bytes + cost_models_bytes
+    cost_models_bytes = cbor2.dumps(cost_models, default=default_encoder)
 
     return ScriptDataHash(
         blake2b(
-            data,
+            redeemer_bytes + datum_bytes + cost_models_bytes,
             SCRIPT_DATA_HASH_SIZE,
             encoder=RawEncoder,
         )
