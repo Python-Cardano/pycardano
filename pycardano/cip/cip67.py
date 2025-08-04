@@ -10,6 +10,17 @@ class InvalidCIP67Token(Exception):
 
 
 class CIP67TokenName(AssetName):
+    """Implementation of CIP67 token naming scheme.
+
+    This class enforces the CIP67 token naming format for Cardano native assets, requiring
+    a 4-byte token label with CRC8 checksum and brackets.
+
+    For more information:
+    https://github.com/cardano-foundation/CIPs/tree/master/CIP-0067
+
+    Args:
+        data: The token name as 'bytes', 'str', or 'AssetName'
+    """
     def __repr__(self):
         return f"{self.__class__.__name__}({self.payload})"
 
