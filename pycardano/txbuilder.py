@@ -105,7 +105,7 @@ class TransactionBuilder:
     context: ChainContext
 
     utxo_selectors: List[UTxOSelector] = field(
-        default_factory=lambda: [RandomImproveMultiAsset(), LargestFirstSelector()]
+        default_factory=lambda: [LargestFirstSelector(), RandomImproveMultiAsset()]
     )
 
     execution_memory_buffer: float = 0.2
@@ -129,7 +129,9 @@ class TransactionBuilder:
 
     required_signers: Optional[List[VerificationKeyHash]] = field(default=None)
 
-    collaterals: List[UTxO] = field(default_factory=lambda: [])
+    collaterals: NonEmptyOrderedSet[UTxO] = field(
+        default_factory=lambda: NonEmptyOrderedSet[UTxO]()
+    )
 
     certificates: Optional[List[Certificate]] = field(default=None)
 
@@ -639,8 +641,13 @@ class TransactionBuilder:
 
         provided.coin -= self._get_total_key_deposit()
         provided.coin -= self._get_total_proposal_deposit()
-
-        if not requested < provided:
+        provided.multi_asset.filter(
+            lambda p, n, v: p in requested.multi_asset and n in requested.multi_asset[p]
+        )
+        if (
+            provided.coin < requested.coin
+            or requested.multi_asset > provided.multi_asset
+        ):
             raise InvalidTransactionException(
                 f"The input UTxOs cannot cover the transaction outputs and tx fee. \n"
                 f"Inputs: {inputs} \n"
@@ -731,6 +738,7 @@ class TransactionBuilder:
 
             # Set fee to max
             self.fee = self._estimate_fee()
+
             changes = self._calc_change(
                 self.fee,
                 self.inputs,
@@ -870,7 +878,7 @@ class TransactionBuilder:
 
     def _input_vkey_hashes(self) -> Set[VerificationKeyHash]:
         results = set()
-        for i in self.inputs + self.collaterals:
+        for i in self.inputs + list(self.collaterals):
             if isinstance(i.output.address.payment_part, VerificationKeyHash):
                 results.add(i.output.address.payment_part)
         return results
@@ -1342,10 +1350,15 @@ class TransactionBuilder:
 
         unfulfilled_amount = requested_amount - trimmed_selected_amount
 
+        remaining = trimmed_selected_amount - requested_amount
+        remaining.multi_asset = remaining.multi_asset.filter(lambda p, n, v: v > 0)
+        remaining.coin = max(0, remaining.coin)
+
         if change_address is not None and not can_merge_change:
             # If change address is provided and remainder is smaller than minimum ADA required in change,
             # we need to select additional UTxOs available from the address
             if unfulfilled_amount.coin < 0:
+
                 unfulfilled_amount.coin = max(
                     0,
                     unfulfilled_amount.coin
@@ -1399,11 +1412,12 @@ class TransactionBuilder:
                         self.context,
                         include_max_fee=False,
                         respect_min_utxo=not can_merge_change,
+                        existing_amount=remaining,
                     )
+
                     for s in selected:
                         selected_amount += s.output.amount
                         selected_utxos.append(s)
-
                     break
 
                 except UTxOSelectionException as e:
@@ -1526,6 +1540,7 @@ class TransactionBuilder:
                             "SCRIPT"
                         )
                         and candidate.output.amount.coin > 2000000
+                        and candidate not in self.collaterals
                     ):
                         self.collaterals.append(candidate)
                         cur_total += candidate.output.amount

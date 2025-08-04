@@ -34,6 +34,7 @@ from pycardano.hash import (
     POOL_KEY_HASH_SIZE,
     VERIFICATION_KEY_HASH_SIZE,
     PoolKeyHash,
+    ScriptHash,
     TransactionId,
     VerificationKeyHash,
 )
@@ -277,7 +278,7 @@ def test_tx_too_big_exception(chain_context):
         tx_builder.build(change_address=sender_address)
 
 
-def test_tx_small_utxo_precise_fee(chain_context):
+def test_tx_builder_with_potential_inputs(chain_context):
     tx_builder = TransactionBuilder(chain_context, [RandomImproveMultiAsset([0, 0])])
     sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
     sender_address = Address.from_primitive(sender)
@@ -454,12 +455,12 @@ def test_tx_builder_burn_multi_asset(chain_context):
             ),
         )
     )
+
     tx_builder.add_input_address(sender).add_output(
         TransactionOutput.from_primitive([sender, 3000000])
     ).add_output(TransactionOutput.from_primitive([sender, 2000000]))
 
     tx_builder.mint = to_burn
-
     tx_body = tx_builder.build(change_address=sender_address)
 
     assert tx_input in tx_body.inputs
@@ -2264,3 +2265,159 @@ def test_burning_all_assets_under_single_policy(chain_context):
 
         assert AssetName(b"AssetName3") not in multi_asset.get(policy_id_1, {})
         assert AssetName(b"AseetName4") not in multi_asset.get(policy_id_1, {})
+
+
+def test_collateral_no_duplicates(chain_context):
+    """
+    Test that a UTxO explicitly added as input is not reused for collateral.
+    """
+    # Setup: Define sender and a Plutus script for minting (requires collateral)
+    sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    sender_address = Address.from_primitive(sender)
+    plutus_v2_script = PlutusV2Script(b"dummy mint script collateral reuse test")
+    policy_id = plutus_script_hash(plutus_v2_script)
+    redeemer = Redeemer(PlutusData(), ExecutionUnits(1000000, 1000000))
+
+    input_utxo = UTxO(
+        TransactionInput(TransactionId.from_primitive("a" * 64), 0),
+        TransactionOutput(sender_address, Value(coin=2_800_000)),
+    )
+    collateral_utxo = UTxO(
+        TransactionInput(TransactionId.from_primitive("b" * 64), 1),
+        TransactionOutput(sender_address, Value(coin=3_000_000)),
+    )
+
+    with patch.object(chain_context, "utxos") as mock_utxos:
+        mock_utxos.return_value = [input_utxo, collateral_utxo]
+
+        builder = TransactionBuilder(chain_context)
+
+        builder.add_input(input_utxo)
+        builder.add_input_address(sender_address)
+
+        mint_amount = 1
+        builder.mint = MultiAsset.from_primitive(
+            {policy_id.payload: {b"TestCollateralToken": mint_amount}}
+        )
+        builder.add_minting_script(plutus_v2_script, redeemer)
+
+        output_value = Value(coin=1_000_000)  # Send some ADA back
+        builder.add_output(TransactionOutput(sender_address, output_value))
+
+        tx_body = builder.build(change_address=sender_address)
+
+        assert input_utxo.input in tx_body.inputs
+
+        assert tx_body.collateral is not None
+        assert len(tx_body.collateral) > 0, "Collateral should have been selected"
+
+        assert (
+            collateral_utxo.input in tx_body.collateral
+        ), "The designated collateral UTxO was not selected"
+
+        assert (
+            input_utxo.input in tx_body.collateral
+        ), "The explicit input UTxO should be reused as collateral"
+
+        total_collateral_input = (
+            collateral_utxo.output.amount + input_utxo.output.amount
+        )
+
+        assert (
+            total_collateral_input
+            == Value(tx_body.total_collateral) + tx_body.collateral_return.amount
+        ), "The total collateral input amount should match the sum of the selected UTxOs"
+
+
+def test_token_transfer_with_change(chain_context):
+    """Test token transfer with change address handling.
+
+    Replicates issue where transaction fails with 'Input UTxOs depleted' when:
+    - Input 1: 4 ADA
+    - Input 2: ~1.03 ADA + 1,876,083 tokens
+    - Output: ~1.32 ADA + 382 tokens
+    - Expected change should handle remaining ADA and tokens
+    """
+    # Create the vault address that holds tokens
+    vault_address = Address.from_primitive(
+        "addr_test1vrs324jltsc0ssuptpa5ngpfk89cps92xa99a2t6vlg6kdqtm5qnv"
+    )
+
+    # Create receiver address
+    receiver_address = Address.from_primitive(
+        "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    )
+
+    # Create token details
+    token_policy_id = ScriptHash(
+        bytes.fromhex("1f847bb9ac60e869780037c0510dbd89f745316db7ec4fee81ff1e97")
+    )
+    token_name = AssetName(b"dux_1")
+
+    # Create the two input UTXOs and patch chain_context.utxos
+    with patch.object(chain_context, "utxos") as mock_utxos:
+        mock_utxos.return_value = [
+            UTxO(
+                TransactionInput.from_primitive(
+                    [
+                        "e11efc26f94a3cbf724dc052c43abf36f7a631a831acc6d783f1c9c8c52725c5",
+                        0,
+                    ]
+                ),
+                TransactionOutput(
+                    vault_address,
+                    Value(
+                        1038710,  # ~1.03 ADA
+                        MultiAsset.from_primitive(
+                            {
+                                token_policy_id.payload: {
+                                    b"dux_1": 1876083  # 1,876,083 tokens
+                                }
+                            }
+                        ),
+                    ),
+                ),
+            )
+        ]
+
+        # Create transaction builder
+        tx_builder = TransactionBuilder(chain_context)
+
+        # Add inputs - using add_input_address for the vault input
+        tx_builder.add_input_address(vault_address)
+        tx_builder.add_input(
+            UTxO(
+                TransactionInput.from_primitive([b"1" * 32, 0]),
+                TransactionOutput(receiver_address, Value(40000000)),  # 4 ADA input
+            )
+        )
+
+        # Add output for receiver
+        output_value = Value(
+            1326255,  # ~1.32 ADA
+            MultiAsset.from_primitive(
+                {token_policy_id.payload: {b"dux_1": 382}}  # 382 tokens
+            ),
+        )
+        tx_builder.add_output(TransactionOutput(receiver_address, output_value))
+
+        # Build transaction with change going back to vault
+        tx = tx_builder.build(change_address=vault_address, merge_change=True)
+
+        # Verify the transaction outputs
+        assert len(tx.outputs) == 2  # One for receiver, one for change
+
+        # Verify receiver output
+        receiver_output = tx.outputs[0]
+        assert receiver_output.address == receiver_address
+        assert receiver_output.amount.coin == 1326255
+        assert receiver_output.amount.multi_asset[token_policy_id][token_name] == 382
+
+        # Verify change output
+        change_output = tx.outputs[1]
+        assert change_output.address == vault_address
+        assert change_output.amount.coin == 40000000 + 1038710 - 1326255 - tx.fee
+        assert (
+            change_output.amount.multi_asset[token_policy_id][token_name]
+            == 1876083 - 382
+        )

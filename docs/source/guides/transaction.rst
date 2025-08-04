@@ -1,6 +1,6 @@
-===========
-Transaction
-===========
+===================
+Transaction Guide
+===================
 
 Cardano transactions are usually involved with three child components, transaction input(s), transaction output(s), and
 transaction fee. There are two approaches of creating transactions in PyCardano. The first one is to provide child

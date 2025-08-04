@@ -3,6 +3,7 @@ This module contains algorithms that select UTxOs from a parent list to satisfy 
 """
 
 import random
+from copy import deepcopy
 from typing import Iterable, List, Optional, Tuple
 
 from pycardano.address import Address
@@ -36,6 +37,7 @@ class UTxOSelector:
         max_input_count: Optional[int] = None,
         include_max_fee: Optional[bool] = True,
         respect_min_utxo: Optional[bool] = True,
+        existing_amount: Optional[Value] = None,
     ) -> Tuple[List[UTxO], Value]:
         """From an input list of UTxOs, select a subset of UTxOs whose sum (including ADA and multi-assets)
         is equal to or larger than the sum of a set of outputs.
@@ -50,6 +52,7 @@ class UTxOSelector:
             respect_min_utxo (bool): Respect minimum amount of ADA required to hold a multi-asset bundle in the change.
                 Defaults to True. If disabled, the selection will not add addition amount of ADA to change even
                 when the amount is too small to hold a multi-asset bundle.
+            existing_amount (Value): A starting amount already existed before selection. Defaults to 0.
 
         Returns:
             Tuple[List[UTxO], Value]: A tuple containing:
@@ -83,6 +86,7 @@ class LargestFirstSelector(UTxOSelector):
         max_input_count: Optional[int] = None,
         include_max_fee: Optional[bool] = True,
         respect_min_utxo: Optional[bool] = True,
+        existing_amount: Optional[Value] = None,
     ) -> Tuple[List[UTxO], Value]:
         available: List[UTxO] = sorted(utxos, key=lambda utxo: utxo.output.lovelace)
         max_fee = max_tx_fee(context) if include_max_fee else 0
@@ -91,7 +95,7 @@ class LargestFirstSelector(UTxOSelector):
             total_requested += o.amount
 
         selected = []
-        selected_amount = Value()
+        selected_amount = existing_amount if existing_amount is not None else Value()
 
         while not total_requested <= selected_amount:
             if not available:
@@ -99,7 +103,6 @@ class LargestFirstSelector(UTxOSelector):
             to_add = available.pop()
             selected.append(to_add)
             selected_amount += to_add.output.amount
-
             if max_input_count and len(selected) > max_input_count:
                 raise MaxInputCountExceededException(
                     f"Max input count: {max_input_count} exceeded!"
@@ -108,9 +111,8 @@ class LargestFirstSelector(UTxOSelector):
         if respect_min_utxo:
             change = selected_amount - total_requested
             min_change_amount = min_lovelace_post_alonzo(
-                TransactionOutput(_FAKE_ADDR, change), context
+                TransactionOutput(_FAKE_ADDR, deepcopy(change)), context
             )
-
             if change.coin < min_change_amount:
                 additional, _ = self.select(
                     available,
@@ -127,7 +129,6 @@ class LargestFirstSelector(UTxOSelector):
                 for u in additional:
                     selected.append(u)
                     selected_amount += u.output.amount
-
         return selected, selected_amount - total_requested
 
 
@@ -218,10 +219,9 @@ class RandomImproveMultiAsset(UTxOSelector):
         else:
             policy_id = list(a.multi_asset.keys())[0]
             asset_name = list(a.multi_asset[policy_id].keys())[0]
-            return (
-                a.multi_asset[policy_id][asset_name]
-                - b.multi_asset[policy_id][asset_name]
-            )
+            return a.multi_asset[policy_id].get(asset_name, 0) - b.multi_asset[
+                policy_id
+            ].get(asset_name, 0)
 
     def _improve(
         self,
@@ -272,6 +272,7 @@ class RandomImproveMultiAsset(UTxOSelector):
         max_input_count: Optional[int] = None,
         include_max_fee: Optional[bool] = True,
         respect_min_utxo: Optional[bool] = True,
+        existing_amount: Optional[Value] = None,
     ) -> Tuple[List[UTxO], Value]:
         # Shallow copy the list
         remaining = list(utxos)
@@ -281,11 +282,13 @@ class RandomImproveMultiAsset(UTxOSelector):
             request_sum += o.amount
 
         assets = self._split_by_asset(request_sum)
+
         request_sorted = sorted(assets, key=self._get_single_asset_val, reverse=True)
 
         # Phase 1 - random select
         selected: List[UTxO] = []
-        selected_amount = Value()
+        selected_amount = existing_amount if existing_amount is not None else Value()
+
         for r in request_sorted:
             self._random_select_subset(r, remaining, selected, selected_amount)
             if max_input_count and len(selected) > max_input_count:
@@ -315,7 +318,7 @@ class RandomImproveMultiAsset(UTxOSelector):
         if respect_min_utxo:
             change = selected_amount - request_sum
             min_change_amount = min_lovelace_post_alonzo(
-                TransactionOutput(_FAKE_ADDR, change), context
+                TransactionOutput(_FAKE_ADDR, deepcopy(change)), context
             )
 
             if change.coin < min_change_amount:

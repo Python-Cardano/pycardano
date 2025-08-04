@@ -44,6 +44,11 @@ from pycardano.transaction import (
     Value,
 )
 from pycardano.types import JsonDict
+from pycardano.utils import greater_than_version
+
+if greater_than_version((3, 13)):
+    from enum import member  # type: ignore[attr-defined]
+
 
 __all__ = ["CardanoCliChainContext", "CardanoCliNetwork", "DockerConfig"]
 
@@ -70,7 +75,11 @@ class CardanoCliNetwork(Enum):
     PREVIEW = ["--testnet-magic", str(2)]
     PREPROD = ["--testnet-magic", str(1)]
     GUILDNET = ["--testnet-magic", str(141)]
-    CUSTOM = partial(network_magic)
+    CUSTOM = (
+        member(partial(network_magic))
+        if greater_than_version((3, 13))
+        else partial(network_magic)
+    )
 
 
 class DockerConfig:
@@ -511,22 +520,39 @@ class CardanoCliChainContext(ChainContext):
 
             try:
                 self._run_command(
-                    ["transaction", "submit", "--tx-file", tmp_tx_file.name]
+                    [
+                        "latest",
+                        "transaction",
+                        "submit",
+                        "--tx-file",
+                        tmp_tx_file.name,
+                    ]
                     + self._network_args
                 )
-            except CardanoCliError as err:
-                raise TransactionFailedException(
-                    "Failed to submit transaction"
-                ) from err
+            except CardanoCliError:
+                try:
+                    self._run_command(
+                        ["transaction", "submit", "--tx-file", tmp_tx_file.name]
+                        + self._network_args
+                    )
+                except CardanoCliError as err:
+                    raise TransactionFailedException(
+                        "Failed to submit transaction"
+                    ) from err
 
             # Get the transaction ID
             try:
                 txid = self._run_command(
-                    ["transaction", "txid", "--tx-file", tmp_tx_file.name]
+                    ["latest", "transaction", "txid", "--tx-file", tmp_tx_file.name]
                 )
-            except CardanoCliError as err:
-                raise PyCardanoException(
-                    f"Unable to get transaction id for {tmp_tx_file.name}"
-                ) from err
+            except CardanoCliError:
+                try:
+                    txid = self._run_command(
+                        ["transaction", "txid", "--tx-file", tmp_tx_file.name]
+                    )
+                except CardanoCliError as err:
+                    raise PyCardanoException(
+                        f"Unable to get transaction id for {tmp_tx_file.name}"
+                    ) from err
 
         return txid

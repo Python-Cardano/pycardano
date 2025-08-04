@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, List, Optional, Type, Union
 
+from pprintpp import pformat
+
 from pycardano.key import ExtendedVerificationKey, VerificationKey
 from pycardano.nativescript import NativeScript
 from pycardano.plutus import (
@@ -30,6 +32,14 @@ class VerificationKeyWitness(ArrayCBORSerializable):
     vkey: Union[VerificationKey, ExtendedVerificationKey]
     signature: bytes
 
+    @property
+    def json_type(self) -> str:
+        return "TxWitness ConwayEra"
+
+    @property
+    def json_description(self) -> str:
+        return "Key Witness ShelleyEra"
+
     def __post_init__(self):
         # When vkey is in extended format, we need to convert it to non-extended, so it can match the
         # key hash of the input address we are trying to spend.
@@ -45,6 +55,26 @@ class VerificationKeyWitness(ArrayCBORSerializable):
             vkey=VerificationKey.from_primitive(values[0]),
             signature=values[1],
         )
+
+    def to_shallow_primitive(self) -> Union[list, tuple]:
+        """Convert to a shallow primitive representation."""
+        return [self.vkey.to_primitive(), self.signature]
+
+    def __eq__(self, other):
+        if not isinstance(other, VerificationKeyWitness):
+            return False
+        else:
+            return (
+                self.vkey.payload == other.vkey.payload
+                and self.signature == other.signature
+            )
+
+    def __repr__(self):
+        fields = {
+            "vkey": self.vkey.payload.hex(),
+            "signature": self.signature.hex(),
+        }
+        return pformat(fields, indent=2)
 
 
 @dataclass(repr=False)
@@ -126,3 +156,16 @@ class TransactionWitnessSet(MapCBORSerializable):
             self.plutus_v2_script = NonEmptyOrderedSet(self.plutus_v2_script)
         if isinstance(self.plutus_v3_script, list):
             self.plutus_v3_script = NonEmptyOrderedSet(self.plutus_v3_script)
+
+    def is_empty(self) -> bool:
+        """Check if the witness set is empty."""
+        return (
+            not self.vkey_witnesses
+            and not self.native_scripts
+            and not self.bootstrap_witness
+            and not self.plutus_v1_script
+            and not self.plutus_data
+            and not self.redeemer
+            and not self.plutus_v2_script
+            and not self.plutus_v3_script
+        )

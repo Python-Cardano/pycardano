@@ -11,7 +11,7 @@
 [![PyPI download month](https://img.shields.io/pypi/dm/pycardano)](https://pypi.python.org/pypi/pycardano/)
 
 [![PyCardano](https://github.com/Python-Cardano/pycardano/actions/workflows/main.yml/badge.svg)](https://github.com/Python-Cardano/pycardano/actions/workflows/main.yml)
-[![codecov](https://codecov.io/gh/Python-Cardano/pycardano/branch/main/graph/badge.svg?token=62N0IL9IMQ)](https://codecov.io/gh/Python-Cardano/pycardano)
+[![codecov](https://codecov.io/gh/Python-Cardano/pycardano/graph/badge.svg?token=62N0IL9IMQ)](https://codecov.io/gh/Python-Cardano/pycardano)
 [![Documentation Status](https://readthedocs.org/projects/pycardano/badge/?version=latest)](https://pycardano.readthedocs.io/en/latest/?badge=latest)
 
 [![Discord](https://img.shields.io/discord/949404918903631923.svg?label=chat&logo=discord&logoColor=ffffff&color=7389D8&labelColor=6A7EC2)](https://discord.gg/qT9Mn9xjgz)
@@ -45,9 +45,10 @@ could be beneficial for faster R&D iterations.
 - [X] Reward withdraw
 - [X] Mnemonic 
 - [X] HD Wallet
+- [x] Pool certificate
+- [x] Protocol proposal update
+- [x] Governance actions
 - [ ] Byron Address
-- [ ] Pool certificate
-- [ ] Protocol proposal update
 
 
 ### Installation
@@ -56,17 +57,21 @@ Install the library using [pip](https://pip.pypa.io/en/stable/):
 
 `pip install pycardano`
 
+#### Install cbor2 pure python implementation (Optional)
+[cbor2](https://github.com/agronholm/cbor2/tree/master) is a dependency of pycardano. It is used to encode and decode CBOR data.
+It has two implementations: one is pure Python and the other is C, which is installed by default. The C implementation is faster, but it is less flexible than the pure Python implementation.
+
+For some users, the C implementation may not work properly when deserializing cbor data. For example, the order of inputs of a transaction isn't guaranteed to be the same as the order of inputs in the original transaction (details could be found in [this issue](https://github.com/Python-Cardano/pycardano/issues/311)). This would result in a different transaction hash when the transaction is serialized again. For users who encounter this issue, we recommend to use the pure Python implementation of cbor2. You can do so by running [ensure_pure_cbor2.sh](./ensure_pure_cbor2.sh), which inspect the cbor2 installed in the running environment and force install pure python implementation if necessary.
+
+```bash
+ensure_pure_cbor2.sh
+```
+
 ### Documentation
 
 https://pycardano.readthedocs.io/en/latest/
 
 ### Examples
-
-#### Full stack DApp
-
-A full stack testnet DApp is hosted on replit: https://pycardano.cffls.repl.co/
-
-To learn more details, go to the [DApp page](https://github.com/Python-Cardano/pycardano/tree/main/examples/full_stack).
 
 #### Transaction creation and signing
 
@@ -161,8 +166,9 @@ context.submit_tx(signed_tx)
 ```
 </details>
 
-See more usages under [examples](https://github.com/Python-Cardano/pycardano/tree/main/examples).
+See more usages under project [examples](https://github.com/Python-Cardano/pycardano/tree/main/examples).
 
+There is also a collection of examples under [awesome-pycardano](https://github.com/B3nac/awesome-pycardano).
 
 ### Development
 

@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Dict, Union
 
 import cbor2
+import ogmios as python_ogmios
 import pytest
 from retry import retry
 
@@ -443,6 +444,83 @@ class TestPlutus(TestBase):
         time.sleep(3)
 
         self.assert_output(taker_address, take_output)
+
+    def test_plutus_v3_unroll(self):
+        # ----------- Giver give ---------------
+
+        with open(
+            "./plutus_scripts/unroll.plutus",
+            "r",
+        ) as f:
+            script_hex = f.read()
+            hello_world_script = bytes.fromhex(script_hex)
+
+        script_hash = plutus_script_hash(PlutusV3Script(hello_world_script))
+
+        script_address = Address(script_hash, network=self.NETWORK)
+
+        giver_address = Address(self.payment_vkey.hash(), network=self.NETWORK)
+
+        builder = TransactionBuilder(self.chain_context)
+        builder.add_input_address(giver_address)
+        output = TransactionOutput(script_address, 50000000, datum=Unit())
+        builder.add_output(output)
+
+        signed_tx = builder.build_and_sign([self.payment_skey], giver_address)
+
+        print("############### Transaction created ###############")
+        print(signed_tx)
+        print(signed_tx.to_cbor_hex())
+        print("############### Submitting transaction ###############")
+        self.chain_context.submit_tx(signed_tx)
+        time.sleep(6)
+
+        # ----------- Taker take ---------------
+
+        utxo_to_spend = self.chain_context.utxos(script_address)[0]
+
+        taker_address = Address(self.payment_vkey.hash(), network=self.NETWORK)
+
+        builder = TransactionBuilder(self.chain_context)
+        builder.ttl = self.chain_context.last_block_slot + 10
+
+        reward_account = Address(
+            staking_part=self.stake_key_pair.verification_key.hash(),
+            network=self.NETWORK,
+        )
+
+        builder.add_script_input(
+            utxo_to_spend, PlutusV3Script(hello_world_script), redeemer=Redeemer(0)
+        )
+        builder.add_proposal(
+            deposit=1234122,
+            reward_account=bytes(reward_account),
+            gov_action=ParameterChangeAction(
+                gov_action_id=GovActionId(
+                    gov_action_index=0,
+                    transaction_id=utxo_to_spend.input.transaction_id,
+                ),
+                protocol_param_update=ProtocolParamUpdate(
+                    min_fee_b=1000,
+                ),
+                policy_hash=None,
+            ),
+            anchor=Anchor(
+                url="https://test-drep.com",
+                data_hash=AnchorDataHash(bytes.fromhex("0" * 64)),
+            ),
+        )
+
+        with pytest.raises(python_ogmios.errors.ResponseError) as e:
+            builder.build_and_sign([self.payment_skey], taker_address)
+
+        for v in [
+            "1234122",
+            "1000",
+            reward_account.staking_part.payload.hex(),
+            utxo_to_spend.input.transaction_id.payload.hex(),
+        ]:
+            assert v in str(e.value)
 
 
 class TestPlutusKupoOgmios(TestPlutus):

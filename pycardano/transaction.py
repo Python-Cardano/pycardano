@@ -4,13 +4,13 @@ from __future__ import annotations
 
 from copy import deepcopy
 from dataclasses import dataclass, field
-from pprint import pformat
 from typing import Any, Callable, List, Optional, Type, Union
 
 import cbor2
 from cbor2 import CBORTag
 from nacl.encoding import RawEncoder
 from nacl.hash import blake2b
+from pprintpp import pformat
 
 from pycardano.address import Address
 from pycardano.certificate import Certificate
@@ -131,6 +131,18 @@ class Asset(DictCBORSerializable):
                 return False
         return True
 
+    def __lt__(self, other: Asset):
+        return self <= other and self != other
+
+    def __ge__(self, other: Asset) -> bool:
+        for n in other:
+            if n not in self or self[n] < other[n]:
+                return False
+        return True
+
+    def __gt__(self, other: Asset) -> bool:
+        return self >= other and self != other
+
     @classmethod
     @limit_primitive_type(dict)
     def from_primitive(cls: Type[DictBase], value: dict) -> DictBase:
@@ -191,11 +203,27 @@ class MultiAsset(DictCBORSerializable):
                     return False
             return True
 
-    def __le__(self, other: MultiAsset):
-        for p in self:
-            if p not in other or not self[p] <= other[p]:
+    def __ge__(self, other: MultiAsset) -> bool:
+        for n in other:
+            if n not in self:
+                return False
+            if not self[n] >= other[n]:
                 return False
         return True
+
+    def __gt__(self, other: MultiAsset) -> bool:
+        return self >= other and self != other
+
+    def __le__(self, other: MultiAsset):
+        for p in self:
+            if p not in other:
+                return False
+            if not self[p] <= other[p]:
+                return False
+        return True
+
+    def __lt__(self, other: MultiAsset):
+        return self <= other and self != other
 
     def filter(
         self, criteria=Callable[[ScriptHash, AssetName, int], bool]
@@ -296,6 +324,14 @@ class Value(ArrayCBORSerializable):
 
     def __lt__(self, other: Union[Value, int]):
         return self <= other and self != other
+
+    def __ge__(self, other: Union[Value, int]):
+        if isinstance(other, int):
+            other = Value(other)
+        return self.coin >= other.coin and self.multi_asset >= other.multi_asset
+
+    def __gt__(self, other: Union[Value, int]):
+        return self >= other and self != other
 
     def to_shallow_primitive(self):
         if self.multi_asset:
@@ -541,7 +577,9 @@ class TransactionBody(MapCBORSerializable):
 
     ttl: Optional[int] = field(default=None, metadata={"key": 3, "optional": True})
 
-    certificates: Optional[List[Certificate]] = field(
+    certificates: Optional[
+        Union[List[Certificate], NonEmptyOrderedSet[Certificate]]
+    ] = field(
         default=None,
         metadata={
             "key": 4,
@@ -655,6 +693,18 @@ class Transaction(ArrayCBORSerializable):
     valid: bool = True
 
     auxiliary_data: Optional[AuxiliaryData] = None
+
+    @property
+    def json_type(self) -> str:
+        return (
+            "Unwitnessed Tx ConwayEra"
+            if self.transaction_witness_set.is_empty()
+            else "Signed Tx ConwayEra"
+        )
+
+    @property
+    def json_description(self) -> str:
+        return "Ledger Cddl Format"
 
     @property
     def id(self) -> TransactionId:

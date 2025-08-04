@@ -21,6 +21,7 @@ making it a light-weight library that is easy and fast to set up in all kinds of
     :caption: Usage Guides
 
     guides/address
+    guides/governance
     guides/serialization
     guides/instance_creation
     guides/transaction

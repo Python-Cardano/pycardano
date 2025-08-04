@@ -1,4 +1,7 @@
+import json
+import tempfile
 from collections import defaultdict, deque
+from copy import deepcopy
 from dataclasses import dataclass, field
 from test.pycardano.util import check_two_way_cbor
 from typing import (
@@ -23,13 +26,18 @@ from pycardano import (
     CBORBase,
     Datum,
     MultiAsset,
+    Primitive,
     RawPlutusData,
     Transaction,
     TransactionWitnessSet,
     VerificationKey,
     VerificationKeyWitness,
 )
-from pycardano.exception import DeserializeException, SerializeException
+from pycardano.exception import (
+    DeserializeException,
+    InvalidKeyTypeException,
+    SerializeException,
+)
 from pycardano.plutus import PlutusData, PlutusV1Script, PlutusV2Script
 from pycardano.serialization import (
     ArrayCBORSerializable,
@@ -879,3 +887,146 @@ def test_coded_serializable_inheritance():
     assert restored.value == "test"
     assert restored.numbers == [1, 2]
     assert restored.extra == "extra"
+
+
+def test_ordered_set_deepcopy():
+    """Test the deepcopy implementation of OrderedSet."""
+    # Test basic deepcopy
+
+    class MyOrderedSet(OrderedSet):
+        pass
+
+    s = MyOrderedSet([1, 2, 3], use_tag=True)
+    s_copy = deepcopy(s)
+
+    assert s == s_copy
+    assert s is not s_copy
+    assert s._use_tag == s_copy._use_tag
+
+    # Test that modifications don't affect each other
+    s_copy.append(4)
+    assert 4 in s_copy
+    assert 4 not in s
+
+    # Test with complex objects
+    class TestObj:
+        def __init__(self, value):
+            self.value = value
+
+        def __str__(self):
+            return f"TestObj({self.value})"
+
+    obj1 = TestObj("a")
+    obj2 = TestObj("b")
+
+    s = MyOrderedSet([obj1, obj2], use_tag=False)
+    s_copy = deepcopy(s)
+
+    # Objects should be equal but not the same instances
+    assert len(s) == len(s_copy) == 2
+    assert s[0].value == s_copy[0].value
+    assert s[1].value == s_copy[1].value
+    assert s[0] is not s_copy[0]
+    assert s[1] is not s_copy[1]
+
+    # Test that memodict works with shared references
+    shared_obj = TestObj("shared")
+    s = MyOrderedSet([shared_obj, shared_obj], use_tag=True)  # Same object twice
+
+    s_copy = deepcopy(s)
+    # In the copy, both elements should be the same object (preserved reference)
+    assert len(s_copy) == 1
+    assert s_copy[0] is not shared_obj
+
+
+def test_non_empty_ordered_set_deepcopy():
+    """Test the deepcopy implementation of NonEmptyOrderedSet."""
+
+    class MyNonEmptyOrderedSet(NonEmptyOrderedSet):
+        pass
+
+    # Test basic deepcopy
+    s = MyNonEmptyOrderedSet([1, 2, 3], use_tag=True)
+    s_copy = deepcopy(s)
+
+    assert s == s_copy
+    assert s is not s_copy
+    assert s._use_tag == s_copy._use_tag
+
+    # Test with nested lists
+    nested_list = [[1, 2], [3, 4]]
+    s = MyNonEmptyOrderedSet(nested_list, use_tag=False)
+    s_copy = deepcopy(s)
+
+    # Lists should be equal but not the same instances
+    assert s[0] == s_copy[0]
+    assert s[1] == s_copy[1]
+    assert s[0] is not s_copy[0]
+    assert s[1] is not s_copy[1]
+
+    # Modifying the copy shouldn't affect the original
+    s_copy[0].append(5)
+    assert s[0] == [1, 2]
+    assert s_copy[0] == [1, 2, 5]
+
+    # Test complex nesting with CBORSerializable objects
+    @dataclass
+    class TestData(MapCBORSerializable):
+        value: int = 0
+
+    obj1 = TestData(1)
+    obj2 = TestData(2)
+    s = MyNonEmptyOrderedSet([obj1, obj2], use_tag=True)
+    s_copy = deepcopy(s)
+
+    # Objects should be equal but not the same instances
+    assert s[0].value == s_copy[0].value
+    assert s[1].value == s_copy[1].value
+    assert s[0] is not s_copy[0]
+    assert s[1] is not s_copy[1]
+
+    # Modifying the copy shouldn't affect the original
+    s_copy[0].value = 100
+    assert s[0].value == 1
+    assert s_copy[0].value == 100
+
+
+def test_save_load():
+    @dataclass
+    class Test1(CBORSerializable):
+        a: str
+        b: Union[str, None] = None
+
+        @property
+        def json_type(self) -> str:
+            return "Test Type"
+
+        @property
+        def json_description(self) -> str:
+            return "Test Description"
+
+        @classmethod
+        def from_primitive(
+            cls: Type[CBORSerializable], value: Any, type_args: Optional[tuple] = None
+        ) -> CBORSerializable:
+            if not isinstance(value, dict):
+                raise DeserializeException(f"Expected dict, got {type(value)}")
+            return Test1(a=value["a"], b=value.get("b"))
+
+        def to_shallow_primitive(self) -> Union[Primitive, CBORSerializable]:
+            return {"a": self.a, "b": self.b}
+
+    test1 = Test1(a="a")
+    test1_json = json.loads(test1.to_json())
+
+    assert test1_json["type"] == "Test Type"
+    assert test1_json["description"] == "Test Description"
+    assert test1_json["cborHex"] == test1.to_cbor_hex()
+
+    with tempfile.NamedTemporaryFile() as f:
+        test1.save(f.name)
+        loaded = Test1.load(f.name)
+        assert test1 == loaded
+
+        with pytest.raises(IOError):
+            test1.save(f.name)
