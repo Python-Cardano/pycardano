@@ -24,7 +24,6 @@ from typing import (
     List,
     Optional,
     Sequence,
-    Set,
     Type,
     TypeVar,
     Union,
@@ -160,6 +159,7 @@ PRIMITIVE_TYPES = (
     Fraction,
     FrozenList,
     IndefiniteFrozenList,
+    ByteString,
 )
 """
 A list of types that could be encoded by
@@ -1128,26 +1128,53 @@ def list_hook(
     return lambda vals: [cls.from_primitive(v) for v in vals]
 
 
-class OrderedSet(list, Generic[T], CBORSerializable):
-    def __init__(self, iterable: Optional[List[T]] = None, use_tag: bool = True):
+class OrderedSet(Generic[T], CBORSerializable):
+    def __init__(
+        self,
+        iterable: Optional[Union[List[T], IndefiniteList]] = None,
+        use_tag: bool = True,
+    ):
         super().__init__()
-        self._set: Set[str] = set()
+        self._dict: Dict[bytes, int] = {}
+        self._list: List[T] = []
         self._use_tag = use_tag
+        self._is_indefinite_list = False
         if iterable:
+            self._is_indefinite_list = isinstance(iterable, IndefiniteList)
             self.extend(iterable)
 
     def append(self, item: T) -> None:
-        item_key = str(item)
-        if item_key not in self._set:
-            super().append(item)
-            self._set.add(item_key)
+        if item in self:
+            return
+        self._list.append(item)
+        self._dict[dumps(item, default=default_encoder)] = len(self._list) - 1
 
     def extend(self, items: Iterable[T]) -> None:
+        self._is_indefinite_list = isinstance(items, IndefiniteList)
         for item in items:
             self.append(item)
 
+    def remove(self, item: T) -> None:
+        if item not in self:
+            return
+        index = self._dict.pop(dumps(item, default=default_encoder))
+        self._list.pop(index)
+        # Update the indices in the dictionary
+        for key, idx in self._dict.items():
+            if idx > index:
+                self._dict[key] = idx - 1
+
     def __contains__(self, item: object) -> bool:
-        return str(item) in self._set
+        return dumps(item, default=default_encoder) in self._dict
+
+    def __iter__(self):
+        return iter(self._list)
+
+    def __getitem__(self, index: int) -> T:
+        return self._list[index]
+
+    def __len__(self) -> int:
+        return len(self._list)
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, OrderedSet):
@@ -1159,10 +1186,13 @@ class OrderedSet(list, Generic[T], CBORSerializable):
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({list(self)})"
 
-    def to_shallow_primitive(self) -> Union[CBORTag, List[T]]:
+    def to_shallow_primitive(self) -> Union[CBORTag, Union[List[T], IndefiniteList]]:
         if self._use_tag:
-            return CBORTag(258, list(self))
-        return list(self)
+            return CBORTag(
+                258,
+                IndefiniteList(list(self)) if self._is_indefinite_list else list(self),
+            )
+        return IndefiniteList(list(self)) if self._is_indefinite_list else list(self)
 
     @classmethod
     def from_primitive(
@@ -1195,7 +1225,11 @@ class OrderedSet(list, Generic[T], CBORSerializable):
 
 
 class NonEmptyOrderedSet(OrderedSet[T]):
-    def __init__(self, iterable: Optional[List[T]] = None, use_tag: bool = True):
+    def __init__(
+        self,
+        iterable: Optional[Union[List[T], IndefiniteList]] = None,
+        use_tag: bool = True,
+    ):
         super().__init__(iterable, use_tag)
 
     def validate(self):

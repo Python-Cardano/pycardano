@@ -638,6 +638,23 @@ def test_ordered_set():
     assert list(s) == [1, 2, 3]
     assert s._use_tag
 
+    # Test remove
+    s = OrderedSet([1, 2, 3, 4])
+    s.remove(2)
+    assert list(s) == [1, 3, 4]
+    assert 2 not in s
+    assert 1 in s
+    assert 3 in s
+    assert 4 in s
+    s.remove(2)
+    assert list(s) == [1, 3, 4]
+    assert 2 not in s
+    s.remove(3)
+    assert list(s) == [1, 4]
+    assert 3 not in s
+    s.remove(4)
+    assert list(s) == [1]
+
 
 def test_ordered_set_with_complex_types():
     # Test with VerificationKeyWitness
@@ -909,9 +926,9 @@ def test_ordered_set_deepcopy():
     assert 4 not in s
 
     # Test with complex objects
-    class TestObj:
-        def __init__(self, value):
-            self.value = value
+    @dataclass(repr=False)
+    class TestObj(ArrayCBORSerializable):
+        value: str
 
         def __str__(self):
             return f"TestObj({self.value})"

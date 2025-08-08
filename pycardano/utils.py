@@ -12,8 +12,8 @@ from nacl.hash import blake2b
 
 from pycardano.backend.base import ChainContext
 from pycardano.hash import SCRIPT_DATA_HASH_SIZE, SCRIPT_HASH_SIZE, ScriptDataHash
-from pycardano.plutus import COST_MODELS, CostModels, Datum, Redeemers
-from pycardano.serialization import default_encoder
+from pycardano.plutus import COST_MODELS, CostModels, Datum, RedeemerMap, Redeemers
+from pycardano.serialization import NonEmptyOrderedSet, default_encoder
 from pycardano.transaction import MultiAsset, TransactionOutput, Value
 
 __all__ = [
@@ -235,30 +235,35 @@ def min_lovelace_post_alonzo(output: TransactionOutput, context: ChainContext) -
 
 
 def script_data_hash(
-    redeemers: Redeemers,
-    datums: List[Datum],
+    redeemers: Optional[Redeemers] = None,
+    datums: Optional[Union[List[Datum], NonEmptyOrderedSet[Datum]]] = None,
     cost_models: Optional[Union[CostModels, Dict]] = None,
 ) -> ScriptDataHash:
     """Calculate plutus script data hash
 
     Args:
-        redeemers (Redeemers): Redeemers to include.
-        datums (List[Datum]): Datums to include.
+        redeemers (Optional[Redeemers]): Redeemers to include.
+        datums (Optional[Union[List[Datum], NonEmptyOrderedSet[Datum]]]): Datums to include.
         cost_models (Optional[CostModels]): Cost models.
 
     Returns:
         ScriptDataHash: Plutus script data hash
     """
-    if not redeemers:
+    if redeemers is None:
+        redeemers = RedeemerMap()
+        cost_models = {}
+    elif len(redeemers) == 0:
         cost_models = {}
     elif not cost_models:
         cost_models = COST_MODELS
 
     redeemer_bytes = cbor2.dumps(redeemers, default=default_encoder)
+
     if datums:
         datum_bytes = cbor2.dumps(datums, default=default_encoder)
     else:
         datum_bytes = b""
+
     cost_models_bytes = cbor2.dumps(cost_models, default=default_encoder)
 
     return ScriptDataHash(
