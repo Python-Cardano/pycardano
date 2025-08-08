@@ -260,13 +260,7 @@ def script_data_hash(
     redeemer_bytes = cbor2.dumps(redeemers, default=default_encoder)
 
     if datums:
-        if not isinstance(datums, NonEmptyOrderedSet):
-            # If datums is not a NonEmptyOrderedSet, handle it as a list
-            datum_bytes = cbor2.dumps(datums, default=default_encoder)
-        else:
-            datum_bytes = cbor2.dumps(
-                datums.to_shallow_primitive(), default=default_encoder
-            )
+        datum_bytes = cbor2.dumps(datums, default=default_encoder)
     else:
         datum_bytes = b""
 

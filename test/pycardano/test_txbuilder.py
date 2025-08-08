@@ -411,12 +411,12 @@ def test_tx_builder_mint_multi_asset(chain_context):
             [
                 sender_address.to_primitive(),
                 [
-                    5809111,
+                    5809155,
                     {b"1111111111111111111111111111": {b"Token1": 1, b"Token2": 2}},
                 ],
             ],
         ],
-        2: 190889,
+        2: 190845,
         3: 123456789,
         8: 1000,
         9: mint,
