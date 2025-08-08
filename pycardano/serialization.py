@@ -1128,7 +1128,7 @@ def list_hook(
     return lambda vals: [cls.from_primitive(v) for v in vals]
 
 
-class OrderedSet(Generic[T], CBORSerializable):  # type: ignore
+class OrderedSet(Generic[T], CBORSerializable):
     def __init__(
         self,
         iterable: Optional[Union[List[T], IndefiniteList]] = None,
