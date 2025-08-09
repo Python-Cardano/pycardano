@@ -12,6 +12,7 @@ from pycardano.nativescript import NativeScript
 from pycardano.plutus import PlutusV1Script, PlutusV2Script, PlutusV3Script, Redeemers
 from pycardano.serialization import (
     ArrayCBORSerializable,
+    IndefiniteList,
     MapCBORSerializable,
     NonEmptyOrderedSet,
     limit_primitive_type,
@@ -107,9 +108,11 @@ class TransactionWitnessSet(MapCBORSerializable):
         },
     )
 
-    plutus_data: Optional[Union[List[Any], NonEmptyOrderedSet[Any]]] = field(
-        default=None,
-        metadata={"optional": True, "key": 4},
+    plutus_data: Optional[Union[IndefiniteList, List[Any], NonEmptyOrderedSet[Any]]] = (
+        field(
+            default=None,
+            metadata={"optional": True, "key": 4},
+        )
     )
 
     redeemer: Optional[Redeemers] = field(
