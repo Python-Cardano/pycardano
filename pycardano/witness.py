@@ -9,19 +9,13 @@ from pprintpp import pformat
 
 from pycardano.key import ExtendedVerificationKey, VerificationKey
 from pycardano.nativescript import NativeScript
-from pycardano.plutus import (
-    PlutusV1Script,
-    PlutusV2Script,
-    PlutusV3Script,
-    RawPlutusData,
-    Redeemers,
-)
+from pycardano.plutus import PlutusV1Script, PlutusV2Script, PlutusV3Script, Redeemers
 from pycardano.serialization import (
     ArrayCBORSerializable,
+    IndefiniteList,
     MapCBORSerializable,
     NonEmptyOrderedSet,
     limit_primitive_type,
-    list_hook,
 )
 
 __all__ = ["VerificationKeyWitness", "TransactionWitnessSet"]
@@ -114,9 +108,11 @@ class TransactionWitnessSet(MapCBORSerializable):
         },
     )
 
-    plutus_data: Optional[List[Any]] = field(
-        default=None,
-        metadata={"optional": True, "key": 4, "object_hook": list_hook(RawPlutusData)},
+    plutus_data: Optional[Union[IndefiniteList, List[Any], NonEmptyOrderedSet[Any]]] = (
+        field(
+            default=None,
+            metadata={"optional": True, "key": 4},
+        )
     )
 
     redeemer: Optional[Redeemers] = field(
@@ -150,6 +146,10 @@ class TransactionWitnessSet(MapCBORSerializable):
             self.vkey_witnesses = NonEmptyOrderedSet(self.vkey_witnesses)
         if isinstance(self.native_scripts, list):
             self.native_scripts = NonEmptyOrderedSet(self.native_scripts)
+        if isinstance(self.plutus_data, list) and not isinstance(
+            self.plutus_data, NonEmptyOrderedSet
+        ):
+            self.plutus_data = NonEmptyOrderedSet(list(self.plutus_data))
         if isinstance(self.plutus_v1_script, list):
             self.plutus_v1_script = NonEmptyOrderedSet(self.plutus_v1_script)
         if isinstance(self.plutus_v2_script, list):
