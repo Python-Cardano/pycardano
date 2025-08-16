@@ -8,7 +8,7 @@
 
 [![PyPi version](https://badgen.net/pypi/v/pycardano)](https://pypi.python.org/pypi/pycardano/)
 [![PyPI pyversions](https://img.shields.io/pypi/pyversions/pycardano)](https://pypi.python.org/pypi/pycardano/)
-[![PyPI download month](https://img.shields.io/pypi/dm/pycardano)](https://pypi.python.org/pypi/pycardano/)
+[![PyPI Downloads](https://static.pepy.tech/badge/pycardano/month)](https://pepy.tech/projects/pycardano)
 
 [![PyCardano](https://github.com/Python-Cardano/pycardano/actions/workflows/main.yml/badge.svg)](https://github.com/Python-Cardano/pycardano/actions/workflows/main.yml)
 [![codecov](https://codecov.io/gh/Python-Cardano/pycardano/graph/badge.svg?token=62N0IL9IMQ)](https://codecov.io/gh/Python-Cardano/pycardano)
