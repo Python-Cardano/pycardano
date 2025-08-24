@@ -784,7 +784,7 @@ def test_transaction_witness_set_with_ordered_sets():
 
 # Test fixtures
 @dataclass(repr=False)
-class TestCodedClass(CodedSerializable):
+class SampleCodedClass(CodedSerializable):
     """A test class that uses CodedSerializable."""
 
     _CODE: int = field(init=False, default=1)
@@ -803,15 +803,15 @@ class AnotherCodedClass(CodedSerializable):
 def test_coded_serializable_basic():
     """Test basic serialization and deserialization."""
     # Create an instance
-    obj = TestCodedClass(value="test", numbers=[1, 2, 3])
+    obj = SampleCodedClass(value="test", numbers=[1, 2, 3])
 
     # Test serialization
     primitive = obj.to_primitive()
     assert primitive == [1, "test", [1, 2, 3]]
 
     # Test deserialization
-    restored = TestCodedClass.from_primitive(primitive)
-    assert isinstance(restored, TestCodedClass)
+    restored = SampleCodedClass.from_primitive(primitive)
+    assert isinstance(restored, SampleCodedClass)
     assert restored.value == "test"
     assert restored.numbers == [1, 2, 3]
 
@@ -820,13 +820,13 @@ def test_coded_serializable_wrong_code():
     """Test that wrong codes raise appropriate exceptions."""
     # Try to deserialize with wrong code
     with pytest.raises(DeserializeException) as exc_info:
-        TestCodedClass.from_primitive([2, "test", [1, 2, 3]])
-    assert "Invalid TestCodedClass type" in str(exc_info.value)
+        SampleCodedClass.from_primitive([2, "test", [1, 2, 3]])
+    assert "Invalid SampleCodedClass type" in str(exc_info.value)
 
 
 def test_multiple_coded_classes():
     """Test that different coded classes work independently."""
-    obj1 = TestCodedClass(value="test", numbers=[1, 2, 3])
+    obj1 = SampleCodedClass(value="test", numbers=[1, 2, 3])
     obj2 = AnotherCodedClass(name="example")
 
     # Serialize both
@@ -837,11 +837,11 @@ def test_multiple_coded_classes():
     assert prim1[0] != prim2[0]
 
     # Restore both
-    restored1 = TestCodedClass.from_primitive(prim1)
+    restored1 = SampleCodedClass.from_primitive(prim1)
     restored2 = AnotherCodedClass.from_primitive(prim2)
 
     # Verify restorations
-    assert isinstance(restored1, TestCodedClass)
+    assert isinstance(restored1, SampleCodedClass)
     assert isinstance(restored2, AnotherCodedClass)
     assert restored1.value == "test"
     assert restored2.name == "example"
@@ -849,14 +849,14 @@ def test_multiple_coded_classes():
 
 def test_coded_serializable_cbor():
     """Test CBOR serialization and deserialization."""
-    original = TestCodedClass(value="test", numbers=[1, 2, 3])
+    original = SampleCodedClass(value="test", numbers=[1, 2, 3])
 
     # Convert to CBOR and back
     cbor_bytes = original.to_cbor()
-    restored = TestCodedClass.from_cbor(cbor_bytes)
+    restored = SampleCodedClass.from_cbor(cbor_bytes)
 
     # Verify restoration
-    assert isinstance(restored, TestCodedClass)
+    assert isinstance(restored, SampleCodedClass)
     assert restored.value == original.value
     assert restored.numbers == original.numbers
 
@@ -872,19 +872,19 @@ def test_invalid_primitive_type():
 
     for invalid_value in invalid_values:
         with pytest.raises(DeserializeException):
-            TestCodedClass.from_primitive(invalid_value)
+            SampleCodedClass.from_primitive(invalid_value)
 
 
 def test_invliad_coded_serializable():
     with pytest.raises(DeserializeException):
-        TestCodedClass.from_primitive([2, "test", [1, 2, 3]])
+        SampleCodedClass.from_primitive([2, "test", [1, 2, 3]])
 
 
 def test_coded_serializable_inheritance():
     """Test that inheritance works properly with CodedSerializable."""
 
     @dataclass(repr=False)
-    class ChildCodedClass(TestCodedClass):
+    class ChildCodedClass(SampleCodedClass):
         """A child class that inherits from a CodedSerializable."""
 
         _CODE: int = field(init=False, default=3)
