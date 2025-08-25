@@ -720,14 +720,6 @@ def _restore_typed_primitive(
         if not isinstance(v, bytes):
             raise DeserializeException(f"Expected type bytes but got {type(v)}")
         return ByteString(v)
-    elif isclass(t) and t.__name__ in [
-        "PlutusV1Script",
-        "PlutusV2Script",
-        "PlutusV3Script",
-    ]:
-        if not isinstance(v, bytes):
-            raise DeserializeException(f"Expected type bytes but got {type(v)}")
-        return t(v)
     elif hasattr(t, "__origin__") and (t.__origin__ is dict):
         t_args = t.__args__
         if len(t_args) != 2:
