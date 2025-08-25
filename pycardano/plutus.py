@@ -1070,7 +1070,7 @@ class PlutusScript(CBORSerializable, bytes):
 
     This class is a base class for all Plutus script versions.
 
-    Example - Load a Plutus script from `test/resources/scriptV2.plutus <https://github.com/Python-Cardano/pycardano/blob/main/test/resources/scriptV2.plutus>`_ and get its address:
+    Example - Load a Plutus script from `test/resources/scriptV2.plutus <https://github.com/Python-Cardano/pycardano/blob/main/test/resources/scriptV2.plutus>`_ and get its address: # noqa: E501
 
 
         >>> from pycardano import Address, Network
