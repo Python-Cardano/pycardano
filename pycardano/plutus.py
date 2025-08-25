@@ -1064,24 +1064,51 @@ def plutus_script_hash(script: Union[NativeScript, PlutusScript]) -> ScriptHash:
     return script_hash(script)
 
 
-class PlutusScript(bytes):
+class PlutusScript(CBORSerializable, bytes):
+    """
+    Plutus script class.
+
+    This class is a base class for all Plutus script versions.
+
+    Example - Load a Plutus script from `test/resources/scriptV2.plutus <https://github.com/Python-Cardano/pycardano/blob/main/test/resources/scriptV2.plutus>`_ and get its address:
+
+
+        >>> from pycardano import Address, Network
+        >>> script = PlutusV2Script.load("test/resources/scriptV2.plutus")
+        >>> Address(plutus_script_hash(script), network=Network.TESTNET).encode()
+        'addr_test1wrmz3pjz4dmfxj0fc0a0eyw69tp6h7mpndzf9g3kttq9cqqqw47ym'
+    """
+
     @property
     def version(self) -> int:
         raise NotImplementedError("")
 
+    def to_shallow_primitive(self) -> bytes:
+        return bytes(self)
+
+    @classmethod
+    def from_primitive(
+        cls: Type[PlutusScript], value: Any, type_args: Optional[tuple] = None
+    ) -> PlutusScript:
+        if not isinstance(value, (bytes, bytearray)):
+            raise DeserializeException(f"Expect bytes, got {type(value)} instead.")
+        return cls(value)
+
     @classmethod
     def from_version(cls, version: int, script_data: bytes) -> "PlutusScript":
-        if version == 1:
-            return PlutusV1Script(script_data)
-        elif version == 2:
-            return PlutusV2Script(script_data)
-        elif version == 3:
-            return PlutusV3Script(script_data)
-        else:
+        class_name = f"PlutusV{version}Script"
+        script_class = globals().get(class_name)
+
+        if script_class is None:
             raise ValueError(f"No Plutus script class found for version {version}")
+
+        return script_class(script_data)
 
     def get_script_hash_prefix(self) -> bytes:
         raise NotImplementedError("")
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}({self.hex()})"
 
 
 class PlutusV1Script(PlutusScript):
