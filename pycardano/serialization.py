@@ -561,26 +561,23 @@ class CBORSerializable:
         """
         return self.__class__.__doc__ or "Generated with PyCardano"
 
-    def to_json(self, **kwargs) -> str:
+    def to_json(self, key_type: Optional[str] = None, description: Optional[str] = None) -> str:
         """
         Convert the CBORSerializable object to a JSON string containing type, description, and CBOR hex.
 
         This method returns a JSON representation of the object, including its type, description, and CBOR hex encoding.
 
         Args:
-            **kwargs: Additional keyword arguments that can include:
-                - key_type (str): The type to use in the JSON output. Defaults to the class name.
-                - description (str): The description to use in the JSON output. Defaults to the class docstring.
+            key_type (str): The type to use in the JSON output. Defaults to the class name.
+            description (str): The description to use in the JSON output. Defaults to the class docstring.
 
         Returns:
             str: The JSON string representation of the object.
         """
-        key_type = kwargs.pop("key_type", self.json_type)
-        description = kwargs.pop("description", self.json_description)
         return json.dumps(
             {
-                "type": key_type,
-                "description": description,
+                "type": key_type or self.json_type,
+                "description": description or self.json_description,
                 "cborHex": self.to_cbor_hex(),
             },
             indent=2,
@@ -625,8 +622,8 @@ class CBORSerializable:
 
         Args:
             path (str): The file path to save the object to.
-            key_type (str, optional): The type to use in the JSON output.
-            description (str, optional): The description to use in the JSON output.
+            key_type (str, optional): The type to use in the JSON output. Defaults to the class name.
+            description (str, optional): The description to use in the JSON output. Defaults to the class docstring.
 
         Raises:
             IOError: If the file already exists and is not empty.
