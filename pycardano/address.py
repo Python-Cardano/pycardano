@@ -416,6 +416,7 @@ class Address(CBORSerializable):
         path: str,
         key_type: Optional[str] = None,
         description: Optional[str] = None,
+        **kwargs,
     ):
         """
         Save the Address object to a file.
@@ -427,6 +428,7 @@ class Address(CBORSerializable):
             path (str): The file path to save the object to.
             key_type (str, optional): Not used in this context, but can be included for consistency.
             description (str, optional): Not used in this context, but can be included for consistency.
+            **kwargs: Additional keyword arguments (not used here).
 
         Raises:
             IOError: If the file already exists and is not empty.

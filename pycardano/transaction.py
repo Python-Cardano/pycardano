@@ -698,7 +698,7 @@ class Transaction(ArrayCBORSerializable):
     def json_type(self) -> str:
         return (
             "Unwitnessed Tx ConwayEra"
-            if self.transaction_witness_set.is_empty()
+            if self.transaction_witness_set.vkey_witnesses is None
             else "Signed Tx ConwayEra"
         )
 
