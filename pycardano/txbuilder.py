@@ -1204,7 +1204,7 @@ class TransactionBuilder:
                         f"Unsupported script type: {type(script)}"
                     )
 
-        return TransactionWitnessSet(
+        witness_set = TransactionWitnessSet(
             native_scripts=native_scripts if native_scripts else None,
             plutus_v1_script=plutus_v1_scripts if plutus_v1_scripts else None,
             plutus_v2_script=plutus_v2_scripts if plutus_v2_scripts else None,
@@ -1212,6 +1212,8 @@ class TransactionBuilder:
             redeemer=self.redeemers() if self._redeemer_list else None,
             plutus_data=plutus_data if plutus_data else None,
         )
+        witness_set.convert_to_latest_spec()
+        return witness_set
 
     def _ensure_no_input_exclusion_conflict(self):
         intersection = set(self.inputs).intersection(set(self.excluded_inputs))

@@ -761,6 +761,7 @@ def test_transaction_witness_set_with_ordered_sets():
 
     # Test conversion from list to NonEmptyOrderedSet
     witness_set = TransactionWitnessSet(vkey_witnesses=[witness])
+    witness_set.convert_to_latest_spec()
     assert isinstance(witness_set.vkey_witnesses, NonEmptyOrderedSet)
     assert witness in witness_set.vkey_witnesses
 
@@ -772,11 +773,13 @@ def test_transaction_witness_set_with_ordered_sets():
 
     # Test empty list conversion
     witness_set = TransactionWitnessSet(vkey_witnesses=[])
+    witness_set.convert_to_latest_spec()
     with pytest.raises(ValueError, match="NonEmptyOrderedSet cannot be empty"):
         witness_set.to_validated_primitive()
 
     # Test None value
     witness_set = TransactionWitnessSet(vkey_witnesses=None)
+    witness_set.convert_to_latest_spec()
     primitive = witness_set.to_primitive()
     restored = TransactionWitnessSet.from_primitive(primitive)
     assert restored.vkey_witnesses is None
