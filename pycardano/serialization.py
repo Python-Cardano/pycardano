@@ -561,7 +561,12 @@ class CBORSerializable:
         """
         return self.__class__.__doc__ or "Generated with PyCardano"
 
-    def to_json(self, key_type: Optional[str] = None, description: Optional[str] = None) -> str:
+    def to_json(
+        self,
+        key_type: Optional[str] = None,
+        description: Optional[str] = None,
+        **kwargs,
+    ) -> str:
         """
         Convert the CBORSerializable object to a JSON string containing type, description, and CBOR hex.
 
@@ -570,17 +575,21 @@ class CBORSerializable:
         Args:
             key_type (str): The type to use in the JSON output. Defaults to the class name.
             description (str): The description to use in the JSON output. Defaults to the class docstring.
+            **kwargs: Extra key word arguments to be passed to `json.dumps()`
 
         Returns:
             str: The JSON string representation of the object.
         """
+        if "indent" not in kwargs:
+            kwargs["indent"] = 2
+
         return json.dumps(
             {
                 "type": key_type or self.json_type,
                 "description": description or self.json_description,
                 "cborHex": self.to_cbor_hex(),
             },
-            indent=2,
+            **kwargs,
         )
 
     @classmethod
@@ -613,6 +622,7 @@ class CBORSerializable:
         path: str,
         key_type: Optional[str] = None,
         description: Optional[str] = None,
+        **kwargs,
     ):
         """
         Save the CBORSerializable object to a file in JSON format.
@@ -624,6 +634,7 @@ class CBORSerializable:
             path (str): The file path to save the object to.
             key_type (str, optional): The type to use in the JSON output. Defaults to the class name.
             description (str, optional): The description to use in the JSON output. Defaults to the class docstring.
+            **kwargs: Extra key word arguments to be passed to `json.dumps()`
 
         Raises:
             IOError: If the file already exists and is not empty.
@@ -631,7 +642,7 @@ class CBORSerializable:
         if os.path.isfile(path) and os.stat(path).st_size > 0:
             raise IOError(f"File {path} already exists!")
         with open(path, "w") as f:
-            f.write(self.to_json(key_type=key_type, description=description))
+            f.write(self.to_json(key_type=key_type, description=description, **kwargs))
 
     @classmethod
     def load(cls, path: str):

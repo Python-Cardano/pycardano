@@ -652,7 +652,7 @@ class PlutusData(ArrayCBORSerializable):
 
         return _dfs(self)
 
-    def to_json(self, **kwargs) -> str:
+    def to_json(self, **kwargs) -> str:  # type: ignore
         """Convert to a json string
 
         Args:
@@ -847,7 +847,7 @@ class RawPlutusData(CBORSerializable):
 
         return _dfs(RawPlutusData.to_primitive(self))
 
-    def to_json(self, **kwargs) -> str:
+    def to_json(self, **kwargs) -> str:  # type: ignore
         """Convert to a json string
 
         Args:
