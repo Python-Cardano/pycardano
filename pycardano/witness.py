@@ -108,7 +108,7 @@ class TransactionWitnessSet(MapCBORSerializable):
         },
     )
 
-    plutus_data: Optional[Union[IndefiniteList, List[Any], NonEmptyOrderedSet[Any]]] = (
+    plutus_data: Optional[Union[List[Any], IndefiniteList, NonEmptyOrderedSet[Any]]] = (
         field(
             default=None,
             metadata={"optional": True, "key": 4},
@@ -140,7 +140,7 @@ class TransactionWitnessSet(MapCBORSerializable):
         },
     )
 
-    def __post_init__(self):
+    def convert_to_latest_spec(self):
         # Convert lists to NonEmptyOrderedSet for fields that should use NonEmptyOrderedSet
         if isinstance(self.vkey_witnesses, list):
             self.vkey_witnesses = NonEmptyOrderedSet(self.vkey_witnesses)
