@@ -94,10 +94,10 @@ def test_pool_id_error_cases(test_id, pool_id_str, expected_exception):
     [
         (
             3001,
-            b"\xC0\xA8\x00\x01",
+            b"\xc0\xa8\x00\x01",
             b" \x01\r\xb8\x85\xa3\x00\x00\x14-\x00\x00\x08\x01\r\xb8",
         ),  # IPv4 and IPv6
-        (None, b"\xC0\xA8\x00\x01", None),  # Only IPv4
+        (None, b"\xc0\xa8\x00\x01", None),  # Only IPv4
         (
             None,
             None,
