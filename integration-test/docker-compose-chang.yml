@@ -9,7 +9,7 @@ networks:
 services:
 
   cardano-node:
-    image: ghcr.io/intersectmbo/cardano-node:${CARDANO_NODE_VERSION:-10.1.4}
+    image: ghcr.io/intersectmbo/cardano-node:${CARDANO_NODE_VERSION:-10.5.1}
     platform: linux/amd64
     entrypoint: bash
     environment:
@@ -35,7 +35,7 @@ services:
         max-file: "10"
 
   cardano-pool:
-    image: ghcr.io/intersectmbo/cardano-node:${CARDANO_NODE_VERSION:-10.1.4}
+    image: ghcr.io/intersectmbo/cardano-node:${CARDANO_NODE_VERSION:-10.5.1}
     platform: linux/amd64
     entrypoint: bash
     environment:
@@ -56,7 +56,7 @@ services:
         max-file: "10"
 
   ogmios:
-    image: cardanosolutions/ogmios:v6.11.2
+    image: cardanosolutions/ogmios:v6.13.0
     platform: linux/amd64
     environment:
       NETWORK: "${NETWORK:-local-alonzo}"
@@ -79,7 +79,7 @@ services:
         max-file: "10"
 
   kupo:
-    image: cardanosolutions/kupo:v2.9.0
+    image: cardanosolutions/kupo:v2.11.0
     platform: linux/amd64
     environment:
       NETWORK: "${NETWORK:-local}"
