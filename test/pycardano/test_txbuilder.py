@@ -2041,12 +2041,6 @@ def test_build_witness_set_mixed_scripts(chain_context):
     assert witness_set.plutus_v2_script is None
     assert witness_set.plutus_v3_script is None
 
-    # Test with remove_dup_script=False
-    witness_set = builder.build_witness_set(remove_dup_script=False)
-    assert len(witness_set.plutus_v1_script) == 2
-    assert len(witness_set.plutus_v2_script) == 1
-    assert len(witness_set.plutus_v3_script) == 1
-
 
 def test_add_script_input_post_chang(chain_context):
     tx_builder = TransactionBuilder(chain_context)

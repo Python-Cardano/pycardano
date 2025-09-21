@@ -218,6 +218,8 @@ class TransactionBuilder:
             TransactionBuilder: Current transaction builder.
         """
         self.inputs.append(utxo)
+        if utxo.output.script:
+            self._reference_scripts.append(utxo.output.script)
         return self
 
     def _consolidate_redeemer(self, redeemer):
@@ -1403,7 +1405,11 @@ class TransactionBuilder:
 
             for address in self.input_addresses:
                 for utxo in self.context.utxos(address):
-                    if utxo not in seen_utxos and utxo not in self.excluded_inputs:
+                    if (
+                        utxo not in seen_utxos
+                        and utxo not in self.excluded_inputs
+                        and utxo.output.script is None
+                    ):
                         additional_utxo_pool.append(utxo)
                         additional_amount += utxo.output.amount
                         seen_utxos.add(utxo)
