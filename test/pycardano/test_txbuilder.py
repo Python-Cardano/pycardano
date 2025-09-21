@@ -2041,12 +2041,6 @@ def test_build_witness_set_mixed_scripts(chain_context):
     assert witness_set.plutus_v2_script is None
     assert witness_set.plutus_v3_script is None
 
-    # Test with remove_dup_script=False
-    witness_set = builder.build_witness_set(remove_dup_script=False)
-    assert len(witness_set.plutus_v1_script) == 2
-    assert len(witness_set.plutus_v2_script) == 1
-    assert len(witness_set.plutus_v3_script) == 1
-
 
 def test_add_script_input_post_chang(chain_context):
     tx_builder = TransactionBuilder(chain_context)
@@ -2421,3 +2415,54 @@ def test_token_transfer_with_change(chain_context):
             change_output.amount.multi_asset[token_policy_id][token_name]
             == 1876083 - 382
         )
+
+
+def test_spend_utxo_with_script(chain_context):
+    """Test that UTxOs with scripts are added as reference scripts when added directly."""
+    utxo = UTxO(
+        TransactionInput.from_primitive(
+            [
+                "a6cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad21431590f7e6643438ef",
+                0,
+            ]
+        ),
+        TransactionOutput(
+            Address.from_primitive(
+                "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+            ),
+            Value(10000000),
+            script=PlutusV2Script(b"dummy test script"),
+        ),
+    )
+
+    tx_builder = TransactionBuilder(chain_context)
+    tx_builder.add_input(utxo)
+    assert len(tx_builder._reference_scripts) == 1
+
+
+def test_skip_utxo_with_script(chain_context):
+    """Test that UTxOs with scripts are skipped when selecting UTxOs by address."""
+    addr = Address.from_primitive(
+        "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    )
+
+    utxo = UTxO(
+        TransactionInput.from_primitive(
+            [
+                "a6cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad21431590f7e6643438ef",
+                0,
+            ]
+        ),
+        TransactionOutput(
+            addr,
+            Value(10000000),
+            script=PlutusV2Script(b"dummy test script"),
+        ),
+    )
+
+    with patch.object(chain_context, "utxos") as mock_utxos:
+        mock_utxos.return_value = [utxo]
+        tx_builder = TransactionBuilder(chain_context)
+        tx_builder.add_input_address(addr)
+        with pytest.raises(UTxOSelectionException):
+            tx_builder.build()
