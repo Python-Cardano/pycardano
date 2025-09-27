@@ -82,12 +82,12 @@ class HDWallet:
 
     def __init__(
         self,
-        root_xprivate_key: bytes,
-        root_public_key: bytes,
-        root_chain_code: bytes,
-        xprivate_key: bytes,
-        public_key: bytes,
-        chain_code: bytes,
+        root_xprivate_key: Optional[bytes] = None,
+        root_public_key: Optional[bytes] = None,
+        root_chain_code: Optional[bytes] = None,
+        xprivate_key: Optional[bytes] = None,
+        public_key: Optional[bytes] = None,
+        chain_code: Optional[bytes] = None,
         path: str = "m",
         seed: Optional[bytes] = None,
         mnemonic: Optional[str] = None,
@@ -322,13 +322,13 @@ class HDWallet:
         if not isinstance(index, int):
             raise ValueError("Bad index, Please import only integer number!")
 
-        if not self._root_xprivate_key and not self._root_public_key:
-            raise ValueError("Missing root keys. Can't do derivation.")
-
         if hardened:
             index += 2**31
 
         if private:
+            if self._xprivate_key is None:
+                raise ValueError("Missing private key. Can't do private derivation.")
+
             private_node = (
                 self._xprivate_key[:32],
                 self._xprivate_key[32:],
@@ -336,14 +336,22 @@ class HDWallet:
                 self._chain_code,
                 self._path,
             )
-            return self._derive_private_child_key_by_index(private_node, index)
+
+            if any(x is None for x in private_node):
+                raise ValueError(f"None values in private node: {private_node}")
+
+            return self._derive_private_child_key_by_index(private_node, index)  # type: ignore
 
         public_node = (
             self._public_key,
             self._chain_code,
             self._path,
         )
-        return self._derive_public_child_key_by_index(public_node, index)
+
+        if any(x is None for x in public_node):
+            raise ValueError(f"None values in public node: {public_node}")
+
+        return self._derive_public_child_key_by_index(public_node, index)  # type: ignore
 
     def _derive_private_child_key_by_index(
         self, private_pnode: Tuple[bytes, bytes, bytes, bytes, str], index: int
