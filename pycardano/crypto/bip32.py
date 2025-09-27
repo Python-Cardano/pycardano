@@ -326,7 +326,7 @@ class HDWallet:
             index += 2**31
 
         if private:
-            if not self._xprivate_key:
+            if self._xprivate_key is None:
                 raise ValueError("Missing private key. Can't do private derivation.")
 
             private_node = (
@@ -336,17 +336,22 @@ class HDWallet:
                 self._chain_code,
                 self._path,
             )
-            return self._derive_private_child_key_by_index(private_node, index)
 
-        if not self._public_key:
-            raise ValueError("Missing public key. Can't do public derivation.")
+            if any(x is None for x in private_node):
+                raise ValueError(f"None values in private node: {private_node}")
+
+            return self._derive_private_child_key_by_index(private_node, index)  # type: ignore
 
         public_node = (
             self._public_key,
             self._chain_code,
             self._path,
         )
-        return self._derive_public_child_key_by_index(public_node, index)
+
+        if any(x is None for x in public_node):
+            raise ValueError(f"None values in public node: {public_node}")
+
+        return self._derive_public_child_key_by_index(public_node, index)  # type: ignore
 
     def _derive_private_child_key_by_index(
         self, private_pnode: Tuple[bytes, bytes, bytes, bytes, str], index: int
