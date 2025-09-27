@@ -82,12 +82,12 @@ class HDWallet:
 
     def __init__(
         self,
-        root_xprivate_key: bytes,
-        root_public_key: bytes,
-        root_chain_code: bytes,
-        xprivate_key: bytes,
-        public_key: bytes,
-        chain_code: bytes,
+        root_xprivate_key: Optional[bytes] = None,
+        root_public_key: Optional[bytes] = None,
+        root_chain_code: Optional[bytes] = None,
+        xprivate_key: Optional[bytes] = None,
+        public_key: Optional[bytes] = None,
+        chain_code: Optional[bytes] = None,
         path: str = "m",
         seed: Optional[bytes] = None,
         mnemonic: Optional[str] = None,
@@ -322,13 +322,13 @@ class HDWallet:
         if not isinstance(index, int):
             raise ValueError("Bad index, Please import only integer number!")
 
-        if not self._root_xprivate_key and not self._root_public_key:
-            raise ValueError("Missing root keys. Can't do derivation.")
-
         if hardened:
             index += 2**31
 
         if private:
+            if not self._xprivate_key:
+                raise ValueError("Missing private key. Can't do private derivation.")
+
             private_node = (
                 self._xprivate_key[:32],
                 self._xprivate_key[32:],
@@ -337,6 +337,9 @@ class HDWallet:
                 self._path,
             )
             return self._derive_private_child_key_by_index(private_node, index)
+
+        if not self._public_key:
+            raise ValueError("Missing public key. Can't do public derivation.")
 
         public_node = (
             self._public_key,
