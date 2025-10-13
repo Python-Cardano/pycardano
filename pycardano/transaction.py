@@ -690,7 +690,7 @@ class Transaction(ArrayCBORSerializable):
 
     transaction_witness_set: TransactionWitnessSet
 
-    valid: bool = True
+    valid: Optional[bool] = field(default=True, metadata={"optional": True})
 
     auxiliary_data: Optional[AuxiliaryData] = None
 

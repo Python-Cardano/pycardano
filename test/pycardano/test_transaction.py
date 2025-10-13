@@ -696,3 +696,12 @@ def test_decode_param_update_proposal_tx():
     assert tx.transaction_body.proposal_procedures[
         0
     ].gov_action.protocol_param_update.treasury_growth_rate == Fraction(1, 10)
+
+
+def test_decode_byron_transaction():
+    tx_cbor_hex = """83a400818258205d5f5c04aaa2367c5a700cf6ba9e9da76e214a0a1485a174618cb38b292bf0d9000182825839016a2fcce35ec3795b9418ae49b69074a17cdd0a7c60ae6ba63fc85eff17eabf85728a590b7785f27d60dea7d4bcb356b438b9d577a45547fe1b0000001e3001052482584c82d818584283581c91d0a0518e3e764e13f6ef37580a6be8ab14da4f3066fd01af01da6aa101581e581cabbf051bdee353839fbb21a6d4e6c584138a6a33896bb96d4124a330001a3592e2cc1a0a6526b0021a0002964d031a012f6296a10081825820e8fe69f9fd8afcb4792e3ca0f08b49e6eece1788c2d7b026096cfdbd1344a9bc5840dcef77b73af0922005f4b60d21333628348864c405ff52efd3f72523bf2c790e662650ad9951d306b40ce5beddf5b8eebb6731156b8b7617f6614b9ffdf2fb05f6"""
+    tx = Transaction.from_cbor(tx_cbor_hex)
+    check_two_way_cbor(tx)
+    assert tx.id == TransactionId.from_primitive(
+        "52e274237caceb4e0916587d2b4ba19d89fb40e8e85338f9bb4f75fcec1256a2"
+    )
