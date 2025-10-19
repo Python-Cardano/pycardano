@@ -8,10 +8,14 @@ Specifications and references could be found in:
 
 from __future__ import annotations
 
+import binascii
 import os
 from enum import Enum
 from typing import Optional, Type, Union
 
+import base58
+import cbor2
+from cbor2 import CBORTag
 from typing_extensions import override
 
 from pycardano.crypto.bech32 import decode, encode
@@ -202,12 +206,32 @@ class Address(CBORSerializable):
         self._payment_part = payment_part
         self._staking_part = staking_part
         self._network = network
+
+        # Byron address fields (only populated when decoding Byron addresses)
+        self._byron_payload_hash: Optional[bytes] = None
+        self._byron_attributes: Optional[dict] = None
+        self._byron_type: Optional[int] = None
+        self._byron_crc32: Optional[int] = None
+
         self._address_type = self._infer_address_type()
-        self._header_byte = self._compute_header_byte()
-        self._hrp = self._compute_hrp()
+        self._header_byte = self._compute_header_byte() if not self.is_byron else None
+        self._hrp = self._compute_hrp() if not self.is_byron else None
+
+    @property
+    def is_byron(self) -> bool:
+        """Check if this is a Byron-era address.
+
+        Returns:
+            bool: True if this is a Byron address, False if Shelley/later.
+        """
+        return self._byron_payload_hash is not None
 
     def _infer_address_type(self):
         """Guess address type from the combination of payment part and staking part."""
+        # Check if this is a Byron address
+        if self.is_byron:
+            return AddressType.BYRON
+
         payment_type = type(self.payment_part)
         staking_type = type(self.staking_part)
         if payment_type == VerificationKeyHash:
@@ -263,14 +287,34 @@ class Address(CBORSerializable):
         return self._address_type
 
     @property
-    def header_byte(self) -> bytes:
-        """Header byte that identifies the type of address."""
+    def header_byte(self) -> Optional[bytes]:
+        """Header byte that identifies the type of address. None for Byron addresses."""
         return self._header_byte
 
     @property
-    def hrp(self) -> str:
-        """Human-readable prefix for bech32 encoder."""
+    def hrp(self) -> Optional[str]:
+        """Human-readable prefix for bech32 encoder. None for Byron addresses."""
         return self._hrp
+
+    @property
+    def payload_hash(self) -> Optional[bytes]:
+        """Byron address payload hash (28 bytes). None for Shelley addresses."""
+        return self._byron_payload_hash if self.is_byron else None
+
+    @property
+    def byron_attributes(self) -> Optional[dict]:
+        """Byron address attributes. None for Shelley addresses."""
+        return self._byron_attributes if self.is_byron else None
+
+    @property
+    def byron_type(self) -> Optional[int]:
+        """Byron address type (0=Public Key, 2=Redemption). None for Shelley addresses."""
+        return self._byron_type if self.is_byron else None
+
+    @property
+    def crc32_checksum(self) -> Optional[int]:
+        """Byron address CRC32 checksum. None for Shelley addresses."""
+        return self._byron_crc32 if self.is_byron else None
 
     def _compute_header_byte(self) -> bytes:
         """Compute the header byte."""
@@ -294,6 +338,16 @@ class Address(CBORSerializable):
         return prefix + suffix
 
     def __bytes__(self):
+        if self.is_byron:
+            payload = cbor2.dumps(
+                [
+                    self._byron_payload_hash,
+                    self._byron_attributes,
+                    self._byron_type,
+                ]
+            )
+            return cbor2.dumps([CBORTag(24, payload), self._byron_crc32])
+
         payment = self.payment_part or bytes()
         if self.staking_part is None:
             staking = bytes()
@@ -304,12 +358,12 @@ class Address(CBORSerializable):
         return self.header_byte + bytes(payment) + bytes(staking)
 
     def encode(self) -> str:
-        """Encode the address in Bech32 format.
+        """Encode the address in Bech32 format (Shelley) or Base58 format (Byron).
 
         More info about Bech32 `here <https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki#Bech32>`_.
 
         Returns:
-            str: Encoded address in Bech32.
+            str: Encoded address in Bech32 (Shelley) or Base58 (Byron).
 
         Examples:
             >>> payment_hash = VerificationKeyHash(
@@ -317,6 +371,8 @@ class Address(CBORSerializable):
             >>> print(Address(payment_hash).encode())
             addr1v8xrqjtlfluk9axpmjj5enh0uw0cduwhz7txsqyl36m3ukgqdsn8w
         """
+        if self.is_byron:
+            return base58.b58encode(bytes(self)).decode("ascii")
         return encode(self.hrp, bytes(self))
 
     @classmethod
@@ -345,8 +401,38 @@ class Address(CBORSerializable):
     @classmethod
     @limit_primitive_type(bytes, str)
     def from_primitive(cls: Type[Address], value: Union[bytes, str]) -> Address:
+        # Convert string to bytes
         if isinstance(value, str):
-            value = bytes(decode(value))
+            # Check for Byron Base58 prefixes (common Byron patterns)
+            if value.startswith(("Ae2td", "Ddz")):
+                return cls._from_byron_base58(value)
+
+            # Try Bech32 decode for Shelley addresses
+            original_str = value
+            try:
+                value = bytes(decode(value))
+            except Exception:
+                try:
+                    return cls._from_byron_base58(original_str)
+                except Exception as e:
+                    raise DecodingException(f"Failed to decode address string: {e}")
+
+        # At this point, value is always bytes
+        # Check if it's a Byron address (CBOR with tag 24)
+        try:
+            decoded = cbor2.loads(value)
+            if isinstance(decoded, (tuple, list)) and len(decoded) == 2:
+                if isinstance(decoded[0], CBORTag) and decoded[0].tag == 24:
+                    # This is definitely a Byron address - validate and decode it
+                    return cls._from_byron_cbor(value)
+        except DecodingException:
+            # Byron decoding failed with validation error - re-raise it
+            raise
+        except Exception:
+            # Not Byron CBOR (general CBOR decode error), continue with Shelley decoding
+            pass
+
+        # Shelley address decoding (existing logic)
         header = value[0]
         payload = value[1:]
         addr_type = AddressType((header & 0xF0) >> 4)
@@ -397,15 +483,149 @@ class Address(CBORSerializable):
             return cls(None, ScriptHash(payload), network)
         raise DeserializeException(f"Error in deserializing bytes: {value}")
 
+    @classmethod
+    def _from_byron_base58(cls: Type[Address], base58_str: str) -> Address:
+        """Decode a Byron address from Base58 string.
+
+        Args:
+            base58_str: Base58-encoded Byron address string.
+
+        Returns:
+            Address: Decoded Byron address instance.
+
+        Raises:
+            DecodingException: When decoding fails.
+        """
+        try:
+            cbor_bytes = base58.b58decode(base58_str)
+        except Exception as e:
+            raise DecodingException(f"Failed to decode Base58 string: {e}")
+
+        return cls._from_byron_cbor(cbor_bytes)
+
+    @classmethod
+    def _from_byron_cbor(cls: Type[Address], cbor_bytes: bytes) -> Address:
+        """Decode a Byron address from CBOR bytes.
+
+        Args:
+            cbor_bytes: CBOR-encoded Byron address bytes.
+
+        Returns:
+            Address: Decoded Byron address instance.
+
+        Raises:
+            DecodingException: When decoding fails.
+        """
+        try:
+            decoded = cbor2.loads(cbor_bytes)
+        except Exception as e:
+            raise DecodingException(f"Failed to decode CBOR bytes: {e}")
+
+        # Byron address structure: [CBORTag(24, payload), crc32]
+        if not isinstance(decoded, (tuple, list)) or len(decoded) != 2:
+            raise DecodingException(
+                f"Byron address must be a 2-element array, got {type(decoded)}"
+            )
+
+        tagged_payload, crc32_checksum = decoded
+
+        if not isinstance(tagged_payload, CBORTag) or tagged_payload.tag != 24:
+            raise DecodingException(
+                f"Byron address must use CBOR tag 24, got {tagged_payload}"
+            )
+
+        payload_cbor = tagged_payload.value
+        if not isinstance(payload_cbor, bytes):
+            raise DecodingException(
+                f"Tag 24 must contain bytes, got {type(payload_cbor)}"
+            )
+
+        computed_crc32 = binascii.crc32(payload_cbor) & 0xFFFFFFFF
+        if computed_crc32 != crc32_checksum:
+            raise DecodingException(
+                f"CRC32 checksum mismatch: expected {crc32_checksum}, got {computed_crc32}"
+            )
+
+        try:
+            payload = cbor2.loads(payload_cbor)
+        except Exception as e:
+            raise DecodingException(f"Failed to decode Byron address payload: {e}")
+
+        if not isinstance(payload, (tuple, list)) or len(payload) != 3:
+            raise DecodingException(
+                f"Byron address payload must be a 3-element array, got {payload}"
+            )
+
+        payload_hash, attributes, byron_type = payload
+
+        if not isinstance(payload_hash, bytes) or len(payload_hash) != 28:
+            size = (
+                len(payload_hash)
+                if isinstance(payload_hash, bytes)
+                else f"type {type(payload_hash).__name__}"
+            )
+            raise DecodingException(f"Payload hash must be 28 bytes, got {size}")
+
+        if not isinstance(attributes, dict):
+            raise DecodingException(
+                f"Attributes must be a dict, got {type(attributes)}"
+            )
+
+        if byron_type not in (0, 2):
+            raise DecodingException(f"Byron type must be 0 or 2, got {byron_type}")
+
+        # Create Address instance with Byron fields
+        addr = cls.__new__(cls)
+        addr._payment_part = None
+        addr._staking_part = None
+        addr._byron_payload_hash = payload_hash
+        addr._byron_attributes = attributes
+        addr._byron_type = byron_type
+        addr._byron_crc32 = crc32_checksum
+        addr._network = addr._infer_byron_network()
+        addr._address_type = AddressType.BYRON
+        addr._header_byte = None
+        addr._hrp = None
+        return addr
+
+    def _infer_byron_network(self) -> Network:
+        """Infer network from Byron address attributes.
+
+        Returns:
+            Network: MAINNET or TESTNET (defaults to MAINNET).
+        """
+        if self._byron_attributes and 2 in self._byron_attributes:
+            network_bytes = self._byron_attributes[2]
+            if isinstance(network_bytes, bytes):
+                try:
+                    network_discriminant = cbor2.loads(network_bytes)
+                    # Mainnet: 764824073 (0x2D964A09), Testnet: 1097911063 (0x42659F17)
+                    if network_discriminant == 1097911063:
+                        return Network.TESTNET
+                except Exception:
+                    pass
+        return Network.MAINNET
+
     def __eq__(self, other):
         if not isinstance(other, Address):
             return False
-        else:
+
+        if self.is_byron != other.is_byron:
+            return False
+
+        if self.is_byron:
             return (
-                other.payment_part == self.payment_part
-                and other.staking_part == self.staking_part
-                and other.network == self.network
+                self._byron_payload_hash == other._byron_payload_hash
+                and self._byron_attributes == other._byron_attributes
+                and self._byron_type == other._byron_type
+                and self._byron_crc32 == other._byron_crc32
             )
+
+        return (
+            self.payment_part == other.payment_part
+            and self.staking_part == other.staking_part
+            and self.network == other.network
+        )
 
     def __repr__(self):
         return f"{self.encode()}"
