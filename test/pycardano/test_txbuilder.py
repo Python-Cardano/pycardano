@@ -2467,6 +2467,7 @@ def test_skip_utxo_with_script(chain_context):
         with pytest.raises(UTxOSelectionException):
             tx_builder.build()
 
+
 def test_byron_addr_output(chain_context):
     tx_builder = TransactionBuilder(chain_context)
     sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
@@ -2475,13 +2476,9 @@ def test_byron_addr_output(chain_context):
     byron2 = "Ae2tdPwUPEZFRbyhz3cpfC2CumGzNkFBN2L42rcUc2yjQpEkxDbkPodpMAi"
 
     # Add sender address as input
-    tx_builder.add_input_address(
-        sender
-    ).add_output(
+    tx_builder.add_input_address(sender).add_output(
         TransactionOutput.from_primitive([byron1, 500000])
-    ).add_output(
-        TransactionOutput.from_primitive([byron2, 1500000])
-    )
+    ).add_output(TransactionOutput.from_primitive([byron2, 1500000]))
 
     tx_body = tx_builder.build()
     assert str(tx_body.outputs[0].address) == byron1
