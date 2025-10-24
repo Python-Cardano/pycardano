@@ -16,6 +16,7 @@ CBOR2_VERSION=$(cat .cbor2_version)
 echo "Found cbor2 version: $CBOR2_VERSION"
 
 echo "Checking cbor2 implementation..."
+set +e
 $PYTHON -c "
 import cbor2, inspect, sys
 decoder_path = inspect.getfile(cbor2.CBORDecoder)
@@ -24,6 +25,7 @@ print(f'Implementation path: {decoder_path}')
 print(f'Using C extension: {using_c_ext}')
 sys.exit(1 if using_c_ext else 0)
 "
+set -e
 
 if [ $? -ne 0 ]; then
     echo "Reinstalling cbor2 with pure Python implementation..."
