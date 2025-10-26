@@ -48,7 +48,7 @@ could be beneficial for faster R&D iterations.
 - [x] Pool certificate
 - [x] Protocol proposal update
 - [x] Governance actions
-- [ ] Byron Address
+- [x] Byron Address
 
 
 ### Installation
@@ -70,6 +70,10 @@ ensure_pure_cbor2.sh
 ### Documentation
 
 https://pycardano.readthedocs.io/en/latest/
+
+#### Frequently asked questions
+
+https://pycardano.readthedocs.io/en/latest/frequently_asked_questions.html
 
 ### Examples
 
