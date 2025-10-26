@@ -199,7 +199,9 @@ def decode_array(self, subtype: int) -> Sequence[Any]:
     length = self._decode_length(subtype, allow_indefinite=True)
 
     if length is None:
-        return IndefiniteList(cast(Primitive, self.decode_array(subtype=subtype)))
+        ret = IndefiniteFrozenList(cast(Primitive, self.decode_array(subtype=subtype)))
+        ret.freeze()
+        return ret
     else:
         return self.decode_array(subtype=subtype)
 
@@ -1187,12 +1189,17 @@ class OrderedSet(Generic[T], CBORSerializable):
         return f"{self.__class__.__name__}({list(self)})"
 
     def to_shallow_primitive(self) -> Union[CBORTag, Union[List[T], IndefiniteList]]:
+        if self._is_indefinite_list:
+            fields = IndefiniteFrozenList(list(self))
+        else:
+            fields = FrozenList(self)
+        fields.freeze()
         if self._use_tag:
             return CBORTag(
                 258,
-                IndefiniteList(list(self)) if self._is_indefinite_list else list(self),
+                fields,
             )
-        return IndefiniteList(list(self)) if self._is_indefinite_list else list(self)
+        return fields
 
     @classmethod
     def from_primitive(
