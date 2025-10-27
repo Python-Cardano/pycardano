@@ -21,10 +21,12 @@ from typing import (
 import cbor2
 import pytest
 from cbor2 import CBORTag
+from frozenlist import FrozenList
 
 from pycardano import (
     CBORBase,
     Datum,
+    IndefiniteFrozenList,
     MultiAsset,
     Primitive,
     RawPlutusData,
@@ -618,8 +620,8 @@ def test_ordered_set():
     # Test serialization without tag
     s = OrderedSet([1, 2, 3], use_tag=False)
     primitive = s.to_primitive()
-    assert isinstance(primitive, list)
-    assert primitive == [1, 2, 3]
+    assert isinstance(primitive, (list, FrozenList))
+    assert list(primitive) == [1, 2, 3]
 
     # Test serialization with tag
     s = OrderedSet([1, 2, 3], use_tag=True)
@@ -695,8 +697,10 @@ def test_non_empty_ordered_set():
     # Test serialization without tag
     s = NonEmptyOrderedSet([1, 2, 3], use_tag=False)
     primitive = s.to_primitive()
-    assert isinstance(primitive, list)
-    assert primitive == [1, 2, 3]
+    from frozenlist import FrozenList
+
+    assert isinstance(primitive, (list, FrozenList))
+    assert list(primitive) == [1, 2, 3]
 
     # Test serialization with tag
     s = NonEmptyOrderedSet([1, 2, 3], use_tag=True)
@@ -1050,3 +1054,16 @@ def test_save_load():
 
         with pytest.raises(IOError):
             test1.save(f.name)
+
+
+def test_ordered_set_as_key_in_dict():
+    a = NonEmptyOrderedSet([1, 2, 3])
+
+    class MyTest(DictCBORSerializable):
+        KEY_TYPE = NonEmptyOrderedSet
+        VALUE_TYPE = int
+
+    d = MyTest()
+    d[a] = 1
+
+    check_two_way_cbor(d)

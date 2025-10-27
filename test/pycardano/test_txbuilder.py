@@ -8,6 +8,7 @@ from unittest.mock import patch
 
 import pytest
 from cbor2 import CBORTag
+from frozenlist import FrozenList
 
 from pycardano import (
     AssetName,
@@ -69,6 +70,13 @@ from pycardano.utils import fee
 from pycardano.witness import TransactionWitnessSet, VerificationKeyWitness
 
 
+def frozen_list(items):
+    """Helper function to create a frozen list from items."""
+    fl = FrozenList(items)
+    fl.freeze()
+    return fl
+
+
 def test_tx_builder(chain_context):
     tx_builder = TransactionBuilder(chain_context, [RandomImproveMultiAsset([0, 0])])
     sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
@@ -82,7 +90,7 @@ def test_tx_builder(chain_context):
     tx_body = tx_builder.build(change_address=sender_address)
 
     expected = {
-        0: CBORTag(258, [[b"11111111111111111111111111111111", 0]]),
+        0: CBORTag(258, frozen_list([[b"11111111111111111111111111111111", 0]])),
         1: [
             # First output
             [sender_address.to_primitive(), 500000],
@@ -126,7 +134,7 @@ def test_tx_builder_with_certain_input(chain_context):
     tx_body = tx_builder.build(change_address=sender_address)
 
     expected = {
-        0: CBORTag(258, [[b"2" * 32, 1]]),
+        0: CBORTag(258, frozen_list([[b"2" * 32, 1]])),
         1: [
             # First output
             [sender_address.to_primitive(), 500000],
@@ -296,7 +304,7 @@ def test_tx_builder_with_potential_inputs(chain_context):
     tx_body = tx_builder.build(change_address=sender_address)
 
     expect = {
-        0: CBORTag(258, [[b"11111111111111111111111111111111", 3]]),
+        0: CBORTag(258, frozen_list([[b"11111111111111111111111111111111", 3]])),
         1: [
             # First output
             [sender_address.to_primitive(), 2500000],
@@ -397,10 +405,12 @@ def test_tx_builder_mint_multi_asset(chain_context):
     expected = {
         0: CBORTag(
             258,
-            [
-                [b"11111111111111111111111111111111", 0],
-                [b"22222222222222222222222222222222", 1],
-            ],
+            frozen_list(
+                [
+                    [b"11111111111111111111111111111111", 0],
+                    [b"22222222222222222222222222222222", 1],
+                ]
+            ),
         ),
         1: [
             # First output
@@ -420,7 +430,7 @@ def test_tx_builder_mint_multi_asset(chain_context):
         3: 123456789,
         8: 1000,
         9: mint,
-        14: CBORTag(258, [sender_address.payment_part.to_primitive()]),
+        14: CBORTag(258, frozen_list([sender_address.payment_part.to_primitive()])),
     }
 
     assert expected == tx_body.to_primitive()
@@ -1310,7 +1320,7 @@ def test_excluded_input(chain_context):
     tx_body = tx_builder.build(change_address=sender_address)
 
     expected = {
-        0: CBORTag(258, [[b"22222222222222222222222222222222", 1]]),
+        0: CBORTag(258, frozen_list([[b"22222222222222222222222222222222", 1]])),
         1: [
             # First output
             [sender_address.to_primitive(), 500000],
@@ -1448,7 +1458,7 @@ def test_tx_builder_exact_fee_no_change(chain_context):
     tx = tx_builder.build_and_sign([SK])
 
     expected = {
-        0: CBORTag(258, [[b"11111111111111111111111111111111", 3]]),
+        0: CBORTag(258, frozen_list([[b"11111111111111111111111111111111", 3]])),
         1: [
             [sender_address.to_primitive(), 9835951],
         ],
@@ -1484,7 +1494,7 @@ def test_tx_builder_certificates(chain_context):
     tx_body = tx_builder.build(change_address=sender_address)
 
     expected = {
-        0: CBORTag(258, [[b"11111111111111111111111111111111", 0]]),
+        0: CBORTag(258, frozen_list([[b"11111111111111111111111111111111", 0]])),
         1: [
             # First output
             [sender_address.to_primitive(), 500000],
@@ -1603,7 +1613,7 @@ def test_tx_builder_stake_pool_registration(chain_context, pool_params):
     tx_body = tx_builder.build(change_address=sender_address)
 
     expected = {
-        0: CBORTag(258, [[b"22222222222222222222222222222222", 2]]),
+        0: CBORTag(258, frozen_list([[b"22222222222222222222222222222222", 2]])),
         1: [
             [
                 b"`\xf6S(P\xe1\xbc\xce\xe9\xc7*\x91\x13\xad\x98\xbc\xc5\xdb\xb3\r*\xc9`&$D\xf6\xe5\xf4",
@@ -1659,7 +1669,7 @@ def test_tx_builder_withdrawal(chain_context):
     tx_body = tx_builder.build(change_address=sender_address)
 
     expected = {
-        0: CBORTag(258, [[b"11111111111111111111111111111111", 0]]),
+        0: CBORTag(258, frozen_list([[b"11111111111111111111111111111111", 0]])),
         1: [
             # First output
             [sender_address.to_primitive(), 500000],
@@ -1694,7 +1704,7 @@ def test_tx_builder_no_output(chain_context):
     )
 
     expected = {
-        0: CBORTag(258, [[b"11111111111111111111111111111111", 3]]),
+        0: CBORTag(258, frozen_list([[b"11111111111111111111111111111111", 3]])),
         1: [
             [sender_address.to_primitive(), 9835951],
         ],
@@ -1724,7 +1734,7 @@ def test_tx_builder_merge_change_to_output(chain_context):
     )
 
     expected = {
-        0: CBORTag(258, [[b"11111111111111111111111111111111", 3]]),
+        0: CBORTag(258, frozen_list([[b"11111111111111111111111111111111", 3]])),
         1: [
             [sender_address.to_primitive(), 9835951],
         ],
@@ -1758,7 +1768,7 @@ def test_tx_builder_merge_change_to_output_2(chain_context):
     )
 
     expected = {
-        0: CBORTag(258, [[b"11111111111111111111111111111111", 3]]),
+        0: CBORTag(258, frozen_list([[b"11111111111111111111111111111111", 3]])),
         1: [
             [sender_address.to_primitive(), 10000],
             [receiver_address.to_primitive(), 10000],
@@ -1790,7 +1800,7 @@ def test_tx_builder_merge_change_to_zero_amount_output(chain_context):
     )
 
     expected = {
-        0: CBORTag(258, [[b"11111111111111111111111111111111", 3]]),
+        0: CBORTag(258, frozen_list([[b"11111111111111111111111111111111", 3]])),
         1: [
             [sender_address.to_primitive(), 9835951],
         ],
@@ -1820,7 +1830,7 @@ def test_tx_builder_merge_change_smaller_than_min_utxo(chain_context):
     )
 
     expected = {
-        0: CBORTag(258, [[b"11111111111111111111111111111111", 3]]),
+        0: CBORTag(258, frozen_list([[b"11111111111111111111111111111111", 3]])),
         1: [
             [sender_address.to_primitive(), 9835951],
         ],

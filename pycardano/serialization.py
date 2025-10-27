@@ -52,6 +52,7 @@ from pycardano.types import check_type, typechecked
 __all__ = [
     "default_encoder",
     "IndefiniteList",
+    "IndefiniteFrozenList",
     "Primitive",
     "CBORBase",
     "CBORSerializable",
@@ -199,7 +200,7 @@ def decode_array(self, subtype: int) -> Sequence[Any]:
     length = self._decode_length(subtype, allow_indefinite=True)
 
     if length is None:
-        ret = IndefiniteFrozenList(cast(Primitive, self.decode_array(subtype=subtype)))
+        ret = IndefiniteFrozenList(list(self.decode_array(subtype=subtype)))
         ret.freeze()
         return ret
     else:
@@ -325,20 +326,27 @@ class CBORSerializable:
                 return _set
             elif isinstance(value, tuple):
                 return tuple(_dfs(v, freeze) for v in value)
-            elif isinstance(value, list):
+            elif isinstance(
+                value, (IndefiniteFrozenList, FrozenList, IndefiniteList, list)
+            ):
                 _list = [_dfs(v, freeze) for v in value]
-                if freeze:
-                    fl = FrozenList(_list)
-                    fl.freeze()
-                    return fl
-                return _list
-            elif isinstance(value, IndefiniteList):
-                _list = [_dfs(v, freeze) for v in value]
-                if freeze:
-                    fl = IndefiniteFrozenList(_list)
-                    fl.freeze()
-                    return fl
-                return IndefiniteList(_list)
+
+                already_frozen = isinstance(value, (IndefiniteFrozenList, FrozenList))
+                should_freeze = already_frozen or freeze
+
+                if not should_freeze:
+                    return (
+                        IndefiniteList(_list)
+                        if isinstance(value, IndefiniteList)
+                        else _list
+                    )
+
+                is_indefinite = isinstance(
+                    value, (IndefiniteFrozenList, IndefiniteList)
+                )
+                fl = IndefiniteFrozenList(_list) if is_indefinite else FrozenList(_list)
+                fl.freeze()
+                return fl
             elif isinstance(value, CBORTag):
                 return CBORTag(value.tag, _dfs(value.value, freeze))
             else:
@@ -1188,7 +1196,10 @@ class OrderedSet(Generic[T], CBORSerializable):
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({list(self)})"
 
-    def to_shallow_primitive(self) -> Union[CBORTag, Union[List[T], IndefiniteList]]:
+    def to_shallow_primitive(
+        self,
+    ) -> Union[CBORTag, List[T], IndefiniteList, FrozenList, IndefiniteFrozenList]:
+        fields: Union[IndefiniteFrozenList, FrozenList]
         if self._is_indefinite_list:
             fields = IndefiniteFrozenList(list(self))
         else:
@@ -1229,6 +1240,9 @@ class OrderedSet(Generic[T], CBORSerializable):
 
     def __deepcopy__(self, memo):
         return self.__class__(deepcopy(list(self), memo), use_tag=self._use_tag)
+
+    def __hash__(self):
+        return hash(self.to_shallow_primitive())
 
 
 class NonEmptyOrderedSet(OrderedSet[T]):
