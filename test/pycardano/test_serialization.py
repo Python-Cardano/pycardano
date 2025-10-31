@@ -1068,6 +1068,7 @@ def test_ordered_set_as_key_in_dict():
 
     check_two_way_cbor(d)
 
+
 def test_indefinite_list_highjacking_does_not_break_cbor2():
     ls = IndefiniteFrozenList(["hello"])
     ls.freeze()
@@ -1076,6 +1077,7 @@ def test_indefinite_list_highjacking_does_not_break_cbor2():
     decoded = cbor2.loads(encoded)
     assert isinstance(list(decoded.keys())[0], IndefiniteList)
 
+
 def test_definite_list_highjacking_does_not_break_cbor2():
     ls = FrozenList(["hello"])
     ls.freeze()
@@ -1083,6 +1085,7 @@ def test_definite_list_highjacking_does_not_break_cbor2():
     encoded = cbor2.dumps(a, default=default_encoder)
     decoded = cbor2.loads(encoded)
     assert isinstance(list(decoded.keys())[0], (list, tuple))
+
 
 def test_indefinite_list_highjacking_does_not_break_cbor2_datum():
     ls = IndefiniteFrozenList(["hello"])
@@ -1093,6 +1096,7 @@ def test_indefinite_list_highjacking_does_not_break_cbor2_datum():
     decoded = cbor2.loads(encoded)
     assert isinstance(list(decoded.keys())[0], CBORTag)
     assert isinstance(list(decoded.keys())[0].value, IndefiniteList)
+
 
 def test_definite_list_highjacking_does_not_break_cbor2_datum():
     ls = FrozenList(["hello"])
