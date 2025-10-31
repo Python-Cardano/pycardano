@@ -1107,3 +1107,16 @@ def test_definite_list_highjacking_does_not_break_cbor2_datum():
     decoded = cbor2.loads(encoded)
     assert isinstance(list(decoded.keys())[0], CBORTag)
     assert isinstance(list(decoded.keys())[0].value, (list, tuple))
+
+
+def test_ordered_set_as_key_in_dict_indefinite_list():
+    a = NonEmptyOrderedSet(IndefiniteList([1, 2, 3]))
+
+    class MyTest(DictCBORSerializable):
+        KEY_TYPE = NonEmptyOrderedSet
+        VALUE_TYPE = int
+
+    d = MyTest()
+    d[a] = 1
+
+    check_two_way_cbor(d)
