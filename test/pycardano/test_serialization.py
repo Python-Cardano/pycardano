@@ -1075,3 +1075,31 @@ def test_indefinite_list_highjacking_does_not_break_cbor2():
     encoded = cbor2.dumps(a, default=default_encoder)
     decoded = cbor2.loads(encoded)
     assert isinstance(list(decoded.keys())[0], IndefiniteList)
+
+def test_definite_list_highjacking_does_not_break_cbor2():
+    ls = FrozenList(["hello"])
+    ls.freeze()
+    a = {ls: 1}
+    encoded = cbor2.dumps(a, default=default_encoder)
+    decoded = cbor2.loads(encoded)
+    assert isinstance(list(decoded.keys())[0], (list, tuple))
+
+def test_indefinite_list_highjacking_does_not_break_cbor2_datum():
+    ls = IndefiniteFrozenList(["hello"])
+    ls.freeze()
+    datum = CBORTag(251, ls)
+    a = {datum: 1}
+    encoded = cbor2.dumps(a, default=default_encoder)
+    decoded = cbor2.loads(encoded)
+    assert isinstance(list(decoded.keys())[0], CBORTag)
+    assert isinstance(list(decoded.keys())[0].value, IndefiniteList)
+
+def test_definite_list_highjacking_does_not_break_cbor2_datum():
+    ls = FrozenList(["hello"])
+    ls.freeze()
+    datum = CBORTag(251, ls)
+    a = {datum: 1}
+    encoded = cbor2.dumps(a, default=default_encoder)
+    decoded = cbor2.loads(encoded)
+    assert isinstance(list(decoded.keys())[0], CBORTag)
+    assert isinstance(list(decoded.keys())[0].value, (list, tuple))
