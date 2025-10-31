@@ -1072,4 +1072,6 @@ def test_indefinite_list_highjacking_does_not_break_cbor2():
     ls = IndefiniteFrozenList(["hello"])
     ls.freeze()
     a = {ls: 1}
-    cbor2.loads(cbor2.dumps(a, default=default_encoder))
+    encoded = cbor2.dumps(a, default=default_encoder)
+    decoded = cbor2.loads(encoded)
+    assert isinstance(list(decoded.keys())[0], IndefiniteList)
