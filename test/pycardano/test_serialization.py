@@ -1067,3 +1067,9 @@ def test_ordered_set_as_key_in_dict():
     d[a] = 1
 
     check_two_way_cbor(d)
+
+def test_indefinite_list_highjacking_does_not_break_cbor2():
+    ls = IndefiniteFrozenList(["hello"])
+    ls.freeze()
+    a = {ls: 1}
+    cbor2.loads(cbor2.dumps(a, default=default_encoder))
