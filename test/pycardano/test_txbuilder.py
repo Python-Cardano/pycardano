@@ -40,6 +40,7 @@ from pycardano.hash import (
     VerificationKeyHash,
 )
 from pycardano.key import VerificationKey
+from pycardano.metadata import AuxiliaryData
 from pycardano.nativescript import (
     InvalidBefore,
     InvalidHereAfter,
@@ -54,6 +55,7 @@ from pycardano.plutus import (
     PlutusV3Script,
     Redeemer,
     RedeemerTag,
+    datum_hash,
     plutus_script_hash,
     script_hash,
 )
@@ -2493,3 +2495,674 @@ def test_byron_addr_output(chain_context):
     tx_body = tx_builder.build()
     assert str(tx_body.outputs[0].address) == byron1
     assert str(tx_body.outputs[1].address) == byron2
+
+
+def test_native_scripts_affect_required_signers(chain_context):
+    """Test that native scripts affect required signers calculation."""
+    sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    sender_address = Address.from_primitive(sender)
+
+    utxo = UTxO(
+        TransactionInput.from_primitive([b"1" * 32, 0]),
+        TransactionOutput(sender_address, Value(100_000_000)),
+    )
+
+    vk1 = VerificationKey.from_cbor(
+        "58206443a101bdb948366fc87369336224595d36d8b0eee5602cba8b81a024e58473"
+    )
+    vk2 = VerificationKey.from_cbor(
+        "58206443a101bdb948366fc87369336224595d36d8b0eee5602cba8b81a024e58475"
+    )
+
+    # Test ScriptAll
+    tx_builder = TransactionBuilder(chain_context)
+    tx_builder.add_input(utxo)
+    native_script = ScriptAll(
+        [ScriptPubkey(key_hash=vk1.hash()), ScriptPubkey(key_hash=vk2.hash())]
+    )
+    tx_builder.native_scripts = [native_script]
+    tx_builder.add_output(TransactionOutput(sender_address, Value(5_000_000)))
+
+    tx_builder.build(change_address=sender_address)
+
+    vkey_hashes = tx_builder._native_scripts_vkey_hashes()
+    assert len(vkey_hashes) == 2
+    assert vk1.hash() in vkey_hashes
+    assert vk2.hash() in vkey_hashes
+
+
+def test_multiple_outputs_balance(chain_context):
+    """Test that transaction with multiple outputs maintains balance."""
+    sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    sender_address = Address.from_primitive(sender)
+
+    utxo = UTxO(
+        TransactionInput.from_primitive([b"1" * 32, 0]),
+        TransactionOutput(sender_address, Value(50_000_000)),
+    )
+
+    tx_builder = TransactionBuilder(chain_context)
+    tx_builder.add_input(utxo)
+
+    # Add 3 outputs
+    for _ in range(3):
+        tx_builder.add_output(TransactionOutput(sender_address, Value(2_000_000)))
+
+    tx_body = tx_builder.build(change_address=sender_address)
+
+    # Calculate total input and output
+    total_input = sum(utxo.output.amount.coin for utxo in tx_builder.inputs)
+    total_output = sum(output.amount.coin for output in tx_body.outputs)
+
+    # Balance equation: input = output + fee
+    assert total_input == total_output + tx_body.fee
+
+
+def test_output_with_datum(chain_context):
+    """Test that outputs with datum hashes are handled correctly."""
+    sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    sender_address = Address.from_primitive(sender)
+
+    utxo = UTxO(
+        TransactionInput.from_primitive([b"1" * 32, 0]),
+        TransactionOutput(sender_address, Value(100_000_000)),
+    )
+
+    # Test with datum
+    tx_builder = TransactionBuilder(chain_context)
+    tx_builder.add_input(utxo)
+
+    datum = PlutusData()
+    tx_builder.add_output(
+        TransactionOutput(sender_address, Value(5_000_000)),
+        datum=datum,
+        add_datum_to_witness=True,
+    )
+
+    tx_body = tx_builder.build(change_address=sender_address)
+
+    # Datum should be added to witness
+    assert len(tx_builder.datums) > 0
+    assert datum_hash(datum) in tx_builder.datums
+
+
+def test_auxiliary_data_included(chain_context):
+    """Test that auxiliary data is properly included in transaction."""
+    from pycardano.metadata import Metadata
+
+    sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    sender_address = Address.from_primitive(sender)
+
+    utxo = UTxO(
+        TransactionInput.from_primitive([b"1" * 32, 0]),
+        TransactionOutput(sender_address, Value(20_000_000)),
+    )
+
+    # Build without auxiliary data
+    tx_builder1 = TransactionBuilder(chain_context)
+    tx_builder1.add_input(utxo)
+    tx_builder1.add_output(TransactionOutput(sender_address, Value(5_000_000)))
+    tx_body1 = tx_builder1.build(change_address=sender_address)
+
+    # Build with auxiliary data
+    tx_builder2 = TransactionBuilder(chain_context)
+    tx_builder2.add_input(utxo)
+    tx_builder2.add_output(TransactionOutput(sender_address, Value(5_000_000)))
+    metadata = Metadata({1: "test metadata"})
+    tx_builder2.auxiliary_data = AuxiliaryData(data=metadata)
+    tx_body2 = tx_builder2.build(change_address=sender_address)
+
+    # Transaction with auxiliary data should have hash set
+    assert tx_body2.auxiliary_data_hash is not None
+    # Hashes should differ
+    assert tx_body1.auxiliary_data_hash != tx_body2.auxiliary_data_hash
+
+
+def test_validity_intervals_manual_override(chain_context):
+    """Test that manual validity intervals override auto settings."""
+    sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    sender_address = Address.from_primitive(sender)
+
+    utxo = UTxO(
+        TransactionInput.from_primitive([b"1" * 32, 0]),
+        TransactionOutput(sender_address, Value(50_000_000)),
+    )
+
+    tx_builder = TransactionBuilder(chain_context)
+    tx_builder.add_input(utxo)
+
+    # Manually set validity intervals
+    manual_validity_start = 12345
+    manual_ttl = 67890
+
+    tx_builder.validity_start = manual_validity_start
+    tx_builder.ttl = manual_ttl
+
+    # Add native script to trigger auto validity
+    tx_builder.native_scripts = [
+        ScriptPubkey(
+            key_hash=VerificationKey.from_cbor(
+                "58206443a101bdb948366fc87369336224595d36d8b0eee5602cba8b81a024e58473"
+            ).hash()
+        )
+    ]
+
+    tx_builder.add_output(TransactionOutput(sender_address, Value(5_000_000)))
+
+    tx_body = tx_builder.build(
+        change_address=sender_address,
+        auto_validity_start_offset=1000,
+        auto_ttl_offset=5000,
+    )
+
+    # Manual settings should override auto
+    assert tx_body.validity_start == manual_validity_start
+    assert tx_body.ttl == manual_ttl
+
+
+def test_withdrawals_increase_balance(chain_context):
+    """Test that withdrawals add to available balance."""
+    sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    sender_address = Address.from_primitive(sender)
+
+    utxo = UTxO(
+        TransactionInput.from_primitive([b"1" * 32, 0]),
+        TransactionOutput(sender_address, Value(10_000_000)),
+    )
+
+    tx_builder = TransactionBuilder(chain_context)
+    tx_builder.add_input(utxo)
+
+    # Add withdrawal
+    stake_addr = Address.from_primitive(
+        "stake_test1upyz3gk6mw5he20apnwfn96cn9rscgvmmsxc9r86dh0k66gswf59n"
+    )
+    tx_builder.withdrawals = Withdrawals({bytes(stake_addr): 2_000_000})
+
+    # Output more than input but less than input + withdrawals
+    tx_builder.add_output(TransactionOutput(sender_address, Value(10_500_000)))
+
+    tx_body = tx_builder.build(change_address=sender_address)
+
+    # Verify withdrawals are present
+    assert tx_body.withdraws is not None
+    assert len(tx_body.withdraws) == 1
+    assert tx_body.withdraws[bytes(stake_addr)] == 2_000_000
+
+
+def test_auto_ttl_and_validity_start(chain_context):
+    """Test that auto TTL and validity start are set correctly based on current slot."""
+    sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    sender_address = Address.from_primitive(sender)
+
+    utxo = UTxO(
+        TransactionInput.from_primitive([b"1" * 32, 0]),
+        TransactionOutput(sender_address, Value(20_000_000)),
+    )
+
+    tx_builder = TransactionBuilder(chain_context)
+    tx_builder.add_input(utxo)
+    tx_builder.add_output(TransactionOutput(sender_address, Value(5_000_000)))
+
+    # Add a script to trigger auto validity
+    tx_builder.native_scripts = [
+        ScriptPubkey(
+            key_hash=VerificationKey.from_cbor(
+                "58206443a101bdb948366fc87369336224595d36d8b0eee5602cba8b81a024e58473"
+            ).hash()
+        )
+    ]
+
+    tx_body = tx_builder.build(
+        change_address=sender_address,
+        auto_ttl_offset=10_000,
+        auto_validity_start_offset=-1000,
+    )
+
+    # Check that validity intervals were set
+    assert tx_body.ttl is not None
+    assert tx_body.validity_start is not None
+    assert tx_body.ttl > tx_body.validity_start
+
+
+def test_certificates_require_deposit(chain_context):
+    """Test that stake registration certificates require key deposits."""
+    sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    sender_address = Address.from_primitive(sender)
+
+    utxo = UTxO(
+        TransactionInput.from_primitive([b"1" * 32, 0]),
+        TransactionOutput(sender_address, Value(600_000_000)),
+    )
+
+    tx_builder = TransactionBuilder(chain_context, [RandomImproveMultiAsset([0, 0])])
+    tx_builder.add_input(utxo)
+
+    # Create 2 stake registration certificates
+    certificates = []
+    for i in range(2):
+        stake_hash = VerificationKeyHash(bytes([i] * VERIFICATION_KEY_HASH_SIZE))
+        stake_cred = StakeCredential(stake_hash)
+        certificates.append(StakeRegistration(stake_cred))
+
+    tx_builder.certificates = certificates
+    tx_builder.add_output(TransactionOutput(sender_address, Value(5_000_000)))
+
+    tx_body = tx_builder.build(change_address=sender_address)
+
+    # Verify certificates are present
+    assert tx_body.certificates is not None
+    assert len(tx_body.certificates) == 2
+
+    # Check that deposit was accounted for
+    total_output = sum(o.amount.coin for o in tx_body.outputs)
+    expected_deposit = chain_context.protocol_param.key_deposit * 2
+    # Input should cover output + fee + deposits
+    assert utxo.output.amount.coin >= total_output + tx_body.fee + expected_deposit
+
+
+def test_witness_override_affects_fee(chain_context):
+    """Test that setting witness_override affects transaction fee calculation."""
+    sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    sender_address = Address.from_primitive(sender)
+
+    utxo = UTxO(
+        TransactionInput.from_primitive([b"1" * 32, 0]),
+        TransactionOutput(sender_address, Value(50_000_000)),
+    )
+
+    # Build without witness override
+    tx_builder1 = TransactionBuilder(chain_context)
+    tx_builder1.add_input(utxo)
+    tx_builder1.add_output(TransactionOutput(sender_address, Value(5_000_000)))
+    tx_body1 = tx_builder1.build(change_address=sender_address)
+
+    # Build with witness override set to 5
+    tx_builder2 = TransactionBuilder(chain_context)
+    tx_builder2.add_input(utxo)
+    tx_builder2.add_output(TransactionOutput(sender_address, Value(5_000_000)))
+    tx_builder2.witness_override = 5
+    tx_body2 = tx_builder2.build(change_address=sender_address)
+
+    # Fee should be higher with more witnesses
+    assert tx_body2.fee > tx_body1.fee
+
+
+def test_execution_unit_buffer(chain_context):
+    """Test that execution unit buffers can be configured."""
+    tx_builder = TransactionBuilder(chain_context)
+
+    # Set custom buffers
+    tx_builder.execution_memory_buffer = 0.3  # 30% buffer
+    tx_builder.execution_step_buffer = 0.4  # 40% buffer
+
+    # Verify buffers are set
+    assert tx_builder.execution_memory_buffer == 0.3
+    assert tx_builder.execution_step_buffer == 0.4
+
+
+def test_fee_buffer_increases_fee(chain_context):
+    """Test that fee buffer adds to calculated transaction fee."""
+    sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    sender_address = Address.from_primitive(sender)
+
+    utxo = UTxO(
+        TransactionInput.from_primitive([b"1" * 32, 0]),
+        TransactionOutput(sender_address, Value(20_000_000)),
+    )
+
+    # Build without buffer
+    tx_builder1 = TransactionBuilder(chain_context)
+    tx_builder1.add_input(utxo)
+    tx_builder1.add_output(TransactionOutput(sender_address, Value(5_000_000)))
+    tx_body1 = tx_builder1.build(change_address=sender_address)
+
+    # Build with 50k buffer
+    tx_builder2 = TransactionBuilder(chain_context)
+    tx_builder2.fee_buffer = 50_000
+    tx_builder2.add_input(utxo)
+    tx_builder2.add_output(TransactionOutput(sender_address, Value(5_000_000)))
+    tx_body2 = tx_builder2.build(change_address=sender_address)
+
+    # Fee with buffer should be at least 50k higher
+    assert tx_body2.fee >= tx_body1.fee + 50_000
+
+
+def test_datum_hash_mismatch(chain_context):
+    """Test that adding script input with mismatched datum hash raises exception."""
+    tx_builder = TransactionBuilder(chain_context)
+
+    plutus_script = PlutusV1Script(b"dummy test script")
+    script_hash = plutus_script_hash(plutus_script)
+    script_address = Address(script_hash)
+
+    # Create two different datums
+    datum_actual = PlutusData()
+    datum_wrong = 42  # Different datum
+    wrong_hash = datum_hash(datum_wrong)
+
+    # Create UTxO with wrong datum hash
+    tx_in = TransactionInput.from_primitive(
+        ["18cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad21431590f7e6643438ef", 0]
+    )
+    utxo = UTxO(
+        tx_in, TransactionOutput(script_address, 10000000, datum_hash=wrong_hash)
+    )
+
+    redeemer = Redeemer(PlutusData(), ExecutionUnits(1000000, 1000000))
+
+    # Should raise exception due to datum hash mismatch
+    with pytest.raises(InvalidArgumentException) as exc_info:
+        tx_builder.add_script_input(utxo, plutus_script, datum_actual, redeemer)
+
+    assert "Datum hash in transaction output" in str(exc_info.value)
+
+
+def test_add_withdrawal_script(chain_context):
+    """Test adding withdrawal script with redeemer."""
+    from pycardano.nativescript import ScriptPubkey
+
+    sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    sender_address = Address.from_primitive(sender)
+
+    tx_builder = TransactionBuilder(chain_context, [RandomImproveMultiAsset([0, 0])])
+    tx_builder.add_input_address(sender)
+    tx_builder.add_output(TransactionOutput(sender_address, Value(500000)))
+
+    # Create a Plutus withdrawal script
+    plutus_script = PlutusV2Script(b"dummy withdrawal script")
+    script_hash = plutus_script_hash(plutus_script)
+
+    # Create stake address with script hash
+    stake_address = Address(
+        payment_part=None, staking_part=script_hash, network=chain_context.network
+    )
+
+    # Add withdrawal with script
+    withdrawals = Withdrawals({bytes(stake_address): 10000})
+    tx_builder.withdrawals = withdrawals
+
+    redeemer = Redeemer(PlutusData(), ExecutionUnits(1000000, 1000000))
+    tx_builder.add_withdrawal_script(plutus_script, redeemer)
+
+    tx_body = tx_builder.build(change_address=sender_address)
+
+    # Verify withdrawal is present
+    assert tx_body.withdraws is not None
+    assert len(tx_builder._withdrawal_script_to_redeemers) == 1
+
+
+def test_add_withdrawal_script_from_utxo(chain_context):
+    """Test adding withdrawal script from reference UTxO."""
+    sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    sender_address = Address.from_primitive(sender)
+
+    tx_builder = TransactionBuilder(chain_context, [RandomImproveMultiAsset([0, 0])])
+    tx_builder.add_input_address(sender)
+    tx_builder.add_output(TransactionOutput(sender_address, Value(500000)))
+
+    # Create a Plutus withdrawal script
+    plutus_script = PlutusV2Script(b"dummy withdrawal script")
+    script_hash = plutus_script_hash(plutus_script)
+
+    # Create reference UTxO with script
+    existing_script_utxo = UTxO(
+        TransactionInput.from_primitive(
+            ["41cb004bec7051621b19b46aea28f0657a586a05ce2013152ea9b9f1a5614cc7", 1]
+        ),
+        TransactionOutput(Address(script_hash), 1234567, script=plutus_script),
+    )
+
+    # Create stake address with script hash
+    stake_address = Address(
+        payment_part=None, staking_part=script_hash, network=chain_context.network
+    )
+
+    # Add withdrawal with script from UTxO
+    withdrawals = Withdrawals({bytes(stake_address): 10000})
+    tx_builder.withdrawals = withdrawals
+
+    redeemer = Redeemer(PlutusData(), ExecutionUnits(1000000, 1000000))
+    tx_builder.add_withdrawal_script(existing_script_utxo, redeemer)
+
+    tx_body = tx_builder.build(change_address=sender_address)
+
+    # Verify withdrawal and reference input
+    assert tx_body.withdraws is not None
+    assert existing_script_utxo.input in tx_body.reference_inputs
+
+
+def test_withdrawal_script_wrong_redeemer_tag(chain_context):
+    """Test that withdrawal script with wrong redeemer tag raises exception."""
+    plutus_script = PlutusV2Script(b"dummy withdrawal script")
+    redeemer = Redeemer(PlutusData(), ExecutionUnits(1000000, 1000000))
+    redeemer.tag = RedeemerTag.MINT  # Wrong tag
+
+    tx_builder = TransactionBuilder(chain_context)
+
+    with pytest.raises(InvalidArgumentException) as exc_info:
+        tx_builder.add_withdrawal_script(plutus_script, redeemer)
+
+    assert "WITHDRAWAL" in str(exc_info.value)
+
+
+def test_add_treasury_donation(chain_context):
+    """Test adding treasury donation to transaction."""
+    sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    sender_address = Address.from_primitive(sender)
+
+    utxo = UTxO(
+        TransactionInput.from_primitive([b"1" * 32, 0]),
+        TransactionOutput(sender_address, Value(50_000_000)),
+    )
+
+    tx_builder = TransactionBuilder(chain_context)
+    tx_builder.add_input(utxo)
+    tx_builder.add_output(TransactionOutput(sender_address, Value(5_000_000)))
+
+    # Add treasury donation
+    donation_amount = 1_000_000
+    tx_builder.add_treasury_donation(donation_amount)
+
+    # Verify donation is set
+    assert tx_builder.donation == donation_amount
+
+
+def test_add_treasury_donation_negative_amount(chain_context):
+    """Test that negative treasury donation raises ValueError."""
+    tx_builder = TransactionBuilder(chain_context)
+
+    with pytest.raises(ValueError) as exc_info:
+        tx_builder.add_treasury_donation(-1000)
+
+    assert "positive" in str(exc_info.value)
+
+
+def test_add_treasury_donation_zero_amount(chain_context):
+    """Test that zero treasury donation raises ValueError."""
+    tx_builder = TransactionBuilder(chain_context)
+
+    with pytest.raises(ValueError) as exc_info:
+        tx_builder.add_treasury_donation(0)
+
+    assert "positive" in str(exc_info.value)
+
+
+def test_pool_retirement_certificate(chain_context):
+    """Test transaction with pool retirement certificate."""
+    from pycardano.certificate import PoolRetirement
+    from pycardano.hash import PoolKeyHash
+
+    sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    sender_address = Address.from_primitive(sender)
+
+    utxo = UTxO(
+        TransactionInput.from_primitive([b"1" * 32, 0]),
+        TransactionOutput(sender_address, Value(50_000_000)),
+    )
+
+    tx_builder = TransactionBuilder(chain_context)
+    tx_builder.add_input(utxo)
+    tx_builder.add_output(TransactionOutput(sender_address, Value(5_000_000)))
+
+    # Create pool retirement certificate
+    pool_hash = PoolKeyHash(b"1" * POOL_KEY_HASH_SIZE)
+    epoch = 100
+    pool_retirement = PoolRetirement(pool_hash, epoch)
+
+    tx_builder.certificates = [pool_retirement]
+
+    tx_body = tx_builder.build(change_address=sender_address)
+
+    # Verify certificate is present
+    assert tx_body.certificates is not None
+    assert len(tx_body.certificates) == 1
+    assert isinstance(tx_body.certificates[0], PoolRetirement)
+
+
+def test_add_vote(chain_context):
+    """Test adding a vote to governance procedures."""
+    from pycardano.certificate import Anchor
+    from pycardano.governance import GovActionId, Vote, Voter, VoterType
+    from pycardano.hash import AnchorDataHash
+
+    sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    sender_address = Address.from_primitive(sender)
+
+    utxo = UTxO(
+        TransactionInput.from_primitive([b"1" * 32, 0]),
+        TransactionOutput(sender_address, Value(50_000_000)),
+    )
+
+    tx_builder = TransactionBuilder(chain_context)
+    tx_builder.add_input(utxo)
+    tx_builder.add_output(TransactionOutput(sender_address, Value(5_000_000)))
+
+    # Create voter (DRep voter)
+    vkey_hash = VerificationKeyHash(b"1" * VERIFICATION_KEY_HASH_SIZE)
+    voter = Voter(credential=vkey_hash, voter_type=VoterType.DREP)
+
+    # Create governance action ID
+    gov_action_id = GovActionId(
+        transaction_id=TransactionId(b"2" * 32), gov_action_index=0
+    )
+
+    # Create vote
+    vote = Vote.YES
+    anchor = Anchor(url="https://example.com/vote", data_hash=AnchorDataHash(b"3" * 32))
+
+    # Add vote
+    tx_builder.add_vote(voter, gov_action_id, vote, anchor)
+
+    # Verify voting procedure is set
+    assert tx_builder.voting_procedures is not None
+    assert voter in tx_builder.voting_procedures
+    assert gov_action_id in tx_builder.voting_procedures[voter]
+
+
+def test_add_proposal(chain_context):
+    """Test adding a governance proposal."""
+    from pycardano.certificate import Anchor
+    from pycardano.governance import InfoAction
+    from pycardano.hash import AnchorDataHash
+
+    sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    sender_address = Address.from_primitive(sender)
+
+    utxo = UTxO(
+        TransactionInput.from_primitive([b"1" * 32, 0]),
+        TransactionOutput(sender_address, Value(500_000_000)),
+    )
+
+    tx_builder = TransactionBuilder(chain_context)
+    tx_builder.add_input(utxo)
+    tx_builder.add_output(TransactionOutput(sender_address, Value(5_000_000)))
+
+    # Create governance action (InfoAction doesn't require prior governance action)
+    gov_action = InfoAction()
+
+    # Create anchor for the proposal
+    anchor = Anchor(
+        url="https://example.com/proposal", data_hash=AnchorDataHash(b"1" * 32)
+    )
+
+    # Reward account for the proposal
+    reward_account = bytes(
+        Address.from_primitive(
+            "stake_test1upyz3gk6mw5he20apnwfn96cn9rscgvmmsxc9r86dh0k66gswf59n"
+        )
+    )
+
+    # Deposit amount
+    deposit = 100_000_000
+
+    # Add proposal
+    tx_builder.add_proposal(deposit, reward_account, gov_action, anchor)
+
+    # Verify proposal procedure is set
+    assert tx_builder.proposal_procedures is not None
+    assert len(tx_builder.proposal_procedures) == 1
+
+
+def test_reg_drep_certificate(chain_context):
+    """Test transaction with RegDRepCert certificate."""
+    from pycardano.certificate import Anchor, DRepCredential, RegDRepCert
+    from pycardano.hash import AnchorDataHash
+
+    sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    sender_address = Address.from_primitive(sender)
+
+    utxo = UTxO(
+        TransactionInput.from_primitive([b"1" * 32, 0]),
+        TransactionOutput(sender_address, Value(600_000_000)),
+    )
+
+    tx_builder = TransactionBuilder(chain_context, [RandomImproveMultiAsset([0, 0])])
+    tx_builder.add_input(utxo)
+    tx_builder.add_output(TransactionOutput(sender_address, Value(5_000_000)))
+
+    # Create DRep credential (DRepCredential wraps VerificationKeyHash or ScriptHash)
+    vkey_hash = VerificationKeyHash(b"1" * VERIFICATION_KEY_HASH_SIZE)
+    drep_cred = DRepCredential(credential=vkey_hash)
+
+    # Create anchor
+    anchor = Anchor(url="https://example.com/drep", data_hash=AnchorDataHash(b"2" * 32))
+
+    # Create RegDRepCert
+    reg_drep = RegDRepCert(drep_credential=drep_cred, coin=500_000_000, anchor=anchor)
+
+    tx_builder.certificates = [reg_drep]
+
+    tx_body = tx_builder.build(change_address=sender_address)
+
+    # Verify certificate is present
+    assert tx_body.certificates is not None
+    assert len(tx_body.certificates) == 1
+    assert isinstance(tx_body.certificates[0], RegDRepCert)
+
+
+def test_inline_datum_error(chain_context):
+    """Test that adding datum when inline datum exists raises exception."""
+    tx_builder = TransactionBuilder(chain_context)
+
+    plutus_script = PlutusV1Script(b"dummy test script")
+    script_hash = plutus_script_hash(plutus_script)
+    script_address = Address(script_hash)
+
+    # Create inline datum
+    inline_datum = PlutusData()
+
+    # Create UTxO with inline datum (not datum_hash)
+    tx_in = TransactionInput.from_primitive(
+        ["18cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad21431590f7e6643438ef", 0]
+    )
+    utxo = UTxO(tx_in, TransactionOutput(script_address, 10000000, datum=inline_datum))
+
+    redeemer = Redeemer(PlutusData(), ExecutionUnits(1000000, 1000000))
+
+    # Try to add script input with additional datum - should raise exception
+    different_datum = 42
+    with pytest.raises(InvalidArgumentException) as exc_info:
+        tx_builder.add_script_input(utxo, plutus_script, different_datum, redeemer)
+
+    assert "Inline Datum found" in str(exc_info.value)
