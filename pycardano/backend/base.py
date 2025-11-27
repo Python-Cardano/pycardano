@@ -11,6 +11,7 @@ from pycardano.network import Network
 from pycardano.plutus import ExecutionUnits
 from pycardano.transaction import Transaction, UTxO
 from pycardano.types import typechecked
+from pycardano.serialization import RawCBOR
 
 __all__ = [
     "GenesisParameters",
@@ -218,3 +219,20 @@ class ChainContext:
             List[ExecutionUnits]: A list of execution units calculated for each of the transaction's redeemers
         """
         raise NotImplementedError()
+
+    def tx_metadata_cbor(
+        self, tx_id: str, slot: Optional[int] = None
+    ) -> Optional[RawCBOR]:
+        """Get metadata CBOR for a transaction.
+
+        Args:
+            tx_id (str): Transaction id for metadata to query.
+            slot (Optional[int]): Slot number. Required for some backends (e.g., Kupo).
+
+        Returns:
+            Optional[RawCBOR]: Metadata CBOR if found, None otherwise.
+
+        Raises:
+            NotImplementedError: If the method is not implemented in the subclass.
+        """
+        raise NotImplementedError("tx_metadata_cbor is not implemented in the subclass")
