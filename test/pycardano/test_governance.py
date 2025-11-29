@@ -3,11 +3,12 @@ from fractions import Fraction
 import pytest
 
 from pycardano.address import Address
-from pycardano.certificate import Anchor, StakeCredential
+from pycardano.certificate import Anchor, StakeCredential, IdFormat
 from pycardano.exception import DeserializeException
 from pycardano.governance import (
     CommitteeColdCredential,
     CommitteeColdCredentialEpochMap,
+    CommitteeHotCredential,
     ExUnitPrices,
     GovActionId,
     GovActionIdToVotingProcedure,
@@ -68,6 +69,52 @@ class TestGovActionId:
         deserialized = GovActionId.from_primitive(primitive)
 
         assert deserialized == gov_action_id
+
+    def test_gov_action_id_decode(self):
+        transaction_id_1 = TransactionId(
+            bytes.fromhex(
+                "0000000000000000000000000000000000000000000000000000000000000000"
+            )
+        )
+        gov_action_index_1 = 17
+        gov_id_bech32_1 = (
+            "gov_action1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqpzklpgpf"
+        )
+        gov_id_hex_1 = (
+            "000000000000000000000000000000000000000000000000000000000000000011"
+        )
+
+        transaction_id_2 = TransactionId(
+            bytes.fromhex(
+                "1111111111111111111111111111111111111111111111111111111111111111"
+            )
+        )
+        gov_action_index_2 = 0
+        gov_id_bech32_2 = (
+            "gov_action1zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zygsq6dmejn"
+        )
+        gov_id_hex_2 = (
+            "111111111111111111111111111111111111111111111111111111111111111100"
+        )
+
+        gov_action_id_1 = GovActionId(
+            transaction_id=transaction_id_1, gov_action_index=gov_action_index_1
+        )
+        decoded_gov_action_id_1 = GovActionId.decode(gov_id_bech32_1)
+
+        gov_action_id_2 = GovActionId(
+            transaction_id=transaction_id_2, gov_action_index=gov_action_index_2
+        )
+        decoded_gov_action_id_2 = GovActionId.decode(gov_id_bech32_2)
+
+        assert gov_action_id_1 == decoded_gov_action_id_1
+        assert gov_action_id_2 == decoded_gov_action_id_2
+
+        assert gov_action_id_1.id() == gov_id_bech32_1
+        assert gov_action_id_2.id() == gov_id_bech32_2
+
+        assert gov_action_id_1.id_hex() == gov_id_hex_1
+        assert gov_action_id_2.id_hex() == gov_id_hex_2
 
 
 class TestVote:
@@ -529,3 +576,27 @@ class TestProposalProcedure:
         assert deserialized.deposit == procedure.deposit
         assert deserialized.reward_account == procedure.reward_account
         assert deserialized.anchor == procedure.anchor
+
+
+class TestCommitteeCredentialEpochMap:
+    def test_committee_cold_credential(self):
+        key_hash = "00000000000000000000000000000000000000000000000000000000"
+        identifier = "1300000000000000000000000000000000000000000000000000000000"
+        bech32 = "cc_cold1zvqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq6kflvs"
+
+        credential = CommitteeColdCredential.decode(bech32)
+
+        assert credential.id() == bech32
+        assert credential.id_hex(IdFormat.CIP105) == key_hash
+        assert credential.id_hex() == identifier
+
+    def test_committee_hot_credential(self):
+        key_hash = "00000000000000000000000000000000000000000000000000000000"
+        identifier = "0200000000000000000000000000000000000000000000000000000000"
+        bech32 = "cc_hot1qgqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqvcdjk7"
+
+        credential = CommitteeHotCredential.decode(bech32)
+
+        assert credential.id() == bech32
+        assert credential.id_hex(IdFormat.CIP105) == key_hash
+        assert credential.id_hex() == identifier
