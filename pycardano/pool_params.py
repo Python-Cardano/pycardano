@@ -328,5 +328,7 @@ class PoolOperator(CBORSerializable):
                 try:
                     value = bytes.fromhex(value)
                 except Exception as e:
-                    raise DecodingException(f"Failed to decode pool id string: {e}") from e
+                    raise DecodingException(
+                        f"Failed to decode pool id string: {e}"
+                    ) from e
         return cls(PoolKeyHash.from_primitive(value))

@@ -3,7 +3,7 @@ from fractions import Fraction
 import pytest
 
 from pycardano.address import Address
-from pycardano.certificate import Anchor, StakeCredential, IdFormat
+from pycardano.certificate import Anchor, IdFormat, StakeCredential
 from pycardano.exception import DeserializeException
 from pycardano.governance import (
     CommitteeColdCredential,

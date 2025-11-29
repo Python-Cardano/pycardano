@@ -10,6 +10,7 @@ from pycardano.certificate import (
     DRep,
     DRepCredential,
     DRepKind,
+    IdFormat,
     PoolRegistration,
     PoolRetirement,
     ResignCommitteeColdCertificate,
@@ -18,7 +19,7 @@ from pycardano.certificate import (
     StakeDeregistration,
     StakeRegistration,
     UnregDRepCertificate,
-    UpdateDRepCertificate, IdFormat,
+    UpdateDRepCertificate,
 )
 from pycardano.exception import DeserializeException, InvalidArgumentException
 from pycardano.hash import (  # plutus_script_hash,
