@@ -5,8 +5,13 @@ from enum import Enum, unique
 from fractions import Fraction
 from typing import Dict, Optional, Tuple, Type, Union
 
-from pycardano.certificate import Anchor, StakeCredential
-from pycardano.exception import DeserializeException
+from pycardano.certificate import Anchor, GovernanceCredential, GovernanceKeyType
+from pycardano.crypto.bech32 import bech32_decode, convertbits, encode
+from pycardano.exception import (
+    DecodingException,
+    DeserializeException,
+    InvalidDataException,
+)
 from pycardano.hash import PolicyHash, ScriptHash, TransactionId, VerificationKeyHash
 from pycardano.plutus import ExecutionUnits
 from pycardano.serialization import (
@@ -21,6 +26,7 @@ from pycardano.serialization import (
 
 __all__ = [
     "CommitteeColdCredential",
+    "CommitteeHotCredential",
     "CommitteeColdCredentialEpochMap",
     "ParameterChangeAction",
     "HardForkInitiationAction",
@@ -47,10 +53,16 @@ __all__ = [
 ]
 
 
-class CommitteeColdCredential(StakeCredential):
+class CommitteeColdCredential(GovernanceCredential):
     """Represents a cold credential for a committee member."""
 
-    pass
+    governance_key_type: GovernanceKeyType = GovernanceKeyType.CC_COLD
+
+
+class CommitteeHotCredential(GovernanceCredential):
+    """Represents a hot credential for a committee member."""
+
+    governance_key_type: GovernanceKeyType = GovernanceKeyType.CC_HOT
 
 
 @unique
@@ -88,6 +100,80 @@ class GovActionId(ArrayCBORSerializable):
 
     def __hash__(self):
         return hash((self.transaction_id, self.gov_action_index))
+
+    def __bytes__(self):
+        # Convert index to hex (no prefix, lowercase)
+        idx_hex = format(self.gov_action_index, "x")
+
+        # Pad to even-length hex
+        if len(idx_hex) % 2 != 0:
+            idx_hex = f"0{idx_hex}"
+
+        try:
+            idx_bytes = bytes.fromhex(idx_hex)
+            return self.transaction_id.payload + idx_bytes
+        except ValueError as e:
+            raise InvalidDataException(f"Error encoding data: {idx_hex}") from e
+
+    def id(self) -> str:
+        """
+        Get the governance action ID in Bech32 format.
+        """
+        return self.encode()
+
+    def id_hex(self) -> str:
+        """
+        Get the governance action ID in hexadecimal format.
+        """
+        return bytes(self).hex()
+
+    def encode(self) -> str:
+        """Encode the governance action ID in Bech32 format.
+
+        More info about Bech32 `here <https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki#Bech32>`_.
+
+        Returns:
+            str: Encoded pool key hash in Bech32.
+
+        Examples:
+            >>> transaction_id = TransactionId(bytes.fromhex("00" * 32))
+            >>> gov_action_id = GovActionId(transaction_id=transaction_id, gov_action_index=17)
+            >>> print(gov_action_id.encode())
+            gov_action1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqpzklpgpf
+        """
+        return encode(
+            "gov_action",
+            bytes(self),
+        )
+
+    @classmethod
+    def decode(cls, data: str) -> GovActionId:
+        """Decode a bech32 string into a governance action ID object.
+
+        Args:
+            data (str): Bech32-encoded string.
+
+        Returns:
+            GovActionId: Decoded governance action ID.
+
+        Raises:
+            DecodingException: When the input string is not a valid governance action ID.
+
+        Examples:
+            >>> bech32_id = "gov_action1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqpzklpgpf"
+            >>> gov_action_id = GovActionId.decode(bech32_id)
+            >>> transaction_id = TransactionId(bytes.fromhex("00" * 32))
+            >>> assert gov_action_id == GovActionId(transaction_id, 17)
+        """
+        hrp, checksum, _ = bech32_decode(data)
+        value = bytes(convertbits(checksum, 5, 8, False))
+
+        if hrp != "gov_action":
+            raise DecodingException("Invalid GovActionId bech32 string")
+
+        tx_id = TransactionId(value[:-1])
+        index = int.from_bytes(value[-1:], "big")
+        return cls(transaction_id=tx_id, gov_action_index=index)
 
 
 @dataclass(repr=False)
