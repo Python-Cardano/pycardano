@@ -101,9 +101,12 @@ class GovActionId(ArrayCBORSerializable):
     def __hash__(self):
         return hash((self.transaction_id, self.gov_action_index))
 
+    def __repr__(self):
+        return f"{self.encode()}"
+
     def __bytes__(self):
         # Convert index to hex (no prefix, lowercase)
-        idx_hex = format(self.gov_action_index, "x")
+        idx_hex = f"{self.gov_action_index:x}"
 
         # Pad to even-length hex
         if len(idx_hex) % 2 != 0:
@@ -114,18 +117,6 @@ class GovActionId(ArrayCBORSerializable):
             return self.transaction_id.payload + idx_bytes
         except ValueError as e:
             raise InvalidDataException(f"Error encoding data: {idx_hex}") from e
-
-    def id(self) -> str:
-        """
-        Get the governance action ID in Bech32 format.
-        """
-        return self.encode()
-
-    def id_hex(self) -> str:
-        """
-        Get the governance action ID in hexadecimal format.
-        """
-        return bytes(self).hex()
 
     def encode(self) -> str:
         """Encode the governance action ID in Bech32 format.
@@ -171,8 +162,15 @@ class GovActionId(ArrayCBORSerializable):
         if hrp != "gov_action":
             raise DecodingException("Invalid GovActionId bech32 string")
 
-        tx_id = TransactionId(value[:-1])
-        index = int.from_bytes(value[-1:], "big")
+        # Transaction ID is always 32 bytes, the rest is the index
+        if len(value) < 33:
+            raise DecodingException(
+                f"Invalid GovActionId length: {len(value)}, expected at least 33 bytes"
+            )
+
+        tx_id = TransactionId(value[:32])
+        index_bytes = value[32:]
+        index = int.from_bytes(index_bytes, "big")
         return cls(transaction_id=tx_id, gov_action_index=index)
 
 
