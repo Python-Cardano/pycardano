@@ -196,21 +196,29 @@ def test_drep_decode():
     vkey_hash = staking_key.to_verification_key().hash()
     drep = DRep(kind=DRepKind.VERIFICATION_KEY_HASH, credential=vkey_hash)
 
-    drep1 = DRep.decode(drep.id(IdFormat.CIP105))
-    drep2 = DRep.decode(drep.id())
+    drep.id_format = IdFormat.CIP105
+    drep1 = DRep.decode(str(drep))
+    drep.id_format = IdFormat.CIP129
+    drep2 = DRep.decode(str(drep))
 
     drep_id_cip105 = "drep1fq529kkm4972nlgvmjvewkyeguxzrx7upkpge7ndmakkjnstaxx"
     drep_id_cip129 = "drep1yfyz3gk6mw5he20apnwfn96cn9rscgvmmsxc9r86dh0k66gr0rurp"
     drep_id_hex = "4828a2dadba97ca9fd0cdc99975899470c219bdc0d828cfa6ddf6d69"
 
-    assert drep1.id(IdFormat.CIP105) == drep_id_cip105
-    assert drep1.id() == drep_id_cip129
+    drep1.id_format = IdFormat.CIP105
+    assert str(drep1) == drep_id_cip105
+    drep1.id_format = IdFormat.CIP129
+    assert str(drep1) == drep_id_cip129
 
-    assert drep2.id(IdFormat.CIP105) == drep_id_cip105
-    assert drep2.id() == drep_id_cip129
+    drep2.id_format = IdFormat.CIP105
+    assert str(drep2) == drep_id_cip105
+    drep2.id_format = IdFormat.CIP129
+    assert str(drep2) == drep_id_cip129
 
-    assert drep1.id_hex(IdFormat.CIP105) == drep_id_hex
-    assert drep2.id_hex(IdFormat.CIP105) == drep_id_hex
+    drep1.id_format = IdFormat.CIP105
+    assert bytes(drep1).hex() == drep_id_hex
+    drep2.id_format = IdFormat.CIP105
+    assert bytes(drep2).hex() == drep_id_hex
 
     assert drep == drep1
     assert drep == drep2
@@ -274,9 +282,12 @@ def test_drep_encode_decode_parametrized(
     drep = DRep(kind=drep_kind, credential=credential)
 
     # Act - Encode
-    encoded_cip105 = drep.id(IdFormat.CIP105)
-    encoded_cip129 = drep.id()
-    encoded_hex = drep.id_hex(IdFormat.CIP105)
+    drep.id_format = IdFormat.CIP105
+    encoded_cip105 = str(drep)
+    encoded_hex = bytes(drep).hex()
+
+    drep.id_format = IdFormat.CIP129
+    encoded_cip129 = str(drep)
 
     # Assert - Encoding
     assert encoded_cip105 == expected_cip105
@@ -296,18 +307,22 @@ def test_drep_encode_decode_parametrized(
         assert decoded_cip105 == drep
         assert decoded_cip105.kind == drep_kind
         assert decoded_cip105.credential == credential
-        assert decoded_cip105.id(IdFormat.CIP105) == expected_cip105
-        assert decoded_cip105.id() == expected_cip129
-        assert decoded_cip105.id_hex(IdFormat.CIP105) == expected_hex
+        decoded_cip105.id_format = IdFormat.CIP105
+        assert str(decoded_cip105) == expected_cip105
+        assert bytes(decoded_cip105).hex() == expected_hex
+        decoded_cip105.id_format = IdFormat.CIP129
+        assert str(decoded_cip105) == expected_cip129
 
         # Decode from CIP129 format
         decoded_cip129 = DRep.decode(expected_cip129)
         assert decoded_cip129 == drep
         assert decoded_cip129.kind == drep_kind
         assert decoded_cip129.credential == credential
-        assert decoded_cip129.id(IdFormat.CIP105) == expected_cip105
-        assert decoded_cip129.id() == expected_cip129
-        assert decoded_cip129.id_hex(IdFormat.CIP105) == expected_hex
+        decoded_cip129.id_format = IdFormat.CIP105
+        assert str(decoded_cip129) == expected_cip105
+        assert bytes(decoded_cip129).hex() == expected_hex
+        decoded_cip129.id_format = IdFormat.CIP129
+        assert str(decoded_cip129) == expected_cip129
 
         # Verify both decoded objects are equal
         assert decoded_cip105 == decoded_cip129

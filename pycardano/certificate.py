@@ -146,29 +146,20 @@ class GovernanceKeyType(Enum):
 class GovernanceCredential(StakeCredential):
     """Represents a governance credential."""
 
+    governance_key_type: GovernanceKeyType = field(init=False)
+    """Governance key type."""
+
+    id_format: IdFormat = field(default=IdFormat.CIP129, compare=False)
+    """Id format."""
+
     def __repr__(self):
         return f"{self.encode()}"
 
     def __bytes__(self):
-        return self._compute_header_byte() + bytes(self.credential.payload)
-
-    governance_key_type: GovernanceKeyType = field(init=False)
-    """Governance key type."""
-
-    def id(self, id_format: IdFormat = IdFormat.CIP129) -> str:
-        """
-        Governance credential ID.
-        """
-        return self.encode(id_format)
-
-    def id_hex(self, id_format: IdFormat = IdFormat.CIP129) -> str:
-        """
-        Governance credential ID in hexadecimal format.
-        """
-        if id_format == IdFormat.CIP129:
-            return bytes(self).hex()
+        if self.id_format == IdFormat.CIP129:
+            return self._compute_header_byte() + bytes(self.credential.payload)
         else:
-            return bytes(self)[1:].hex()
+            return bytes(self.credential.payload)
 
     @property
     def credential_type(self) -> CredentialType:
@@ -207,7 +198,7 @@ class GovernanceCredential(StakeCredential):
 
         return prefix + suffix if id_format == IdFormat.CIP105 else prefix
 
-    def encode(self, id_format: IdFormat = IdFormat.CIP129) -> str:
+    def encode(self) -> str:
         """Encode the governance credential in Bech32 format.
 
         More info about Bech32 `here <https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki#Bech32>`_.
@@ -215,8 +206,8 @@ class GovernanceCredential(StakeCredential):
         Returns:
             str: Encoded governance credential in Bech32 format.
         """
-        data = bytes(self) if id_format == IdFormat.CIP129 else bytes(self)[1:]
-        return encode(self._compute_hrp(id_format), data)
+        data = bytes(self)
+        return encode(self._compute_hrp(self.id_format), data)
 
     @classmethod
     def decode(cls: Type[GovernanceCredential], data: str) -> GovernanceCredential:
@@ -236,9 +227,9 @@ class GovernanceCredential(StakeCredential):
         if len(value) == VERIFICATION_KEY_HASH_SIZE:
             # CIP-105
             if "script" in hrp:
-                return cls(ScriptHash(value))
+                return cls(credential=ScriptHash(value))
             else:
-                return cls(VerificationKeyHash(value))
+                return cls(credential=VerificationKeyHash(value))
         elif len(value) == CIP129_PAYLOAD_SIZE:
             header = value[0]
             payload = value[1:]
@@ -250,13 +241,13 @@ class GovernanceCredential(StakeCredential):
                 raise DecodingException(f"Invalid key type: {key_type}")
 
             if credential_type == CredentialType.KEY_HASH:
-                return cls(VerificationKeyHash(payload))
+                return cls(credential=VerificationKeyHash(payload))
             elif credential_type == CredentialType.SCRIPT_HASH:
-                return cls(ScriptHash(payload))
+                return cls(credential=ScriptHash(payload))
             else:
                 raise DecodingException(f"Invalid credential type: {credential_type}")
         else:
-            raise DecodingException(f"Invalid data length: {len(data)}")
+            raise DecodingException(f"Invalid data length: {len(value)}")
 
     def to_primitive(self):
         return [self._CODE, self.credential.to_primitive()]
@@ -305,20 +296,18 @@ class DRep(ArrayCBORSerializable):
     )
     """The credential associated with this DRep, if applicable"""
 
-    def id(self, id_format: IdFormat = IdFormat.CIP129) -> str:
-        """
-        DRep ID.
-        """
-        return self.encode(id_format)
+    id_format: IdFormat = field(default=IdFormat.CIP129, compare=False)
 
-    def id_hex(self, id_format: IdFormat = IdFormat.CIP129) -> str:
-        """
-        DRep ID in hexadecimal format.
-        """
+    def __repr__(self):
+        return f"{self.encode()}"
+
+    def __bytes__(self):
         if self.credential is not None:
-            drep_credential = DRepCredential(self.credential)
-            return drep_credential.id_hex(id_format)
-        return ""
+            drep_credential = DRepCredential(
+                credential=self.credential, id_format=self.id_format
+            )
+            return bytes(drep_credential)
+        return b""
 
     @classmethod
     @limit_primitive_type(list)
@@ -344,7 +333,7 @@ class DRep(ArrayCBORSerializable):
             return [self.kind.value, self.credential.to_primitive()]
         return [self.kind.value]
 
-    def encode(self, id_format: IdFormat = IdFormat.CIP129) -> str:
+    def encode(self) -> str:
         """Encode the DRep in Bech32 format.
 
         More info about Bech32 `here <https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki#Bech32>`_.
@@ -363,8 +352,10 @@ class DRep(ArrayCBORSerializable):
         elif self.kind == DRepKind.ALWAYS_NO_CONFIDENCE:
             return "drep_always_no_confidence"
         elif self.credential is not None:
-            drep_credential = DRepCredential(self.credential)
-            return drep_credential.encode(id_format)
+            drep_credential = DRepCredential(
+                credential=self.credential, id_format=self.id_format
+            )
+            return drep_credential.encode()
         else:
             raise SerializeException("DRep credential is None")
 
