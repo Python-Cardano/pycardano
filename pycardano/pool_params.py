@@ -254,18 +254,6 @@ class PoolParams(ArrayCBORSerializable):
 class PoolOperator(CBORSerializable):
     pool_key_hash: PoolKeyHash
 
-    def id(self) -> PoolId:
-        """
-        Get the PoolId object for this pool operator.
-        """
-        return PoolId(self.encode())
-
-    def id_hex(self) -> str:
-        """
-        Get the pool key hash in hexadecimal format.
-        """
-        return self.pool_key_hash.payload.hex()
-
     def __init__(self, pool_key_hash: PoolKeyHash):
         self.pool_key_hash = pool_key_hash
 

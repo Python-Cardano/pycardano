@@ -302,11 +302,10 @@ def test_pool_operator_id_property():
     pool_operator = PoolOperator(pool_key_hash)
 
     # Act
-    pool_id = pool_operator.id()
+    pool_id = str(pool_operator)
 
     # Assert
-    assert isinstance(pool_id, PoolId)
-    assert str(pool_id) == TEST_POOL_ID
+    assert pool_id == TEST_POOL_ID
 
 
 def test_pool_operator_id_hex_property():
@@ -317,10 +316,9 @@ def test_pool_operator_id_hex_property():
     pool_operator = PoolOperator(pool_key_hash)
 
     # Act
-    id_hex = pool_operator.id_hex()
+    id_hex = bytes(pool_operator).hex()
 
     # Assert
-    assert isinstance(id_hex, str)
     assert id_hex == pool_key_hash_hex
 
 
@@ -387,7 +385,7 @@ def test_pool_operator_from_primitive(input_value, description):
     # Assert
     assert isinstance(pool_operator, PoolOperator)
     assert (
-        pool_operator.id_hex()
+        bytes(pool_operator).hex()
         == "dacf06a23e4aaf119024e63deb79861ca175b24e7d44d97fb92b1a22"
     )
 
