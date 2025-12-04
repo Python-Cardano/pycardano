@@ -1120,3 +1120,22 @@ def test_ordered_set_as_key_in_dict_indefinite_list():
     d[a] = 1
 
     check_two_way_cbor(d)
+
+
+def test_preserve_indefinite_list():
+    @dataclass
+    class MyTest(ArrayCBORSerializable):
+        a: Union[List[int], IndefiniteList]
+
+    my_list = IndefiniteList([1, 2, 3])
+
+    a = MyTest(my_list)
+
+    assert isinstance(MyTest.from_cbor(a.to_cbor()).a, IndefiniteList)
+
+
+def test_liqwid_tx():
+    with open("test/resources/cbors/liqwid.json") as f:
+        cbor_hex = json.load(f).get("cborHex")
+    tx = Transaction.load("test/resources/cbors/liqwid.json")
+    assert tx.to_cbor().hex() == cbor_hex
