@@ -20,6 +20,7 @@ from pycardano.pool_params import (  # Fraction,
     MultiHostName,
     PoolId,
     PoolMetadata,
+    PoolOperator,
     PoolParams,
     SingleHostAddr,
     SingleHostName,
@@ -252,3 +253,186 @@ def test_pool_params(
     ]
 
     assert PoolParams.from_primitive(primitive_values).to_primitive() == primitive_out
+
+
+# PoolOperator Tests
+def test_pool_operator_initialization():
+    """Test PoolOperator can be initialized with a PoolKeyHash."""
+    # Arrange
+    pool_key_hash = PoolKeyHash(b"1" * POOL_KEY_HASH_SIZE)
+
+    # Act
+    pool_operator = PoolOperator(pool_key_hash)
+
+    # Assert
+    assert pool_operator.pool_key_hash == pool_key_hash
+
+
+def test_pool_operator_encode():
+    """Test PoolOperator can encode to bech32 format."""
+    # Arrange
+    pool_key_hash_hex = "dacf06a23e4aaf119024e63deb79861ca175b24e7d44d97fb92b1a22"
+    pool_key_hash = PoolKeyHash(bytes.fromhex(pool_key_hash_hex))
+    pool_operator = PoolOperator(pool_key_hash)
+
+    # Act
+    encoded = pool_operator.encode()
+
+    # Assert
+    assert encoded.startswith("pool")
+    assert isinstance(encoded, str)
+    assert encoded == TEST_POOL_ID
+
+
+def test_pool_operator_decode():
+    """Test PoolOperator can decode from bech32 format."""
+    # Act
+    pool_operator = PoolOperator.decode(TEST_POOL_ID)
+
+    # Assert
+    assert isinstance(pool_operator, PoolOperator)
+    assert pool_operator.encode() == TEST_POOL_ID
+
+
+def test_pool_operator_id_property():
+    """Test PoolOperator.id property returns a PoolId."""
+    # Arrange
+    pool_key_hash_hex = "dacf06a23e4aaf119024e63deb79861ca175b24e7d44d97fb92b1a22"
+    pool_key_hash = PoolKeyHash(bytes.fromhex(pool_key_hash_hex))
+    pool_operator = PoolOperator(pool_key_hash)
+
+    # Act
+    pool_id = str(pool_operator)
+
+    # Assert
+    assert pool_id == TEST_POOL_ID
+
+
+def test_pool_operator_id_hex_property():
+    """Test PoolOperator.id_hex property returns hex string."""
+    # Arrange
+    pool_key_hash_hex = "dacf06a23e4aaf119024e63deb79861ca175b24e7d44d97fb92b1a22"
+    pool_key_hash = PoolKeyHash(bytes.fromhex(pool_key_hash_hex))
+    pool_operator = PoolOperator(pool_key_hash)
+
+    # Act
+    id_hex = bytes(pool_operator).hex()
+
+    # Assert
+    assert id_hex == pool_key_hash_hex
+
+
+def test_pool_operator_repr():
+    """Test PoolOperator __repr__ returns encoded string."""
+    # Arrange
+    pool_key_hash_hex = "dacf06a23e4aaf119024e63deb79861ca175b24e7d44d97fb92b1a22"
+    pool_key_hash = PoolKeyHash(bytes.fromhex(pool_key_hash_hex))
+    pool_operator = PoolOperator(pool_key_hash)
+
+    # Act
+    repr_str = repr(pool_operator)
+
+    # Assert
+    assert repr_str == TEST_POOL_ID
+
+
+def test_pool_operator_bytes():
+    """Test PoolOperator __bytes__ returns pool key hash payload."""
+    # Arrange
+    pool_key_hash_hex = "dacf06a23e4aaf119024e63deb79861ca175b24e7d44d97fb92b1a22"
+    pool_key_hash = PoolKeyHash(bytes.fromhex(pool_key_hash_hex))
+    pool_operator = PoolOperator(pool_key_hash)
+
+    # Act
+    bytes_result = bytes(pool_operator)
+
+    # Assert
+    assert isinstance(bytes_result, bytes)
+    assert bytes_result == bytes.fromhex(pool_key_hash_hex)
+
+
+def test_pool_operator_to_primitive():
+    """Test PoolOperator.to_primitive returns bytes."""
+    # Arrange
+    pool_key_hash_hex = "dacf06a23e4aaf119024e63deb79861ca175b24e7d44d97fb92b1a22"
+    pool_key_hash = PoolKeyHash(bytes.fromhex(pool_key_hash_hex))
+    pool_operator = PoolOperator(pool_key_hash)
+
+    # Act
+    primitive = pool_operator.to_primitive()
+
+    # Assert
+    assert isinstance(primitive, bytes)
+    assert primitive == bytes.fromhex(pool_key_hash_hex)
+
+
+@pytest.mark.parametrize(
+    "input_value, description",
+    [
+        (TEST_POOL_ID, "bech32 pool id"),
+        ("dacf06a23e4aaf119024e63deb79861ca175b24e7d44d97fb92b1a22", "hex string"),
+        (
+            bytes.fromhex("dacf06a23e4aaf119024e63deb79861ca175b24e7d44d97fb92b1a22"),
+            "bytes",
+        ),
+    ],
+)
+def test_pool_operator_from_primitive(input_value, description):
+    """Test PoolOperator.from_primitive handles different input formats."""
+    # Act
+    pool_operator = PoolOperator.from_primitive(input_value)
+
+    # Assert
+    assert isinstance(pool_operator, PoolOperator)
+    assert (
+        bytes(pool_operator).hex()
+        == "dacf06a23e4aaf119024e63deb79861ca175b24e7d44d97fb92b1a22"
+    )
+
+
+def test_pool_operator_roundtrip_bech32():
+    """Test PoolOperator can encode and decode maintaining consistency."""
+    # Arrange
+    pool_key_hash = PoolKeyHash(b"1" * POOL_KEY_HASH_SIZE)
+    original_operator = PoolOperator(pool_key_hash)
+
+    # Act
+    encoded = original_operator.encode()
+    decoded_operator = PoolOperator.decode(encoded)
+
+    # Assert
+    assert decoded_operator.pool_key_hash == original_operator.pool_key_hash
+    assert decoded_operator.encode() == encoded
+
+
+def test_pool_operator_roundtrip_primitive():
+    """Test PoolOperator serialization roundtrip."""
+    # Arrange
+    pool_key_hash = PoolKeyHash(b"2" * POOL_KEY_HASH_SIZE)
+    original_operator = PoolOperator(pool_key_hash)
+
+    # Act
+    primitive = original_operator.to_primitive()
+    restored_operator = PoolOperator.from_primitive(primitive)
+
+    # Assert
+    assert restored_operator.pool_key_hash == original_operator.pool_key_hash
+    assert restored_operator.to_primitive() == primitive
+
+
+@pytest.mark.parametrize(
+    "invalid_input, expected_exception",
+    [
+        ("invalid_pool_id", Exception),  # Invalid hex string
+        (
+            "stake1uxtr5m6kygt77399zxqrykkluqr0grr4yrjtl5xplza6k8q5fghrp",
+            Exception,
+        ),  # Wrong prefix
+        ("", Exception),  # Empty string
+    ],
+)
+def test_pool_operator_from_primitive_errors(invalid_input, expected_exception):
+    """Test PoolOperator.from_primitive raises errors for invalid inputs."""
+    # Act & Assert
+    with pytest.raises(expected_exception):
+        PoolOperator.from_primitive(invalid_input)

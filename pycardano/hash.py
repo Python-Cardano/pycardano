@@ -15,6 +15,7 @@ __all__ = [
     "VRF_KEY_HASH_SIZE",
     "POOL_METADATA_HASH_SIZE",
     "REWARD_ACCOUNT_HASH_SIZE",
+    "CIP129_PAYLOAD_SIZE",
     "ConstrainedBytes",
     "VerificationKeyHash",
     "ScriptHash",
@@ -42,6 +43,7 @@ POOL_METADATA_HASH_SIZE = 32
 VRF_KEY_HASH_SIZE = 32
 REWARD_ACCOUNT_HASH_SIZE = 29
 ANCHOR_DATA_HASH_SIZE = 32
+CIP129_PAYLOAD_SIZE = 29
 
 
 T = TypeVar("T", bound="ConstrainedBytes")
