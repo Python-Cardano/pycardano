@@ -23,25 +23,10 @@ export PRINT_HELP_PYSCRIPT
 
 BROWSER := poetry run python -c "$$BROWSER_PYSCRIPT"
 
-ensure-pure-cbor2: ## ensures cbor2 is installed with pure Python implementation
-	@poetry run python -c "from importlib.metadata import version; \
-	print(version('cbor2'))" > .cbor2_version
-	@poetry run python -c "import cbor2, inspect; \
-	print('Checking cbor2 implementation...'); \
-	decoder_path = inspect.getfile(cbor2.CBORDecoder); \
-	using_c_ext = decoder_path.endswith('.so'); \
-	print(f'Implementation path: {decoder_path}'); \
-	print(f'Using C extension: {using_c_ext}'); \
-	exit(1 if using_c_ext else 0)" || \
-	(echo "Reinstalling cbor2 with pure Python implementation..." && \
-	poetry run pip uninstall -y cbor2 && \
-	CBOR2_BUILD_C_EXTENSION=0 poetry run pip install --no-binary cbor2 "cbor2==$$(cat .cbor2_version)" --force-reinstall && \
-	rm .cbor2_version)
-
 help:
 	@python -c "$$PRINT_HELP_PYSCRIPT" < $(MAKEFILE_LIST)
 
-cov: ensure-pure-cbor2 ## check code coverage
+cov: ## check code coverage
 	poetry run pytest -n 4 --cov pycardano
 
 cov-html: cov ## check code coverage and generate an html report
@@ -69,7 +54,7 @@ clean-test: ## remove test and coverage artifacts
 	rm -fr cov_html/
 	rm -fr .pytest_cache
 
-test: ensure-pure-cbor2 ## runs tests
+test: ## runs tests
 	poetry run pytest -vv -n 4
 
 test-integration: ## runs integration tests
@@ -78,7 +63,7 @@ test-integration: ## runs integration tests
 test-single: ## runs tests with "single" markers
 	poetry run pytest -s -vv -m single
 
-qa: ensure-pure-cbor2 ## runs static analyses
+qa: ## runs static analyses
 	poetry run flake8 pycardano
 	poetry run mypy --install-types --non-interactive pycardano
 	poetry run black --check .
@@ -92,6 +77,6 @@ docs: ## build the documentation
 	poetry run sphinx-build docs/source docs/build/html
 	$(BROWSER) docs/build/html/index.html
 
-release: clean qa test format ensure-pure-cbor2 ## build dist version and release to pypi
+release: clean qa test format ## build dist version and release to pypi
 	poetry build
 	poetry publish

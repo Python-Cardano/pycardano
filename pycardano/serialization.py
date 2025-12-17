@@ -31,7 +31,7 @@ from typing import (
     get_type_hints,
 )
 
-import cbor2
+from pycardano import cbor2
 
 from pycardano.logging import logger
 

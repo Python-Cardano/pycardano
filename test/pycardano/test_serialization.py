@@ -18,7 +18,7 @@ from typing import (
     get_origin,
 )
 
-import cbor2
+from pycardano import cbor2
 import pytest
 from cbor2 import CBORTag
 from frozenlist import FrozenList

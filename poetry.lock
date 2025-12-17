@@ -263,6 +263,21 @@ files = [
 ]
 
 [[package]]
+name = "cbor2pure"
+version = "5.7.2"
+description = "CBOR (de)serializer with extensive tag support"
+optional = false
+python-versions = ">=3.9"
+groups = ["main"]
+files = [
+    {file = "cbor2pure-5.7.2-py3-none-any.whl", hash = "sha256:cc3ea93afc3d92789343cdaa7c3f75802f56beecf6272ee6069e04a237641d4f"},
+    {file = "cbor2pure-5.7.2.tar.gz", hash = "sha256:96bbd679260777c4e2075fe00a28a16a297207862d7e7ff80ab529c91c35925e"},
+]
+
+[package.dependencies]
+cbor2 = "*"
+
+[[package]]
 name = "certifi"
 version = "2025.8.3"
 description = "Python package for providing Mozilla's CA Bundle."
@@ -2541,4 +2556,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.9.1"
-content-hash = "ba802fdd52ec008c3af72f5c7b8765d18ba0875feab49b9a78c6b94cfffae680"
+content-hash = "03156c658c4cb55fd0abc906c448aa1b0569a09e8321b00e32bd47a6b0bc7c1e"

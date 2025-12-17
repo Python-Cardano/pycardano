@@ -6,7 +6,7 @@ import math
 import sys
 from typing import Dict, List, Optional, Tuple, Union
 
-import cbor2
+from pycardano import cbor2
 from nacl.encoding import RawEncoder
 from nacl.hash import blake2b
 

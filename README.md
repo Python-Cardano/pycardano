@@ -57,11 +57,13 @@ Install the library using [pip](https://pip.pypa.io/en/stable/):
 
 `pip install pycardano`
 
-#### Install cbor2 pure python implementation (Optional)
+#### cbor2
 [cbor2](https://github.com/agronholm/cbor2/tree/master) is a dependency of pycardano. It is used to encode and decode CBOR data.
 It has two implementations: one is pure Python and the other is C, which is installed by default. The C implementation is faster, but it is less flexible than the pure Python implementation.
 
-For some users, the C implementation may not work properly when deserializing cbor data. For example, the order of inputs of a transaction isn't guaranteed to be the same as the order of inputs in the original transaction (details could be found in [this issue](https://github.com/Python-Cardano/pycardano/issues/311)). This would result in a different transaction hash when the transaction is serialized again. For users who encounter this issue, we recommend to use the pure Python implementation of cbor2. You can do so by running [ensure_pure_cbor2.sh](./ensure_pure_cbor2.sh), which inspect the cbor2 installed in the running environment and force install pure python implementation if necessary.
+For some users, the C implementation may not work properly when deserializing cbor data. For example, the order of inputs of a transaction isn't guaranteed to be the same as the order of inputs in the original transaction (details could be found in [this issue](https://github.com/Python-Cardano/pycardano/issues/311)). This would result in a different transaction hash when the transaction is serialized again.
+
+To solve this problem, a fork of cbor2 is created at [cbor2pure](https://github.com/cffls/cbor2pure). This fork removes C extension and only uses pure python for cbor decoding. By default, for correctness, pycardano uses cbor2pure in decoding. However, if speed is preferred over accuracy, users can set `CBOR_C_EXETENSION=1` in their environment, and the default C extension would be used instead.
 
 ```bash
 ensure_pure_cbor2.sh

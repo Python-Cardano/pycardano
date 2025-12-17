@@ -12,7 +12,7 @@ from functools import partial
 from pathlib import Path
 from typing import Dict, List, Optional, Union
 
-import cbor2
+from pycardano import cbor2
 import docker
 from cachetools import Cache, LRUCache, TTLCache, func
 from docker.errors import APIError

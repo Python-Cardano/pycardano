@@ -1,5 +1,12 @@
 # flake8: noqa
 
+import os
+
+if os.getenv("CBOR_C_EXETENSION", "0") == "1":
+    import cbor2
+else:
+    import cbor2pure as cbor2
+
 from .address import *
 from .backend import *
 from .certificate import *

@@ -40,6 +40,7 @@ ogmios = ">=1.4.2"
 requests = ">=2.32.3"
 websockets = ">=13.0"
 base58 = ">=2.1.0"
+cbor2pure = ">=5.7.2"
 
 [tool.poetry.group.dev.dependencies]
 pytest = ">=8.2.0"

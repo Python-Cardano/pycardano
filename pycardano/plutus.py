@@ -10,7 +10,7 @@ from enum import Enum
 from hashlib import sha256
 from typing import Any, List, Optional, Type, Union
 
-import cbor2
+from pycardano import cbor2
 from cbor2 import CBORTag
 from nacl.encoding import RawEncoder
 from nacl.hash import blake2b

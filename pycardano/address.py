@@ -14,7 +14,7 @@ from enum import Enum
 from typing import Optional, Type, Union
 
 import base58
-import cbor2
+from pycardano import cbor2
 from cbor2 import CBORTag
 from typing_extensions import override
 

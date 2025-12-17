@@ -5,7 +5,7 @@ import warnings
 from fractions import Fraction
 from typing import Dict, List, Optional, Union
 
-import cbor2
+from pycardano import cbor2
 from blockfrost import ApiError, ApiUrls, BlockFrostApi
 from blockfrost.utils import Namespace
 
