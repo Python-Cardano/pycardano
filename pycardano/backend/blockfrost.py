@@ -5,10 +5,10 @@ import warnings
 from fractions import Fraction
 from typing import Dict, List, Optional, Union
 
-from pycardano import cbor2
 from blockfrost import ApiError, ApiUrls, BlockFrostApi
 from blockfrost.utils import Namespace
 
+from pycardano import cbor2
 from pycardano.address import Address
 from pycardano.backend.base import (
     ALONZO_COINS_PER_UTXO_WORD,

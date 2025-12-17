@@ -10,12 +10,12 @@ from enum import Enum
 from hashlib import sha256
 from typing import Any, List, Optional, Type, Union
 
-from pycardano import cbor2
 from cbor2 import CBORTag
 from nacl.encoding import RawEncoder
 from nacl.hash import blake2b
 from typeguard import typechecked
 
+from pycardano import cbor2
 from pycardano.exception import DeserializeException, InvalidArgumentException
 from pycardano.hash import DATUM_HASH_SIZE, SCRIPT_HASH_SIZE, DatumHash, ScriptHash
 from pycardano.nativescript import NativeScript

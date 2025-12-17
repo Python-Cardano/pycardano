@@ -5,7 +5,7 @@ import os
 if os.getenv("CBOR_C_EXETENSION", "0") == "1":
     import cbor2
 else:
-    import cbor2pure as cbor2
+    import cbor2pure as cbor2  # type: ignore[no-redef]
 
 from .address import *
 from .backend import *

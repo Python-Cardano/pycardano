@@ -14,10 +14,10 @@ from enum import Enum
 from typing import Optional, Type, Union
 
 import base58
-from pycardano import cbor2
 from cbor2 import CBORTag
 from typing_extensions import override
 
+from pycardano import cbor2
 from pycardano.crypto.bech32 import decode, encode
 from pycardano.exception import (
     DecodingException,

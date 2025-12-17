@@ -18,7 +18,6 @@ from typing import (
     get_origin,
 )
 
-from pycardano import cbor2
 import pytest
 from cbor2 import CBORTag
 from frozenlist import FrozenList
@@ -34,6 +33,7 @@ from pycardano import (
     TransactionWitnessSet,
     VerificationKey,
     VerificationKeyWitness,
+    cbor2,
 )
 from pycardano.exception import (
     DeserializeException,
