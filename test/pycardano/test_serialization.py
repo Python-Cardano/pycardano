@@ -33,8 +33,8 @@ from pycardano import (
     TransactionWitnessSet,
     VerificationKey,
     VerificationKeyWitness,
-    cbor2,
 )
+from pycardano.cbor2 import cbor2
 from pycardano.exception import (
     DeserializeException,
     InvalidKeyTypeException,

@@ -31,7 +31,7 @@ from typing import (
     get_type_hints,
 )
 
-from pycardano import cbor2
+from pycardano.cbor2 import cbor2
 from pycardano.logging import logger
 
 # Remove the semantic decoder for 258 (CBOR tag for set) as we care about the order of elements

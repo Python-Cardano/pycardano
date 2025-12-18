@@ -11,8 +11,8 @@ from nacl.encoding import RawEncoder
 from nacl.hash import blake2b
 from pprintpp import pformat
 
-from pycardano import cbor2
 from pycardano.address import Address
+from pycardano.cbor2 import cbor2
 from pycardano.certificate import Certificate
 from pycardano.exception import InvalidDataException
 from pycardano.governance import ProposalProcedure, VotingProcedures

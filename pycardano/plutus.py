@@ -15,7 +15,7 @@ from nacl.encoding import RawEncoder
 from nacl.hash import blake2b
 from typeguard import typechecked
 
-from pycardano import cbor2
+from pycardano.cbor2 import cbor2
 from pycardano.exception import DeserializeException, InvalidArgumentException
 from pycardano.hash import DATUM_HASH_SIZE, SCRIPT_HASH_SIZE, DatumHash, ScriptHash
 from pycardano.nativescript import NativeScript

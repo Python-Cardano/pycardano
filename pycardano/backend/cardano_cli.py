@@ -16,7 +16,6 @@ import docker
 from cachetools import Cache, LRUCache, TTLCache, func
 from docker.errors import APIError
 
-from pycardano import cbor2
 from pycardano.address import Address
 from pycardano.backend.base import (
     ALONZO_COINS_PER_UTXO_WORD,
@@ -24,6 +23,7 @@ from pycardano.backend.base import (
     GenesisParameters,
     ProtocolParameters,
 )
+from pycardano.cbor2 import cbor2
 from pycardano.exception import (
     CardanoCliError,
     PyCardanoException,

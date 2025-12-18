@@ -9,8 +9,8 @@ from typing import Dict, List, Optional, Tuple, Union
 from nacl.encoding import RawEncoder
 from nacl.hash import blake2b
 
-from pycardano import cbor2
 from pycardano.backend.base import ChainContext
+from pycardano.cbor2 import cbor2
 from pycardano.hash import SCRIPT_DATA_HASH_SIZE, SCRIPT_HASH_SIZE, ScriptDataHash
 from pycardano.plutus import COST_MODELS, CostModels, Datum, RedeemerMap, Redeemers
 from pycardano.serialization import NonEmptyOrderedSet, default_encoder

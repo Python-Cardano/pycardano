@@ -8,7 +8,6 @@ from typing import Dict, List, Optional, Union
 from blockfrost import ApiError, ApiUrls, BlockFrostApi
 from blockfrost.utils import Namespace
 
-from pycardano import cbor2
 from pycardano.address import Address
 from pycardano.backend.base import (
     ALONZO_COINS_PER_UTXO_WORD,
@@ -16,6 +15,7 @@ from pycardano.backend.base import (
     GenesisParameters,
     ProtocolParameters,
 )
+from pycardano.cbor2 import cbor2
 from pycardano.exception import TransactionFailedException
 from pycardano.hash import SCRIPT_HASH_SIZE, DatumHash, ScriptHash
 from pycardano.nativescript import NativeScript
