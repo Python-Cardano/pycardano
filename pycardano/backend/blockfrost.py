@@ -5,7 +5,6 @@ import warnings
 from fractions import Fraction
 from typing import Dict, List, Optional, Union
 
-import cbor2
 from blockfrost import ApiError, ApiUrls, BlockFrostApi
 from blockfrost.utils import Namespace
 
@@ -16,6 +15,7 @@ from pycardano.backend.base import (
     GenesisParameters,
     ProtocolParameters,
 )
+from pycardano.cbor import cbor2
 from pycardano.exception import TransactionFailedException
 from pycardano.hash import SCRIPT_HASH_SIZE, DatumHash, ScriptHash
 from pycardano.nativescript import NativeScript
