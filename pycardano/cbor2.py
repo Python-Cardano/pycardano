@@ -12,5 +12,3 @@ if os.getenv("CBOR_C_EXTENSION", "0") == "1":
     import cbor2
 else:
     import cbor2pure as cbor2  # type: ignore[no-redef]
-
-__all__ = ["cbor2"]
