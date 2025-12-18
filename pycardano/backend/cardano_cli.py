@@ -23,7 +23,7 @@ from pycardano.backend.base import (
     GenesisParameters,
     ProtocolParameters,
 )
-from pycardano.cbor2 import cbor2
+from pycardano.cbor import cbor2
 from pycardano.exception import (
     CardanoCliError,
     PyCardanoException,

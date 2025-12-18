@@ -34,7 +34,7 @@ from pycardano import (
     VerificationKey,
     VerificationKeyWitness,
 )
-from pycardano.cbor2 import cbor2
+from pycardano.cbor import cbor2
 from pycardano.exception import (
     DeserializeException,
     InvalidKeyTypeException,

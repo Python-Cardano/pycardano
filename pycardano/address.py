@@ -17,7 +17,7 @@ import base58
 from cbor2 import CBORTag
 from typing_extensions import override
 
-from pycardano.cbor2 import cbor2
+from pycardano.cbor import cbor2
 from pycardano.crypto.bech32 import decode, encode
 from pycardano.exception import (
     DecodingException,
