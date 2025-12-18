@@ -9,6 +9,6 @@ Set the environment variable CBOR_C_EXTENSION=1 to use the C extension.
 import os
 
 if os.getenv("CBOR_C_EXTENSION", "0") == "1":
-    import cbor2
+    import cbor2  # noqa: F401
 else:
-    import cbor2pure as cbor2  # type: ignore[no-redef]
+    import cbor2pure as cbor2  # type: ignore  # noqa: F401
