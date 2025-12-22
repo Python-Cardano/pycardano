@@ -3,5 +3,6 @@
 from .base import *
 from .blockfrost import *
 from .cardano_cli import *
+from .kupo import *
 from .ogmios_v5 import *
 from .ogmios_v6 import *
