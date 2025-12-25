@@ -679,6 +679,16 @@ tomli = {version = "*", optional = true, markers = "python_full_version <= \"3.1
 toml = ["tomli ; python_full_version <= \"3.11.0a6\""]
 
 [[package]]
+name = "crc8"
+version = "0.2.0"
+description = "A module that implements the CRC8 hash algorithm for Python 2 and 3."
+optional = false
+python-versions = "*"
+files = [
+    {file = "crc8-0.2.0.tar.gz", hash = "sha256:3c34d0a006ae8ddecfd744ae585eac95120915bf0770011aee9250017c0c40f1"},
+]
+
+[[package]]
 name = "cryptography"
 version = "43.0.3"
 description = "cryptography is a package which provides cryptographic recipes and primitives to Python developers."
