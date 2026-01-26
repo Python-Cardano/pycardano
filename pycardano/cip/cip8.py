@@ -97,9 +97,7 @@ def sign(
         signing_key.sign(msg._sig_structure),
     ]
 
-    encoded = dumps(
-        CBORTag(msg.cbor_tag, _message), default=msg._custom_cbor_encoder
-    )
+    encoded = dumps(CBORTag(msg.cbor_tag, _message), default=msg._custom_cbor_encoder)
 
     # turn the enocded message into a hex string and remove the first byte
     # which is always "d2"
