@@ -1,3 +1,4 @@
+import os
 import tempfile
 
 import pytest
@@ -219,7 +220,14 @@ def test_save_load_address():
     address_string = "addr_test1vr2p8st5t5cxqglyjky7vk98k7jtfhdpvhl4e97cezuhn0cqcexl7"
     address = Address.from_primitive(address_string)
 
-    with tempfile.NamedTemporaryFile() as f:
-        address.save(f.name)
-        loaded_address = Address.load(f.name)
+    # On Windows, NamedTemporaryFile keeps the file locked while open, so
+    # save() cannot open it for writing. Use delete=False and close the handle
+    # first, then clean up manually afterward.
+    with tempfile.NamedTemporaryFile(delete=False) as f:
+        tmp_path = f.name
+    try:
+        address.save(tmp_path)
+        loaded_address = Address.load(tmp_path)
         assert address == loaded_address
+    finally:
+        os.unlink(tmp_path)

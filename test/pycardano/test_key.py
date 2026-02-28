@@ -1,4 +1,5 @@
 import json
+import os
 import pathlib
 import tempfile
 
@@ -216,25 +217,42 @@ def test_stake_pool_key_load():
 
 
 def test_key_save():
-    with tempfile.NamedTemporaryFile() as f:
-        SK.save(f.name)
-        sk = PaymentSigningKey.load(f.name)
+    # On Windows, NamedTemporaryFile keeps the file locked while open.
+    # Use delete=False and close the handle first, then clean up manually.
+    with tempfile.NamedTemporaryFile(delete=False) as f:
+        tmp_path = f.name
+    try:
+        SK.save(tmp_path)
+        sk = PaymentSigningKey.load(tmp_path)
         assert SK == sk
+    finally:
+        os.unlink(tmp_path)
 
 
 def test_key_save_invalid_address():
-    with tempfile.NamedTemporaryFile() as f:
-        SK.save(f.name)
+    with tempfile.NamedTemporaryFile(delete=False) as f:
+        tmp_path = f.name
+    try:
+        SK.save(tmp_path)
         with pytest.raises(IOError):
-            VK.save(f.name)
+            VK.save(tmp_path)
+    finally:
+        os.unlink(tmp_path)
 
 
 def test_stake_pool_key_save():
-    with tempfile.NamedTemporaryFile() as skf, tempfile.NamedTemporaryFile() as vkf:
-        SPSK.save(skf.name)
-        sk = StakePoolSigningKey.load(skf.name)
-        SPVK.save(vkf.name)
-        vk = StakePoolSigningKey.load(vkf.name)
+    with tempfile.NamedTemporaryFile(delete=False) as skf:
+        sk_path = skf.name
+    with tempfile.NamedTemporaryFile(delete=False) as vkf:
+        vk_path = vkf.name
+    try:
+        SPSK.save(sk_path)
+        sk = StakePoolSigningKey.load(sk_path)
+        SPVK.save(vk_path)
+        vk = StakePoolSigningKey.load(vk_path)
+    finally:
+        os.unlink(sk_path)
+        os.unlink(vk_path)
     assert SPSK == sk
     assert SPVK == vk
 

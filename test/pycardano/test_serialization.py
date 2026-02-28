@@ -1,4 +1,5 @@
 import json
+import os
 import tempfile
 from collections import defaultdict, deque
 from copy import deepcopy
@@ -1047,13 +1048,17 @@ def test_save_load():
     assert test1_json["description"] == "Test Description"
     assert test1_json["cborHex"] == test1.to_cbor_hex()
 
-    with tempfile.NamedTemporaryFile() as f:
-        test1.save(f.name)
-        loaded = Test1.load(f.name)
+    with tempfile.NamedTemporaryFile(delete=False) as f:
+        tmp_path = f.name
+    try:
+        test1.save(tmp_path)
+        loaded = Test1.load(tmp_path)
         assert test1 == loaded
 
         with pytest.raises(IOError):
-            test1.save(f.name)
+            test1.save(tmp_path)
+    finally:
+        os.unlink(tmp_path)
 
 
 def test_ordered_set_as_key_in_dict():

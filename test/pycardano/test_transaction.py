@@ -1,3 +1,4 @@
+import os
 import tempfile
 from dataclasses import dataclass
 from fractions import Fraction
@@ -265,10 +266,14 @@ def test_transaction_save_load():
     )
     tx = Transaction.from_cbor(tx_cbor)
 
-    with tempfile.NamedTemporaryFile() as f:
-        tx.save(f.name)
-        loaded_tx = Transaction.load(f.name)
+    with tempfile.NamedTemporaryFile(delete=False) as f:
+        tmp_path = f.name
+    try:
+        tx.save(tmp_path)
+        loaded_tx = Transaction.load(tmp_path)
         assert tx == loaded_tx
+    finally:
+        os.unlink(tmp_path)
 
 
 def test_multi_asset():
