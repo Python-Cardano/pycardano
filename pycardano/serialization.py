@@ -196,9 +196,9 @@ CBORBase = TypeVar("CBORBase", bound="CBORSerializable")
 
 def decode_array(self, subtype: int) -> Sequence[Any]:
     # Major tag 4
-    length = self._decode_length(subtype, allow_indefinite=True)
-
-    if length is None:
+    if subtype == 31:
+        # Indefinite length array — delegate to the original decoder, then wrap
+        # the result in IndefiniteFrozenList to preserve indefinite encoding.
         ret = IndefiniteFrozenList(list(self.decode_array(subtype=subtype)))
         ret.freeze()
         return ret

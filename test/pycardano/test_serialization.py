@@ -1134,6 +1134,38 @@ def test_preserve_indefinite_list():
     assert isinstance(MyTest.from_cbor(a.to_cbor()).a, IndefiniteList)
 
 
+def test_decode_array_with_24_or_more_items():
+    """Test that definite-length arrays with 24+ items decode correctly.
+
+    Regression test for a bug where the custom decode_array override called
+    _decode_length (consuming stream bytes), then delegated to the original
+    decode_array which called _decode_length again. For arrays with < 24 items
+    the length is encoded in the subtype itself (no extra bytes), so the double
+    call was harmless. For 24+ items, CBOR uses multi-byte length encoding
+    (e.g. 98 18 for 24 items) and the second _decode_length call consumed
+    actual array content, corrupting the stream.
+    """
+
+    @dataclass
+    class LargeDatum(PlutusData):
+        CONSTR_ID = 1
+        data: List[bytes]
+
+    hello = b"Hello world!"
+
+    # Exactly 24 items — the threshold where CBOR switches to 2-byte length
+    datum24 = LargeDatum(data=[hello] * 24)
+    restored24 = LargeDatum.from_cbor(datum24.to_cbor())
+    assert len(restored24.data) == 24
+    assert all(x == hello for x in restored24.data)
+
+    # 25 items — above the threshold
+    datum25 = LargeDatum(data=[hello] * 25)
+    restored25 = LargeDatum.from_cbor(datum25.to_cbor())
+    assert len(restored25.data) == 25
+    assert all(x == hello for x in restored25.data)
+
+
 def test_liqwid_tx():
     with open("test/resources/cbors/liqwid.json") as f:
         cbor_hex = json.load(f).get("cborHex")
