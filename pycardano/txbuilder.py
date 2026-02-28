@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from dataclasses import dataclass, field, fields
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 
 from pycardano import RedeemerMap
 from pycardano.address import Address, AddressType
@@ -205,6 +205,32 @@ class TransactionBuilder:
     _reference_scripts: List[Union[NativeScript, PlutusScript]] = field(
         init=False, default_factory=lambda: []
     )
+
+    change_output_fn: Optional[
+        Callable[[Value, Address], List[TransactionOutput]]
+    ] = field(default=None)
+    """Optional function to customise how change is distributed across output UTxOs.
+
+    When set, this function is called instead of the default change-packing
+    logic.  It receives the **net change** :class:`Value` (already accounting
+    for fees, deposits, and withdrawals) and the change :class:`Address`, and
+    must return a list of :class:`TransactionOutput` objects.
+
+    Example — split change into two equal ADA-only outputs::
+
+        def split_change(change: Value, addr: Address) -> List[TransactionOutput]:
+            half = change.coin // 2
+            return [
+                TransactionOutput(addr, Value(half)),
+                TransactionOutput(addr, Value(change.coin - half)),
+            ]
+
+        builder.change_output_fn = split_change
+
+    The builder will raise :class:`InsufficientUTxOBalanceException` for any
+    returned output that does not satisfy the minimum-lovelace requirement
+    (unless ``respect_min_utxo`` is *False* in the underlying call).
+    """
 
     _should_estimate_execution_units: Optional[bool] = field(init=False, default=None)
 
@@ -664,6 +690,22 @@ class TransactionBuilder:
         # Remove any asset that has 0 quantity
         if change.multi_asset:
             change.multi_asset = change.multi_asset.filter(lambda p, n, v: v > 0)
+
+        # --- custom change output function hook ---
+        change_output_fn = self.change_output_fn
+        if change_output_fn is not None:
+            custom_outputs = change_output_fn(change, address)
+            if respect_min_utxo:
+                for out in custom_outputs:
+                    min_ada = min_lovelace_post_alonzo(out, self.context)
+                    if out.lovelace < min_ada:
+                        raise InsufficientUTxOBalanceException(
+                            f"Custom change output {out} does not meet minimum lovelace "
+                            f"requirement: {out.lovelace} lovelace provided but "
+                            f"{min_ada} lovelace required."
+                        )
+            return custom_outputs
+        # --- end custom hook, fall through to default packing logic ---
 
         change_output_arr = []
 

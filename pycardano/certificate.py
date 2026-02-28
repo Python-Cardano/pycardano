@@ -644,6 +644,7 @@ Certificate = Union[
     StakeRegistrationAndDelegationAndVoteDelegation,
     AuthCommitteeHotCertificate,
     ResignCommitteeColdCertificate,
+    RegDRepCert,
     UnregDRepCertificate,
     UpdateDRepCertificate,
 ]
