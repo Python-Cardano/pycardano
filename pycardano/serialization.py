@@ -194,30 +194,19 @@ def limit_primitive_type(*allowed_types):
 CBORBase = TypeVar("CBORBase", bound="CBORSerializable")
 
 
-# Save the original decode_array from the cbor2 module-level dispatch table
-# BEFORE patching it, so our override can delegate safely without recursion.
-_original_decode_array = cbor2._decoder.major_decoders[4]
-
-
 def decode_array(self, subtype: int) -> Sequence[Any]:
     # Major tag 4
     if subtype == 31:
-        # Indefinite length array — delegate to the original (unpatched) decoder,
-        # then wrap the result in IndefiniteFrozenList to preserve indefinite
-        # encoding during re-serialization.
-        ret = IndefiniteFrozenList(list(_original_decode_array(self, subtype=subtype)))
+        # Indefinite length array — delegate to the original decoder, then wrap
+        # the result in IndefiniteFrozenList to preserve indefinite encoding.
+        ret = IndefiniteFrozenList(list(self.decode_array(subtype=subtype)))
         ret.freeze()
         return ret
     else:
-        # Definite length array — use the original decoder untouched.
-        return _original_decode_array(self, subtype=subtype)
+        return self.decode_array(subtype=subtype)
 
 
 try:
-    # We only patch the module-level dispatch dict, not the class method.
-    # This means self.decode_array() called inside cbor2.decode_array still
-    # resolves to the unpatched CBORDecoder.decode_array method, so there is
-    # no infinite recursion.
     cbor2._decoder.major_decoders[4] = decode_array
 except Exception as e:
     logger.warning("Failed to replace major decoder for indefinite array", e)
