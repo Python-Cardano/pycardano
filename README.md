@@ -268,3 +268,13 @@ You can support us by 1) sponsoring through Github, or 2) donating ADA to our AD
 <p align="left">
   <a href="https://github.com/blockfrost"><img src="https://avatars.githubusercontent.com/u/70073210?s=50&v=4"/></a>
 </p>
+
+## Quick Start: Check Wallet Balance (Testnet)
+
+This example shows how to connect PyCardano to Blockfrost (testnet) and
+retrieve ADA balance for a wallet.
+
+### 1. Install
+
+```bash
+pip install pycardano
