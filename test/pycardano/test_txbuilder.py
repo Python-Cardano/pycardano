@@ -60,6 +60,8 @@ from pycardano.plutus import (
     script_hash,
 )
 from pycardano.transaction import (
+    Asset,
+    AssetName,
     MultiAsset,
     TransactionInput,
     TransactionOutput,
@@ -520,6 +522,148 @@ def test_tx_add_change_split_nfts(chain_context):
     }
 
     assert expected == tx_body.to_primitive()
+
+
+def test_tx_builder_custom_change_fn_single_output(chain_context):
+    """Custom fn that returns a single lovelace-only change output (defrag scenario)."""
+    sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    sender_address = Address.from_primitive(sender)
+
+    tx_in1 = TransactionInput.from_primitive([b"1" * 32, 3])
+    tx_out1 = TransactionOutput.from_primitive([sender, 6000000])
+    utxo1 = UTxO(tx_in1, tx_out1)
+
+    def defrag_change(change: Value, addr: Address):
+        # Always return a single ADA-only output with all the change
+        return [TransactionOutput(addr, Value(change.coin))]
+
+    tx_builder = TransactionBuilder(chain_context)
+    tx_builder.change_output_fn = defrag_change
+    tx_builder.add_input(utxo1).add_output(
+        TransactionOutput.from_primitive([sender, 2000000])
+    )
+
+    tx_body = tx_builder.build(change_address=sender_address)
+
+    # There should be exactly 2 outputs: the explicit one and one custom change
+    assert len(tx_body.outputs) == 2
+    change_output = tx_body.outputs[1]
+    assert change_output.address == sender_address
+    # custom fn chose to return ADA only — multi_asset must be empty/None
+    assert not change_output.amount.multi_asset
+
+
+def test_tx_builder_custom_change_fn_split_cnts(chain_context):
+    """Custom fn that distributes CNT change across separate UTxOs (one per policy)."""
+    sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    sender_address = Address.from_primitive(sender)
+
+    policy_id_a = b"1" * 28
+    policy_id_b = b"2" * 28
+
+    # Build a UTxO that holds tokens under two distinct policies
+    tx_in1 = TransactionInput.from_primitive([b"3" * 32, 5])
+    tx_out1 = TransactionOutput(
+        sender_address,
+        Value(
+            8_000_000,
+            MultiAsset(
+                {
+                    ScriptHash(policy_id_a): Asset({AssetName(b"TokenA"): 3}),
+                    ScriptHash(policy_id_b): Asset({AssetName(b"TokenB"): 5}),
+                }
+            ),
+        ),
+    )
+    utxo1 = UTxO(tx_in1, tx_out1)
+
+    def split_by_policy(change: Value, addr: Address):
+        """One output per policy in the change, ADA split evenly."""
+        outputs = []
+        remaining_coin = change.coin
+        if change.multi_asset:
+            policies = list(change.multi_asset.items())
+            n = len(policies)
+            for i, (pid, asset) in enumerate(policies):
+                ada = remaining_coin // n if i < n - 1 else remaining_coin
+                remaining_coin -= ada
+                outputs.append(
+                    TransactionOutput(addr, Value(ada, MultiAsset({pid: asset})))
+                )
+        else:
+            outputs.append(TransactionOutput(addr, Value(remaining_coin)))
+        return outputs
+
+    tx_builder = TransactionBuilder(chain_context)
+    tx_builder.change_output_fn = split_by_policy
+    tx_builder.add_input(utxo1).add_output(
+        TransactionOutput.from_primitive([sender, 2_000_000])
+    )
+
+    tx_body = tx_builder.build(change_address=sender_address)
+
+    # Explicit output + 2 custom change outputs (one per policy)
+    assert len(tx_body.outputs) == 3
+    change_outputs = tx_body.outputs[1:]
+    # Each custom output must carry tokens from a distinct policy
+    assert all(out.amount.multi_asset for out in change_outputs)
+    # Together they must cover both policies
+    seen_policies = set()
+    for out in change_outputs:
+        seen_policies.update(out.amount.multi_asset.keys())
+    assert ScriptHash(policy_id_a) in seen_policies
+    assert ScriptHash(policy_id_b) in seen_policies
+
+
+def test_tx_builder_custom_change_fn_empty(chain_context):
+    """Custom fn returning [] causes no extra change output to be appended."""
+    sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    sender_address = Address.from_primitive(sender)
+
+    tx_in1 = TransactionInput.from_primitive([b"1" * 32, 3])
+    # Intentionally large input so change would normally be produced
+    tx_out1 = TransactionOutput.from_primitive([sender, 6000000])
+    utxo1 = UTxO(tx_in1, tx_out1)
+
+    def absorb_change(change: Value, addr: Address):
+        return []  # silently absorb all change
+
+    tx_builder = TransactionBuilder(chain_context)
+    tx_builder.change_output_fn = absorb_change
+    tx_builder.add_input(utxo1).add_output(
+        TransactionOutput.from_primitive([sender, 2000000])
+    )
+
+    tx_body = tx_builder.build(change_address=sender_address)
+
+    # Only the single explicit output should be present
+    assert len(tx_body.outputs) == 1
+    assert tx_body.outputs[0].amount == Value(2000000)
+
+
+def test_tx_builder_custom_change_fn_below_min_utxo(chain_context):
+    """Custom fn returning an output below min-lovelace raises InsufficientUTxOBalanceException."""
+    from pycardano.exception import InsufficientUTxOBalanceException
+
+    sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    sender_address = Address.from_primitive(sender)
+
+    tx_in1 = TransactionInput.from_primitive([b"1" * 32, 3])
+    tx_out1 = TransactionOutput.from_primitive([sender, 6000000])
+    utxo1 = UTxO(tx_in1, tx_out1)
+
+    def tiny_change(change: Value, addr: Address):
+        # Deliberately return only 1 lovelace — well below the minimum
+        return [TransactionOutput(addr, Value(1))]
+
+    tx_builder = TransactionBuilder(chain_context)
+    tx_builder.change_output_fn = tiny_change
+    tx_builder.add_input(utxo1).add_output(
+        TransactionOutput.from_primitive([sender, 2000000])
+    )
+
+    with pytest.raises(InsufficientUTxOBalanceException, match="minimum lovelace"):
+        tx_builder.build(change_address=sender_address)
 
 
 def test_tx_add_change_split_nfts_not_enough_add(chain_context):
