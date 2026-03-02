@@ -221,13 +221,11 @@ def test_full_tx():
 
 def test_transaction():
     tx_body = make_transaction_body()
-    sk = PaymentSigningKey.from_json(
-        """{
+    sk = PaymentSigningKey.from_json("""{
         "type": "GenesisUTxOSigningKey_ed25519",
         "description": "Genesis Initial UTxO Signing Key",
         "cborHex": "5820093be5cd3987d0c9fd8854ef908f7746b69e2d73320db6dc0f780d81585b84c2"
-    }"""
-    )
+    }""")
     vk = VerificationKey(PaymentKeyPair.from_signing_key(sk).verification_key.payload)
     signature = sk.sign(tx_body.hash())
     assert (

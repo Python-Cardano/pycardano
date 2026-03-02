@@ -22,53 +22,41 @@ from pycardano.key import (
     StakePoolVerificationKey,
 )
 
-SK = PaymentSigningKey.from_json(
-    """{
+SK = PaymentSigningKey.from_json("""{
         "type": "GenesisUTxOSigningKey_ed25519",
         "description": "Genesis Initial UTxO Signing Key",
         "cborHex": "5820093be5cd3987d0c9fd8854ef908f7746b69e2d73320db6dc0f780d81585b84c2"
-    }"""
-)
+    }""")
 
-VK = PaymentVerificationKey.from_json(
-    """{
+VK = PaymentVerificationKey.from_json("""{
         "type": "GenesisUTxOVerificationKey_ed25519",
         "description": "Genesis Initial UTxO Verification Key",
         "cborHex": "58208be8339e9f3addfa6810d59e2f072f85e64d4c024c087e0d24f8317c6544f62f"
-    }"""
-)
+    }""")
 
-SPSK = StakePoolSigningKey.from_json(
-    """{
+SPSK = StakePoolSigningKey.from_json("""{
         "type": "StakePoolSigningKey_ed25519", 
         "description": "StakePoolSigningKey_ed25519", 
         "cborHex": "582044181bd0e6be21cea5b0751b8c6d4f88a5cb2d5dfec31a271add617f7ce559a9"
-    }"""
-)
+    }""")
 
-SPVK = StakePoolVerificationKey.from_json(
-    """{
+SPVK = StakePoolVerificationKey.from_json("""{
         "type": "StakePoolVerificationKey_ed25519",
         "description": "StakePoolVerificationKey_ed25519", 
         "cborHex": "5820354ce32da92e7116f6c70e9be99a3a601d33137d0685ab5b7e2ff5b656989299"
-     }"""
-)
+     }""")
 
-EXTENDED_SK = ExtendedSigningKey.from_json(
-    """{
+EXTENDED_SK = ExtendedSigningKey.from_json("""{
         "type": "PaymentExtendedSigningKeyShelley_ed25519_bip32",
         "description": "Payment Signing Key",
         "cborHex": "5880e8428867ab9cc9304379a3ce0c238a592bd6d2349d2ebaf8a6ed2c6d2974a15ad59c74b6d8fa3edd032c6261a73998b7deafe983b6eeaff8b6fb3fab06bdf8019b693a62bce7a3cad1b9c02d22125767201c65db27484bb67d3cee7df7288d62c099ac0ce4a215355b149fd3114a2a7ef0438f01f8872c4487a61b469e26aae4"
-    }"""
-)
+    }""")
 
-EXTENDED_VK = ExtendedVerificationKey.from_json(
-    """{
+EXTENDED_VK = ExtendedVerificationKey.from_json("""{
         "type": "PaymentExtendedVerificationKeyShelley_ed25519_bip32",
         "description": "Payment Verification Key",
         "cborHex": "58409b693a62bce7a3cad1b9c02d22125767201c65db27484bb67d3cee7df7288d62c099ac0ce4a215355b149fd3114a2a7ef0438f01f8872c4487a61b469e26aae4"
-    }"""
-)
+    }""")
 
 
 def test_invalid_key_type():

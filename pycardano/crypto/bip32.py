@@ -395,7 +395,7 @@ class HDWallet:
 
         """
         # unpack argument
-        (kLP, kRP, AP, cP, path) = private_pnode
+        kLP, kRP, AP, cP, path = private_pnode
         assert 0 <= index < 2**32
 
         i_bytes = index.to_bytes(4, "little")
@@ -457,7 +457,7 @@ class HDWallet:
             HDWallet with child node derived.
         """
         # unpack argument
-        (AP, cP, path) = public_pnode
+        AP, cP, path = public_pnode
         assert 0 <= index < 2**32
 
         i_bytes = index.to_bytes(4, "little")
