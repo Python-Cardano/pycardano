@@ -1,3 +1,10 @@
+[project]
+name = "pycardano"
+version = "0.19.2"
+description = "A Cardano library in Python"
+requires-python = ">=3.9.1"
+dynamic = ["dependencies"]
+
 [tool.poetry]
 name = "pycardano"
 version = "0.19.2"
@@ -42,6 +49,7 @@ websockets = ">=13.0"
 base58 = ">=2.1.0"
 cbor2pure = ">=5.7.2"
 
+# NOTE: Keep [tool.poetry.group.dev.dependencies] and [dependency-groups.dev] in sync.
 [tool.poetry.group.dev.dependencies]
 pytest = ">=8.2.0"
 pytest-cov = ">=5.0.0"
@@ -54,6 +62,25 @@ Flask = ">=2.0.3"
 pytest-xdist = ">=3.5.0"
 mypy = "1.14.1"
 
+[dependency-groups]
+dev = [
+    "pytest>=8.2.0",
+    "pytest-cov>=5.0.0",
+    "flake8>=7.0.0",
+    "isort>=5.11.4",
+    "black>=26.1.0; python_version>='3.10'",
+    "sphinx-copybutton>=0.5.0",
+    "retry>=0.9.2",
+    "Flask>=2.0.3",
+    "pytest-xdist>=3.5.0",
+    "mypy==1.14.1",
+]
+docs = [
+    "sphinx>=7.2.3",
+    "sphinx-rtd-theme>=3.0.2",
+]
+
+# NOTE: Keep [tool.poetry.group.docs.dependencies] and [dependency-groups.docs] in sync.
 [tool.poetry.group.docs.dependencies]
 sphinx = ">=7.2.3"
 sphinx-rtd-theme = ">=3.0.2"
@@ -61,6 +88,9 @@ sphinx-rtd-theme = ">=3.0.2"
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.uv]
+seed = true
 
 
 [tool.pytest.ini_options]
@@ -73,6 +103,9 @@ markers = [
     "post_chang"
 ]
 
+
+[tool.black]
+target-version = ["py39", "py310", "py311", "py312", "py313"]
 
 [tool.isort]
 profile = "black"
