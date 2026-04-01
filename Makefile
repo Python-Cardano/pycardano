@@ -21,16 +21,19 @@ for line in sys.stdin:
 endef
 export PRINT_HELP_PYSCRIPT
 
-BROWSER := poetry run python -c "$$BROWSER_PYSCRIPT"
+# Use "make RUN=uv" to run with uv instead of poetry
+RUN ?= poetry
+
+BROWSER := $(RUN) run python -c "$$BROWSER_PYSCRIPT"
 
 help:
 	@python -c "$$PRINT_HELP_PYSCRIPT" < $(MAKEFILE_LIST)
 
 cov: ## check code coverage
-	poetry run pytest -n 4 --cov pycardano
+	$(RUN) run pytest -n 4 --cov pycardano
 
 cov-html: cov ## check code coverage and generate an html report
-	poetry run coverage html -d cov_html
+	$(RUN) run coverage html -d cov_html
 	$(BROWSER) cov_html/index.html
 
 
@@ -55,26 +58,26 @@ clean-test: ## remove test and coverage artifacts
 	rm -fr .pytest_cache
 
 test: ## runs tests
-	poetry run pytest -vv -n 4
+	$(RUN) run pytest -vv -n 4
 
 test-integration: ## runs integration tests
 	cd integration-test && ./run_tests.sh
 
 test-single: ## runs tests with "single" markers
-	poetry run pytest -s -vv -m single
+	$(RUN) run pytest -s -vv -m single
 
 qa: ## runs static analyses
-	poetry run flake8 pycardano
-	poetry run mypy --install-types --non-interactive pycardano
-	poetry run black --check .
+	$(RUN) run flake8 pycardano
+	$(RUN) run mypy --install-types --non-interactive pycardano
+	$(RUN) run black --check .
 
 format: ## runs code style and formatter
-	poetry run isort .
-	poetry run black .
+	$(RUN) run isort .
+	$(RUN) run black .
 
 docs: ## build the documentation
 	rm -r -f docs/build
-	poetry run sphinx-build docs/source docs/build/html
+	$(RUN) run sphinx-build docs/source docs/build/html
 	$(BROWSER) docs/build/html/index.html
 
 release: clean qa test format ## build dist version and release to pypi

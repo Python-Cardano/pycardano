@@ -187,21 +187,29 @@ Clone the repository:
 
 `git clone https://github.com/Python-Cardano/pycardano.git`
 
-PyCardano uses [poetry](https://python-poetry.org/) to manage its dependencies. 
-Install poetry for osx / linux / bashonwindows:
+PyCardano supports both [poetry](https://python-poetry.org/) and [uv](https://docs.astral.sh/uv/) for dependency management.
 
-`curl -sSL https://install.python-poetry.org | python3 -`
+**Using poetry:**
 
-Go to [poetry installation](https://python-poetry.org/docs/#installation) for more details. 
+```bash
+curl -sSL https://install.python-poetry.org | python3 -
+cd pycardano && poetry install
+```
 
+Go to [poetry installation](https://python-poetry.org/docs/#installation) for more details.
 
-Change directory into the repo, install all dependencies using poetry, and you are all set!
-
-`cd pycardano && poetry install`
-
-When testing or running any program, it is recommended to enter 
-a [poetry shell](https://python-poetry.org/docs/cli/#shell) in which all python dependencies are automatically 
+When testing or running any program, it is recommended to enter
+a [poetry shell](https://python-poetry.org/docs/cli/#shell) in which all python dependencies are automatically
 configured: `poetry shell`.
+
+**Using uv:**
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+cd pycardano && uv sync
+```
+
+Go to [uv installation](https://docs.astral.sh/uv/getting-started/installation/) for more details.
 
 
 #### Test
@@ -209,7 +217,7 @@ configured: `poetry shell`.
 PyCardano uses [pytest](https://docs.pytest.org/en/6.2.x/) for unit testing.
 
 Run all tests:
-`make test`
+`make test` or `make RUN=uv test`
 
 Run all tests in a specific test file:
 `poetry run pytest test/pycardano/test_transaction.py`
@@ -219,6 +227,8 @@ Run a specific test function:
 
 Run a specific test function in a test file:
 `poetry run pytest test/pycardano/test_transaction.py -k "test_transaction_body"`
+
+Replace `poetry run` with `uv run` in any of the above commands if using uv.
 
 #### Test coverage
 
