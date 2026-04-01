@@ -89,6 +89,9 @@ sphinx-rtd-theme = ">=3.0.2"
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
 
+[tool.uv]
+seed = true
+
 
 [tool.pytest.ini_options]
 addopts = "--doctest-modules --ignore=examples --ignore=integration-test --ignore=test/resources/haskell"
@@ -100,6 +103,9 @@ markers = [
     "post_chang"
 ]
 
+
+[tool.black]
+target-version = ["py39", "py310", "py311", "py312", "py313"]
 
 [tool.isort]
 profile = "black"
