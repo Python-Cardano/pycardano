@@ -3,6 +3,7 @@
   "ShelleyGenesisFile": "./shelley-genesis.json",
   "AlonzoGenesisFile": "./alonzo-genesis.json",
   "ConwayGenesisFile": "./conway-genesis.json",
+  "DijkstraGenesisFile": "./dijkstra-genesis.json",
   "SocketPath": "db/node.socket",
   "Protocol": "Cardano",
   "PBftSignatureThreshold": 0.6,
