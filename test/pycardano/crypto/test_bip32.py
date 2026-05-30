@@ -387,3 +387,51 @@ def test_is_entropy_wrong_input():
 def test_is_entropy_value_error():
     is_entropy = HDWallet.is_entropy("*(#_")
     assert is_entropy is False
+
+
+def test_non_harden_public_derivation():
+    public_key = bytes.fromhex(
+        "601c86a2310f438079fff07454f4df4ce416bd181d972cd4c4615f15a733ba15"
+    )
+    chain_code = bytes.fromhex(
+        "8a34b66a32c9d2d61d1d7a0e8fcf167efae3fb556af74808cd1ba8a22251c031"
+    )
+    hdwallet = HDWallet(chain_code=chain_code, public_key=public_key)
+    hdwallet = hdwallet.derive(0, private=False, hardened=False)
+    child1 = hdwallet.derive(0, private=False, hardened=False)
+    child2 = hdwallet.derive(1, private=False, hardened=False)
+    child3 = hdwallet.derive(2, private=False, hardened=False)
+
+    assert (
+        child1.public_key.hex()
+        == "b3f354cbdc2837f823c5e0585995d3bd2d6edf1dc9fc8a1a90d01840c519408d"
+    )
+    assert (
+        child2.public_key.hex()
+        == "363aa29a3c93085859310ccddb182abcca18db6f6897a4f936ae82ba0a15af90"
+    )
+    assert (
+        child3.public_key.hex()
+        == "db58a4102f555ccb64a0db45259799cbd42fac14f7f6fd1059557fef3961e2c0"
+    )
+
+
+def test_non_harden_public_derivation_without_pubkey():
+    chain_code = bytes.fromhex(
+        "8a34b66a32c9d2d61d1d7a0e8fcf167efae3fb556af74808cd1ba8a22251c031"
+    )
+    hdwallet = HDWallet(chain_code=chain_code)
+    with pytest.raises(ValueError):
+        hdwallet.derive(0, private=False, hardened=False)
+
+
+def test_non_harden_private_derivation_without_privkey():
+    public_key = bytes.fromhex(
+        "601c86a2310f438079fff07454f4df4ce416bd181d972cd4c4615f15a733ba15"
+    )
+    chain_code = bytes.fromhex(
+        "8a34b66a32c9d2d61d1d7a0e8fcf167efae3fb556af74808cd1ba8a22251c031"
+    )
+    hdwallet = HDWallet(chain_code=chain_code, public_key=public_key)
+    with pytest.raises(ValueError):
+        hdwallet.derive(0, private=True, hardened=False)

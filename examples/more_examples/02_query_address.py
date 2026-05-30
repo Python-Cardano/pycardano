@@ -65,3 +65,6 @@ for utxo in utxos:
     print(
         f"{utxo.tx_hash}#{utxo.tx_index} \t {int(utxo.amount[0].quantity)/1000000} ADA [{tokens}]"
     )
+
+total_lovelace = sum(int(utxo.amount[0].quantity) for utxo in utxos)
+print(f"Total Balance: {total_lovelace / 1000000} ADA")

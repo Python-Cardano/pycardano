@@ -10,54 +10,42 @@ from pycardano.key import (
 )
 from pycardano.network import Network
 
-EXTENDED_SK = ExtendedSigningKey.from_json(
-    """{
+EXTENDED_SK = ExtendedSigningKey.from_json("""{
         "type": "PaymentExtendedSigningKeyShelley_ed25519_bip32",
         "description": "Payment Signing Key",
         "cborHex": "5880e8428867ab9cc9304379a3ce0c238a592bd6d2349d2ebaf8a6ed2c6d2974a15ad59c74b6d8fa3edd032c6261a73998b7deafe983b6eeaff8b6fb3fab06bdf8019b693a62bce7a3cad1b9c02d22125767201c65db27484bb67d3cee7df7288d62c099ac0ce4a215355b149fd3114a2a7ef0438f01f8872c4487a61b469e26aae4"
-    }"""
-)
+    }""")
 
-EXTENDED_VK = ExtendedVerificationKey.from_json(
-    """{
+EXTENDED_VK = ExtendedVerificationKey.from_json("""{
         "type": "PaymentExtendedVerificationKeyShelley_ed25519_bip32",
         "description": "Payment Verification Key",
         "cborHex": "58409b693a62bce7a3cad1b9c02d22125767201c65db27484bb67d3cee7df7288d62c099ac0ce4a215355b149fd3114a2a7ef0438f01f8872c4487a61b469e26aae4"
-    }"""
-)
+    }""")
 
 
-SK = PaymentSigningKey.from_json(
-    """{
+SK = PaymentSigningKey.from_json("""{
         "type": "GenesisUTxOSigningKey_ed25519",
         "description": "Genesis Initial UTxO Signing Key",
         "cborHex": "5820093be5cd3987d0c9fd8854ef908f7746b69e2d73320db6dc0f780d81585b84c2"
-    }"""
-)
+    }""")
 
-VK = PaymentVerificationKey.from_json(
-    """{
+VK = PaymentVerificationKey.from_json("""{
         "type": "GenesisUTxOVerificationKey_ed25519",
         "description": "Genesis Initial UTxO Verification Key",
         "cborHex": "58208be8339e9f3addfa6810d59e2f072f85e64d4c024c087e0d24f8317c6544f62f"
-    }"""
-)
+    }""")
 
-STAKE_SK = StakeSigningKey.from_json(
-    """{
+STAKE_SK = StakeSigningKey.from_json("""{
         "type": "StakeSigningKeyShelley_ed25519",
         "description": "Stake Signing Key",
         "cborHex": "5820ff3a330df8859e4e5f42a97fcaee73f6a00d0cf864f4bca902bd106d423f02c0"
-    }"""
-)
+    }""")
 
-STAKE_VK = StakeVerificationKey.from_json(
-    """{
+STAKE_VK = StakeVerificationKey.from_json("""{
         "type": "StakeVerificationKeyShelley_ed25519",
         "description": "Stake Verification Key",
         "cborHex": "58205edaa384c658c2bd8945ae389edac0a5bd452d0cfd5d1245e3ecd540030d1e3c"
-    }"""
-)
+    }""")
 
 
 def test_verify_message():

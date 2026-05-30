@@ -75,9 +75,11 @@ def genesis_json():
 
 @pytest.fixture(autouse=True)
 def mock_check_socket():
-    with patch("pathlib.Path.exists", return_value=True), patch(
-        "pathlib.Path.is_socket", return_value=True
-    ), patch("pathlib.Path.is_file", return_value=True):
+    with (
+        patch("pathlib.Path.exists", return_value=True),
+        patch("pathlib.Path.is_socket", return_value=True),
+        patch("pathlib.Path.is_file", return_value=True),
+    ):
         yield
 
 

@@ -1,3 +1,4 @@
+import json
 import os
 import time
 
@@ -6,6 +7,24 @@ from retry import retry
 from pycardano import *
 
 from .base import TEST_RETRIES, TestBase
+
+
+def _load_prev_param_update_action():
+    """Read the gov action id of the last ratified parameter update written by
+    setup_governance.sh (if any). Returns None if the file is absent — e.g. on
+    a chain that has never had a parameter update ratified."""
+    here = os.path.dirname(os.path.abspath(__file__))
+    path = os.path.join(
+        here, "..", "tmp_configs", "local-chang", "last_param_action.json"
+    )
+    if not os.path.exists(path):
+        return None
+    with open(path) as f:
+        data = json.load(f)
+    return GovActionId(
+        transaction_id=TransactionId(bytes.fromhex(data["tx_id"])),
+        gov_action_index=data["index"],
+    )
 
 
 class TestGovernanceAction(TestBase):
@@ -90,7 +109,9 @@ class TestGovernanceAction(TestBase):
             max_transaction_size=26384,
         )
 
-        parameter_change_action = ParameterChangeAction(None, param_update, None)
+        parameter_change_action = ParameterChangeAction(
+            _load_prev_param_update_action(), param_update, None
+        )
 
         # Create transaction for parameter change
         builder = TransactionBuilder(self.chain_context)

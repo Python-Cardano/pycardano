@@ -332,6 +332,45 @@ class TestPlutus(TestBase):
 
     @retry(tries=TEST_RETRIES, backoff=1.3, delay=2, jitter=(0, 10))
     @pytest.mark.post_alonzo
+    def test_plutus_v2_spend_ref_script(self):
+        # ----------- Create a reference script ---------------
+        with open("./plutus_scripts/fortytwoV2.plutus", "r") as f:
+            script_hex = f.read()
+            forty_two_script = PlutusV2Script(cbor2.loads(bytes.fromhex(script_hex)))
+
+        giver_address = Address(self.payment_vkey.hash(), network=self.NETWORK)
+
+        builder = TransactionBuilder(self.chain_context)
+        builder.add_input_address(giver_address)
+        builder.add_output(
+            TransactionOutput(giver_address, 50000000, script=forty_two_script)
+        )
+
+        signed_tx = builder.build_and_sign([self.payment_skey], giver_address)
+
+        print("############### Transaction created ###############")
+        print(signed_tx)
+        print(signed_tx.to_cbor_hex())
+        print("############### Submitting transaction ###############")
+        self.chain_context.submit_tx(signed_tx)
+        time.sleep(6)
+
+        # ----------- Spend script utxo ---------------
+        utxo_to_spend = UTxO(
+            TransactionInput(signed_tx.id, 0), signed_tx.transaction_body.outputs[0]
+        )
+
+        builder = TransactionBuilder(self.chain_context)
+        builder.add_input(utxo_to_spend)
+        signed_tx = builder.build_and_sign([self.payment_skey], giver_address)
+        print("############### Transaction created ###############")
+        print(signed_tx)
+        print(signed_tx.to_cbor_hex())
+        print("############### Submitting transaction ###############")
+        self.chain_context.submit_tx(signed_tx)
+
+    @retry(tries=TEST_RETRIES, backoff=1.3, delay=2, jitter=(0, 10))
+    @pytest.mark.post_alonzo
     def test_transaction_chaining(self):
         giver_address = Address(self.payment_vkey.hash(), network=self.NETWORK)
         builder = TransactionBuilder(self.chain_context)

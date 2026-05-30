@@ -4,8 +4,20 @@ from dataclasses import dataclass, field
 from enum import Enum, unique
 from typing import Optional, Tuple, Type, Union
 
-from pycardano.exception import DeserializeException
-from pycardano.hash import AnchorDataHash, PoolKeyHash, ScriptHash, VerificationKeyHash
+from pycardano.crypto.bech32 import bech32_decode, convertbits, encode
+from pycardano.exception import (
+    DecodingException,
+    DeserializeException,
+    SerializeException,
+)
+from pycardano.hash import (
+    CIP129_PAYLOAD_SIZE,
+    VERIFICATION_KEY_HASH_SIZE,
+    AnchorDataHash,
+    PoolKeyHash,
+    ScriptHash,
+    VerificationKeyHash,
+)
 from pycardano.serialization import (
     ArrayCBORSerializable,
     CodedSerializable,
@@ -36,6 +48,8 @@ __all__ = [
     "RegDRepCert",
     "UnregDRepCertificate",
     "UpdateDRepCertificate",
+    "GovernanceCredential",
+    "GovernanceKeyType",
 ]
 
 from pycardano.pool_params import PoolParams
@@ -92,15 +106,162 @@ class StakeCredential(ArrayCBORSerializable):
         return hash(self.to_cbor())
 
 
+class IdFormat(Enum):
+    """
+    Id format definition.
+    """
+
+    CIP129 = "cip129"
+    CIP105 = "cip105"
+
+
+class CredentialType(Enum):
+    """
+    Credential type definition.
+    """
+
+    KEY_HASH = 0b0010
+    """Key hash"""
+
+    SCRIPT_HASH = 0b0011
+    """Script hash"""
+
+
+class GovernanceKeyType(Enum):
+    """
+    Governance key type definition.
+    """
+
+    CC_HOT = 0b0000
+    """Committee cold hot key"""
+
+    CC_COLD = 0b0001
+    """Committee cold key"""
+
+    DREP = 0b0010
+    """DRep key"""
+
+
 @dataclass(repr=False)
-class DRepCredential(StakeCredential):
+class GovernanceCredential(StakeCredential):
+    """Represents a governance credential."""
+
+    governance_key_type: GovernanceKeyType = field(init=False)
+    """Governance key type."""
+
+    id_format: IdFormat = field(default=IdFormat.CIP129, compare=False)
+    """Id format."""
+
+    def __repr__(self):
+        return f"{self.encode()}"
+
+    def __bytes__(self):
+        if self.id_format == IdFormat.CIP129:
+            return self._compute_header_byte() + bytes(self.credential.payload)
+        else:
+            return bytes(self.credential.payload)
+
+    @property
+    def credential_type(self) -> CredentialType:
+        """Credential type."""
+        if isinstance(self.credential, VerificationKeyHash):
+            return CredentialType.KEY_HASH
+        else:
+            return CredentialType.SCRIPT_HASH
+
+    def _compute_header_byte(self) -> bytes:
+        """Compute the header byte."""
+        return (
+            self.governance_key_type.value << 4 | self.credential_type.value
+        ).to_bytes(1, byteorder="big")
+
+    def _compute_hrp(self, id_format: IdFormat = IdFormat.CIP129) -> str:
+        """Compute human-readable prefix for bech32 encoder.
+
+        Based on
+        `miscellaneous section <https://github.com/cardano-foundation/CIPs/tree/master/CIP-0005#miscellaneous>`_
+        in CIP-5.
+        """
+        prefix = ""
+        if self.governance_key_type == GovernanceKeyType.CC_HOT:
+            prefix = "cc_hot"
+        elif self.governance_key_type == GovernanceKeyType.CC_COLD:
+            prefix = "cc_cold"
+        elif self.governance_key_type == GovernanceKeyType.DREP:
+            prefix = "drep"
+
+        suffix = ""
+        if isinstance(self.credential, VerificationKeyHash):
+            suffix = ""
+        elif isinstance(self.credential, ScriptHash):
+            suffix = "_script"
+
+        return prefix + suffix if id_format == IdFormat.CIP105 else prefix
+
+    def encode(self) -> str:
+        """Encode the governance credential in Bech32 format.
+
+        More info about Bech32 `here <https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki#Bech32>`_.
+
+        Returns:
+            str: Encoded governance credential in Bech32 format.
+        """
+        data = bytes(self)
+        return encode(self._compute_hrp(self.id_format), data)
+
+    @classmethod
+    def decode(cls: Type[GovernanceCredential], data: str) -> GovernanceCredential:
+        """Decode a bech32 string into a governance credential object.
+
+        Args:
+            data (str): Bech32-encoded string.
+
+        Returns:
+            GovernanceCredential: Decoded governance credential.
+
+        Raises:
+            DecodingException: When the input string is not a valid governance credential.
+        """
+        hrp, checksum, _ = bech32_decode(data)
+        value = bytes(convertbits(checksum, 5, 8, False))
+        if len(value) == VERIFICATION_KEY_HASH_SIZE:
+            # CIP-105
+            if "script" in hrp:
+                return cls(credential=ScriptHash(value))
+            else:
+                return cls(credential=VerificationKeyHash(value))
+        elif len(value) == CIP129_PAYLOAD_SIZE:
+            header = value[0]
+            payload = value[1:]
+
+            key_type = GovernanceKeyType((header & 0xF0) >> 4)
+            credential_type = CredentialType(header & 0x0F)
+
+            if key_type != cls.governance_key_type:
+                raise DecodingException(f"Invalid key type: {key_type}")
+
+            if credential_type == CredentialType.KEY_HASH:
+                return cls(credential=VerificationKeyHash(payload))
+            elif credential_type == CredentialType.SCRIPT_HASH:
+                return cls(credential=ScriptHash(payload))
+            else:
+                raise DecodingException(f"Invalid credential type: {credential_type}")
+        else:
+            raise DecodingException(f"Invalid data length: {len(value)}")
+
+    def to_primitive(self):
+        return [self._CODE, self.credential.to_primitive()]
+
+
+@dataclass(repr=False)
+class DRepCredential(GovernanceCredential):
     """Represents a Delegate Representative (DRep) credential.
 
     This credential type is specifically used for DReps in the governance system,
-    inheriting from StakeCredential.
+    inheriting from GovernanceCredential.
     """
 
-    pass
+    governance_key_type: GovernanceKeyType = GovernanceKeyType.DREP
 
 
 @unique
@@ -135,13 +296,26 @@ class DRep(ArrayCBORSerializable):
     )
     """The credential associated with this DRep, if applicable"""
 
+    id_format: IdFormat = field(default=IdFormat.CIP129, compare=False)
+
+    def __repr__(self):
+        return f"{self.encode()}"
+
+    def __bytes__(self):
+        if self.credential is not None:
+            drep_credential = DRepCredential(
+                credential=self.credential, id_format=self.id_format
+            )
+            return bytes(drep_credential)
+        return b""
+
     @classmethod
     @limit_primitive_type(list)
     def from_primitive(cls: Type[DRep], values: Union[list, tuple]) -> DRep:
         try:
             kind = DRepKind(values[0])
-        except ValueError:
-            raise DeserializeException(f"Invalid DRep type {values[0]}")
+        except ValueError as e:
+            raise DeserializeException(f"Invalid DRep type {values[0]}") from e
 
         if kind == DRepKind.VERIFICATION_KEY_HASH:
             return cls(kind=kind, credential=VerificationKeyHash(values[1]))
@@ -158,6 +332,65 @@ class DRep(ArrayCBORSerializable):
         if self.credential is not None:
             return [self.kind.value, self.credential.to_primitive()]
         return [self.kind.value]
+
+    def encode(self) -> str:
+        """Encode the DRep in Bech32 format.
+
+        More info about Bech32 `here <https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki#Bech32>`_.
+
+        Returns:
+            str: Encoded DRep in Bech32 format.
+
+        Examples:
+            >>> vkey_bytes = bytes.fromhex("00000000000000000000000000000000000000000000000000000000")
+            >>> credential = VerificationKeyHash(vkey_bytes)
+            >>> print(DRep(kind=DRepKind.VERIFICATION_KEY_HASH, credential=credential).encode())
+            drep1ygqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq7vlc9n
+        """
+        if self.kind == DRepKind.ALWAYS_ABSTAIN:
+            return "drep_always_abstain"
+        elif self.kind == DRepKind.ALWAYS_NO_CONFIDENCE:
+            return "drep_always_no_confidence"
+        elif self.credential is not None:
+            drep_credential = DRepCredential(
+                credential=self.credential, id_format=self.id_format
+            )
+            return drep_credential.encode()
+        else:
+            raise SerializeException("DRep credential is None")
+
+    @classmethod
+    def decode(cls: Type[DRep], data: str) -> DRep:
+        """Decode a bech32 string into a DRep object.
+
+        Args:
+            data (str): Bech32-encoded string.
+
+        Returns:
+            DRep: Decoded DRep.
+
+        Raises:
+            DecodingException: When the input string is not a valid DRep.
+
+        Examples:
+            >>> credential = DRep.decode("drep1ygqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq7vlc9n")
+            >>> khash = VerificationKeyHash(bytes.fromhex("00000000000000000000000000000000000000000000000000000000"))
+            >>> assert credential == DRep(DRepKind.VERIFICATION_KEY_HASH, khash)
+        """
+        if data == "drep_always_abstain":
+            return cls(kind=DRepKind.ALWAYS_ABSTAIN)
+        elif data == "drep_always_no_confidence":
+            return cls(kind=DRepKind.ALWAYS_NO_CONFIDENCE)
+        else:
+            drep_credential = DRepCredential.decode(data)
+            return cls(
+                kind=(
+                    DRepKind.VERIFICATION_KEY_HASH
+                    if isinstance(drep_credential.credential, VerificationKeyHash)
+                    else DRepKind.SCRIPT_HASH
+                ),
+                credential=drep_credential.credential,
+            )
 
 
 @dataclass(repr=False)

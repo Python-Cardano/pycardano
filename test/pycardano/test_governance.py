@@ -3,11 +3,12 @@ from fractions import Fraction
 import pytest
 
 from pycardano.address import Address
-from pycardano.certificate import Anchor, StakeCredential
+from pycardano.certificate import Anchor, IdFormat, StakeCredential
 from pycardano.exception import DeserializeException
 from pycardano.governance import (
     CommitteeColdCredential,
     CommitteeColdCredentialEpochMap,
+    CommitteeHotCredential,
     ExUnitPrices,
     GovActionId,
     GovActionIdToVotingProcedure,
@@ -68,6 +69,87 @@ class TestGovActionId:
         deserialized = GovActionId.from_primitive(primitive)
 
         assert deserialized == gov_action_id
+
+    @pytest.mark.parametrize(
+        "tx_id_hex,gov_action_index,expected_bech32,expected_hex,test_id",
+        [
+            # Test case 1: Index 17 (single byte)
+            (
+                "0000000000000000000000000000000000000000000000000000000000000000",
+                17,
+                "gov_action1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqpzklpgpf",
+                "000000000000000000000000000000000000000000000000000000000000000011",
+                "index_17",
+            ),
+            # Test case 2: Index 0 (single byte)
+            (
+                "1111111111111111111111111111111111111111111111111111111111111111",
+                0,
+                "gov_action1zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zygsq6dmejn",
+                "111111111111111111111111111111111111111111111111111111111111111100",
+                "index_0",
+            ),
+            # Test case 3: Index 255 (max single byte)
+            (
+                "0000000000000000000000000000000000000000000000000000000000000000",
+                255,
+                "gov_action1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq076z8mus",
+                "0000000000000000000000000000000000000000000000000000000000000000ff",
+                "index_255",
+            ),
+            # Test case 4: Index 256 (requires 2 bytes)
+            (
+                "0000000000000000000000000000000000000000000000000000000000000000",
+                256,
+                "gov_action1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqzqqhppxxg",
+                "00000000000000000000000000000000000000000000000000000000000000000100",
+                "index_256",
+            ),
+            # Test case 5: Index 1000 (requires 2 bytes)
+            (
+                "0000000000000000000000000000000000000000000000000000000000000000",
+                1000,
+                "gov_action1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq86qxn7ng9",
+                "000000000000000000000000000000000000000000000000000000000000000003e8",
+                "index_1000",
+            ),
+            # Test case 6: Index 65535 (max value, 2 bytes)
+            (
+                "0000000000000000000000000000000000000000000000000000000000000000",
+                65535,
+                "gov_action1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq0llc8mzc0y",
+                "0000000000000000000000000000000000000000000000000000000000000000ffff",
+                "index_65535",
+            ),
+        ],
+        ids=lambda p: p if isinstance(p, str) and p.startswith("index_") else None,
+    )
+    def test_gov_action_id_decode(
+        self, tx_id_hex, gov_action_index, expected_bech32, expected_hex, test_id
+    ):
+        """Parametrized test for GovActionId encode/decode functionality.
+
+        Tests various indices including single-byte (0-255) and two-byte (256-65535) encodings.
+        """
+        # Arrange
+        transaction_id = TransactionId(bytes.fromhex(tx_id_hex))
+        gov_action_id = GovActionId(
+            transaction_id=transaction_id, gov_action_index=gov_action_index
+        )
+
+        # Act - Decode from bech32
+        decoded_gov_action_id = GovActionId.decode(expected_bech32)
+
+        # Assert - Equality
+        assert gov_action_id == decoded_gov_action_id
+
+        # Assert - Encoding matches expected
+        assert str(gov_action_id) == expected_bech32
+        assert bytes(gov_action_id).hex() == expected_hex
+
+        # Assert - Decoded values match original
+        assert decoded_gov_action_id.transaction_id == transaction_id
+        assert decoded_gov_action_id.gov_action_index == gov_action_index
 
 
 class TestVote:
@@ -529,3 +611,33 @@ class TestProposalProcedure:
         assert deserialized.deposit == procedure.deposit
         assert deserialized.reward_account == procedure.reward_account
         assert deserialized.anchor == procedure.anchor
+
+
+class TestCommitteeCredentialEpochMap:
+    def test_committee_cold_credential(self):
+        key_hash = "00000000000000000000000000000000000000000000000000000000"
+        identifier = "1300000000000000000000000000000000000000000000000000000000"
+        bech32 = "cc_cold1zvqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq6kflvs"
+
+        credential = CommitteeColdCredential.decode(bech32)
+
+        assert str(credential) == bech32
+
+        credential.id_format = IdFormat.CIP105
+        assert bytes(credential).hex() == key_hash
+        credential.id_format = IdFormat.CIP129
+        assert bytes(credential).hex() == identifier
+
+    def test_committee_hot_credential(self):
+        key_hash = "00000000000000000000000000000000000000000000000000000000"
+        identifier = "0200000000000000000000000000000000000000000000000000000000"
+        bech32 = "cc_hot1qgqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqvcdjk7"
+
+        credential = CommitteeHotCredential.decode(bech32)
+
+        assert str(credential) == bech32
+
+        credential.id_format = IdFormat.CIP105
+        assert bytes(credential).hex() == key_hash
+        credential.id_format = IdFormat.CIP129
+        assert bytes(credential).hex() == identifier

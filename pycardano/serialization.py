@@ -24,7 +24,6 @@ from typing import (
     List,
     Optional,
     Sequence,
-    Set,
     Type,
     TypeVar,
     Union,
@@ -32,8 +31,7 @@ from typing import (
     get_type_hints,
 )
 
-import cbor2
-
+from pycardano.cbor import cbor2
 from pycardano.logging import logger
 
 # Remove the semantic decoder for 258 (CBOR tag for set) as we care about the order of elements
@@ -53,6 +51,7 @@ from pycardano.types import check_type, typechecked
 __all__ = [
     "default_encoder",
     "IndefiniteList",
+    "IndefiniteFrozenList",
     "Primitive",
     "CBORBase",
     "CBORSerializable",
@@ -160,6 +159,7 @@ PRIMITIVE_TYPES = (
     Fraction,
     FrozenList,
     IndefiniteFrozenList,
+    ByteString,
 )
 """
 A list of types that could be encoded by
@@ -196,10 +196,12 @@ CBORBase = TypeVar("CBORBase", bound="CBORSerializable")
 
 def decode_array(self, subtype: int) -> Sequence[Any]:
     # Major tag 4
-    length = self._decode_length(subtype, allow_indefinite=True)
-
-    if length is None:
-        return IndefiniteList(cast(Primitive, self.decode_array(subtype=subtype)))
+    if subtype == 31:
+        # Indefinite length array — delegate to the original decoder, then wrap
+        # the result in IndefiniteFrozenList to preserve indefinite encoding.
+        ret = IndefiniteFrozenList(list(self.decode_array(subtype=subtype)))
+        ret.freeze()
+        return ret
     else:
         return self.decode_array(subtype=subtype)
 
@@ -323,20 +325,27 @@ class CBORSerializable:
                 return _set
             elif isinstance(value, tuple):
                 return tuple(_dfs(v, freeze) for v in value)
-            elif isinstance(value, list):
+            elif isinstance(
+                value, (IndefiniteFrozenList, FrozenList, IndefiniteList, list)
+            ):
                 _list = [_dfs(v, freeze) for v in value]
-                if freeze:
-                    fl = FrozenList(_list)
-                    fl.freeze()
-                    return fl
-                return _list
-            elif isinstance(value, IndefiniteList):
-                _list = [_dfs(v, freeze) for v in value]
-                if freeze:
-                    fl = IndefiniteFrozenList(_list)
-                    fl.freeze()
-                    return fl
-                return IndefiniteList(_list)
+
+                already_frozen = isinstance(value, (IndefiniteFrozenList, FrozenList))
+                should_freeze = already_frozen or freeze
+
+                if not should_freeze:
+                    return (
+                        IndefiniteList(_list)
+                        if isinstance(value, IndefiniteList)
+                        else _list
+                    )
+
+                is_indefinite = isinstance(
+                    value, (IndefiniteFrozenList, IndefiniteList)
+                )
+                fl = IndefiniteFrozenList(_list) if is_indefinite else FrozenList(_list)
+                fl.freeze()
+                return fl
             elif isinstance(value, CBORTag):
                 return CBORTag(value.tag, _dfs(value.value, freeze))
             else:
@@ -561,29 +570,35 @@ class CBORSerializable:
         """
         return self.__class__.__doc__ or "Generated with PyCardano"
 
-    def to_json(self, **kwargs) -> str:
+    def to_json(
+        self,
+        key_type: Optional[str] = None,
+        description: Optional[str] = None,
+        **kwargs,
+    ) -> str:
         """
         Convert the CBORSerializable object to a JSON string containing type, description, and CBOR hex.
 
         This method returns a JSON representation of the object, including its type, description, and CBOR hex encoding.
 
         Args:
-            **kwargs: Additional keyword arguments that can include:
-                - key_type (str): The type to use in the JSON output. Defaults to the class name.
-                - description (str): The description to use in the JSON output. Defaults to the class docstring.
+            key_type (str): The type to use in the JSON output. Defaults to the class name.
+            description (str): The description to use in the JSON output. Defaults to the class docstring.
+            **kwargs: Extra key word arguments to be passed to `json.dumps()`
 
         Returns:
             str: The JSON string representation of the object.
         """
-        key_type = kwargs.pop("key_type", self.json_type)
-        description = kwargs.pop("description", self.json_description)
+        if "indent" not in kwargs:
+            kwargs["indent"] = 2
+
         return json.dumps(
             {
-                "type": key_type,
-                "description": description,
+                "type": key_type or self.json_type,
+                "description": description or self.json_description,
                 "cborHex": self.to_cbor_hex(),
             },
-            indent=2,
+            **kwargs,
         )
 
     @classmethod
@@ -616,6 +631,7 @@ class CBORSerializable:
         path: str,
         key_type: Optional[str] = None,
         description: Optional[str] = None,
+        **kwargs,
     ):
         """
         Save the CBORSerializable object to a file in JSON format.
@@ -625,8 +641,9 @@ class CBORSerializable:
 
         Args:
             path (str): The file path to save the object to.
-            key_type (str, optional): The type to use in the JSON output.
-            description (str, optional): The description to use in the JSON output.
+            key_type (str, optional): The type to use in the JSON output. Defaults to the class name.
+            description (str, optional): The description to use in the JSON output. Defaults to the class docstring.
+            **kwargs: Extra key word arguments to be passed to `json.dumps()`
 
         Raises:
             IOError: If the file already exists and is not empty.
@@ -634,7 +651,7 @@ class CBORSerializable:
         if os.path.isfile(path) and os.stat(path).st_size > 0:
             raise IOError(f"File {path} already exists!")
         with open(path, "w") as f:
-            f.write(self.to_json(key_type=key_type, description=description))
+            f.write(self.to_json(key_type=key_type, description=description, **kwargs))
 
     @classmethod
     def load(cls, path: str):
@@ -712,22 +729,11 @@ def _restore_typed_primitive(
         if not isinstance(v, (list, IndefiniteList)):
             raise DeserializeException(f"Expected type list but got {type(v)}")
         v_list = [_restore_typed_primitive(t_subtype, w) for w in v]
-        if t == IndefiniteList:
-            return IndefiniteList(v_list)
-        else:
-            return v_list
+        return v.__class__(v_list)
     elif isclass(t) and t == ByteString:
         if not isinstance(v, bytes):
             raise DeserializeException(f"Expected type bytes but got {type(v)}")
         return ByteString(v)
-    elif isclass(t) and t.__name__ in [
-        "PlutusV1Script",
-        "PlutusV2Script",
-        "PlutusV3Script",
-    ]:
-        if not isinstance(v, bytes):
-            raise DeserializeException(f"Expected type bytes but got {type(v)}")
-        return t(v)
     elif hasattr(t, "__origin__") and (t.__origin__ is dict):
         t_args = t.__args__
         if len(t_args) != 2:
@@ -1128,26 +1134,53 @@ def list_hook(
     return lambda vals: [cls.from_primitive(v) for v in vals]
 
 
-class OrderedSet(list, Generic[T], CBORSerializable):
-    def __init__(self, iterable: Optional[List[T]] = None, use_tag: bool = True):
+class OrderedSet(Generic[T], CBORSerializable):
+    def __init__(
+        self,
+        iterable: Optional[Union[List[T], IndefiniteList]] = None,
+        use_tag: bool = True,
+    ):
         super().__init__()
-        self._set: Set[str] = set()
+        self._dict: Dict[bytes, int] = {}
+        self._list: List[T] = []
         self._use_tag = use_tag
+        self._is_indefinite_list = False
         if iterable:
+            self._is_indefinite_list = isinstance(iterable, IndefiniteList)
             self.extend(iterable)
 
     def append(self, item: T) -> None:
-        item_key = str(item)
-        if item_key not in self._set:
-            super().append(item)
-            self._set.add(item_key)
+        if item in self:
+            return
+        self._list.append(item)
+        self._dict[dumps(item, default=default_encoder)] = len(self._list) - 1
 
     def extend(self, items: Iterable[T]) -> None:
+        self._is_indefinite_list = isinstance(items, IndefiniteList)
         for item in items:
             self.append(item)
 
+    def remove(self, item: T) -> None:
+        if item not in self:
+            return
+        index = self._dict.pop(dumps(item, default=default_encoder))
+        self._list.pop(index)
+        # Update the indices in the dictionary
+        for key, idx in self._dict.items():
+            if idx > index:
+                self._dict[key] = idx - 1
+
     def __contains__(self, item: object) -> bool:
-        return str(item) in self._set
+        return dumps(item, default=default_encoder) in self._dict
+
+    def __iter__(self):
+        return iter(self._list)
+
+    def __getitem__(self, index: int) -> T:
+        return self._list[index]
+
+    def __len__(self) -> int:
+        return len(self._list)
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, OrderedSet):
@@ -1159,10 +1192,21 @@ class OrderedSet(list, Generic[T], CBORSerializable):
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({list(self)})"
 
-    def to_shallow_primitive(self) -> Union[CBORTag, List[T]]:
+    def to_shallow_primitive(
+        self,
+    ) -> Union[CBORTag, List[T], IndefiniteList, FrozenList, IndefiniteFrozenList]:
+        fields: Union[IndefiniteFrozenList, FrozenList]
+        if self._is_indefinite_list:
+            fields = IndefiniteFrozenList(list(self))
+        else:
+            fields = FrozenList(self)
+        fields.freeze()
         if self._use_tag:
-            return CBORTag(258, list(self))
-        return list(self)
+            return CBORTag(
+                258,
+                fields,
+            )
+        return fields
 
     @classmethod
     def from_primitive(
@@ -1193,9 +1237,16 @@ class OrderedSet(list, Generic[T], CBORSerializable):
     def __deepcopy__(self, memo):
         return self.__class__(deepcopy(list(self), memo), use_tag=self._use_tag)
 
+    def __hash__(self):
+        return hash(self.to_shallow_primitive())
+
 
 class NonEmptyOrderedSet(OrderedSet[T]):
-    def __init__(self, iterable: Optional[List[T]] = None, use_tag: bool = True):
+    def __init__(
+        self,
+        iterable: Optional[Union[List[T], IndefiniteList]] = None,
+        use_tag: bool = True,
+    ):
         super().__init__(iterable, use_tag)
 
     def validate(self):
