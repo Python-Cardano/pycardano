@@ -6,13 +6,13 @@ from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import Any, Callable, List, Optional, Type, Union
 
-import cbor2
 from cbor2 import CBORTag
 from nacl.encoding import RawEncoder
 from nacl.hash import blake2b
 from pprintpp import pformat
 
 from pycardano.address import Address
+from pycardano.cbor import cbor2
 from pycardano.certificate import Certificate
 from pycardano.exception import InvalidDataException
 from pycardano.governance import ProposalProcedure, VotingProcedures
@@ -105,7 +105,7 @@ class Asset(DictCBORSerializable):
 
     def __iadd__(self, other: Asset) -> Asset:
         new_item = self + other
-        self.data = new_item.data
+        self.data = new_item.data  # type: ignore[has-type]
         return self.normalize()
 
     def __sub__(self, other: Asset) -> Asset:
@@ -690,7 +690,7 @@ class Transaction(ArrayCBORSerializable):
 
     transaction_witness_set: TransactionWitnessSet
 
-    valid: bool = True
+    valid: Optional[bool] = field(default=True, metadata={"optional": True})
 
     auxiliary_data: Optional[AuxiliaryData] = None
 
@@ -698,7 +698,7 @@ class Transaction(ArrayCBORSerializable):
     def json_type(self) -> str:
         return (
             "Unwitnessed Tx ConwayEra"
-            if self.transaction_witness_set.is_empty()
+            if self.transaction_witness_set.vkey_witnesses is None
             else "Signed Tx ConwayEra"
         )
 

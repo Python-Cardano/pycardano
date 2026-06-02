@@ -1,4 +1,5 @@
 import json
+import os
 import tempfile
 from collections import defaultdict, deque
 from copy import deepcopy
@@ -18,13 +19,14 @@ from typing import (
     get_origin,
 )
 
-import cbor2
 import pytest
 from cbor2 import CBORTag
+from frozenlist import FrozenList
 
 from pycardano import (
     CBORBase,
     Datum,
+    IndefiniteFrozenList,
     MultiAsset,
     Primitive,
     RawPlutusData,
@@ -33,6 +35,7 @@ from pycardano import (
     VerificationKey,
     VerificationKeyWitness,
 )
+from pycardano.cbor import cbor2
 from pycardano.exception import (
     DeserializeException,
     InvalidKeyTypeException,
@@ -618,8 +621,8 @@ def test_ordered_set():
     # Test serialization without tag
     s = OrderedSet([1, 2, 3], use_tag=False)
     primitive = s.to_primitive()
-    assert isinstance(primitive, list)
-    assert primitive == [1, 2, 3]
+    assert isinstance(primitive, (list, FrozenList))
+    assert list(primitive) == [1, 2, 3]
 
     # Test serialization with tag
     s = OrderedSet([1, 2, 3], use_tag=True)
@@ -637,6 +640,23 @@ def test_ordered_set():
     s = OrderedSet.from_primitive(CBORTag(258, [1, 2, 3]))
     assert list(s) == [1, 2, 3]
     assert s._use_tag
+
+    # Test remove
+    s = OrderedSet([1, 2, 3, 4])
+    s.remove(2)
+    assert list(s) == [1, 3, 4]
+    assert 2 not in s
+    assert 1 in s
+    assert 3 in s
+    assert 4 in s
+    s.remove(2)
+    assert list(s) == [1, 3, 4]
+    assert 2 not in s
+    s.remove(3)
+    assert list(s) == [1, 4]
+    assert 3 not in s
+    s.remove(4)
+    assert list(s) == [1]
 
 
 def test_ordered_set_with_complex_types():
@@ -678,8 +698,10 @@ def test_non_empty_ordered_set():
     # Test serialization without tag
     s = NonEmptyOrderedSet([1, 2, 3], use_tag=False)
     primitive = s.to_primitive()
-    assert isinstance(primitive, list)
-    assert primitive == [1, 2, 3]
+    from frozenlist import FrozenList
+
+    assert isinstance(primitive, (list, FrozenList))
+    assert list(primitive) == [1, 2, 3]
 
     # Test serialization with tag
     s = NonEmptyOrderedSet([1, 2, 3], use_tag=True)
@@ -744,6 +766,7 @@ def test_transaction_witness_set_with_ordered_sets():
 
     # Test conversion from list to NonEmptyOrderedSet
     witness_set = TransactionWitnessSet(vkey_witnesses=[witness])
+    witness_set.convert_to_latest_spec()
     assert isinstance(witness_set.vkey_witnesses, NonEmptyOrderedSet)
     assert witness in witness_set.vkey_witnesses
 
@@ -755,11 +778,13 @@ def test_transaction_witness_set_with_ordered_sets():
 
     # Test empty list conversion
     witness_set = TransactionWitnessSet(vkey_witnesses=[])
+    witness_set.convert_to_latest_spec()
     with pytest.raises(ValueError, match="NonEmptyOrderedSet cannot be empty"):
         witness_set.to_validated_primitive()
 
     # Test None value
     witness_set = TransactionWitnessSet(vkey_witnesses=None)
+    witness_set.convert_to_latest_spec()
     primitive = witness_set.to_primitive()
     restored = TransactionWitnessSet.from_primitive(primitive)
     assert restored.vkey_witnesses is None
@@ -767,7 +792,7 @@ def test_transaction_witness_set_with_ordered_sets():
 
 # Test fixtures
 @dataclass(repr=False)
-class TestCodedClass(CodedSerializable):
+class SampleCodedClass(CodedSerializable):
     """A test class that uses CodedSerializable."""
 
     _CODE: int = field(init=False, default=1)
@@ -786,15 +811,15 @@ class AnotherCodedClass(CodedSerializable):
 def test_coded_serializable_basic():
     """Test basic serialization and deserialization."""
     # Create an instance
-    obj = TestCodedClass(value="test", numbers=[1, 2, 3])
+    obj = SampleCodedClass(value="test", numbers=[1, 2, 3])
 
     # Test serialization
     primitive = obj.to_primitive()
     assert primitive == [1, "test", [1, 2, 3]]
 
     # Test deserialization
-    restored = TestCodedClass.from_primitive(primitive)
-    assert isinstance(restored, TestCodedClass)
+    restored = SampleCodedClass.from_primitive(primitive)
+    assert isinstance(restored, SampleCodedClass)
     assert restored.value == "test"
     assert restored.numbers == [1, 2, 3]
 
@@ -803,13 +828,13 @@ def test_coded_serializable_wrong_code():
     """Test that wrong codes raise appropriate exceptions."""
     # Try to deserialize with wrong code
     with pytest.raises(DeserializeException) as exc_info:
-        TestCodedClass.from_primitive([2, "test", [1, 2, 3]])
-    assert "Invalid TestCodedClass type" in str(exc_info.value)
+        SampleCodedClass.from_primitive([2, "test", [1, 2, 3]])
+    assert "Invalid SampleCodedClass type" in str(exc_info.value)
 
 
 def test_multiple_coded_classes():
     """Test that different coded classes work independently."""
-    obj1 = TestCodedClass(value="test", numbers=[1, 2, 3])
+    obj1 = SampleCodedClass(value="test", numbers=[1, 2, 3])
     obj2 = AnotherCodedClass(name="example")
 
     # Serialize both
@@ -820,11 +845,11 @@ def test_multiple_coded_classes():
     assert prim1[0] != prim2[0]
 
     # Restore both
-    restored1 = TestCodedClass.from_primitive(prim1)
+    restored1 = SampleCodedClass.from_primitive(prim1)
     restored2 = AnotherCodedClass.from_primitive(prim2)
 
     # Verify restorations
-    assert isinstance(restored1, TestCodedClass)
+    assert isinstance(restored1, SampleCodedClass)
     assert isinstance(restored2, AnotherCodedClass)
     assert restored1.value == "test"
     assert restored2.name == "example"
@@ -832,14 +857,14 @@ def test_multiple_coded_classes():
 
 def test_coded_serializable_cbor():
     """Test CBOR serialization and deserialization."""
-    original = TestCodedClass(value="test", numbers=[1, 2, 3])
+    original = SampleCodedClass(value="test", numbers=[1, 2, 3])
 
     # Convert to CBOR and back
     cbor_bytes = original.to_cbor()
-    restored = TestCodedClass.from_cbor(cbor_bytes)
+    restored = SampleCodedClass.from_cbor(cbor_bytes)
 
     # Verify restoration
-    assert isinstance(restored, TestCodedClass)
+    assert isinstance(restored, SampleCodedClass)
     assert restored.value == original.value
     assert restored.numbers == original.numbers
 
@@ -855,19 +880,19 @@ def test_invalid_primitive_type():
 
     for invalid_value in invalid_values:
         with pytest.raises(DeserializeException):
-            TestCodedClass.from_primitive(invalid_value)
+            SampleCodedClass.from_primitive(invalid_value)
 
 
 def test_invliad_coded_serializable():
     with pytest.raises(DeserializeException):
-        TestCodedClass.from_primitive([2, "test", [1, 2, 3]])
+        SampleCodedClass.from_primitive([2, "test", [1, 2, 3]])
 
 
 def test_coded_serializable_inheritance():
     """Test that inheritance works properly with CodedSerializable."""
 
     @dataclass(repr=False)
-    class ChildCodedClass(TestCodedClass):
+    class ChildCodedClass(SampleCodedClass):
         """A child class that inherits from a CodedSerializable."""
 
         _CODE: int = field(init=False, default=3)
@@ -909,9 +934,9 @@ def test_ordered_set_deepcopy():
     assert 4 not in s
 
     # Test with complex objects
-    class TestObj:
-        def __init__(self, value):
-            self.value = value
+    @dataclass(repr=False)
+    class TestObj(ArrayCBORSerializable):
+        value: str
 
         def __str__(self):
             return f"TestObj({self.value})"
@@ -1023,10 +1048,131 @@ def test_save_load():
     assert test1_json["description"] == "Test Description"
     assert test1_json["cborHex"] == test1.to_cbor_hex()
 
-    with tempfile.NamedTemporaryFile() as f:
-        test1.save(f.name)
-        loaded = Test1.load(f.name)
+    with tempfile.NamedTemporaryFile(delete=False) as f:
+        tmp_path = f.name
+    try:
+        test1.save(tmp_path)
+        loaded = Test1.load(tmp_path)
         assert test1 == loaded
 
         with pytest.raises(IOError):
-            test1.save(f.name)
+            test1.save(tmp_path)
+    finally:
+        os.unlink(tmp_path)
+
+
+def test_ordered_set_as_key_in_dict():
+    a = NonEmptyOrderedSet([1, 2, 3])
+
+    class MyTest(DictCBORSerializable):
+        KEY_TYPE = NonEmptyOrderedSet
+        VALUE_TYPE = int
+
+    d = MyTest()
+    d[a] = 1
+
+    check_two_way_cbor(d)
+
+
+def test_indefinite_list_highjacking_does_not_break_cbor2():
+    ls = IndefiniteFrozenList(["hello"])
+    ls.freeze()
+    a = {ls: 1}
+    encoded = cbor2.dumps(a, default=default_encoder)
+    decoded = cbor2.loads(encoded)
+    assert isinstance(list(decoded.keys())[0], IndefiniteList)
+
+
+def test_definite_list_highjacking_does_not_break_cbor2():
+    ls = FrozenList(["hello"])
+    ls.freeze()
+    a = {ls: 1}
+    encoded = cbor2.dumps(a, default=default_encoder)
+    decoded = cbor2.loads(encoded)
+    assert isinstance(list(decoded.keys())[0], (list, tuple))
+
+
+def test_indefinite_list_highjacking_does_not_break_cbor2_datum():
+    ls = IndefiniteFrozenList(["hello"])
+    ls.freeze()
+    datum = CBORTag(251, ls)
+    a = {datum: 1}
+    encoded = cbor2.dumps(a, default=default_encoder)
+    decoded = cbor2.loads(encoded)
+    assert isinstance(list(decoded.keys())[0], CBORTag)
+    assert isinstance(list(decoded.keys())[0].value, IndefiniteList)
+
+
+def test_definite_list_highjacking_does_not_break_cbor2_datum():
+    ls = FrozenList(["hello"])
+    ls.freeze()
+    datum = CBORTag(251, ls)
+    a = {datum: 1}
+    encoded = cbor2.dumps(a, default=default_encoder)
+    decoded = cbor2.loads(encoded)
+    assert isinstance(list(decoded.keys())[0], CBORTag)
+    assert isinstance(list(decoded.keys())[0].value, (list, tuple))
+
+
+def test_ordered_set_as_key_in_dict_indefinite_list():
+    a = NonEmptyOrderedSet(IndefiniteList([1, 2, 3]))
+
+    class MyTest(DictCBORSerializable):
+        KEY_TYPE = NonEmptyOrderedSet
+        VALUE_TYPE = int
+
+    d = MyTest()
+    d[a] = 1
+
+    check_two_way_cbor(d)
+
+
+def test_preserve_indefinite_list():
+    @dataclass
+    class MyTest(ArrayCBORSerializable):
+        a: Union[List[int], IndefiniteList]
+
+    my_list = IndefiniteList([1, 2, 3])
+
+    a = MyTest(my_list)
+
+    assert isinstance(MyTest.from_cbor(a.to_cbor()).a, IndefiniteList)
+
+
+def test_decode_array_with_24_or_more_items():
+    """Test that definite-length arrays with 24+ items decode correctly.
+
+    Regression test for a bug where the custom decode_array override called
+    _decode_length (consuming stream bytes), then delegated to the original
+    decode_array which called _decode_length again. For arrays with < 24 items
+    the length is encoded in the subtype itself (no extra bytes), so the double
+    call was harmless. For 24+ items, CBOR uses multi-byte length encoding
+    (e.g. 98 18 for 24 items) and the second _decode_length call consumed
+    actual array content, corrupting the stream.
+    """
+
+    @dataclass
+    class LargeDatum(PlutusData):
+        CONSTR_ID = 1
+        data: List[bytes]
+
+    hello = b"Hello world!"
+
+    # Exactly 24 items — the threshold where CBOR switches to 2-byte length
+    datum24 = LargeDatum(data=[hello] * 24)
+    restored24 = LargeDatum.from_cbor(datum24.to_cbor())
+    assert len(restored24.data) == 24
+    assert all(x == hello for x in restored24.data)
+
+    # 25 items — above the threshold
+    datum25 = LargeDatum(data=[hello] * 25)
+    restored25 = LargeDatum.from_cbor(datum25.to_cbor())
+    assert len(restored25.data) == 25
+    assert all(x == hello for x in restored25.data)
+
+
+def test_liqwid_tx():
+    with open("test/resources/cbors/liqwid.json") as f:
+        cbor_hex = json.load(f).get("cborHex")
+    tx = Transaction.load("test/resources/cbors/liqwid.json")
+    assert tx.to_cbor().hex() == cbor_hex

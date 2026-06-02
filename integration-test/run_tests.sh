@@ -6,7 +6,6 @@ set -o pipefail
 ROOT=$(pwd)
 
 poetry install -C ..
-make ensure-pure-cbor2 -f ../Makefile
 #poetry run pip install ogmios
 
 ##########
@@ -92,6 +91,10 @@ while true; do
     echo -n "."
     sleep 2
 done
+
+# cardano-node 10.7+ no longer auto-inits PlutusV2 cost model at Babbage HF.
+# Submit a Conway parameter-update action to add it before running tests.
+docker exec integration-test-cardano-pool-1 bash /code/setup_governance.sh
 
 poetry run pytest -m "not (CardanoCLI)" -s -vv "$ROOT"/test  --cov=pycardano --cov-config=../.coveragerc --cov-report=xml:../coverage.xml
 

@@ -85,6 +85,7 @@ a stake verification key::
 An address object could also be created from an address string directly::
 
     >>> address = Address.from_primitive("addr_test1vr2p8st5t5cxqglyjky7vk98k7jtfhdpvhl4e97cezuhn0cqcexl7")
+    >>> byron_address = Address.from_primitive("Ae2tdPwUPEZFRbyhz3cpfC2CumGzNkFBN2L42rcUc2yjQpEkxDbkPodpMAi")
 
 
 An enterprise address does not have staking functionalities, it is created from a payment verification key only::

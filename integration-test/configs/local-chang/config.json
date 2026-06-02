@@ -3,6 +3,7 @@
   "ShelleyGenesisFile": "./shelley-genesis.json",
   "AlonzoGenesisFile": "./alonzo-genesis.json",
   "ConwayGenesisFile": "./conway-genesis.json",
+  "DijkstraGenesisFile": "./dijkstra-genesis.json",
   "SocketPath": "db/node.socket",
   "Protocol": "Cardano",
   "PBftSignatureThreshold": 0.6,
@@ -11,7 +12,7 @@
   "LastKnownBlockVersion-Major": 3,
   "LastKnownBlockVersion-Minor": 1,
   "ApplicationName": "cardano-sl",
-  "MinNodeVersion": "9.0",
+  "MinNodeVersion": "10.4.0",
   "ApplicationVersion": 1,
   "TurnOnLogging": true,
   "TurnOnLogMetrics": true,
@@ -77,21 +78,8 @@
   "TraceTxInbound": false,
   "TraceTxOutbound": false,
   "TraceTxSubmissionProtocol": false,
-  "options": {
-    "mapBackends": {
-      "cardano.node.metrics": [
-        "EKGViewBK"
-      ]
-    },
-    "mapScribes": {
-      "cardano.node.metrics": [
-        "FileSK::logs/mainnet.log"
-      ]
-    },
-    "mapSeverity": {
-      "cardano.node.ChainDB": "Notice",
-      "cardano.node.DnsSubscription": "Debug"
-    }
+  "TraceOptions": {
+
   },
   "EnableLogMetrics": false,
   "EnableLogging": true,
@@ -102,5 +90,6 @@
   "TestBabbageHardForkAtEpoch": 4,
   "TestConwayHardForkAtEpoch": 5,
   "EnableDevelopmentHardForkEras": true,
+  "ExperimentalHardForksEnabled": true,
   "ExperimentalProtocolsEnabled": true
 }

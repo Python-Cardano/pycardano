@@ -14,7 +14,7 @@ then
 
   export CARDANO_NODE_SOCKET_PATH=/ipc/node.socket
 
-  cardano-cli alonzo transaction submit \
+  cardano-cli latest transaction submit \
     --tx-file /code/keys/pool/pool_registration_tx.signed \
     --testnet-magic 42
 

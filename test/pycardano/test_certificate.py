@@ -10,6 +10,7 @@ from pycardano.certificate import (
     DRep,
     DRepCredential,
     DRepKind,
+    IdFormat,
     PoolRegistration,
     PoolRetirement,
     ResignCommitteeColdCertificate,
@@ -188,6 +189,145 @@ def test_anchor():
     assert Anchor.from_cbor(anchor_cbor_hex) == anchor
 
 
+def test_drep_decode():
+    staking_key = StakeSigningKey.from_cbor(
+        "5820ff3a330df8859e4e5f42a97fcaee73f6a00d0cf864f4bca902bd106d423f02c0"
+    )
+    vkey_hash = staking_key.to_verification_key().hash()
+    drep = DRep(kind=DRepKind.VERIFICATION_KEY_HASH, credential=vkey_hash)
+
+    drep.id_format = IdFormat.CIP105
+    drep1 = DRep.decode(str(drep))
+    drep.id_format = IdFormat.CIP129
+    drep2 = DRep.decode(str(drep))
+
+    drep_id_cip105 = "drep1fq529kkm4972nlgvmjvewkyeguxzrx7upkpge7ndmakkjnstaxx"
+    drep_id_cip129 = "drep1yfyz3gk6mw5he20apnwfn96cn9rscgvmmsxc9r86dh0k66gr0rurp"
+    drep_id_hex = "4828a2dadba97ca9fd0cdc99975899470c219bdc0d828cfa6ddf6d69"
+
+    drep1.id_format = IdFormat.CIP105
+    assert str(drep1) == drep_id_cip105
+    drep1.id_format = IdFormat.CIP129
+    assert str(drep1) == drep_id_cip129
+
+    drep2.id_format = IdFormat.CIP105
+    assert str(drep2) == drep_id_cip105
+    drep2.id_format = IdFormat.CIP129
+    assert str(drep2) == drep_id_cip129
+
+    drep1.id_format = IdFormat.CIP105
+    assert bytes(drep1).hex() == drep_id_hex
+    drep2.id_format = IdFormat.CIP105
+    assert bytes(drep2).hex() == drep_id_hex
+
+    assert drep == drep1
+    assert drep == drep2
+    assert drep1 == drep2
+
+
+@pytest.mark.parametrize(
+    "drep_kind,credential,expected_cip105,expected_cip129,expected_hex,test_id",
+    [
+        # Happy path: VERIFICATION_KEY_HASH
+        (
+            DRepKind.VERIFICATION_KEY_HASH,
+            VerificationKeyHash(
+                bytes.fromhex(
+                    "4828a2dadba97ca9fd0cdc99975899470c219bdc0d828cfa6ddf6d69"
+                )
+            ),
+            "drep1fq529kkm4972nlgvmjvewkyeguxzrx7upkpge7ndmakkjnstaxx",
+            "drep1yfyz3gk6mw5he20apnwfn96cn9rscgvmmsxc9r86dh0k66gr0rurp",
+            "4828a2dadba97ca9fd0cdc99975899470c219bdc0d828cfa6ddf6d69",
+            "verification_key_hash",
+        ),
+        # Happy path: SCRIPT_HASH
+        (
+            DRepKind.SCRIPT_HASH,
+            ScriptHash(b"1" * SCRIPT_HASH_SIZE),
+            "drep_script1xycnzvf3xycnzvf3xycnzvf3xycnzvf3xycnzvf3xycnzarvrfk",
+            "drep1yvcnzvf3xycnzvf3xycnzvf3xycnzvf3xycnzvf3xycnzvg4m7mek",
+            "31313131313131313131313131313131313131313131313131313131",
+            "script_hash",
+        ),
+        # Happy path: ALWAYS_ABSTAIN
+        (
+            DRepKind.ALWAYS_ABSTAIN,
+            None,
+            "drep_always_abstain",
+            "drep_always_abstain",
+            "",
+            "always_abstain",
+        ),
+        # Happy path: ALWAYS_NO_CONFIDENCE
+        (
+            DRepKind.ALWAYS_NO_CONFIDENCE,
+            None,
+            "drep_always_no_confidence",
+            "drep_always_no_confidence",
+            "",
+            "always_no_confidence",
+        ),
+    ],
+    ids=lambda p: p if isinstance(p, str) else None,
+)
+def test_drep_encode_decode_parametrized(
+    drep_kind, credential, expected_cip105, expected_cip129, expected_hex, test_id
+):
+    """Parametrized test for DRep encode/decode functionality.
+
+    Tests all DRep kinds with both CIP105 and CIP129 encoding formats.
+    """
+    # Arrange
+    drep = DRep(kind=drep_kind, credential=credential)
+
+    # Act - Encode
+    drep.id_format = IdFormat.CIP105
+    encoded_cip105 = str(drep)
+    encoded_hex = bytes(drep).hex()
+
+    drep.id_format = IdFormat.CIP129
+    encoded_cip129 = str(drep)
+
+    # Assert - Encoding
+    assert encoded_cip105 == expected_cip105
+    assert encoded_cip129 == expected_cip129
+    assert encoded_hex == expected_hex
+
+    # Act - Decode and verify round-trip
+    if drep_kind in (DRepKind.ALWAYS_ABSTAIN, DRepKind.ALWAYS_NO_CONFIDENCE):
+        # Special DReps only have one encoding format
+        decoded = DRep.decode(encoded_cip105)
+        assert decoded == drep
+        assert decoded.kind == drep_kind
+        assert decoded.credential is None
+    else:
+        # Decode from CIP105 format
+        decoded_cip105 = DRep.decode(expected_cip105)
+        assert decoded_cip105 == drep
+        assert decoded_cip105.kind == drep_kind
+        assert decoded_cip105.credential == credential
+        decoded_cip105.id_format = IdFormat.CIP105
+        assert str(decoded_cip105) == expected_cip105
+        assert bytes(decoded_cip105).hex() == expected_hex
+        decoded_cip105.id_format = IdFormat.CIP129
+        assert str(decoded_cip105) == expected_cip129
+
+        # Decode from CIP129 format
+        decoded_cip129 = DRep.decode(expected_cip129)
+        assert decoded_cip129 == drep
+        assert decoded_cip129.kind == drep_kind
+        assert decoded_cip129.credential == credential
+        decoded_cip129.id_format = IdFormat.CIP105
+        assert str(decoded_cip129) == expected_cip105
+        assert bytes(decoded_cip129).hex() == expected_hex
+        decoded_cip129.id_format = IdFormat.CIP129
+        assert str(decoded_cip129) == expected_cip129
+
+        # Verify both decoded objects are equal
+        assert decoded_cip105 == decoded_cip129
+
+
 def test_drep_credential():
     staking_key = StakeSigningKey.from_cbor(
         "5820ff3a330df8859e4e5f42a97fcaee73f6a00d0cf864f4bca902bd106d423f02c0"
@@ -280,7 +420,6 @@ def test_drep_credential():
 def test_drep_from_primitive(
     input_values, expected_kind, expected_credential, expected_exception, case_id
 ):
-
     # Arrange
     # (All input values are provided via test parameters)
 

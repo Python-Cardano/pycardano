@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from dataclasses import dataclass, field, fields
-from typing import Dict, List, Optional, Set, Tuple, Union
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 from pycardano import RedeemerMap
 from pycardano.address import Address, AddressType
@@ -218,6 +218,8 @@ class TransactionBuilder:
             TransactionBuilder: Current transaction builder.
         """
         self.inputs.append(utxo)
+        if utxo.output.script:
+            self._reference_scripts.append(utxo.output.script)
         return self
 
     def _consolidate_redeemer(self, redeemer):
@@ -616,7 +618,9 @@ class TransactionBuilder:
                         )
                     )
             return script_data_hash(
-                self.redeemers(), list(self.datums.values()), CostModels(cost_models)
+                self.redeemers(),
+                NonEmptyOrderedSet(list(self.datums.values())),
+                CostModels(cost_models),
             )
         else:
             return None
@@ -1170,6 +1174,7 @@ class TransactionBuilder:
         plutus_v1_scripts: NonEmptyOrderedSet[PlutusV1Script] = NonEmptyOrderedSet()
         plutus_v2_scripts: NonEmptyOrderedSet[PlutusV2Script] = NonEmptyOrderedSet()
         plutus_v3_scripts: NonEmptyOrderedSet[PlutusV3Script] = NonEmptyOrderedSet()
+        plutus_data: NonEmptyOrderedSet[Any] = NonEmptyOrderedSet()
 
         input_scripts = (
             {
@@ -1180,6 +1185,9 @@ class TransactionBuilder:
             if remove_dup_script
             else {}
         )
+
+        for datum in self.datums.values():
+            plutus_data.append(datum)
 
         for script in self.scripts:
             if script_hash(script) not in input_scripts:
@@ -1198,14 +1206,16 @@ class TransactionBuilder:
                         f"Unsupported script type: {type(script)}"
                     )
 
-        return TransactionWitnessSet(
+        witness_set = TransactionWitnessSet(
             native_scripts=native_scripts if native_scripts else None,
             plutus_v1_script=plutus_v1_scripts if plutus_v1_scripts else None,
             plutus_v2_script=plutus_v2_scripts if plutus_v2_scripts else None,
             plutus_v3_script=plutus_v3_scripts if plutus_v3_scripts else None,
             redeemer=self.redeemers() if self._redeemer_list else None,
-            plutus_data=list(self.datums.values()) if self.datums else None,
+            plutus_data=plutus_data if plutus_data else None,
         )
+        witness_set.convert_to_latest_spec()
+        return witness_set
 
     def _ensure_no_input_exclusion_conflict(self):
         intersection = set(self.inputs).intersection(set(self.excluded_inputs))
@@ -1395,7 +1405,11 @@ class TransactionBuilder:
 
             for address in self.input_addresses:
                 for utxo in self.context.utxos(address):
-                    if utxo not in seen_utxos and utxo not in self.excluded_inputs:
+                    if (
+                        utxo not in seen_utxos
+                        and utxo not in self.excluded_inputs
+                        and utxo.output.script is None
+                    ):
                         additional_utxo_pool.append(utxo)
                         additional_amount += utxo.output.amount
                         seen_utxos.add(utxo)

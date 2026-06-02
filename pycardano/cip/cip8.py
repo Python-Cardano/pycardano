@@ -90,20 +90,14 @@ def sign(
 
     msg.key = cose_key  # attach the key to the message
 
-    if isinstance(signing_key, ExtendedSigningKey):
-        _message = [
-            msg.phdr_encoded,
-            msg.uhdr_encoded,
-            msg.payload,
-            signing_key.sign(msg._sig_structure),
-        ]
+    _message = [
+        msg.phdr_encoded,
+        msg.uhdr_encoded,
+        msg.payload,
+        signing_key.sign(msg._sig_structure),
+    ]
 
-        encoded = dumps(
-            CBORTag(msg.cbor_tag, _message), default=msg._custom_cbor_encoder
-        )
-
-    else:
-        encoded = msg.encode()
+    encoded = dumps(CBORTag(msg.cbor_tag, _message), default=msg._custom_cbor_encoder)
 
     # turn the enocded message into a hex string and remove the first byte
     # which is always "d2"

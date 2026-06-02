@@ -73,7 +73,7 @@ class Key(CBORSerializable):
     def from_primitive(cls: Type["Key"], value: bytes) -> Key:
         return cls(value)
 
-    def to_json(self, **kwargs) -> str:
+    def to_json(self, **kwargs) -> str:  # type: ignore
         """Serialize the key to JSON.
 
         The json output has three fields: "type", "description", and "cborHex".
@@ -90,7 +90,7 @@ class Key(CBORSerializable):
         )
 
     @classmethod
-    def from_json(cls: Type[Key], data: str, validate_type=False) -> Key:
+    def from_json(cls: Type[Key], data: str, validate_type=False) -> Key:  # type: ignore
         """Restore a key from a JSON string.
 
         Args:

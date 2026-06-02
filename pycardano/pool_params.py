@@ -9,8 +9,8 @@ from dataclasses import dataclass, field
 from fractions import Fraction
 from typing import List, Optional, Type, Union
 
-from pycardano.crypto.bech32 import bech32_decode
-from pycardano.exception import DeserializeException
+from pycardano.crypto.bech32 import bech32_decode, decode, encode
+from pycardano.exception import DecodingException, DeserializeException
 from pycardano.hash import (
     PoolKeyHash,
     PoolMetadataHash,
@@ -28,6 +28,7 @@ from pycardano.serialization import (
 __all__ = [
     "PoolId",
     "PoolMetadata",
+    "PoolOperator",
     "PoolParams",
     "Relay",
     "SingleHostAddr",
@@ -247,3 +248,75 @@ class PoolParams(ArrayCBORSerializable):
     relays: Optional[List[Relay]] = None
     pool_metadata: Optional[PoolMetadata] = None
     id: Optional[PoolId] = field(default=None, metadata={"optional": True})
+
+
+@dataclass(repr=False)
+class PoolOperator(CBORSerializable):
+    pool_key_hash: PoolKeyHash
+
+    def __init__(self, pool_key_hash: PoolKeyHash):
+        self.pool_key_hash = pool_key_hash
+
+    def __repr__(self):
+        return f"{self.encode()}"
+
+    def __bytes__(self):
+        return self.pool_key_hash.payload
+
+    def encode(self) -> str:
+        """Encode the pool key hash in Bech32 format.
+
+        More info about Bech32 `here <https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki#Bech32>`_.
+
+        Returns:
+            str: Encoded pool key hash in Bech32.
+
+        Examples:
+            >>> pool_key_hash = PoolKeyHash(bytes.fromhex("cc30497f4ff962f4c1dca54cceefe39f86f1d7179668009f8eb71e59"))
+            >>> pool_operator = PoolOperator(pool_key_hash=pool_key_hash)
+            >>> print(pool_operator.encode())
+            pool1escyjl60l930fswu54xvamlrn7r0r4chje5qp8uwku09j7x68x6
+        """
+        return encode("pool", self.pool_key_hash.payload)
+
+    @classmethod
+    def decode(cls, data: str) -> PoolOperator:
+        """Decode a bech32 string into a pool operator object.
+
+        Args:
+            data (str): Bech32-encoded string.
+
+        Returns:
+            PoolOperator: Decoded pool operator.
+
+        Raises:
+            DecodingException: When the input string is not a valid Shelley address.
+
+        Examples:
+            >>> pool_operator = PoolOperator.decode("pool1escyjl60l930fswu54xvamlrn7r0r4chje5qp8uwku09j7x68x6")
+            >>> pool_key_hash = PoolKeyHash(bytes.fromhex("cc30497f4ff962f4c1dca54cceefe39f86f1d7179668009f8eb71e59"))
+            >>> assert pool_operator == PoolOperator(pool_key_hash)
+        """
+        return cls.from_primitive(data)
+
+    def to_shallow_primitive(self) -> bytes:
+        return self.pool_key_hash.to_primitive()
+
+    @classmethod
+    @limit_primitive_type(bytes, str)
+    def from_primitive(
+        cls: Type[PoolOperator], value: Union[bytes, str]
+    ) -> PoolOperator:
+        # Convert string to bytes
+        if isinstance(value, str):
+            # Check if bech32 poolid
+            if value.startswith("pool"):
+                value = bytes(decode(value))
+            else:
+                try:
+                    value = bytes.fromhex(value)
+                except Exception as e:
+                    raise DecodingException(
+                        f"Failed to decode pool id string: {e}"
+                    ) from e
+        return cls(PoolKeyHash.from_primitive(value))

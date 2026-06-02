@@ -8,7 +8,7 @@
 
 [![PyPi version](https://badgen.net/pypi/v/pycardano)](https://pypi.python.org/pypi/pycardano/)
 [![PyPI pyversions](https://img.shields.io/pypi/pyversions/pycardano)](https://pypi.python.org/pypi/pycardano/)
-[![PyPI download month](https://img.shields.io/pypi/dm/pycardano)](https://pypi.python.org/pypi/pycardano/)
+[![PyPI Downloads](https://static.pepy.tech/badge/pycardano/month)](https://pepy.tech/projects/pycardano)
 
 [![PyCardano](https://github.com/Python-Cardano/pycardano/actions/workflows/main.yml/badge.svg)](https://github.com/Python-Cardano/pycardano/actions/workflows/main.yml)
 [![codecov](https://codecov.io/gh/Python-Cardano/pycardano/graph/badge.svg?token=62N0IL9IMQ)](https://codecov.io/gh/Python-Cardano/pycardano)
@@ -48,7 +48,7 @@ could be beneficial for faster R&D iterations.
 - [x] Pool certificate
 - [x] Protocol proposal update
 - [x] Governance actions
-- [ ] Byron Address
+- [x] Byron Address
 
 
 ### Installation
@@ -57,11 +57,13 @@ Install the library using [pip](https://pip.pypa.io/en/stable/):
 
 `pip install pycardano`
 
-#### Install cbor2 pure python implementation (Optional)
+#### cbor2
 [cbor2](https://github.com/agronholm/cbor2/tree/master) is a dependency of pycardano. It is used to encode and decode CBOR data.
 It has two implementations: one is pure Python and the other is C, which is installed by default. The C implementation is faster, but it is less flexible than the pure Python implementation.
 
-For some users, the C implementation may not work properly when deserializing cbor data. For example, the order of inputs of a transaction isn't guaranteed to be the same as the order of inputs in the original transaction (details could be found in [this issue](https://github.com/Python-Cardano/pycardano/issues/311)). This would result in a different transaction hash when the transaction is serialized again. For users who encounter this issue, we recommend to use the pure Python implementation of cbor2. You can do so by running [ensure_pure_cbor2.sh](./ensure_pure_cbor2.sh), which inspect the cbor2 installed in the running environment and force install pure python implementation if necessary.
+For some users, the C implementation may not work properly when deserializing cbor data. For example, the order of inputs of a transaction isn't guaranteed to be the same as the order of inputs in the original transaction (details could be found in [this issue](https://github.com/Python-Cardano/pycardano/issues/311)). This would result in a different transaction hash when the transaction is serialized again.
+
+To solve this problem, a fork of cbor2 is created at [cbor2pure](https://github.com/cffls/cbor2pure). This fork removes C extension and only uses pure python for cbor decoding. By default, for correctness, pycardano uses cbor2pure in decoding. However, if speed is preferred over accuracy, users can set `CBOR_C_EXTENSION=1` in their environment, and the default C extension would be used instead.
 
 ```bash
 ensure_pure_cbor2.sh
@@ -70,6 +72,10 @@ ensure_pure_cbor2.sh
 ### Documentation
 
 https://pycardano.readthedocs.io/en/latest/
+
+#### Frequently asked questions
+
+https://pycardano.readthedocs.io/en/latest/frequently_asked_questions.html
 
 ### Examples
 
@@ -181,21 +187,29 @@ Clone the repository:
 
 `git clone https://github.com/Python-Cardano/pycardano.git`
 
-PyCardano uses [poetry](https://python-poetry.org/) to manage its dependencies. 
-Install poetry for osx / linux / bashonwindows:
+PyCardano supports both [poetry](https://python-poetry.org/) and [uv](https://docs.astral.sh/uv/) for dependency management.
 
-`curl -sSL https://install.python-poetry.org | python3 -`
+**Using poetry:**
 
-Go to [poetry installation](https://python-poetry.org/docs/#installation) for more details. 
+```bash
+curl -sSL https://install.python-poetry.org | python3 -
+cd pycardano && poetry install
+```
 
+Go to [poetry installation](https://python-poetry.org/docs/#installation) for more details.
 
-Change directory into the repo, install all dependencies using poetry, and you are all set!
-
-`cd pycardano && poetry install`
-
-When testing or running any program, it is recommended to enter 
-a [poetry shell](https://python-poetry.org/docs/cli/#shell) in which all python dependencies are automatically 
+When testing or running any program, it is recommended to enter
+a [poetry shell](https://python-poetry.org/docs/cli/#shell) in which all python dependencies are automatically
 configured: `poetry shell`.
+
+**Using uv:**
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+cd pycardano && uv sync
+```
+
+Go to [uv installation](https://docs.astral.sh/uv/getting-started/installation/) for more details.
 
 
 #### Test
@@ -203,7 +217,7 @@ configured: `poetry shell`.
 PyCardano uses [pytest](https://docs.pytest.org/en/6.2.x/) for unit testing.
 
 Run all tests:
-`make test`
+`make test` or `make RUN=uv test`
 
 Run all tests in a specific test file:
 `poetry run pytest test/pycardano/test_transaction.py`
@@ -213,6 +227,8 @@ Run a specific test function:
 
 Run a specific test function in a test file:
 `poetry run pytest test/pycardano/test_transaction.py -k "test_transaction_body"`
+
+Replace `poetry run` with `uv run` in any of the above commands if using uv.
 
 #### Test coverage
 

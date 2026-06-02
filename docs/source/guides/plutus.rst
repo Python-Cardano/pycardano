@@ -120,7 +120,7 @@ We demonstrate how these concepts come into play using a simple example from `op
 A user can lock funds together with a public key hash.
 The contract will make sure that only the owner of the matching private key can redeem the gift.
 
-We will first compile the contract locally. For this, you will need to have installed python3.8.
+We will first compile the contract locally. For this, you will need to have installed python3.9 or higher.
 
 Step 1
 
@@ -129,16 +129,17 @@ Open a file called ``gift.py`` and fill it with the following code:::
     from opshin.prelude import *
 
     @dataclass()
-    class CancelDatum(PlutusData):
+    class WithdrawDatum(PlutusData):
         pubkeyhash: bytes
 
 
-    def validator(datum: CancelDatum, redeemer: None, context: ScriptContext) -> None:
+    def validator(context: ScriptContext) -> None:
+        datum: WithdrawDatum = own_datum_unsafe(context)
         sig_present = False
-        for s in context.tx_info.signatories:
+        for s in context.transaction.signatories:
             if datum.pubkeyhash == s:
                 sig_present = True
-        assert sig_present
+        assert sig_present, "Required signature missing"
 
 
 Step 2
@@ -147,12 +148,12 @@ Install the python package ``opshin``. We can then build the contract.
 
 .. code:: bash
 
-    $ python3.8 -m venv venv
+    $ python3 -m venv venv
     $ source venv/bin/activate
     $ pip install opshin
     $ opshin build gift.py
 
-This is it! You will now find all relevant artifacts for proceeding in the folder ``gift/``.
+This is it! You will now find all relevant artifacts for proceeding in the folder ``build/gift``.
 
 Step 3
 
@@ -176,17 +177,15 @@ Create script address::
     ...     Transaction,
     ...     TransactionBuilder,
     ...     TransactionOutput,
-    ...     PlutusData,
+    ...     Unit,
     ...     Redeemer,
-    ...     PlutusV2Script,
+    ...     PlutusV3Script,
     ...     Network,
     ...     datum_hash,
     ... )
 
-    >>> # This artifact was generated in step 2
-    >>> with open("gift/script.cbor", "r") as f:
-    >>>     script_hex = f.read()
-    >>> gift_script = PlutusV2Script(bytes.fromhex(script_hex))
+    >>> # This artifact was generated in step 2. By default, opshin will generate Plutus V3 scripts, so we need to load the script as a `PlutusV3Script`.
+    >>> gift_script = PlutusV3Script.load("build/gift/script.plutus")
 
     >>> script_hash = plutus_script_hash(gift_script)
     >>> network = Network.TESTNET
@@ -194,7 +193,7 @@ Create script address::
 
 Step 5
 
-Giver/Locker sends funds to script address.
+Giver/Locker sends funds to script address. Both giver and taker need to have some ADA in their addresses to pay for the transaction fees and collateral.
 We will attach the public key hash of a receiver address as datum to the utxo.
 Note that we will just use the datatype defined in the contract, as it also uses ``PlutusData``.
 
@@ -211,8 +210,8 @@ Note that we will just use the datatype defined in the contract, as it also uses
     >>> builder = TransactionBuilder(context)
     >>> builder.add_input_address(giver_address)
 
-    >>> from gift import CancelDatum
-    >>> datum = CancelDatum(payment_vkey_2.hash().to_primitive())
+    >>> from gift import WithdrawDatum
+    >>> datum = WithdrawDatum(payment_vkey_2.hash().to_primitive())
     >>> builder.add_output(
     >>>     TransactionOutput(script_address, 50000000, datum_hash=datum_hash(datum))
     >>> )
@@ -226,7 +225,7 @@ Step 6
 
 Taker/Unlocker sends transaction to consume funds. Here we specify the redeemer tag as spend and pass in no special redeemer, as it is being ignored by the contract.::
 
-    >>> redeemer = Redeemer(PlutusData())  # The plutus equivalent of None
+    >>> redeemer = Redeemer(Unit())  # The plutus equivalent of None
 
     >>> utxo_to_spend = context.utxos(str(script_address))[0]
 
@@ -238,26 +237,12 @@ Add info on the UTxO to spend, Plutus script, actual datum and the redeemer. Spe
     >>> take_output = TransactionOutput(taker_address, 25123456)
     >>> builder.add_output(take_output)
 
-Taker/Unlocker provides collateral. Collateral has been introduced in Alonzo transactions to cover the cost of the validating node executing a failing script. In this scenario, the provided UTXO is consumed instead of the fees. A UTXO provided for collateral must only have ada, no other native assets::
-
-    >>> non_nft_utxo = None
-    >>> for utxo in context.utxos(str(taker_address)):
-    >>>     # multi_asset should be empty for collateral utxo
-    >>>     if not utxo.output.amount.multi_asset:
-    >>>         non_nft_utxo = utxo
-    >>>         break
-
-    >>> builder.collaterals.append(non_nft_utxo)
-
-    >>> signed_tx = builder.build_and_sign([payment_skey_2], taker_address)
-
-
-Uh oh! That failed. We forgot to add the taker as a `required` signer, so that the contract knows
+It is important to note that we need to add the taker as a `required` signer, so that the contract knows
 that they will sign the transaction::
 
     >>> builder.required_signers = [payment_vkey_2.hash()]
 
-Now lets try to resubmit this::
+Now lets try to submit this::
 
     >>> signed_tx = builder.build_and_sign([payment_skey_2], taker_address)
 

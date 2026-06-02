@@ -9,13 +9,14 @@ from typing import Dict, List, Union
 import pytest
 from cbor2 import CBORTag
 
-from pycardano import TransactionWitnessSet
+from pycardano import Address, Network, TransactionWitnessSet
 from pycardano.exception import DeserializeException
 from pycardano.plutus import (
     COST_MODELS,
     Datum,
     ExecutionUnits,
     PlutusData,
+    PlutusV2Script,
     RawPlutusData,
     Redeemer,
     RedeemerKey,
@@ -593,3 +594,15 @@ def test_empty_map_deser():
     serialized = witness.to_primitive()
     deserialized = TransactionWitnessSet.from_primitive(serialized)
     assert deserialized.redeemer == empty_map
+
+
+def test_load_plutus_script():
+    script = PlutusV2Script.load("test/resources/scriptV2.plutus")
+    assert (
+        script.to_cbor_hex()
+        == "581a581801000022232632498cd5ce2481064255524e542100120011"
+    )
+    assert (
+        Address(plutus_script_hash(script), network=Network.TESTNET).encode()
+        == "addr_test1wrmz3pjz4dmfxj0fc0a0eyw69tp6h7mpndzf9g3kttq9cqqqw47ym"
+    )
