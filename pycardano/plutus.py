@@ -8,7 +8,8 @@ import typing
 from dataclasses import dataclass, field, fields
 from enum import Enum
 from hashlib import sha256
-from typing import Any, List, Optional, Type, Union
+from typing import Any, List, Optional, Tuple, Type, Union
+from weakref import WeakKeyDictionary
 
 from cbor2 import CBORTag
 from nacl.encoding import RawEncoder
@@ -515,6 +516,19 @@ def id_map(cls, skip_constructor=False):
     raise TypeError(f"Unexpected type for automatic constructor generation: {cls}")
 
 
+# Per-class cache of the dataclass ``fields`` tuple for PlutusData subclasses.
+# The set of fields and their declared types are class-invariant, so the
+# (class-invariant) field-type validity check in ``PlutusData.__post_init__``
+# only needs to run once per class instead of once per instance. We key on the
+# class object via a WeakKeyDictionary so dynamically-created classes (e.g. the
+# many dataclasses defined inside test functions) do not leak and never collide.
+# Presence of a class in this cache means its field types have already been
+# validated; the cached value is the ``fields(cls)`` tuple, reused per instance.
+_plutusdata_fields_cache: "WeakKeyDictionary[type, Tuple[Any, ...]]" = (
+    WeakKeyDictionary()
+)
+
+
 @dataclass(repr=False)
 class PlutusData(ArrayCBORSerializable):
     """
@@ -555,6 +569,30 @@ class PlutusData(ArrayCBORSerializable):
         return getattr(cls, k)
 
     def __post_init__(self):
+        cls = type(self)
+        # The field set and their declared types are class-invariant, so the
+        # field-type validity check is identical for every instance of a class.
+        # Once a class has been validated we cache its ``fields`` tuple; presence
+        # in the cache means the field types have already passed validation, so
+        # subsequent instances only run the per-instance bytes-length check.
+        cls_fields = _plutusdata_fields_cache.get(cls)
+        if cls_fields is not None:
+            # Fast path: class already validated. Only the bytes-length check,
+            # which depends on instance data, needs to run.
+            for f in cls_fields:
+                data = getattr(self, f.name)
+                if isinstance(data, bytes) and len(data) > 64:
+                    raise InvalidArgumentException(
+                        f"The size of {data} exceeds {self.MAX_BYTES_SIZE} bytes. "
+                        "Use pycardano.serialization.ByteString for long bytes."
+                    )
+            return
+
+        # Slow path: first instance of this class. Preserve the original
+        # behavior exactly, including the interleaved order of the type check
+        # and the bytes-length check across fields. Only cache the validated
+        # ``fields`` tuple if every field type passes the (class-invariant)
+        # validity check.
         valid_types = (
             RawPlutusData,
             PlutusData,
@@ -564,7 +602,8 @@ class PlutusData(ArrayCBORSerializable):
             ByteString,
             bytes,
         )
-        for f in fields(self):
+        cls_fields = fields(self)
+        for f in cls_fields:
             if inspect.isclass(f.type) and not issubclass(f.type, valid_types):
                 raise TypeError(
                     f"Invalid field type: {f.type}. A field in PlutusData should be one of {valid_types}"
@@ -576,6 +615,7 @@ class PlutusData(ArrayCBORSerializable):
                     f"The size of {data} exceeds {self.MAX_BYTES_SIZE} bytes. "
                     "Use pycardano.serialization.ByteString for long bytes."
                 )
+        _plutusdata_fields_cache[cls] = cls_fields
 
     def to_shallow_primitive(self) -> CBORTag:
         primitives: Primitive = super().to_shallow_primitive()
