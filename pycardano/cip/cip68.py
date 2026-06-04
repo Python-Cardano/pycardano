@@ -1,4 +1,5 @@
-from typing import Union, Dict, List, Any, TypedDict, Required
+from typing import Union, Dict, List, Any, TypedDict
+from typing_extensions import Required
 from dataclasses import dataclass
 from cbor2 import CBORTag
 
