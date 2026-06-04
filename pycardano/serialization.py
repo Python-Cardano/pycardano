@@ -14,6 +14,7 @@ from decimal import Decimal
 from fractions import Fraction
 from functools import wraps
 from inspect import getfullargspec, isclass
+from weakref import WeakKeyDictionary
 from typing import (
     Any,
     Callable,
@@ -359,7 +360,7 @@ class CBORSerializable:
         Raises:
             InvalidDataException: When the data is invalid.
         """
-        type_hints = get_type_hints(self.__class__)
+        type_hints = _cached_type_hints(self.__class__)
 
         def _check_recursive(value, type_hint):
             if type_hint is Any:
@@ -686,6 +687,37 @@ def _restore_dataclass_field(
     return _restore_typed_primitive(cast(Any, f.type), v)
 
 
+# Resolving type hints and introspecting from_primitive signatures is expensive and
+# is otherwise repeated on every (de)serialization. Both depend only on the class, so
+# cache them. WeakKeyDictionary lets dynamically-created classes be garbage collected.
+_TYPE_HINTS_CACHE: "WeakKeyDictionary[type, Dict[str, Any]]" = WeakKeyDictionary()
+_ACCEPTS_TYPE_ARGS_CACHE: "WeakKeyDictionary[type, bool]" = WeakKeyDictionary()
+
+
+def _cached_type_hints(cls: type) -> Dict[str, Any]:
+    """Return ``get_type_hints(cls)``, memoized per class."""
+    hints = _TYPE_HINTS_CACHE.get(cls)
+    if hints is None:
+        hints = get_type_hints(cls)
+        _TYPE_HINTS_CACHE[cls] = hints
+    return hints
+
+
+def _accepts_type_args(t: type) -> bool:
+    """Whether ``t.from_primitive`` declares a ``type_args`` parameter, memoized per class.
+
+    ``t`` may be a typing generic alias (e.g. ``OrderedSet[int]``) which is not always
+    weakly referenceable, so only concrete classes are cached.
+    """
+    if not isclass(t):
+        return "type_args" in getfullargspec(t.from_primitive).args
+    accepts = _ACCEPTS_TYPE_ARGS_CACHE.get(t)
+    if accepts is None:
+        accepts = "type_args" in getfullargspec(t.from_primitive).args
+        _ACCEPTS_TYPE_ARGS_CACHE[t] = accepts
+    return accepts
+
+
 def _restore_typed_primitive(
     t: typing.Type, v: Primitive
 ) -> Union[Primitive, CBORSerializable]:
@@ -714,7 +746,7 @@ def _restore_typed_primitive(
     if t is Any or (t in PRIMITIVE_TYPES and isinstance(v, t)):
         return v
     elif is_cbor_serializable:
-        if "type_args" in getfullargspec(t.from_primitive).args:
+        if _accepts_type_args(t):
             args = typing.get_args(t)
             return t.from_primitive(v, type_args=args)
         else:
@@ -869,7 +901,7 @@ class ArrayCBORSerializable(CBORSerializable):
         all_fields = [f for f in fields(cls) if f.init]
 
         restored_vals = []
-        type_hints = get_type_hints(cls)
+        type_hints = _cached_type_hints(cls)
         for f, v in zip(all_fields, values):
             if not isclass(f.type):
                 f.type = type_hints[f.name]
@@ -978,7 +1010,7 @@ class MapCBORSerializable(CBORSerializable):
         all_fields = {f.metadata.get("key", f.name): f for f in fields(cls) if f.init}
 
         kwargs = {}
-        type_hints = get_type_hints(cls)
+        type_hints = _cached_type_hints(cls)
         for key in values:
             if key not in all_fields:
                 raise DeserializeException(f"Unexpected map key {key} in CBOR.")
