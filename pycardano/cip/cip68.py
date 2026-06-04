@@ -1,12 +1,13 @@
-from typing import Union, Dict, List, Any, TypedDict
-from typing_extensions import Required
 from dataclasses import dataclass
+from typing import Any, Dict, List, TypedDict, Union
+
 from cbor2 import CBORTag
+from typing_extensions import Required
 
 from pycardano.cip.cip67 import CIP67TokenName
-from pycardano.plutus import PlutusData, Unit, Primitive
-from pycardano.transaction import AssetName
+from pycardano.plutus import PlutusData, Primitive, Unit
 from pycardano.serialization import IndefiniteList
+from pycardano.transaction import AssetName
 
 
 class InvalidCIP68ReferenceNFT(Exception):
@@ -25,6 +26,7 @@ class CIP68TokenName(CIP67TokenName):
     Args:
         data: The token name as bytes, str, or AssetName
     """
+
     @property
     def reference_token(self) -> "CIP68ReferenceNFTName":
         ref_token = self.payload.hex()[0] + "00643b" + self.payload.hex()[7:]
@@ -34,6 +36,7 @@ class CIP68TokenName(CIP67TokenName):
 
 class CIP68ReferenceNFTName(CIP68TokenName):
     """Validates that an asset name has the 100 label for reference NFTs."""
+
     def __init__(self, data: Union[bytes, str, AssetName]):
         super().__init__(data)
 
@@ -43,6 +46,7 @@ class CIP68ReferenceNFTName(CIP68TokenName):
 
 class CIP68UserNFTName(CIP68TokenName):
     """Validates that an asset name has the 222 label for NFTs."""
+
     def __init__(self, data: Union[bytes, str, AssetName]):
         super().__init__(data)
 
@@ -52,6 +56,7 @@ class CIP68UserNFTName(CIP68TokenName):
 
 class CIP68UserNFTFile(TypedDict, total=False):
     """Metadata for a single file in NFT metadata."""
+
     name: bytes
     mediaType: Required[bytes]
     src: Required[bytes]
@@ -62,6 +67,7 @@ class CIP68UserNFTMetadata(TypedDict, total=False):
 
     Multiple files can be included as a list of dictionaries or CIP68UserNFTFile objects.
     """
+
     name: Required[bytes]
     image: Required[bytes]
     description: bytes
@@ -70,6 +76,7 @@ class CIP68UserNFTMetadata(TypedDict, total=False):
 
 class CIP68UserFTName(CIP68TokenName):
     """Validates that an asset name has the 333 label for FTs."""
+
     def __init__(self, data: Union[bytes, str, AssetName]):
         super().__init__(data)
 
@@ -88,6 +95,7 @@ class CIP68UserFTMetadata(TypedDict, total=False):
 
 class CIP68UserRFTName(CIP68TokenName):
     """Validates that an asset name has the 444 label for RFTs."""
+
     def __init__(self, data: Union[bytes, str, AssetName]):
         super().__init__(data)
 
@@ -104,7 +112,7 @@ class CIP68UserRFTMetadata(TypedDict, total=False):
 @dataclass
 class CIP68Datum(PlutusData):
     """Wrapper class for CIP-68 metadata to be used as inline datum.
-    
+
     For detailed information on CIP-68 metadata structure and token types:
     https://github.com/cardano-foundation/CIPs/tree/master/CIP-0068
 
@@ -125,21 +133,35 @@ class CIP68Datum(PlutusData):
         }
         datum = CIP68Datum(metadata=metadata, version=1, extra=Unit())
     """
+
     CONSTR_ID = 0
 
     metadata: Dict[bytes, Any]
     version: int
-    extra: Any      # This should be PlutusData or Unit() for empty PlutusData
- 
+    extra: Any  # This should be PlutusData or Unit() for empty PlutusData
+
     def __post_init__(self):
         converted_metadata: Dict[bytes, Any] = {}
         for k, v in self.metadata.items():
             key = k.encode() if isinstance(k, str) else k
             if isinstance(v, dict):
-                v = dict((k.encode() if isinstance(k, str) else k, v) for k, v in v.items())
+                v = dict(
+                    (k.encode() if isinstance(k, str) else k, v) for k, v in v.items()
+                )
             elif isinstance(v, list):
-                v = IndefiniteList([dict((k.encode() if isinstance(k, str) else k, v) for k, v in item.items())
-                     if isinstance(item, dict) else item for item in v])
+                v = IndefiniteList(
+                    [
+                        (
+                            dict(
+                                (k.encode() if isinstance(k, str) else k, v)
+                                for k, v in item.items()
+                            )
+                            if isinstance(item, dict)
+                            else item
+                        )
+                        for item in v
+                    ]
+                )
             converted_metadata[key] = v
         self.metadata = converted_metadata
 
@@ -156,5 +178,3 @@ class CIP68Datum(PlutusData):
                     extra = CBORTag(extra.tag, IndefiniteList(extra.value))
                 value = [value[0], value[1], extra]
         return CBORTag(121, value)
-        
- 
