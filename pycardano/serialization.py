@@ -236,8 +236,12 @@ def default_encoder(
         # handling here to explicitly write header (b'\x9f'), each body item, and footer (b'\xff') to
         # the output bytestring.
         encoder.write(b"\x9f")
-        for item in value:
-            encoder.encode(item)
+        # Iterate the underlying list for a plain IndefiniteList (UserList) to avoid the
+        # slow Sequence.__iter__; IndefiniteFrozenList has no usable .data, so use identity.
+        items = value.data if type(value) is IndefiniteList else value
+        encode = encoder.encode
+        for item in items:
+            encode(item)
         encoder.write(b"\xff")
     elif isinstance(value, ByteString):
         if len(value.value) > 64:
@@ -318,6 +322,18 @@ class CBORSerializable:
         result = self.to_shallow_primitive()
 
         def _dfs(value, freeze=False):
+            tv = type(value)
+            # Fast path for scalar leaves (the large majority of nodes), skipping the
+            # isinstance cascade below.
+            if (
+                tv is int
+                or tv is str
+                or tv is bytes
+                or tv is bool
+                or tv is float
+                or value is None
+            ):
+                return value
             if isinstance(value, CBORSerializable):
                 # Preserve polymorphic dispatch: subclasses that override
                 # ``to_primitive`` must run their override (and its own type check).
@@ -345,7 +361,11 @@ class CBORSerializable:
             elif isinstance(
                 value, (IndefiniteFrozenList, FrozenList, IndefiniteList, list)
             ):
-                _list = [_dfs(v, freeze) for v in value]
+                # Iterate the underlying storage for a plain IndefiniteList (a UserList)
+                # to avoid the slow collections.abc.Sequence.__iter__ generator. Must use
+                # an identity check: IndefiniteFrozenList is a subclass with no usable .data.
+                src = value.data if tv is IndefiniteList else value
+                _list = [_dfs(v, freeze) for v in src]
 
                 already_frozen = isinstance(value, (IndefiniteFrozenList, FrozenList))
                 should_freeze = already_frozen or freeze
@@ -735,6 +755,19 @@ def _accepts_type_args(t: type) -> bool:
         accepts = "type_args" in getfullargspec(t.from_primitive).args
         _ACCEPTS_TYPE_ARGS_CACHE[t] = accepts
     return accepts
+
+
+_FIELDS_CACHE: "WeakKeyDictionary[type, tuple]" = WeakKeyDictionary()
+
+
+def _cached_fields(cls: type) -> tuple:
+    """Return ``dataclasses.fields(cls)``, memoized per class. The field set is
+    class-invariant, so recomputing it on every (de)serialization is wasted work."""
+    flds = _FIELDS_CACHE.get(cls)
+    if flds is None:
+        flds = fields(cls)
+        _FIELDS_CACHE[cls] = flds
+    return flds
 
 
 # A "decode plan" is a callable ``plan(v) -> restored`` that resolves the per-field
@@ -1128,7 +1161,7 @@ class ArrayCBORSerializable(CBORSerializable):
                 types.
         """
         primitives = []
-        for f in fields(self):
+        for f in _cached_fields(type(self)):
             val = getattr(self, f.name)
             if val is None and f.metadata.get("optional"):
                 continue
@@ -1228,7 +1261,7 @@ class MapCBORSerializable(CBORSerializable):
 
     def to_shallow_primitive(self) -> Primitive:
         primitives = {}
-        for f in fields(self):
+        for f in _cached_fields(type(self)):
             if "key" in f.metadata:
                 key = f.metadata["key"]
             else:
@@ -1418,7 +1451,7 @@ class OrderedSet(Generic[T], CBORSerializable):
         use_tag: bool = True,
     ):
         super().__init__()
-        self._dict: Dict[bytes, int] = {}
+        self._dict: Dict[Any, int] = {}
         self._list: List[T] = []
         self._use_tag = use_tag
         self._is_indefinite_list = False
@@ -1426,12 +1459,27 @@ class OrderedSet(Generic[T], CBORSerializable):
             self._is_indefinite_list = isinstance(iterable, IndefiniteList)
             self.extend(iterable)
 
+    # Sentinel used to namespace CBOR-bytes de-dup keys (for unhashable elements) so
+    # they can never collide with a hashable element used directly as a dict key.
+    _CBOR_KEY = object()
+
+    def _dedup_key(self, item):
+        """De-duplication key for an element. Hashable elements (the common case:
+        TransactionInput, key hashes, etc.) are used directly as the dict key — fast,
+        and consistent with their value equality. Unhashable elements (e.g. list-valued
+        plutus data) fall back to their CBOR bytes, the original behavior, namespaced by
+        a sentinel so they cannot collide with a hashable key."""
+        try:
+            hash(item)
+        except TypeError:
+            return (self._CBOR_KEY, dumps(item, default=default_encoder))
+        return item
+
     def append(self, item: T) -> None:
-        # Encode the element to its CBOR de-dup key exactly once. Previously the
-        # membership check (``item in self``) and the insertion each re-encoded the
-        # element via dumps(), doubling the cost — which dominated decode of
-        # set-heavy transactions.
-        key = dumps(item, default=default_encoder)
+        # Compute the de-dup key once. Membership check + insertion previously each
+        # re-encoded the element via dumps(), which dominated decode of set-heavy
+        # transactions; hashable elements now avoid CBOR encoding entirely.
+        key = self._dedup_key(item)
         if key in self._dict:
             return
         self._list.append(item)
@@ -1443,7 +1491,7 @@ class OrderedSet(Generic[T], CBORSerializable):
             self.append(item)
 
     def remove(self, item: T) -> None:
-        key = dumps(item, default=default_encoder)
+        key = self._dedup_key(item)
         if key not in self._dict:
             return
         index = self._dict.pop(key)
@@ -1454,7 +1502,7 @@ class OrderedSet(Generic[T], CBORSerializable):
                 self._dict[key] = idx - 1
 
     def __contains__(self, item: object) -> bool:
-        return dumps(item, default=default_encoder) in self._dict
+        return self._dedup_key(item) in self._dict
 
     def __iter__(self):
         return iter(self._list)
