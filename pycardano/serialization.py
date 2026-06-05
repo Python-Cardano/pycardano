@@ -418,7 +418,7 @@ class CBORSerializable:
                     f"got {repr(field_value)} instead."
                 )
 
-    def to_validated_primitive(self) -> Primitive:
+    def to_validated_primitive(self):
         """Convert the instance and its elements to CBOR primitives recursively with data validated by :meth:`validate`
         method.
 
@@ -429,6 +429,9 @@ class CBORSerializable:
             SerializeException: When the object or its elements could not be converted to
                 CBOR primitive types.
         """
+        # NOTE: intentionally un-annotated return type so the ``@typechecked`` class
+        # decorator does not re-validate the result against the large ``Primitive`` Union.
+        # ``to_primitive`` (called below) already return-checks the value exactly once.
         self.validate()
         return self.to_primitive()
 
@@ -1424,10 +1427,15 @@ class OrderedSet(Generic[T], CBORSerializable):
             self.extend(iterable)
 
     def append(self, item: T) -> None:
-        if item in self:
+        # Encode the element to its CBOR de-dup key exactly once. Previously the
+        # membership check (``item in self``) and the insertion each re-encoded the
+        # element via dumps(), doubling the cost — which dominated decode of
+        # set-heavy transactions.
+        key = dumps(item, default=default_encoder)
+        if key in self._dict:
             return
         self._list.append(item)
-        self._dict[dumps(item, default=default_encoder)] = len(self._list) - 1
+        self._dict[key] = len(self._list) - 1
 
     def extend(self, items: Iterable[T]) -> None:
         self._is_indefinite_list = isinstance(items, IndefiniteList)
@@ -1435,9 +1443,10 @@ class OrderedSet(Generic[T], CBORSerializable):
             self.append(item)
 
     def remove(self, item: T) -> None:
-        if item not in self:
+        key = dumps(item, default=default_encoder)
+        if key not in self._dict:
             return
-        index = self._dict.pop(dumps(item, default=default_encoder))
+        index = self._dict.pop(key)
         self._list.pop(index)
         # Update the indices in the dictionary
         for key, idx in self._dict.items():
