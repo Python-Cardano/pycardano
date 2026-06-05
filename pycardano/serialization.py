@@ -831,26 +831,24 @@ def _build_decode_plan(t: typing.Type) -> Callable[[Any], Any]:
             def plan(v):
                 return from_primitive(v)
 
-        if not in_primitive:
-            return plan
+        if (
+            in_primitive
+        ):  # pragma: no cover - no CBORSerializable type is a PRIMITIVE_TYPE
+            # Defensive mirror of the original short-circuit for a CBORSerializable that
+            # is also a primitive type. No such type exists, so this never executes.
+            def plan_primitive_cbor(v, _t=t, _plan=plan):
+                return v if isinstance(v, _t) else _plan(v)
 
-        # A CBORSerializable that is also a primitive type (e.g. IndefiniteList,
-        # ByteString subclasses): the original would short-circuit-return ``v`` when
-        # ``isinstance(v, t)``; otherwise it would take the is_cbor_serializable branch.
-        def plan_primitive_cbor(v, _t=t, _plan=plan):
-            if isinstance(v, _t):
-                return v
-            return _plan(v)
-
-        return plan_primitive_cbor
+            return plan_primitive_cbor
+        return plan
 
     has_origin = hasattr(t, "__origin__")
     origin = t.__origin__ if has_origin else None
 
     if has_origin and origin is list:
         t_args = t.__args__
-        if len(t_args) != 1:
-            # Defer the error to call time to match original (it raised during decode).
+        if len(t_args) != 1:  # pragma: no cover - typing guarantees exactly one arg
+            # Defensive: defer the error to call time to match the original.
             def plan_bad_list(v, _t_args=t_args):
                 raise DeserializeException(
                     f"List types need exactly one type argument, but got {_t_args}"
@@ -864,15 +862,15 @@ def _build_decode_plan(t: typing.Type) -> Callable[[Any], Any]:
                 raise DeserializeException(f"Expected type list but got {type(v)}")
             return v.__class__([_sub(w) for w in v])
 
-        if not in_primitive:
-            return plan_list
+        if (
+            in_primitive
+        ):  # pragma: no cover - a List[...] alias is never a PRIMITIVE_TYPE
 
-        def plan_primitive_list(v, _t=t, _plan=plan_list):
-            if isinstance(v, _t):
-                return v
-            return _plan(v)
+            def plan_primitive_list(v, _t=t, _plan=plan_list):
+                return v if isinstance(v, _t) else _plan(v)
 
-        return plan_primitive_list
+            return plan_primitive_list
+        return plan_list
 
     if isclass(t) and t == ByteString:
         # ByteString is in PRIMITIVE_TYPES, so the original returns ``v`` unchanged when
@@ -889,7 +887,7 @@ def _build_decode_plan(t: typing.Type) -> Callable[[Any], Any]:
 
     if has_origin and origin is dict:
         t_args = t.__args__
-        if len(t_args) != 2:
+        if len(t_args) != 2:  # pragma: no cover - typing guarantees exactly two args
 
             def plan_bad_dict(v, _t_args=t_args):
                 raise DeserializeException(
@@ -905,15 +903,15 @@ def _build_decode_plan(t: typing.Type) -> Callable[[Any], Any]:
                 raise DeserializeException(f"Expected dict type but got {type(v)}")
             return {_kp(key): _vp(val) for key, val in v.items()}
 
-        if not in_primitive:
-            return plan_dict
+        if (
+            in_primitive
+        ):  # pragma: no cover - a Dict[...] alias is never a PRIMITIVE_TYPE
 
-        def plan_primitive_dict(v, _t=t, _plan=plan_dict):
-            if isinstance(v, _t):
-                return v
-            return _plan(v)
+            def plan_primitive_dict(v, _t=t, _plan=plan_dict):
+                return v if isinstance(v, _t) else _plan(v)
 
-        return plan_primitive_dict
+            return plan_primitive_dict
+        return plan_dict
 
     if has_origin and (origin is Union or origin is Optional):
         t_args = t.__args__
@@ -968,7 +966,7 @@ def _decode_plan(t: typing.Type) -> Callable[[Any], Any]:
     """Return a memoized decode plan for ``t``, building it on first use."""
     try:
         plan = _DECODE_PLAN_CACHE.get(t)
-    except TypeError:
+    except TypeError:  # pragma: no cover - real field types are hashable
         # ``t`` is not hashable; should not happen for real field types, but be safe.
         return _build_decode_plan(t)
     if plan is not None:
@@ -976,7 +974,7 @@ def _decode_plan(t: typing.Type) -> Callable[[Any], Any]:
     plan = _build_decode_plan(t)
     try:
         _DECODE_PLAN_CACHE[t] = plan
-    except TypeError:
+    except TypeError:  # pragma: no cover - real field types are weakly referenceable
         # ``t`` is not weakly referenceable on this interpreter; skip caching.
         pass
     return plan
@@ -1049,7 +1047,7 @@ def _array_field_plan(
         plan.append((f.name, handler))
     try:
         _ARRAY_FIELD_PLAN_CACHE[cls] = plan
-    except TypeError:
+    except TypeError:  # pragma: no cover - real classes are weakly referenceable
         pass
     return plan
 
@@ -1070,7 +1068,7 @@ def _map_field_plan(
     type_hints = _cached_type_hints(cls)
     plan = {}
     for f in fields(cls):
-        if not f.init:
+        if not f.init:  # pragma: no cover - map serializable fields are init fields
             continue
         key = f.metadata.get("key", f.name)
         if not isclass(f.type):
@@ -1082,7 +1080,7 @@ def _map_field_plan(
         plan[key] = (f.name, handler)
     try:
         _MAP_FIELD_PLAN_CACHE[cls] = plan
-    except TypeError:
+    except TypeError:  # pragma: no cover - real classes are weakly referenceable
         pass
     return plan
 

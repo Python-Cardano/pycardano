@@ -699,6 +699,17 @@ def test_ordered_set_dedup_unhashable_and_mixed():
     assert list(s) == [{"b": 2}]
 
 
+def test_restore_typed_primitive_direct():
+    from pycardano.serialization import _restore_typed_primitive
+
+    # Direct entry point: a primitive value passes straight through.
+    assert _restore_typed_primitive(int, 5) == 5
+    # ByteString: a raw bytes value is wrapped; an already-ByteString value passes through.
+    bs = ByteString(b"hello")
+    assert _restore_typed_primitive(ByteString, b"hello") == bs
+    assert _restore_typed_primitive(ByteString, bs) is bs
+
+
 def test_non_empty_ordered_set():
     # Test basic functionality
     s = NonEmptyOrderedSet([1, 2, 3])

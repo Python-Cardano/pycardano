@@ -27,6 +27,23 @@ from pycardano.transaction import (
 from pycardano.witness import TransactionWitnessSet, VerificationKeyWitness
 
 
+def test_asset_multiasset_to_shallow_with_zeros():
+    # A zero-valued entry forces the deepcopy/normalize path in to_shallow_primitive
+    # (the fast path skips it only when there is nothing to strip).
+    a = Asset()
+    a[AssetName(b"tok")] = 0
+    a[AssetName(b"tok2")] = 5
+    # normalize() strips the zero entry; output must not contain it.
+    assert a.to_primitive() == {b"tok2": 5}
+
+    ma = MultiAsset()
+    z = Asset()
+    z[AssetName(b"x")] = 0
+    z[AssetName(b"y")] = 1
+    ma[ScriptHash(b"\x00" * SCRIPT_HASH_SIZE)] = z
+    assert ma.to_primitive() == {b"\x00" * SCRIPT_HASH_SIZE: {b"y": 1}}
+
+
 def test_transaction_input():
     tx_id_hex = "732bfd67e66be8e8288349fcaaa2294973ef6271cc189a239bb431275401b8e5"
     tx_in = TransactionInput(TransactionId(bytes.fromhex(tx_id_hex)), 0)
