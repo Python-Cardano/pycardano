@@ -418,19 +418,24 @@ class Address(CBORSerializable):
                     raise DecodingException(f"Failed to decode address string: {e}")
 
         # At this point, value is always bytes
-        # Check if it's a Byron address (CBOR with tag 24)
-        try:
-            decoded = cbor2.loads(value)
-            if isinstance(decoded, (tuple, list)) and len(decoded) == 2:
-                if isinstance(decoded[0], CBORTag) and decoded[0].tag == 24:
-                    # This is definitely a Byron address - validate and decode it
-                    return cls._from_byron_cbor(value)
-        except DecodingException:
-            # Byron decoding failed with validation error - re-raise it
-            raise
-        except Exception:
-            # Not Byron CBOR (general CBOR decode error), continue with Shelley decoding
-            pass
+        # Check if it's a Byron address (CBOR with tag 24). A Byron address is a
+        # 2-element CBOR array whose first element is tag 24, i.e. its bytes start with
+        # b"\x82\xd8\x18" (array(2) + tag(24)). Guarding on that prefix avoids a
+        # speculative cbor2.loads() on every (Shelley) address, whose header byte is
+        # never 0x82.
+        if value[:3] == b"\x82\xd8\x18":
+            try:
+                decoded = cbor2.loads(value)
+                if isinstance(decoded, (tuple, list)) and len(decoded) == 2:
+                    if isinstance(decoded[0], CBORTag) and decoded[0].tag == 24:
+                        # This is definitely a Byron address - validate and decode it
+                        return cls._from_byron_cbor(value)
+            except DecodingException:
+                # Byron decoding failed with validation error - re-raise it
+                raise
+            except Exception:
+                # Not Byron CBOR (general CBOR decode error), continue with Shelley
+                pass
 
         # Shelley address decoding (existing logic)
         header = value[0]
