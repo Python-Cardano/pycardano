@@ -16,6 +16,7 @@ from pycardano.key import (
     PaymentKeyPair,
     PaymentSigningKey,
     PaymentVerificationKey,
+    SigningKey,
     StakeExtendedSigningKey,
     StakePoolKeyPair,
     StakePoolSigningKey,
@@ -273,6 +274,69 @@ def test_stake_pool_key_hash():
 
     assert len(sk_set) == 1
     assert len(vk_set) == 1
+
+
+SIGNING_KEYS_FOR_REDACTION = [
+    SK,
+    SPSK,
+    EXTENDED_SK,
+    PaymentSigningKey.generate(),
+    StakeSigningKey.generate(),
+    StakePoolSigningKey.generate(),
+    PaymentExtendedSigningKey.from_hdwallet(
+        HDWallet.from_mnemonic(Mnemonic().generate())
+    ),
+    StakeExtendedSigningKey.from_hdwallet(
+        HDWallet.from_mnemonic(Mnemonic().generate())
+    ),
+]
+
+
+@pytest.mark.parametrize("skey", SIGNING_KEYS_FOR_REDACTION)
+def test_signing_key_repr_is_redacted(skey):
+    secret_hex = skey.payload.hex()
+    secret_cbor = skey.to_cbor_hex()
+
+    for rendered in (repr(skey), str(skey), f"{skey}", "%r" % skey):
+        assert secret_hex not in rendered
+        assert secret_cbor not in rendered
+
+
+@pytest.mark.parametrize("skey", SIGNING_KEYS_FOR_REDACTION)
+def test_signing_key_repr_identifies_type(skey):
+    rendered = repr(skey)
+    assert type(skey).__name__ in rendered
+    assert "REDACTED" in rendered
+
+
+@pytest.mark.parametrize("vkey", [VK, SPVK, EXTENDED_VK])
+def test_verification_key_repr_unchanged(vkey):
+    assert repr(vkey) == vkey.to_json()
+    assert str(vkey) == vkey.to_json()
+    assert vkey.to_cbor_hex() in repr(vkey)
+
+
+def test_to_json_still_exports_secret_material():
+    assert SK.to_cbor_hex() in SK.to_json()
+    assert PaymentSigningKey.from_json(SK.to_json()) == SK
+
+
+def test_signing_key_repr_never_raises(monkeypatch):
+    def _boom(*args, **kwargs):
+        raise RuntimeError("no vkey for you")
+
+    monkeypatch.setattr(
+        type(SK), "to_verification_key", _boom, raising=True
+    )
+    rendered = repr(SK)
+    assert isinstance(rendered, str)
+    assert "unknown" in rendered
+
+
+def test_fingerprint_matches_vkey_hash():
+    expected = SK.to_verification_key().hash().payload.hex()[:16]
+    assert SK._public_fingerprint() == expected
+    assert expected in repr(SK)
 
 
 def test_extended_signing_key_from_hd_wallet_uses_type_and_description_from_class():
