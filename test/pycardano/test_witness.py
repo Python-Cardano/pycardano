@@ -1,6 +1,4 @@
 import json
-import os
-import tempfile
 
 from pycardano import (
     PaymentSigningKey,
@@ -12,7 +10,7 @@ from pycardano import (
 )
 
 
-def test_witness_save_load():
+def test_witness_save_load(tmp_path):
     sk = PaymentSigningKey.generate()
     vk = PaymentVerificationKey.from_signing_key(sk)
     witness = VerificationKeyWitness(
@@ -20,16 +18,12 @@ def test_witness_save_load():
         signature=sk.sign(b"test"),
     )
 
-    with tempfile.NamedTemporaryFile(delete=False) as f:
-        tmp_path = f.name
-    try:
-        witness.save(tmp_path)
-        loaded_witness = VerificationKeyWitness.load(tmp_path)
-        assert witness == loaded_witness
+    path = str(tmp_path / "witness.json")
+    witness.save(path)
+    loaded_witness = VerificationKeyWitness.load(path)
+    assert witness == loaded_witness
 
-        assert witness != vk
-    finally:
-        os.unlink(tmp_path)
+    assert witness != vk
 
 
 def test_redeemer_decode():

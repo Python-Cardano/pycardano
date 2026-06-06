@@ -1,7 +1,7 @@
 import json
 import os
 import pathlib
-import tempfile
+import stat
 
 import pytest
 from mnemonic import Mnemonic
@@ -204,43 +204,36 @@ def test_stake_pool_key_load():
     assert vk == StakePoolVerificationKey.from_json(vk.to_json())
 
 
-def test_key_save():
-    # On Windows, NamedTemporaryFile keeps the file locked while open.
-    # Use delete=False and close the handle first, then clean up manually.
-    with tempfile.NamedTemporaryFile(delete=False) as f:
-        tmp_path = f.name
-    try:
-        SK.save(tmp_path)
-        sk = PaymentSigningKey.load(tmp_path)
-        assert SK == sk
-    finally:
-        os.unlink(tmp_path)
+def test_key_save(tmp_path):
+    path = str(tmp_path / "payment.skey")
+    SK.save(path)
+    sk = PaymentSigningKey.load(path)
+    assert SK == sk
 
 
-def test_key_save_invalid_address():
-    with tempfile.NamedTemporaryFile(delete=False) as f:
-        tmp_path = f.name
-    try:
-        SK.save(tmp_path)
-        with pytest.raises(IOError):
-            VK.save(tmp_path)
-    finally:
-        os.unlink(tmp_path)
+@pytest.mark.skipif(os.name == "nt", reason="POSIX file modes are advisory on Windows")
+def test_key_save_mode_is_owner_only(tmp_path):
+    path = str(tmp_path / "payment.skey")
+    SK.save(path)
+    # The key file must be readable/writable by its owner only (0o600).
+    assert stat.S_IMODE(os.stat(path).st_mode) == 0o600
 
 
-def test_stake_pool_key_save():
-    with tempfile.NamedTemporaryFile(delete=False) as skf:
-        sk_path = skf.name
-    with tempfile.NamedTemporaryFile(delete=False) as vkf:
-        vk_path = vkf.name
-    try:
-        SPSK.save(sk_path)
-        sk = StakePoolSigningKey.load(sk_path)
-        SPVK.save(vk_path)
-        vk = StakePoolSigningKey.load(vk_path)
-    finally:
-        os.unlink(sk_path)
-        os.unlink(vk_path)
+def test_key_save_invalid_address(tmp_path):
+    path = str(tmp_path / "payment.skey")
+    SK.save(path)
+    # save() refuses to overwrite the existing file.
+    with pytest.raises(IOError):
+        VK.save(path)
+
+
+def test_stake_pool_key_save(tmp_path):
+    sk_path = str(tmp_path / "cold.skey")
+    vk_path = str(tmp_path / "cold.vkey")
+    SPSK.save(sk_path)
+    sk = StakePoolSigningKey.load(sk_path)
+    SPVK.save(vk_path)
+    vk = StakePoolSigningKey.load(vk_path)
     assert SPSK == sk
     assert SPVK == vk
 

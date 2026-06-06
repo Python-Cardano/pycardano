@@ -50,6 +50,13 @@ A key could be saved to and loaded from a file::
     >>> payment_signing_key = payment_signing_key.load("payment.skey")
     >>> payment_verification_key = payment_verification_key.load("payment.vkey")
 
+.. note::
+    On POSIX systems, key files are created with owner-only (``0o600``) permissions so that
+    other local users cannot read your secret keys. ``save()`` also refuses to overwrite or
+    follow an existing file. POSIX file modes are advisory on Windows, where this protection
+    is not enforced — Windows users should rely on NTFS ACLs or disk encryption to protect
+    key files.
+
 Signing keys can sign messages (in bytes)::
 
     >>> message = b"Hello world!"
