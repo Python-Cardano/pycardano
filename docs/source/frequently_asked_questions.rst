@@ -102,6 +102,8 @@ Or manually install it with:
    pip uninstall -y cbor2
    pip install --no-binary cbor2 cbor2
 
+When ``CBOR_C_EXTENSION=1`` is set, PyCardano emits a ``RuntimeWarning`` (and a ``logging`` warning) at import time and runs a startup round-trip self-test. If the installed ``cbor2`` build is not byte-stable on decode→encode, the self-test raises a ``PyCardanoException`` so the process fails fast instead of silently producing wrong transaction ids. Do not enable the C extension for signing or decode-then-reserialize workflows.
+
 **Best Practices**
 
 - Always use the pure Python cbor2 implementation when working with pre-signed transactions or Plutus scripts
