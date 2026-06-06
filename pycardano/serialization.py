@@ -75,7 +75,10 @@ def _identity(x):
 
 class IndefiniteList(UserList):
     def __init__(self, li: Primitive):  # type: ignore
-        super().__init__(li)  # type: ignore
+        if isinstance(li, FrozenList):
+            super().__init__(list(li))  # type: ignore
+        else:
+            super().__init__(li)  # type: ignore
 
 
 class IndefiniteFrozenList(FrozenList, IndefiniteList):  # type: ignore
