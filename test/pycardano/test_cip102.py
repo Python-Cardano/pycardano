@@ -1,4 +1,5 @@
 import pytest
+from cbor2 import CBORTag
 
 from pycardano.cip.cip67 import InvalidCIP67Token
 from pycardano.cip.cip102 import (
@@ -69,6 +70,20 @@ class TestCIP102RoyaltyTokenName:
         spec_hex = "001f4d70526f79616c7479"
         token = CIP102RoyaltyTokenName(spec_hex)
         assert token.label == 500
+        assert token.postfix is None
+
+    def test_postfix_invalid_suffix_returns_none(self):
+        """postfix property: covers the except (ValueError, UnicodeDecodeError) branch."""
+        from crc8 import crc8
+
+        label_bytes = (500 << 4).to_bytes(3, "big")
+        label_nibbles_for_crc = label_bytes.hex()[1:5]
+        checksum = crc8(bytes.fromhex(label_nibbles_for_crc)).hexdigest()
+        prefix = "0" + label_nibbles_for_crc + checksum + "0"
+        # Append "Royalty" + non-integer bytes (0xff is not valid UTF-8)
+        payload = b"Royalty" + b"\xff"
+        token_hex = prefix + payload.hex()
+        token = CIP102RoyaltyTokenName(token_hex)
         assert token.postfix is None
 
 
@@ -190,6 +205,15 @@ class TestRoyaltyInfo:
     def test_cbor_hex_is_string(self):
         r = RoyaltyRecipient.new(address=_DUMMY_ADDR, fee=625)
         info = RoyaltyInfo(recipients=[r], version=1, extra=Unit())
+        cbor_hex = info.to_cbor_hex()
+        assert isinstance(cbor_hex, str)
+        assert len(cbor_hex) > 0
+
+    def test_extra_cbortag_branch(self):
+        """to_shallow_primitive: covers the elif isinstance(extra, CBORTag) branch."""
+        r = RoyaltyRecipient.new(address=_DUMMY_ADDR, fee=625)
+        extra = CBORTag(121, [1, 2, 3])
+        info = RoyaltyInfo(recipients=[r], version=1, extra=extra)
         cbor_hex = info.to_cbor_hex()
         assert isinstance(cbor_hex, str)
         assert len(cbor_hex) > 0
