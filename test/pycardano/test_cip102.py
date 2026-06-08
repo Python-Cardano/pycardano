@@ -1,5 +1,6 @@
 import pytest
 
+from pycardano.cip.cip67 import InvalidCIP67Token
 from pycardano.cip.cip102 import (
     CIP102RoyaltyTokenName,
     InvalidCIP102Token,
@@ -11,7 +12,6 @@ from pycardano.cip.cip102 import (
     fee_from_chain,
     fee_to_chain,
 )
-from pycardano.cip.cip67 import InvalidCIP67Token
 from pycardano.plutus import PlutusData, Unit
 
 
@@ -23,6 +23,7 @@ def assert_roundtrip(obj: PlutusData) -> None:
 
 
 # ── Token name ──────────────────────────────────────────────────────────────
+
 
 class TestCIP102RoyaltyTokenName:
     def test_from_postfix_none(self):
@@ -54,6 +55,7 @@ class TestCIP102RoyaltyTokenName:
     def test_invalid_payload(self):
         # Build a valid CIP-67 token with label 500 but wrong payload
         from crc8 import crc8
+
         label_bytes = (500 << 4).to_bytes(3, "big")
         label_nibbles_for_crc = label_bytes.hex()[1:5]  # "01f4"
         checksum = crc8(bytes.fromhex(label_nibbles_for_crc)).hexdigest()
@@ -72,22 +74,29 @@ class TestCIP102RoyaltyTokenName:
 
 # ── Fee helpers ──────────────────────────────────────────────────────────────
 
+
 class TestFeeHelpers:
-    @pytest.mark.parametrize("pct,expected_chain_fee", [
-        (0.016, 625),   # 1.6%
-        (0.02, 500),    # 2.0%
-        (0.025, 400),   # 2.5%
-        (0.05, 200),    # 5%
-        (0.10, 100),    # 10%
-    ])
+    @pytest.mark.parametrize(
+        "pct,expected_chain_fee",
+        [
+            (0.016, 625),  # 1.6%
+            (0.02, 500),  # 2.0%
+            (0.025, 400),  # 2.5%
+            (0.05, 200),  # 5%
+            (0.10, 100),  # 10%
+        ],
+    )
     def test_fee_to_chain(self, pct, expected_chain_fee):
         assert fee_to_chain(pct) == expected_chain_fee
 
-    @pytest.mark.parametrize("chain_fee,expected_pct", [
-        (625, 0.016),
-        (500, 0.02),
-        (200, 0.05),
-    ])
+    @pytest.mark.parametrize(
+        "chain_fee,expected_pct",
+        [
+            (625, 0.016),
+            (500, 0.02),
+            (200, 0.05),
+        ],
+    )
     def test_fee_from_chain(self, chain_fee, expected_pct):
         assert abs(fee_from_chain(chain_fee) - expected_pct) < 1e-9
 
@@ -120,7 +129,9 @@ class TestCalculateRoyalty:
 
     def test_both_clamps(self):
         # min=1, max=3 ADA; 2% of 100 ADA = 2 ADA → within bounds
-        result = calculate_royalty(500, 100_000_000, min_fee=1_000_000, max_fee=3_000_000)
+        result = calculate_royalty(
+            500, 100_000_000, min_fee=1_000_000, max_fee=3_000_000
+        )
         assert result == 2_000_000
 
 
@@ -138,7 +149,9 @@ class TestRoyaltyRecipient:
         assert isinstance(r.max_fee, RoyaltyRecipientNoMinFee)
 
     def test_new_with_fees(self):
-        r = RoyaltyRecipient.new(address=_DUMMY_ADDR, fee=500, min_fee=1_000_000, max_fee=5_000_000)
+        r = RoyaltyRecipient.new(
+            address=_DUMMY_ADDR, fee=500, min_fee=1_000_000, max_fee=5_000_000
+        )
         assert isinstance(r.min_fee, RoyaltyRecipientSomeMinFee)
         assert r.min_fee.value == 1_000_000
         assert isinstance(r.max_fee, RoyaltyRecipientSomeMinFee)
@@ -149,11 +162,14 @@ class TestRoyaltyRecipient:
         assert_roundtrip(r)
 
     def test_roundtrip_with_fees(self):
-        r = RoyaltyRecipient.new(address=_DUMMY_ADDR, fee=500, min_fee=1_000_000, max_fee=10_000_000)
+        r = RoyaltyRecipient.new(
+            address=_DUMMY_ADDR, fee=500, min_fee=1_000_000, max_fee=10_000_000
+        )
         assert_roundtrip(r)
 
 
 # ── RoyaltyInfo ──────────────────────────────────────────────────────────────
+
 
 class TestRoyaltyInfo:
     def test_single_recipient_v1(self):

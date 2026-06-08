@@ -3,12 +3,10 @@ from typing import Any, List, Optional, Union
 
 from cbor2 import CBORTag
 
-from pycardano.cip.cip67 import CIP67TokenName, InvalidCIP67Token
-from pycardano.hash import ScriptHash, VerificationKeyHash
-from pycardano.plutus import PlutusData, Unit, Primitive
+from pycardano.cip.cip67 import CIP67TokenName
+from pycardano.plutus import PlutusData, Primitive, Unit
 from pycardano.serialization import IndefiniteList
 from pycardano.transaction import AssetName
-
 
 ROYALTY_TOKEN_LABEL = 500
 ROYALTY_TOKEN_PAYLOAD = b"Royalty"
@@ -68,7 +66,9 @@ class CIP102RoyaltyTokenName(CIP67TokenName):
         label = ROYALTY_TOKEN_LABEL
         # CIP-67 stores the label in the upper 12 bits of the first 3 bytes.
         # data[1:5] (nibbles 1-4) are the CRC8 input, matching the validator.
-        label_bytes = (label << 4).to_bytes(3, "big")  # 3 bytes with label in upper 12 bits
+        label_bytes = (label << 4).to_bytes(
+            3, "big"
+        )  # 3 bytes with label in upper 12 bits
         label_nibbles_for_crc = label_bytes.hex()[1:5]  # e.g. "01f4" for label 500
         checksum = crc8(bytes.fromhex(label_nibbles_for_crc)).hexdigest()
         prefix = "0" + label_nibbles_for_crc + checksum + "0"  # 8 hex chars = 4 bytes
@@ -110,7 +110,9 @@ class RoyaltyRecipientNoMinFee(PlutusData):
     CONSTR_ID = 1
 
 
-def _make_optional_big_int(value: Optional[int]) -> PlutusData:
+def _make_optional_big_int(
+    value: Optional[int],
+) -> Union[RoyaltyRecipientSomeMinFee, RoyaltyRecipientNoMinFee]:
     """Build the ``optional_big_int`` Plutus representation.
 
     Args:
