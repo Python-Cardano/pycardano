@@ -1,7 +1,9 @@
+import math
 from dataclasses import dataclass
 from typing import Any, List, Optional, Union
 
 from cbor2 import CBORTag
+from crc8 import crc8
 
 from pycardano.cip.cip67 import CIP67TokenName
 from pycardano.plutus import PlutusData, Primitive, Unit
@@ -61,7 +63,6 @@ class CIP102RoyaltyTokenName(CIP67TokenName):
             CIP102RoyaltyTokenName.from_postfix(1)       # (500)Royalty1
             CIP102RoyaltyTokenName.from_postfix(2)       # (500)Royalty2
         """
-        from crc8 import crc8
 
         label = ROYALTY_TOKEN_LABEL
         # CIP-67 stores the label in the upper 12 bits of the first 3 bytes.
@@ -247,7 +248,6 @@ def fee_to_chain(pct: float) -> int:
         >>> fee_to_chain(0.016)
         625
     """
-    import math
 
     return math.floor(10 / pct)
 
