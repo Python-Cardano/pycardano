@@ -65,6 +65,8 @@ For some users, the C implementation may not work properly when deserializing cb
 
 To solve this problem, a fork of cbor2 is created at [cbor2pure](https://github.com/cffls/cbor2pure). This fork removes C extension and only uses pure python for cbor decoding. By default, for correctness, pycardano uses cbor2pure in decoding. However, if speed is preferred over accuracy, users can set `CBOR_C_EXTENSION=1` in their environment, and the default C extension would be used instead.
 
+When `CBOR_C_EXTENSION=1` is set, PyCardano emits a `RuntimeWarning` and runs a startup round-trip self-test that fails fast (raising `PyCardanoException`) if the installed cbor2 build would change transaction ids on decode-then-reserialize. Do not enable it for signing or decode-then-reserialize workflows. The self-test can be disabled with `PYCARDANO_CBOR_SELFTEST=0` if you have verified your workflow never decodes then reserializes.
+
 ```bash
 ensure_pure_cbor2.sh
 ```
