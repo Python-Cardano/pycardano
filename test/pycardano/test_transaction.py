@@ -1,3 +1,4 @@
+import json
 import os
 import tempfile
 from dataclasses import dataclass
@@ -5,6 +6,7 @@ from fractions import Fraction
 from test.pycardano.util import check_two_way_cbor
 
 import pytest
+from nacl.signing import SigningKey as NACLSigningKey
 from typeguard import TypeCheckError
 
 from pycardano import ParameterChangeAction
@@ -699,6 +701,48 @@ def test_decode_param_update_proposal_tx():
     assert tx.transaction_body.proposal_procedures[
         0
     ].gov_action.protocol_param_update.treasury_growth_rate == Fraction(1, 10)
+
+
+def test_sign_dex_transaction_with_raw_plutus_data_inline_datum():
+    # Regression for https://github.com/python-cardano/pycardano/issues/402
+    #
+    # Wallets like Eternl export unsigned DEX swap CBORs that contain outputs with
+    # RawPlutusData inline datums (indefinite-length encoded). Before fixes #474 and #479,
+    # round-tripping such a transaction corrupted the body CBOR, producing a different hash
+    # and making any externally-computed signature unverifiable.
+    #
+    # This test uses the Liqwid DEX transaction (signed, Conway era) as a representative
+    # fixture: it contains two outputs with complex inline Plutus datums.
+    with open("test/resources/cbors/liqwid.json") as f:
+        cbor_hex = json.load(f)["cborHex"]
+
+    tx = Transaction.from_cbor(cbor_hex)
+
+    # The tx body must round-trip to identical bytes so the hash is stable.
+    assert tx.to_cbor_hex() == cbor_hex, "Full transaction CBOR did not round-trip"
+
+    # Both outputs carry inline datums decoded from complex indefinite-length Plutus data.
+    outputs_with_datum = [o for o in tx.transaction_body.outputs if o.datum is not None]
+    assert len(outputs_with_datum) == 2
+
+    # The transaction id is derived from blake2b-256 of the body CBOR.
+    # If the body encodes differently after decode, this id would change.
+    expected_id = TransactionId.from_primitive(
+        "1c280d01277784ce94c2fb14a5c97c96f80c08d0d812da4ecbd1d78397d03dab"
+    )
+    assert tx.id == expected_id
+
+    # Signing the body hash must produce a verifiable signature.
+    sk = PaymentSigningKey.from_json("""{
+        "type": "GenesisUTxOSigningKey_ed25519",
+        "description": "Genesis Initial UTxO Signing Key",
+        "cborHex": "5820093be5cd3987d0c9fd8854ef908f7746b69e2d73320db6dc0f780d81585b84c2"
+    }""")
+    body_hash = tx.transaction_body.hash()
+    signature = sk.sign(body_hash)
+    # Verify the signature is valid against the body hash using nacl directly.
+    nacl_vk = NACLSigningKey(sk.payload).verify_key
+    nacl_vk.verify(body_hash, signature)
 
 
 def test_decode_byron_transaction():
