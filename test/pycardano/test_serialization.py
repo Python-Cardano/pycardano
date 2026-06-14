@@ -1,6 +1,6 @@
 import json
 import os
-import tempfile
+import stat
 from collections import defaultdict, deque
 from copy import deepcopy
 from dataclasses import dataclass, field
@@ -1016,7 +1016,7 @@ def test_non_empty_ordered_set_deepcopy():
     assert s_copy[0].value == 100
 
 
-def test_save_load():
+def test_save_load(tmp_path):
     @dataclass
     class Test1(CBORSerializable):
         a: str
@@ -1048,17 +1048,13 @@ def test_save_load():
     assert test1_json["description"] == "Test Description"
     assert test1_json["cborHex"] == test1.to_cbor_hex()
 
-    with tempfile.NamedTemporaryFile(delete=False) as f:
-        tmp_path = f.name
-    try:
-        test1.save(tmp_path)
-        loaded = Test1.load(tmp_path)
-        assert test1 == loaded
+    path = str(tmp_path / "test1.json")
+    test1.save(path)
+    loaded = Test1.load(path)
+    assert test1 == loaded
 
-        with pytest.raises(IOError):
-            test1.save(tmp_path)
-    finally:
-        os.unlink(tmp_path)
+    with pytest.raises(IOError):
+        test1.save(path)
 
 
 def test_ordered_set_as_key_in_dict():
@@ -1176,3 +1172,69 @@ def test_liqwid_tx():
         cbor_hex = json.load(f).get("cborHex")
     tx = Transaction.load("test/resources/cbors/liqwid.json")
     assert tx.to_cbor().hex() == cbor_hex
+
+
+@dataclass
+class _SaveTest(CBORSerializable):
+    a: str
+
+    @classmethod
+    def from_primitive(
+        cls: Type[CBORSerializable], value: Any, type_args: Optional[tuple] = None
+    ) -> CBORSerializable:
+        return _SaveTest(a=value["a"])
+
+    def to_shallow_primitive(self) -> Union[Primitive, CBORSerializable]:
+        return {"a": self.a}
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX file modes are advisory on Windows")
+def test_save_default_mode_is_owner_only(tmp_path):
+    path = str(tmp_path / "k.skey")
+    _SaveTest(a="secret").save(path)
+    # Secret files default to owner read/write only (0o600).
+    assert stat.S_IMODE(os.stat(path).st_mode) == 0o600
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX file modes are advisory on Windows")
+def test_save_custom_mode(tmp_path):
+    path = str(tmp_path / "tx.json")
+    # Non-secret callers can opt into wider permissions via the mode keyword.
+    _SaveTest(a="public").save(path, mode=0o644)
+    assert stat.S_IMODE(os.stat(path).st_mode) == 0o644
+
+
+def test_save_refuses_existing_file(tmp_path):
+    obj = _SaveTest(a="x")
+    path = str(tmp_path / "k.json")
+
+    # A non-empty existing file is rejected.
+    obj.save(path)
+    with pytest.raises(IOError):
+        obj.save(path)
+    os.unlink(path)
+
+    # An empty pre-existing file is also rejected (O_EXCL tightening).
+    open(path, "w").close()
+    with pytest.raises(IOError):
+        obj.save(path)
+
+
+@pytest.mark.skipif(os.name == "nt", reason="symlink semantics differ on Windows")
+def test_save_does_not_follow_symlink(tmp_path):
+    target = tmp_path / "target"
+    link = tmp_path / "link"
+    target.touch()
+    link.symlink_to(target)
+
+    with pytest.raises(IOError):
+        _SaveTest(a="x").save(str(link))
+    # The pre-existing target must not have been written through the link.
+    assert target.stat().st_size == 0
+
+
+def test_save_round_trips(tmp_path):
+    obj = _SaveTest(a="round-trip")
+    path = str(tmp_path / "k.json")
+    obj.save(path)
+    assert _SaveTest.load(path) == obj

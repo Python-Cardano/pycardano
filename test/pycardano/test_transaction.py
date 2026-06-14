@@ -1,5 +1,3 @@
-import os
-import tempfile
 from dataclasses import dataclass
 from fractions import Fraction
 from test.pycardano.util import check_two_way_cbor
@@ -244,7 +242,7 @@ def test_transaction():
     assert expected_tx_id == signed_tx.id
 
 
-def test_transaction_save_load():
+def test_transaction_save_load(tmp_path):
     tx_cbor = (
         "84a70081825820b35a4ba9ef3ce21adcd6879d08553642224304704d206c74d3ffb3e6eed3ca28000d80018182581d60cc"
         "30497f4ff962f4c1dca54cceefe39f86f1d7179668009f8eb71e598200a1581cec8b7d1dd0b124e8333d3fa8d818f6eac0"
@@ -264,14 +262,10 @@ def test_transaction_save_load():
     )
     tx = Transaction.from_cbor(tx_cbor)
 
-    with tempfile.NamedTemporaryFile(delete=False) as f:
-        tmp_path = f.name
-    try:
-        tx.save(tmp_path)
-        loaded_tx = Transaction.load(tmp_path)
-        assert tx == loaded_tx
-    finally:
-        os.unlink(tmp_path)
+    path = str(tmp_path / "tx.json")
+    tx.save(path)
+    loaded_tx = Transaction.load(path)
+    assert tx == loaded_tx
 
 
 def test_multi_asset():

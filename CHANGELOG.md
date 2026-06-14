@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [Unreleased]
+
+**Security:**
+
+- Key files are now created with `0o600` permissions on POSIX and refuse to overwrite or
+  follow existing paths. `CBORSerializable.save()` now writes atomically with
+  `O_EXCL`/`O_CREAT`, closing a TOCTOU race and preventing world-readable key files. A new
+  `mode` keyword allows callers of non-secret objects to opt into wider permissions.
+
 ## [0.8.1] - 2023-04-06
 
 This patch contains a number of bug fixes to `v0.8.0`.

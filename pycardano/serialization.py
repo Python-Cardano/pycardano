@@ -634,27 +634,55 @@ class CBORSerializable:
         path: str,
         key_type: Optional[str] = None,
         description: Optional[str] = None,
+        mode: int = 0o600,
         **kwargs,
     ):
         """
         Save the CBORSerializable object to a file in JSON format.
 
         This method writes the object's JSON representation to the specified file path.
-         It raises an error if the file already exists and is not empty.
+        The file is created atomically and refuses to overwrite or follow an existing
+        path. Because objects such as :class:`~pycardano.key.SigningKey` may contain
+        secret material, the file is created with owner-only (``0o600``) permissions by
+        default on POSIX systems.
+
+        Note:
+            POSIX file modes are advisory on Windows, where ``os.chmod`` only toggles the
+            read-only bit. Owner-only enforcement is therefore POSIX-only; Windows users
+            should rely on NTFS ACLs or disk encryption to protect key files.
 
         Args:
             path (str): The file path to save the object to.
             key_type (str, optional): The type to use in the JSON output. Defaults to the class name.
             description (str, optional): The description to use in the JSON output. Defaults to the class docstring.
+            mode (int): The file permission bits to create the file with. Defaults to
+                ``0o600`` (owner read/write only), which is appropriate for files that may
+                hold secret key material.
             **kwargs: Extra key word arguments to be passed to `json.dumps()`
 
         Raises:
-            IOError: If the file already exists and is not empty.
+            IOError: If the file already exists.
         """
-        if os.path.isfile(path) and os.stat(path).st_size > 0:
+        payload = self.to_json(key_type=key_type, description=description, **kwargs)
+        # O_EXCL makes creation atomic: it fails if the path already exists (closing the
+        # TOCTOU race in the old os.path.isfile check) and refuses to follow a pre-existing
+        # symlink. The mode is subject to the process umask, so chmod afterwards to
+        # guarantee the requested mode regardless of umask.
+        try:
+            fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, mode)
+        except FileExistsError:
             raise IOError(f"File {path} already exists!")
-        with open(path, "w") as f:
-            f.write(self.to_json(key_type=key_type, description=description, **kwargs))
+        try:
+            with os.fdopen(fd, "w") as f:
+                os.chmod(path, mode)
+                f.write(payload)
+        except BaseException:
+            # The file was created by us; remove the partial/empty file on failure.
+            try:
+                os.unlink(path)
+            except OSError:
+                pass
+            raise
 
     @classmethod
     def load(cls, path: str):
