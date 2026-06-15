@@ -325,9 +325,7 @@ def test_signing_key_repr_never_raises(monkeypatch):
     def _boom(*args, **kwargs):
         raise RuntimeError("no vkey for you")
 
-    monkeypatch.setattr(
-        type(SK), "to_verification_key", _boom, raising=True
-    )
+    monkeypatch.setattr(type(SK), "to_verification_key", _boom, raising=True)
     rendered = repr(SK)
     assert isinstance(rendered, str)
     assert "unknown" in rendered
