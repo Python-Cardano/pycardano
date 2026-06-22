@@ -681,6 +681,88 @@ def test_ordered_set_with_complex_types():
     assert restored == witness_set
 
 
+def test_ordered_set_dedup_unhashable_and_mixed():
+    # Unhashable elements (e.g. plain dicts) de-duplicate via their CBOR bytes — the
+    # fallback path for the native-hash de-dup key.
+    s = OrderedSet([{"a": 1}, {"a": 1}, {"b": 2}])
+    assert len(list(s)) == 2
+    assert {"a": 1} in s
+    assert {"c": 3} not in s
+
+    # Mixing hashable and unhashable elements must not produce false collisions.
+    mixed = OrderedSet([1, {"a": 1}, 1, {"a": 1}])
+    assert len(list(mixed)) == 2
+    assert 1 in mixed and {"a": 1} in mixed
+
+    # remove() works on the unhashable (CBOR-keyed) path and preserves order.
+    s.remove({"a": 1})
+    assert list(s) == [{"b": 2}]
+
+
+def test_restore_typed_primitive_direct():
+    from pycardano.serialization import _restore_typed_primitive
+
+    # Direct entry point: a primitive value passes straight through.
+    assert _restore_typed_primitive(int, 5) == 5
+    # ByteString: a raw bytes value is wrapped; an already-ByteString value passes through.
+    bs = ByteString(b"hello")
+    assert _restore_typed_primitive(ByteString, b"hello") == bs
+    assert _restore_typed_primitive(ByteString, bs) is bs
+
+
+def test_per_class_caches_memoize():
+    """The per-class introspection caches return the same object on repeat lookups
+    and populate their backing store."""
+    import pycardano.serialization as ser
+
+    @dataclass
+    class _Probe(ArrayCBORSerializable):
+        a: int
+        b: str
+
+    ser._TYPE_HINTS_CACHE.pop(_Probe, None)
+    ser._FIELDS_CACHE.pop(_Probe, None)
+
+    assert ser._cached_type_hints(_Probe) is ser._cached_type_hints(_Probe)
+    assert ser._cached_fields(_Probe) is ser._cached_fields(_Probe)
+    assert _Probe in ser._TYPE_HINTS_CACHE
+    assert _Probe in ser._FIELDS_CACHE
+
+
+def test_repeated_serialization_does_not_recompute_per_class(monkeypatch):
+    """Encoding/decoding the same class repeatedly must reuse the per-class caches
+    rather than recomputing type hints / fields each time. Guards against a future
+    change that bypasses the memoization and silently regresses the optimization."""
+    import pycardano.serialization as ser
+
+    @dataclass
+    class _Probe(ArrayCBORSerializable):
+        a: int
+        b: str
+
+    ser._TYPE_HINTS_CACHE.pop(_Probe, None)
+    ser._FIELDS_CACHE.pop(_Probe, None)
+
+    hint_calls: List[type] = []
+    field_calls: List[type] = []
+    real_hints, real_fields = ser.get_type_hints, ser.fields
+    monkeypatch.setattr(
+        ser, "get_type_hints", lambda c, *a, **k: (hint_calls.append(c), real_hints(c, *a, **k))[1]
+    )
+    monkeypatch.setattr(
+        ser, "fields", lambda c: (field_calls.append(c), real_fields(c))[1]
+    )
+
+    primitive = _Probe(1, "x").to_primitive()
+    assert _Probe.from_primitive(primitive) == _Probe(1, "x")
+    assert _Probe.from_primitive(primitive) == _Probe(1, "x")
+
+    # Each expensive per-class computation runs at most once for the class, no matter
+    # how many times it is (de)serialized.
+    assert hint_calls.count(_Probe) <= 1
+    assert field_calls.count(_Probe) <= 1
+
+
 def test_non_empty_ordered_set():
     # Test basic functionality
     s = NonEmptyOrderedSet([1, 2, 3])

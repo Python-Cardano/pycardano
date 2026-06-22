@@ -154,8 +154,13 @@ class Asset(DictCBORSerializable):
         return res
 
     def to_shallow_primitive(self) -> dict:
-        x = deepcopy(self).normalize()
-        return super(self.__class__, x).to_shallow_primitive()
+        # normalize() only removes zero-valued entries and mutates in place, so the
+        # deepcopy exists solely to avoid mutating self. Skip it when there is nothing
+        # to strip (the common case) — output is identical.
+        if any(v == 0 for v in self.data.values()):
+            x = deepcopy(self).normalize()
+            return super(self.__class__, x).to_shallow_primitive()
+        return super(self.__class__, self).to_shallow_primitive()
 
 
 @typechecked
@@ -277,8 +282,16 @@ class MultiAsset(DictCBORSerializable):
         return res
 
     def to_shallow_primitive(self) -> dict:
-        x = deepcopy(self).normalize()
-        return super(self.__class__, x).to_shallow_primitive()
+        # As with Asset: normalize() only strips empty sub-assets / zero values and
+        # mutates in place, so skip the deepcopy unless something would actually be
+        # removed. Output is identical.
+        if any(
+            (not v.data) or any(av == 0 for av in v.data.values())
+            for v in self.data.values()
+        ):
+            x = deepcopy(self).normalize()
+            return super(self.__class__, x).to_shallow_primitive()
+        return super(self.__class__, self).to_shallow_primitive()
 
 
 @typechecked

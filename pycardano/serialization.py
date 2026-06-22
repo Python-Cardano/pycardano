@@ -8,7 +8,7 @@ import re
 import typing
 from collections import OrderedDict, UserList, defaultdict
 from copy import deepcopy
-from dataclasses import Field, dataclass, field, fields
+from dataclasses import dataclass, field, fields
 from datetime import datetime
 from decimal import Decimal
 from fractions import Fraction
@@ -30,6 +30,7 @@ from typing import (
     cast,
     get_type_hints,
 )
+from weakref import WeakKeyDictionary
 
 from pycardano.cbor import cbor2
 from pycardano.logging import logger
@@ -67,6 +68,11 @@ __all__ = [
 ]
 
 T = TypeVar("T")
+
+# Scalar leaf types that (de)serialize to themselves — the large majority of nodes
+# in a typical tree. A single membership test replaces an ``isinstance`` cascade on
+# the hot path. ``type(None)`` covers ``None``.
+_SCALAR_TYPES = frozenset({int, str, bytes, bool, float, type(None)})
 
 
 def _identity(x):
@@ -238,8 +244,12 @@ def default_encoder(
         # handling here to explicitly write header (b'\x9f'), each body item, and footer (b'\xff') to
         # the output bytestring.
         encoder.write(b"\x9f")
-        for item in value:
-            encoder.encode(item)
+        # Iterate the underlying list for a plain IndefiniteList (UserList) to avoid the
+        # slow Sequence.__iter__; IndefiniteFrozenList has no usable .data, so use identity.
+        items = value.data if type(value) is IndefiniteList else value
+        encode = encoder.encode
+        for item in items:
+            encode(item)
         encoder.write(b"\xff")
     elif isinstance(value, ByteString):
         if len(value.value) > 64:
@@ -307,10 +317,31 @@ class CBORSerializable:
             SerializeException: When the object or its elements could not be converted to
                 CBOR primitive types.
         """
+        # Delegate to a private, *un-annotated* worker. The public method keeps its
+        # ``-> Primitive`` annotation (and the top-level typeguard return check), but the
+        # recursive descent runs through ``_to_primitive`` which has no annotations, so
+        # typeguard does not re-validate the (large) ``Primitive`` Union return type for
+        # every node of the tree. The produced value is byte-for-byte identical.
+        return self._to_primitive()
+
+    def _to_primitive(self):
+        # NOTE: intentionally un-annotated so the ``@typechecked`` class decorator does
+        # not wrap this hot recursive worker with a return-type check.
         result = self.to_shallow_primitive()
 
         def _dfs(value, freeze=False):
+            tv = type(value)
+            # Fast path for scalar leaves (the large majority of nodes), skipping the
+            # isinstance cascade below.
+            if tv in _SCALAR_TYPES:
+                return value
             if isinstance(value, CBORSerializable):
+                # Preserve polymorphic dispatch: subclasses that override
+                # ``to_primitive`` must run their override (and its own type check).
+                # For everything that uses the base implementation, recurse through the
+                # cheap un-annotated worker to avoid redundant typeguard return checks.
+                if type(value).to_primitive is CBORSerializable.to_primitive:
+                    return _dfs(value._to_primitive(), freeze)
                 return _dfs(value.to_primitive(), freeze)
             elif isinstance(value, (dict, OrderedDict, defaultdict)):
                 _dict = type(value)()
@@ -331,7 +362,11 @@ class CBORSerializable:
             elif isinstance(
                 value, (IndefiniteFrozenList, FrozenList, IndefiniteList, list)
             ):
-                _list = [_dfs(v, freeze) for v in value]
+                # Iterate the underlying storage for a plain IndefiniteList (a UserList)
+                # to avoid the slow collections.abc.Sequence.__iter__ generator. Must use
+                # an identity check: IndefiniteFrozenList is a subclass with no usable .data.
+                src = value.data if tv is IndefiniteList else value
+                _list = [_dfs(v, freeze) for v in src]
 
                 already_frozen = isinstance(value, (IndefiniteFrozenList, FrozenList))
                 should_freeze = already_frozen or freeze
@@ -362,7 +397,7 @@ class CBORSerializable:
         Raises:
             InvalidDataException: When the data is invalid.
         """
-        type_hints = get_type_hints(self.__class__)
+        type_hints = _cached_type_hints(self.__class__)
 
         def _check_recursive(value, type_hint):
             if type_hint is Any:
@@ -404,7 +439,7 @@ class CBORSerializable:
                     f"got {repr(field_value)} instead."
                 )
 
-    def to_validated_primitive(self) -> Primitive:
+    def to_validated_primitive(self):
         """Convert the instance and its elements to CBOR primitives recursively with data validated by :meth:`validate`
         method.
 
@@ -415,6 +450,9 @@ class CBORSerializable:
             SerializeException: When the object or its elements could not be converted to
                 CBOR primitive types.
         """
+        # NOTE: intentionally un-annotated return type so the ``@typechecked`` class
+        # decorator does not re-validate the result against the large ``Primitive`` Union.
+        # ``to_primitive`` (called below) already return-checks the value exactly once.
         self.validate()
         return self.to_primitive()
 
@@ -671,35 +709,69 @@ class CBORSerializable:
             return cls.from_json(f.read())
 
 
-def _restore_dataclass_field(
-    f: Field, v: Primitive
-) -> Union[Primitive, CBORSerializable]:
-    """Try to restore a value back to its original type based on information given in field.
+# Resolving type hints and introspecting from_primitive signatures is expensive and
+# is otherwise repeated on every (de)serialization. Both depend only on the class, so
+# cache them. WeakKeyDictionary lets dynamically-created classes be garbage collected.
+_TYPE_HINTS_CACHE: "WeakKeyDictionary[type, Dict[str, Any]]" = WeakKeyDictionary()
+_ACCEPTS_TYPE_ARGS_CACHE: "WeakKeyDictionary[type, bool]" = WeakKeyDictionary()
 
-    Args:
-        f (dataclass_field): A data class field.
-        v (:const:`Primitive`): A CBOR primitive.
 
-    Returns:
-        Union[:const:`Primitive`, CBORSerializable]: A CBOR primitive or a CBORSerializable.
+def _cached_type_hints(cls: type) -> Dict[str, Any]:
+    """Return ``get_type_hints(cls)``, memoized per class."""
+    hints = _TYPE_HINTS_CACHE.get(cls)
+    if hints is None:
+        hints = get_type_hints(cls)
+        _TYPE_HINTS_CACHE[cls] = hints
+    return hints
+
+
+def _accepts_type_args(t: type) -> bool:
+    """Whether ``t.from_primitive`` declares a ``type_args`` parameter, memoized per class.
+
+    ``t`` may be a typing generic alias (e.g. ``OrderedSet[int]``) which is not always
+    weakly referenceable, so only concrete classes are cached.
     """
+    if not isclass(t):
+        return "type_args" in getfullargspec(t.from_primitive).args  # type: ignore[attr-defined]
+    accepts = _ACCEPTS_TYPE_ARGS_CACHE.get(t)
+    if accepts is None:
+        accepts = "type_args" in getfullargspec(t.from_primitive).args
+        _ACCEPTS_TYPE_ARGS_CACHE[t] = accepts
+    return accepts
 
-    if "object_hook" in f.metadata:
-        return f.metadata["object_hook"](v)
-    return _restore_typed_primitive(cast(Any, f.type), v)
+
+_FIELDS_CACHE: "WeakKeyDictionary[type, tuple]" = WeakKeyDictionary()
 
 
-def _restore_typed_primitive(
-    t: typing.Type, v: Primitive
-) -> Union[Primitive, CBORSerializable]:
-    """Try to restore a value back to its original type based on information given in field.
+def _cached_fields(cls: type) -> tuple:
+    """Return ``dataclasses.fields(cls)``, memoized per class. The field set is
+    class-invariant, so recomputing it on every (de)serialization is wasted work."""
+    flds = _FIELDS_CACHE.get(cls)
+    if flds is None:
+        flds = fields(cls)
+        _FIELDS_CACHE[cls] = flds
+    return flds
 
-    Args:
-        f (type): A type
-        v (:const:`Primitive`): A CBOR primitive.
 
-    Returns:
-        Union[:const:`Primitive`, CBORSerializable]: A CBOR primitive or a CBORSerializable.
+# A "decode plan" is a callable ``plan(v) -> restored`` that resolves the per-field
+# type dispatch once and is then reused for every value of that field type. The
+# dispatch (issubclass / __origin__ / isinstance / try-except chains) depends only on
+# the field TYPE, not on the value, so it is hoisted out of the per-value hot path.
+#
+# Plans are memoized per type. The cache is a WeakKeyDictionary so dynamically-created
+# classes (and the typing aliases that reference them, e.g. ``List[SomeClass]``) are
+# collected with their owning class. Types that are not weakly referenceable fall back
+# to building the plan on the fly without caching, preserving behavior exactly.
+_DECODE_PLAN_CACHE: "WeakKeyDictionary[Any, Callable[[Any], Any]]" = WeakKeyDictionary()
+
+
+def _build_decode_plan(t: typing.Type) -> Callable[[Any], Any]:
+    """Resolve the decode strategy for type ``t`` once and return a ``plan(v)`` callable.
+
+    The returned callable reproduces exactly the branch of the original
+    ``_restore_typed_primitive`` chain that ``t`` would have taken, including the same
+    DeserializeException cases, the same Union fallback order, and list/dict/Optional
+    handling and IndefiniteList preservation.
     """
 
     is_cbor_serializable = False
@@ -714,61 +786,286 @@ def _restore_typed_primitive(
             except TypeError:
                 pass
 
-    if t is Any or (t in PRIMITIVE_TYPES and isinstance(v, t)):
-        return v
-    elif is_cbor_serializable:
-        if "type_args" in getfullargspec(t.from_primitive).args:
+    # NOTE: the original chain tests ``t is Any or (t in PRIMITIVE_TYPES and
+    # isinstance(v, t))`` first. For ``Any`` the value always passes through. For a
+    # primitive type, the value passes through only when ``isinstance(v, t)`` holds,
+    # otherwise the original code falls through to the remaining branches (which, for a
+    # primitive ``t``, ultimately raise). We must preserve that fall-through, so primitive
+    # types that are ALSO special-cased below (ByteString, IndefiniteList) resolve to the
+    # combined behavior rather than a pure pass-through.
+    if t is Any:
+        return _identity
+
+    in_primitive = t in PRIMITIVE_TYPES
+
+    if is_cbor_serializable:
+        # ``t`` is a CBORSerializable (possibly a generic alias). Resolve type_args once.
+        # ``from_primitive`` and ``args`` are bound once here and captured by the closure,
+        # so the per-value path does no attribute lookup or argspec work.
+        from_primitive = t.from_primitive
+        if _accepts_type_args(t):
             args = typing.get_args(t)
-            return t.from_primitive(v, type_args=args)
+
+            def plan(v):
+                return from_primitive(v, type_args=args)
+
         else:
-            return t.from_primitive(v)
-    elif hasattr(t, "__origin__") and (t.__origin__ is list):
+
+            def plan(v):
+                return from_primitive(v)
+
+        if (
+            in_primitive
+        ):  # pragma: no cover - no CBORSerializable type is a PRIMITIVE_TYPE
+            # Defensive mirror of the original short-circuit for a CBORSerializable that
+            # is also a primitive type. No such type exists, so this never executes.
+            def plan_primitive_cbor(v, _t=t, _plan=plan):
+                return v if isinstance(v, _t) else _plan(v)
+
+            return plan_primitive_cbor
+        return plan
+
+    has_origin = hasattr(t, "__origin__")
+    origin = t.__origin__ if has_origin else None
+
+    if has_origin and origin is list:
         t_args = t.__args__
-        if len(t_args) != 1:
+        if len(t_args) != 1:  # pragma: no cover - typing guarantees exactly one arg
+            # Defensive: defer the error to call time to match the original.
+            def plan_bad_list(v, _t_args=t_args):
+                raise DeserializeException(
+                    f"List types need exactly one type argument, but got {_t_args}"
+                )
+
+            return plan_bad_list
+        sub_plan = _decode_plan(t_args[0])
+
+        def plan_list(v, _sub=sub_plan):
+            if not isinstance(v, (list, IndefiniteList)):
+                raise DeserializeException(f"Expected type list but got {type(v)}")
+            return v.__class__([_sub(w) for w in v])
+
+        if (
+            in_primitive
+        ):  # pragma: no cover - a List[...] alias is never a PRIMITIVE_TYPE
+
+            def plan_primitive_list(v, _t=t, _plan=plan_list):
+                return v if isinstance(v, _t) else _plan(v)
+
+            return plan_primitive_list
+        return plan_list
+
+    if isclass(t) and t == ByteString:
+        # ByteString is in PRIMITIVE_TYPES, so the original returns ``v`` unchanged when
+        # ``isinstance(v, ByteString)``; only a raw ``bytes`` reaches the ByteString
+        # branch and gets wrapped. Anything else raises.
+        def plan_bytestring(v):
+            if isinstance(v, ByteString):
+                return v
+            if not isinstance(v, bytes):
+                raise DeserializeException(f"Expected type bytes but got {type(v)}")
+            return ByteString(v)
+
+        return plan_bytestring
+
+    if has_origin and origin is dict:
+        t_args = t.__args__
+        if len(t_args) != 2:  # pragma: no cover - typing guarantees exactly two args
+
+            def plan_bad_dict(v, _t_args=t_args):
+                raise DeserializeException(
+                    f"Dict types need exactly two type arguments, but got {_t_args}"
+                )
+
+            return plan_bad_dict
+        key_plan = _decode_plan(t_args[0])
+        val_plan = _decode_plan(t_args[1])
+
+        def plan_dict(v, _kp=key_plan, _vp=val_plan):
+            if not isinstance(v, dict):
+                raise DeserializeException(f"Expected dict type but got {type(v)}")
+            return {_kp(key): _vp(val) for key, val in v.items()}
+
+        if (
+            in_primitive
+        ):  # pragma: no cover - a Dict[...] alias is never a PRIMITIVE_TYPE
+
+            def plan_primitive_dict(v, _t=t, _plan=plan_dict):
+                return v if isinstance(v, _t) else _plan(v)
+
+            return plan_primitive_dict
+        return plan_dict
+
+    if has_origin and (origin is Union or origin is Optional):
+        t_args = t.__args__
+        sub_plans = [_decode_plan(a) for a in t_args]
+
+        def plan_union(v, _subs=sub_plans, _t_args=t_args):
+            for sub in _subs:
+                try:
+                    return sub(v)
+                except DeserializeException:
+                    pass
             raise DeserializeException(
-                f"List types need exactly one type argument, but got {t_args}"
+                f"Cannot deserialize object: \n{v}\n in any valid type from {_t_args}."
             )
-        t_subtype = t_args[0]
-        if not isinstance(v, (list, IndefiniteList)):
-            raise DeserializeException(f"Expected type list but got {type(v)}")
-        v_list = [_restore_typed_primitive(t_subtype, w) for w in v]
-        return v.__class__(v_list)
-    elif isclass(t) and t == ByteString:
-        if not isinstance(v, bytes):
-            raise DeserializeException(f"Expected type bytes but got {type(v)}")
-        return ByteString(v)
-    elif hasattr(t, "__origin__") and (t.__origin__ is dict):
-        t_args = t.__args__
-        if len(t_args) != 2:
-            raise DeserializeException(
-                f"Dict types need exactly two type arguments, but got {t_args}"
-            )
-        key_t = t_args[0]
-        val_t = t_args[1]
-        if not isinstance(v, dict):
-            raise DeserializeException(f"Expected dict type but got {type(v)}")
-        return {
-            _restore_typed_primitive(key_t, key): _restore_typed_primitive(val_t, val)
-            for key, val in v.items()
-        }
-    elif hasattr(t, "__origin__") and (
-        t.__origin__ is Union or t.__origin__ is Optional
-    ):
-        t_args = t.__args__
-        for t in t_args:
+
+        return plan_union
+
+    if isclass(t) and issubclass(t, IndefiniteList):
+        # IndefiniteList is in PRIMITIVE_TYPES: original returns ``v`` unchanged when it
+        # is already an instance; otherwise it constructs ``t(v)``.
+        def plan_indefinite(v, _t=t):
+            if isinstance(v, _t):
+                return v
             try:
-                return _restore_typed_primitive(t, v)
-            except DeserializeException:
-                pass
-        raise DeserializeException(
-            f"Cannot deserialize object: \n{v}\n in any valid type from {t_args}."
-        )
-    elif isclass(t) and issubclass(t, IndefiniteList):
-        try:
-            return t(v)
-        except TypeError:
-            raise DeserializeException(f"Can not initialize IndefiniteList from {v}")
-    raise DeserializeException(f"Cannot deserialize object: \n{v}\n to type {t}.")
+                return _t(v)
+            except TypeError:
+                raise DeserializeException(
+                    f"Can not initialize IndefiniteList from {v}"
+                )
+
+        return plan_indefinite
+
+    if in_primitive:
+        # Plain primitive type (int, bytes, str, ...): pass through when the value
+        # matches, otherwise the original chain raised at the end.
+        def plan_primitive(v, _t=t):
+            if isinstance(v, _t):
+                return v
+            raise DeserializeException(
+                f"Cannot deserialize object: \n{v}\n to type {_t}."
+            )
+
+        return plan_primitive
+
+    def plan_unsupported(v, _t=t):
+        raise DeserializeException(f"Cannot deserialize object: \n{v}\n to type {_t}.")
+
+    return plan_unsupported
+
+
+def _decode_plan(t: typing.Type) -> Callable[[Any], Any]:
+    """Return a memoized decode plan for ``t``, building it on first use."""
+    try:
+        plan = _DECODE_PLAN_CACHE.get(t)
+    except TypeError:  # pragma: no cover - real field types are hashable
+        # ``t`` is not hashable; should not happen for real field types, but be safe.
+        return _build_decode_plan(t)
+    if plan is not None:
+        return plan
+    plan = _build_decode_plan(t)
+    try:
+        _DECODE_PLAN_CACHE[t] = plan
+    except TypeError:  # pragma: no cover - real field types are weakly referenceable
+        # ``t`` is not weakly referenceable on this interpreter; skip caching.
+        pass
+    return plan
+
+
+def _lazy_field_handler(t: typing.Type) -> Callable[[Any], Any]:
+    """Return a handler ``h(v)`` that decodes a field value of type ``t``.
+
+    The decode plan for ``t`` is resolved on first use rather than eagerly, exactly
+    mirroring the original lazy behavior: a field that is never decoded (e.g. an absent
+    optional whose annotation cannot even be turned into a plan) never triggers plan
+    construction. After the first call the resolved plan is invoked directly.
+    """
+    box: List[Callable[[Any], Any]] = []
+
+    def handler(v):
+        if box:
+            return box[0](v)
+        plan = _decode_plan(t)
+        box.append(plan)
+        return plan(v)
+
+    return handler
+
+
+def _restore_typed_primitive(
+    t: typing.Type, v: Primitive
+) -> Union[Primitive, CBORSerializable]:
+    """Try to restore a value back to its original type based on information given in field.
+
+    Args:
+        f (type): A type
+        v (:const:`Primitive`): A CBOR primitive.
+
+    Returns:
+        Union[:const:`Primitive`, CBORSerializable]: A CBOR primitive or a CBORSerializable.
+    """
+    return _decode_plan(t)(v)
+
+
+# Per-class plan for restoring an ArrayCBORSerializable from a list of primitives. Each
+# entry is ``(field_name, handler)`` where ``handler(v)`` restores one field's value.
+# Resolving the field list, type hints, and the per-field decode strategy depends only on
+# the class, so it is computed once and reused for every instance.
+_ARRAY_FIELD_PLAN_CACHE: (
+    "WeakKeyDictionary[type, List[typing.Tuple[str, Callable[[Any], Any]]]]"
+) = WeakKeyDictionary()
+
+
+def _array_field_plan(
+    cls: type,
+) -> List[typing.Tuple[str, Callable[[Any], Any]]]:
+    plan = _ARRAY_FIELD_PLAN_CACHE.get(cls)
+    if plan is not None:
+        return plan
+    type_hints = _cached_type_hints(cls)
+    plan = []
+    for f in fields(cls):
+        if not f.init:
+            continue
+        # Preserve the original lazy resolution of the (possibly string) annotation to a
+        # concrete type, including the in-place mutation of ``f.type`` other code relies on.
+        if not isclass(f.type):
+            f.type = type_hints[f.name]
+        if "object_hook" in f.metadata:
+            hook = f.metadata["object_hook"]
+            handler: Callable[[Any], Any] = hook
+        else:
+            handler = _lazy_field_handler(cast(Any, f.type))
+        plan.append((f.name, handler))
+    try:
+        _ARRAY_FIELD_PLAN_CACHE[cls] = plan
+    except TypeError:  # pragma: no cover - real classes are weakly referenceable
+        pass
+    return plan
+
+
+# Per-class plan for restoring a MapCBORSerializable. Maps each CBOR key to
+# ``(field_name, handler)`` where ``handler(v)`` restores the value for that field.
+_MAP_FIELD_PLAN_CACHE: (
+    "WeakKeyDictionary[type, Dict[Any, typing.Tuple[str, Callable[[Any], Any]]]]"
+) = WeakKeyDictionary()
+
+
+def _map_field_plan(
+    cls: type,
+) -> Dict[Any, typing.Tuple[str, Callable[[Any], Any]]]:
+    plan = _MAP_FIELD_PLAN_CACHE.get(cls)
+    if plan is not None:
+        return plan
+    type_hints = _cached_type_hints(cls)
+    plan = {}
+    for f in fields(cls):
+        if not f.init:  # pragma: no cover - map serializable fields are init fields
+            continue
+        key = f.metadata.get("key", f.name)
+        if not isclass(f.type):
+            f.type = type_hints[f.name]
+        if "object_hook" in f.metadata:
+            handler: Callable[[Any], Any] = f.metadata["object_hook"]
+        else:
+            handler = _lazy_field_handler(cast(Any, f.type))
+        plan[key] = (f.name, handler)
+    try:
+        _MAP_FIELD_PLAN_CACHE[cls] = plan
+    except TypeError:  # pragma: no cover - real classes are weakly referenceable
+        pass
+    return plan
 
 
 ArrayBase = TypeVar("ArrayBase", bound="ArrayCBORSerializable")
@@ -845,7 +1142,7 @@ class ArrayCBORSerializable(CBORSerializable):
                 types.
         """
         primitives = []
-        for f in fields(self):
+        for f in _cached_fields(type(self)):
             val = getattr(self, f.name)
             if val is None and f.metadata.get("optional"):
                 continue
@@ -869,18 +1166,13 @@ class ArrayCBORSerializable(CBORSerializable):
         Raises:
             DeserializeException: When the object could not be restored from primitives.
         """
-        all_fields = [f for f in fields(cls) if f.init]
+        field_plan = _array_field_plan(cls)
 
-        restored_vals = []
-        type_hints = get_type_hints(cls)
-        for f, v in zip(all_fields, values):
-            if not isclass(f.type):
-                f.type = type_hints[f.name]
-            v = _restore_dataclass_field(f, v)
-            restored_vals.append(v)
+        restored_vals = [handler(v) for (_, handler), v in zip(field_plan, values)]
         obj = cls(*restored_vals)
-        for i in range(len(all_fields), len(values)):
-            setattr(obj, f"unknown_field{i - len(all_fields)}", values[i])
+        n_fields = len(field_plan)
+        for i in range(n_fields, len(values)):
+            setattr(obj, f"unknown_field{i - n_fields}", values[i])
         return obj
 
     def __repr__(self):
@@ -950,7 +1242,7 @@ class MapCBORSerializable(CBORSerializable):
 
     def to_shallow_primitive(self) -> Primitive:
         primitives = {}
-        for f in fields(self):
+        for f in _cached_fields(type(self)):
             if "key" in f.metadata:
                 key = f.metadata["key"]
             else:
@@ -978,19 +1270,15 @@ class MapCBORSerializable(CBORSerializable):
         Raises:
             :class:`pycardano.exception.DeserializeException`: When the object could not be restored from primitives.
         """
-        all_fields = {f.metadata.get("key", f.name): f for f in fields(cls) if f.init}
+        field_plan = _map_field_plan(cls)
 
         kwargs = {}
-        type_hints = get_type_hints(cls)
         for key in values:
-            if key not in all_fields:
+            entry = field_plan.get(key)
+            if entry is None:
                 raise DeserializeException(f"Unexpected map key {key} in CBOR.")
-            f = all_fields[key]
-            v = values[key]
-            if not isclass(f.type):
-                f.type = type_hints[f.name]
-            v = _restore_dataclass_field(f, v)
-            kwargs[f.name] = v
+            field_name, handler = entry
+            kwargs[field_name] = handler(values[key])
         return cls(**kwargs)
 
     def __repr__(self):
@@ -1144,7 +1432,7 @@ class OrderedSet(Generic[T], CBORSerializable):
         use_tag: bool = True,
     ):
         super().__init__()
-        self._dict: Dict[bytes, int] = {}
+        self._dict: Dict[Any, int] = {}
         self._list: List[T] = []
         self._use_tag = use_tag
         self._is_indefinite_list = False
@@ -1152,11 +1440,31 @@ class OrderedSet(Generic[T], CBORSerializable):
             self._is_indefinite_list = isinstance(iterable, IndefiniteList)
             self.extend(iterable)
 
+    # Sentinel used to namespace CBOR-bytes de-dup keys (for unhashable elements) so
+    # they can never collide with a hashable element used directly as a dict key.
+    _CBOR_KEY = object()
+
+    def _dedup_key(self, item):
+        """De-duplication key for an element. Hashable elements (the common case:
+        TransactionInput, key hashes, etc.) are used directly as the dict key — fast,
+        and consistent with their value equality. Unhashable elements (e.g. list-valued
+        plutus data) fall back to their CBOR bytes, the original behavior, namespaced by
+        a sentinel so they cannot collide with a hashable key."""
+        try:
+            hash(item)
+        except TypeError:
+            return (self._CBOR_KEY, dumps(item, default=default_encoder))
+        return item
+
     def append(self, item: T) -> None:
-        if item in self:
+        # Compute the de-dup key once. Membership check + insertion previously each
+        # re-encoded the element via dumps(), which dominated decode of set-heavy
+        # transactions; hashable elements now avoid CBOR encoding entirely.
+        key = self._dedup_key(item)
+        if key in self._dict:
             return
         self._list.append(item)
-        self._dict[dumps(item, default=default_encoder)] = len(self._list) - 1
+        self._dict[key] = len(self._list) - 1
 
     def extend(self, items: Iterable[T]) -> None:
         self._is_indefinite_list = isinstance(items, IndefiniteList)
@@ -1164,9 +1472,10 @@ class OrderedSet(Generic[T], CBORSerializable):
             self.append(item)
 
     def remove(self, item: T) -> None:
-        if item not in self:
+        key = self._dedup_key(item)
+        if key not in self._dict:
             return
-        index = self._dict.pop(dumps(item, default=default_encoder))
+        index = self._dict.pop(key)
         self._list.pop(index)
         # Update the indices in the dictionary
         for key, idx in self._dict.items():
@@ -1174,7 +1483,7 @@ class OrderedSet(Generic[T], CBORSerializable):
                 self._dict[key] = idx - 1
 
     def __contains__(self, item: object) -> bool:
-        return dumps(item, default=default_encoder) in self._dict
+        return self._dedup_key(item) in self._dict
 
     def __iter__(self):
         return iter(self._list)
