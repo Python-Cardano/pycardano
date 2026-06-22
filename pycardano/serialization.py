@@ -8,7 +8,7 @@ import re
 import typing
 from collections import OrderedDict, UserList, defaultdict
 from copy import deepcopy
-from dataclasses import Field, dataclass, field, fields
+from dataclasses import dataclass, field, fields
 from datetime import datetime
 from decimal import Decimal
 from fractions import Fraction
@@ -68,6 +68,11 @@ __all__ = [
 ]
 
 T = TypeVar("T")
+
+# Scalar leaf types that (de)serialize to themselves — the large majority of nodes
+# in a typical tree. A single membership test replaces an ``isinstance`` cascade on
+# the hot path. ``type(None)`` covers ``None``.
+_SCALAR_TYPES = frozenset({int, str, bytes, bool, float, type(None)})
 
 
 def _identity(x):
@@ -325,14 +330,7 @@ class CBORSerializable:
             tv = type(value)
             # Fast path for scalar leaves (the large majority of nodes), skipping the
             # isinstance cascade below.
-            if (
-                tv is int
-                or tv is str
-                or tv is bytes
-                or tv is bool
-                or tv is float
-                or value is None
-            ):
+            if tv in _SCALAR_TYPES:
                 return value
             if isinstance(value, CBORSerializable):
                 # Preserve polymorphic dispatch: subclasses that override
@@ -706,24 +704,6 @@ class CBORSerializable:
         """
         with open(path) as f:
             return cls.from_json(f.read())
-
-
-def _restore_dataclass_field(
-    f: Field, v: Primitive
-) -> Union[Primitive, CBORSerializable]:
-    """Try to restore a value back to its original type based on information given in field.
-
-    Args:
-        f (dataclass_field): A data class field.
-        v (:const:`Primitive`): A CBOR primitive.
-
-    Returns:
-        Union[:const:`Primitive`, CBORSerializable]: A CBOR primitive or a CBORSerializable.
-    """
-
-    if "object_hook" in f.metadata:
-        return f.metadata["object_hook"](v)
-    return _restore_typed_primitive(cast(Any, f.type), v)
 
 
 # Resolving type hints and introspecting from_primitive signatures is expensive and

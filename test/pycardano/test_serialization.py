@@ -710,6 +710,59 @@ def test_restore_typed_primitive_direct():
     assert _restore_typed_primitive(ByteString, bs) is bs
 
 
+def test_per_class_caches_memoize():
+    """The per-class introspection caches return the same object on repeat lookups
+    and populate their backing store."""
+    import pycardano.serialization as ser
+
+    @dataclass
+    class _Probe(ArrayCBORSerializable):
+        a: int
+        b: str
+
+    ser._TYPE_HINTS_CACHE.pop(_Probe, None)
+    ser._FIELDS_CACHE.pop(_Probe, None)
+
+    assert ser._cached_type_hints(_Probe) is ser._cached_type_hints(_Probe)
+    assert ser._cached_fields(_Probe) is ser._cached_fields(_Probe)
+    assert _Probe in ser._TYPE_HINTS_CACHE
+    assert _Probe in ser._FIELDS_CACHE
+
+
+def test_repeated_serialization_does_not_recompute_per_class(monkeypatch):
+    """Encoding/decoding the same class repeatedly must reuse the per-class caches
+    rather than recomputing type hints / fields each time. Guards against a future
+    change that bypasses the memoization and silently regresses the optimization."""
+    import pycardano.serialization as ser
+
+    @dataclass
+    class _Probe(ArrayCBORSerializable):
+        a: int
+        b: str
+
+    ser._TYPE_HINTS_CACHE.pop(_Probe, None)
+    ser._FIELDS_CACHE.pop(_Probe, None)
+
+    hint_calls: List[type] = []
+    field_calls: List[type] = []
+    real_hints, real_fields = ser.get_type_hints, ser.fields
+    monkeypatch.setattr(
+        ser, "get_type_hints", lambda c, *a, **k: (hint_calls.append(c), real_hints(c, *a, **k))[1]
+    )
+    monkeypatch.setattr(
+        ser, "fields", lambda c: (field_calls.append(c), real_fields(c))[1]
+    )
+
+    primitive = _Probe(1, "x").to_primitive()
+    assert _Probe.from_primitive(primitive) == _Probe(1, "x")
+    assert _Probe.from_primitive(primitive) == _Probe(1, "x")
+
+    # Each expensive per-class computation runs at most once for the class, no matter
+    # how many times it is (de)serialized.
+    assert hint_calls.count(_Probe) <= 1
+    assert field_calls.count(_Probe) <= 1
+
+
 def test_non_empty_ordered_set():
     # Test basic functionality
     s = NonEmptyOrderedSet([1, 2, 3])
