@@ -18,8 +18,6 @@ from pycardano.backend.kupo import KupoChainContextExtension
 from pycardano.hash import DatumHash, ScriptHash
 from pycardano.network import Network
 from pycardano.plutus import (
-    PLUTUS_V1_COST_MODEL,
-    PLUTUS_V2_COST_MODEL,
     ExecutionUnits,
     PlutusScript,
 )
@@ -364,26 +362,25 @@ class OgmiosV6ChainContext(ChainContext):
     def _parse_cost_models(self, plutus_cost_models):
         ogmios_cost_models = plutus_cost_models or {}
 
+        # Ogmios returns each cost model as an array of operation costs already
+        # in the ledger's canonical parameter order. The script integrity hash
+        # is computed over that canonical order, so it MUST be preserved. Key
+        # each entry by its zero-padded position rather than zipping against a
+        # name list: keying by name (and sorting those names) permutes the costs
+        # away from canonical order, producing a wrong script integrity hash that
+        # passes `evaluateTransaction` but is rejected on submit.
         cost_models = {}
-        if "plutus:v1" in ogmios_cost_models:
-            cost_models["PlutusV1"] = dict(
-                zip(
-                    sorted(PLUTUS_V1_COST_MODEL.keys()),
-                    ogmios_cost_models["plutus:v1"].copy(),
-                )
-            )
-        if "plutus:v2" in ogmios_cost_models:
-            cost_models["PlutusV2"] = dict(
-                zip(
-                    sorted(PLUTUS_V2_COST_MODEL.keys()),
-                    ogmios_cost_models["plutus:v2"].copy(),
-                )
-            )
-        if "plutus:v3" in ogmios_cost_models:
-            cost_models["PlutusV3"] = {}
-            width = len(f'{len(ogmios_cost_models["plutus:v3"])}')
-            for i, v in enumerate(ogmios_cost_models["plutus:v3"].copy()):
-                cost_models["PlutusV3"][f"{i:0{width}d}"] = v
+        for ogmios_key, pycardano_key in (
+            ("plutus:v1", "PlutusV1"),
+            ("plutus:v2", "PlutusV2"),
+            ("plutus:v3", "PlutusV3"),
+        ):
+            if ogmios_key in ogmios_cost_models:
+                op_costs = ogmios_cost_models[ogmios_key]
+                width = len(f"{len(op_costs)}")
+                cost_models[pycardano_key] = {
+                    f"{i:0{width}d}": v for i, v in enumerate(op_costs)
+                }
         return cost_models
 
 
