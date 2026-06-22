@@ -30,6 +30,11 @@ from pycardano.serialization import CBORSerializable, limit_primitive_type
 
 __all__ = ["AddressType", "PointerAddress", "Address"]
 
+# A Byron address is a 2-element CBOR array whose first element is tag 24, so its
+# serialized bytes start with array(2) + tag(24). Guarding on this prefix avoids a
+# speculative ``cbor2.loads`` on every (Shelley) address.
+_BYRON_ADDRESS_CBOR_PREFIX = b"\x82\xd8\x18"
+
 
 class AddressType(Enum):
     """
@@ -417,13 +422,10 @@ class Address(CBORSerializable):
                 except Exception as e:
                     raise DecodingException(f"Failed to decode address string: {e}")
 
-        # At this point, value is always bytes
-        # Check if it's a Byron address (CBOR with tag 24). A Byron address is a
-        # 2-element CBOR array whose first element is tag 24, i.e. its bytes start with
-        # b"\x82\xd8\x18" (array(2) + tag(24)). Guarding on that prefix avoids a
-        # speculative cbor2.loads() on every (Shelley) address, whose header byte is
-        # never 0x82.
-        if value[:3] == b"\x82\xd8\x18":
+        # At this point, value is always bytes. Check if it's a Byron address (CBOR
+        # with tag 24) by its prefix before any speculative ``cbor2.loads`` — see
+        # ``_BYRON_ADDRESS_CBOR_PREFIX``.
+        if value[:3] == _BYRON_ADDRESS_CBOR_PREFIX:
             try:
                 decoded = cbor2.loads(value)
                 if isinstance(decoded, (tuple, list)) and len(decoded) == 2:

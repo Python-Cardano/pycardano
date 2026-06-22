@@ -8,6 +8,7 @@ import pytest
 from cbor2 import CBORTag
 
 from pycardano import Address, Network
+from pycardano.address import _BYRON_ADDRESS_CBOR_PREFIX
 from pycardano.exception import DecodingException, InvalidAddressInputException
 
 
@@ -22,7 +23,7 @@ class TestAddress:
         guarded Byron probe (not just the base58 string path)."""
         addr = Address.decode(self.BYRON_MAINNET_ADDR)
         raw = addr.to_primitive()  # Byron addresses serialize to CBOR bytes
-        assert isinstance(raw, bytes) and raw[:3] == b"\x82\xd8\x18"
+        assert isinstance(raw, bytes) and raw[:3] == _BYRON_ADDRESS_CBOR_PREFIX
         # The bytes path runs the cbor2.loads/tag-24 probe (guarded by the prefix).
         restored = Address.from_primitive(raw)
         assert restored == addr
@@ -31,7 +32,7 @@ class TestAddress:
     def test_from_primitive_byron_prefix_invalid_cbor(self):
         """Bytes with the Byron prefix (0x82 0xd8 0x18) but invalid CBOR must fall
         through the probe's general-exception handler and not be treated as Byron."""
-        bad = b"\x82\xd8\x18"  # array(2)+tag(24) header, then truncated -> loads fails
+        bad = _BYRON_ADDRESS_CBOR_PREFIX  # array(2)+tag(24) header, truncated -> loads fails
         with pytest.raises(Exception):
             Address.from_primitive(bad)
 
