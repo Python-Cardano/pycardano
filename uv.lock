@@ -817,6 +817,15 @@ toml = [
 ]
 
 [[package]]
+name = "crc8"
+version = "0.2.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/91/4a/aeba5e1ddd6f1035f634899a1fa133c9d57156d392386859e0cf84c1d62b/crc8-0.2.1.tar.gz", hash = "sha256:2ea9e0a04fbb9621daf278da7cba0c11e5fc2f7af74d44d35e08832d3a7a4d23", size = 5980, upload-time = "2024-08-07T20:46:49.448Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d8/f8/6d922e3fb4b175f105150992c62aac05bb0cfe41fb138f9afda5a27f838f/crc8-0.2.1-py3-none-any.whl", hash = "sha256:0c7cc1e442f4e5227a4f1b83a025454fd2d575177c7f78f35814580c7ffd073a", size = 5582, upload-time = "2024-08-07T20:46:42.587Z" },
+]
+
+[[package]]
 name = "cryptography"
 version = "46.0.6"
 source = { registry = "https://pypi.org/simple" }
@@ -952,7 +961,7 @@ name = "exceptiongroup"
 version = "1.3.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "typing-extensions", marker = "python_full_version < '3.13'" },
+    { name = "typing-extensions", marker = "python_full_version < '3.11'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/50/79/66800aadf48771f6b62f7eb014e352e5d06856655206165d775e675a02c9/exceptiongroup-1.3.1.tar.gz", hash = "sha256:8b412432c6055b0b7d14c310000ae93352ed6754f70fa8f7c34141f91c4e3219", size = 30371, upload-time = "2025-11-21T23:01:54.787Z" }
 wheels = [
@@ -1793,6 +1802,7 @@ dependencies = [
     { name = "cbor2" },
     { name = "cbor2pure" },
     { name = "cose" },
+    { name = "crc8" },
     { name = "docker" },
     { name = "ecpy" },
     { name = "frozendict" },
@@ -1837,9 +1847,10 @@ requires-dist = [
     { name = "base58", specifier = ">=2.1.0" },
     { name = "blockfrost-python", specifier = ">=0.6.0" },
     { name = "cachetools", specifier = ">=5.3.0" },
-    { name = "cbor2", specifier = ">=5.6.5" },
+    { name = "cbor2", specifier = ">=5.6.5,<6" },
     { name = "cbor2pure", specifier = ">=5.7.2" },
     { name = "cose", specifier = ">=0.9.dev8" },
+    { name = "crc8", specifier = ">=0.1.0" },
     { name = "docker", specifier = ">=7.1.0" },
     { name = "ecpy", specifier = ">=1.2.5" },
     { name = "frozendict", specifier = ">=2.3.8" },
