@@ -1837,7 +1837,7 @@ requires-dist = [
     { name = "base58", specifier = ">=2.1.0" },
     { name = "blockfrost-python", specifier = ">=0.6.0" },
     { name = "cachetools", specifier = ">=5.3.0" },
-    { name = "cbor2", specifier = ">=5.6.5" },
+    { name = "cbor2", specifier = ">=5.6.5,<6" },
     { name = "cbor2pure", specifier = ">=5.7.2" },
     { name = "cose", specifier = ">=0.9.dev8" },
     { name = "docker", specifier = ">=7.1.0" },
