@@ -1083,6 +1083,7 @@ def test_indefinite_list_as_map_key_round_trip():
     encoded = dumps(a, default=default_encoder)
     decoded = loads(encoded)
     assert isinstance(list(decoded.keys())[0], IndefiniteList)
+    assert dumps(decoded, default=default_encoder) == encoded
 
 
 def test_definite_list_as_map_key_round_trip():
@@ -1092,6 +1093,7 @@ def test_definite_list_as_map_key_round_trip():
     encoded = dumps(a, default=default_encoder)
     decoded = loads(encoded)
     assert isinstance(list(decoded.keys())[0], (list, tuple))
+    assert dumps(decoded, default=default_encoder) == encoded
 
 
 def test_indefinite_list_in_tagged_map_key_round_trip():
@@ -1103,6 +1105,7 @@ def test_indefinite_list_in_tagged_map_key_round_trip():
     decoded = loads(encoded)
     assert isinstance(list(decoded.keys())[0], CBORTag)
     assert isinstance(list(decoded.keys())[0].value, IndefiniteList)
+    assert dumps(decoded, default=default_encoder) == encoded
 
 
 def test_definite_list_in_tagged_map_key_round_trip():
@@ -1114,6 +1117,58 @@ def test_definite_list_in_tagged_map_key_round_trip():
     decoded = loads(encoded)
     assert isinstance(list(decoded.keys())[0], CBORTag)
     assert isinstance(list(decoded.keys())[0].value, (list, tuple))
+    assert dumps(decoded, default=default_encoder) == encoded
+
+
+@pytest.mark.parametrize(
+    "cbor_hex",
+    [
+        pytest.param("80", id="empty-definite-array"),
+        pytest.param("9fff", id="empty-indefinite-array"),
+        pytest.param("8101", id="definite-array"),
+        pytest.param("9f01ff", id="indefinite-array"),
+        pytest.param("819f01ff", id="indefinite-array-in-definite-array"),
+        pytest.param("9f8101ff", id="definite-array-in-indefinite-array"),
+        pytest.param("a1018102", id="definite-array-as-map-value"),
+        pytest.param("a1019f02ff", id="indefinite-array-as-map-value"),
+        pytest.param("a1810102", id="definite-array-as-map-key"),
+        pytest.param("a19f01ff02", id="indefinite-array-as-map-key"),
+        pytest.param("d8799f01ff", id="indefinite-array-in-plutus-tag"),
+        pytest.param("d879819f01ff", id="nested-arrays-in-plutus-tag"),
+        pytest.param("d901029f0102ff", id="indefinite-array-in-set-tag"),
+        pytest.param("a1d8799f01ff02", id="tagged-indefinite-array-as-map-key"),
+    ],
+)
+def test_array_representation_byte_exact_round_trip(cbor_hex):
+    """Preserve definite/indefinite array choices in canonical CBOR."""
+    encoded = bytes.fromhex(cbor_hex)
+    assert dumps(loads(encoded)) == encoded
+
+
+@pytest.mark.parametrize(
+    ("array_header", "length"),
+    [
+        pytest.param("97", 23, id="one-byte-header-maximum"),
+        pytest.param("9818", 24, id="two-byte-header-minimum"),
+        pytest.param("98ff", 255, id="two-byte-header-maximum"),
+        pytest.param("990100", 256, id="three-byte-header-minimum"),
+        pytest.param("99ffff", 65535, id="three-byte-header-maximum"),
+        pytest.param("9a00010000", 65536, id="five-byte-header-minimum"),
+    ],
+)
+def test_definite_array_length_boundary_byte_exact_round_trip(array_header, length):
+    encoded = bytes.fromhex(array_header) + b"\x00" * length
+    decoded = loads(encoded)
+    assert len(decoded) == length
+    assert dumps(decoded) == encoded
+
+
+@pytest.mark.parametrize("length", [0, 1, 23, 24, 255, 256])
+def test_indefinite_array_item_count_byte_exact_round_trip(length):
+    encoded = b"\x9f" + b"\x00" * length + b"\xff"
+    decoded = loads(encoded)
+    assert len(decoded) == length
+    assert dumps(decoded) == encoded
 
 
 def test_ordered_set_as_key_in_dict_indefinite_list():
@@ -1138,7 +1193,10 @@ def test_preserve_indefinite_list():
 
     a = MyTest(my_list)
 
-    assert isinstance(MyTest.from_cbor(a.to_cbor()).a, IndefiniteList)
+    encoded = a.to_cbor()
+    restored = MyTest.from_cbor(encoded)
+    assert isinstance(restored.a, IndefiniteList)
+    assert restored.to_cbor() == encoded
 
 
 def test_decode_array_with_24_or_more_items():
