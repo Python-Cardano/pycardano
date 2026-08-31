@@ -6,6 +6,7 @@ dist
 .mypy_cache
 coverage.xml
 .cbor2_version
+.DS_Store
 
 # IDE
 .idea
