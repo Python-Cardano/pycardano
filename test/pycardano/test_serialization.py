@@ -54,7 +54,9 @@ from pycardano.serialization import (
     OrderedSet,
     RawCBOR,
     default_encoder,
+    dumps,
     limit_primitive_type,
+    loads,
 )
 
 
@@ -1074,42 +1076,42 @@ def test_ordered_set_as_key_in_dict():
     check_two_way_cbor(d)
 
 
-def test_indefinite_list_highjacking_does_not_break_cbor2():
+def test_indefinite_list_as_map_key_round_trip():
     ls = IndefiniteFrozenList(["hello"])
     ls.freeze()
     a = {ls: 1}
-    encoded = cbor2.dumps(a, default=default_encoder)
-    decoded = cbor2.loads(encoded)
+    encoded = dumps(a, default=default_encoder)
+    decoded = loads(encoded)
     assert isinstance(list(decoded.keys())[0], IndefiniteList)
 
 
-def test_definite_list_highjacking_does_not_break_cbor2():
+def test_definite_list_as_map_key_round_trip():
     ls = FrozenList(["hello"])
     ls.freeze()
     a = {ls: 1}
-    encoded = cbor2.dumps(a, default=default_encoder)
-    decoded = cbor2.loads(encoded)
+    encoded = dumps(a, default=default_encoder)
+    decoded = loads(encoded)
     assert isinstance(list(decoded.keys())[0], (list, tuple))
 
 
-def test_indefinite_list_highjacking_does_not_break_cbor2_datum():
+def test_indefinite_list_in_tagged_map_key_round_trip():
     ls = IndefiniteFrozenList(["hello"])
     ls.freeze()
     datum = CBORTag(251, ls)
     a = {datum: 1}
-    encoded = cbor2.dumps(a, default=default_encoder)
-    decoded = cbor2.loads(encoded)
+    encoded = dumps(a, default=default_encoder)
+    decoded = loads(encoded)
     assert isinstance(list(decoded.keys())[0], CBORTag)
     assert isinstance(list(decoded.keys())[0].value, IndefiniteList)
 
 
-def test_definite_list_highjacking_does_not_break_cbor2_datum():
+def test_definite_list_in_tagged_map_key_round_trip():
     ls = FrozenList(["hello"])
     ls.freeze()
     datum = CBORTag(251, ls)
     a = {datum: 1}
-    encoded = cbor2.dumps(a, default=default_encoder)
-    decoded = cbor2.loads(encoded)
+    encoded = dumps(a, default=default_encoder)
+    decoded = loads(encoded)
     assert isinstance(list(decoded.keys())[0], CBORTag)
     assert isinstance(list(decoded.keys())[0].value, (list, tuple))
 

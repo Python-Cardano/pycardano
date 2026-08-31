@@ -120,7 +120,7 @@ We demonstrate how these concepts come into play using a simple example from `op
 A user can lock funds together with a public key hash.
 The contract will make sure that only the owner of the matching private key can redeem the gift.
 
-We will first compile the contract locally. For this, you will need to have installed python3.9 or higher.
+We will first compile the contract locally. For this, you will need to have installed Python 3.10 or higher.
 
 Step 1
 
@@ -316,5 +316,4 @@ With inline datum, we no longer have to include a datum within our transaction f
     >>> take_output = TransactionOutput(taker_address, 25123456)
     >>> builder.add_output(take_output)
     >>> signed_tx = builder.build_and_sign([payment_skey], taker_address)
-
 

@@ -10,10 +10,9 @@ from nacl.encoding import RawEncoder
 from nacl.hash import blake2b
 
 from pycardano.backend.base import ChainContext
-from pycardano.cbor import cbor2
 from pycardano.hash import SCRIPT_DATA_HASH_SIZE, SCRIPT_HASH_SIZE, ScriptDataHash
 from pycardano.plutus import COST_MODELS, CostModels, Datum, RedeemerMap, Redeemers
-from pycardano.serialization import NonEmptyOrderedSet, default_encoder
+from pycardano.serialization import NonEmptyOrderedSet, default_encoder, dumps
 from pycardano.transaction import MultiAsset, TransactionOutput, Value
 
 __all__ = [
@@ -257,14 +256,14 @@ def script_data_hash(
     elif not cost_models:
         cost_models = COST_MODELS
 
-    redeemer_bytes = cbor2.dumps(redeemers, default=default_encoder)
+    redeemer_bytes = dumps(redeemers, default=default_encoder)
 
     if datums:
-        datum_bytes = cbor2.dumps(datums, default=default_encoder)
+        datum_bytes = dumps(datums, default=default_encoder)
     else:
         datum_bytes = b""
 
-    cost_models_bytes = cbor2.dumps(cost_models, default=default_encoder)
+    cost_models_bytes = dumps(cost_models, default=default_encoder)
 
     return ScriptDataHash(
         blake2b(

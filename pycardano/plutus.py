@@ -15,7 +15,6 @@ from nacl.encoding import RawEncoder
 from nacl.hash import blake2b
 from typeguard import typechecked
 
-from pycardano.cbor import cbor2
 from pycardano.exception import DeserializeException, InvalidArgumentException
 from pycardano.hash import DATUM_HASH_SIZE, SCRIPT_HASH_SIZE, DatumHash, ScriptHash
 from pycardano.nativescript import NativeScript
@@ -28,6 +27,7 @@ from pycardano.serialization import (
     Primitive,
     RawCBOR,
     default_encoder,
+    dumps,
     limit_primitive_type,
 )
 
@@ -77,9 +77,9 @@ class CostModels(DictCBORSerializable):
                 # See:
                 # https://github.com/input-output-hk/cardano-ledger/blob/c9512ec56cd9b9ea20adea567649410289da0acc/eras/alonzo/test-suite/cddl-files/alonzo.cddl#L111-L115
                 # https://github.com/input-output-hk/cardano-ledger/issues/2512
-                l_cbor = cbor2.dumps(language, default=default_encoder)
+                l_cbor = dumps(language, default=default_encoder)
                 cm = IndefiniteList([cost_model[k] for k in sorted(cost_model.keys())])
-                result[l_cbor] = cbor2.dumps(cm, default=default_encoder)
+                result[l_cbor] = dumps(cm, default=default_encoder)
             else:
                 result[language] = [cost_model[k] for k in cost_model.keys()]
         return result
@@ -932,7 +932,7 @@ Datum = Union[PlutusData, dict, int, bytes, IndefiniteList, RawCBOR, RawPlutusDa
 def datum_hash(datum: Datum) -> DatumHash:
     return DatumHash(
         blake2b(
-            cbor2.dumps(datum, default=default_encoder),
+            dumps(datum, default=default_encoder),
             DATUM_HASH_SIZE,
             encoder=RawEncoder,
         )

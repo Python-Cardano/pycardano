@@ -2,7 +2,7 @@
 name = "pycardano"
 version = "0.19.2"
 description = "A Cardano library in Python"
-requires-python = ">=3.9.1"
+requires-python = ">=3.10"
 dynamic = ["dependencies"]
 
 [tool.poetry]
@@ -13,7 +13,6 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Natural Language :: English",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -29,9 +28,9 @@ repository = "https://github.com/Python-Cardano/pycardano"
 license = "MIT"
 
 [tool.poetry.dependencies]
-python = "^3.9.1"
+python = "^3.10"
 PyNaCl = ">=1.5.0"
-cbor2 = ">=5.6.5"
+cbor2 = ">=6"
 typeguard = ">=4.3.0"
 blockfrost-python = ">=0.6.0"
 websocket-client = ">=1.4.1"
@@ -48,7 +47,6 @@ ogmios = ">=1.4.2"
 requests = ">=2.32.3"
 websockets = ">=13.0"
 base58 = ">=2.1.0"
-cbor2pure = ">=5.7.2"
 
 # NOTE: Keep [tool.poetry.group.dev.dependencies] and [dependency-groups.dev] in sync.
 [tool.poetry.group.dev.dependencies]
@@ -114,7 +112,7 @@ profile = "black"
 [tool.mypy]
 ignore_missing_imports = true
 disable_error_code = ["str-bytes-safe"]
-python_version = 3.9
+python_version = "3.10"
 exclude = [
     '^pycardano/crypto/bech32.py$',
 ]
