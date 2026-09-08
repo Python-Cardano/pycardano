@@ -5,7 +5,7 @@ set -o pipefail
 
 ROOT=$(pwd)
 
-poetry install -C ..
+(cd .. && poetry install)
 #poetry run pip install ogmios
 
 ##########
