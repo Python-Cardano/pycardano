@@ -348,7 +348,7 @@ def test_clone_raw_plutus_data():
     assert cloned_tag == tag
     assert cloned_tag.to_cbor_hex() == tag.to_cbor_hex()
 
-    tag.data.value = [1001]
+    tag.data = CBORTag(tag.data.tag, [1001])
 
     assert cloned_tag != tag
 

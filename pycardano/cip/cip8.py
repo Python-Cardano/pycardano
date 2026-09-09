@@ -8,7 +8,7 @@ from cose.keys.curves import Ed25519
 from cose.keys.keyops import SignOp, VerifyOp
 from cose.keys.keyparam import KpAlg, KpKeyOps, KpKty, OKPKpCurve, OKPKpD, OKPKpX
 from cose.keys.keytype import KtyOKP
-from cose.messages import CoseMessage, Sign1Message
+from cose.messages import Sign1Message
 
 from pycardano.address import Address
 from pycardano.crypto import BIP32ED25519PublicKey
@@ -22,6 +22,7 @@ from pycardano.key import (
     StakeVerificationKey,
 )
 from pycardano.network import Network
+from pycardano.serialization import loads
 
 __all__ = ["sign", "verify"]
 
@@ -160,7 +161,11 @@ def verify(
     assert isinstance(
         signed_message, str
     ), "signed_message must be a hex string at this point"
-    decoded_message = CoseMessage.decode(bytes.fromhex("d2" + signed_message))
+    decoded = loads(bytes.fromhex("d2" + signed_message))
+    assert isinstance(decoded, CBORTag) and decoded.tag == Sign1Message.cbor_tag
+    decoded_message = Sign1Message.from_cose_obj(
+        decoded.value, allow_unknown_attributes=True
+    )
 
     # generate/extract the cose key
     if not attach_cose_key:

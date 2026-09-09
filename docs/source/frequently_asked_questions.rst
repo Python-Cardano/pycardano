@@ -73,41 +73,23 @@ Here is an example::
 Why does a decoded transaction have a different hash than the original transaction?
 ------------------------------------------------------------------------------------
 
-When you decode a transaction from CBOR using ``Transaction.from_cbor()`` and then re-encode it with ``to_cbor()``, you may notice that the resulting CBOR bytes (and therefore the transaction hash) are different from the original. This is due to non-deterministic CBOR encoding behavior in the C implementation of the ``cbor2`` library.
+Older PyCardano versions could produce different CBOR bytes after decoding and re-encoding a transaction, changing its transaction hash.
 
 **Root Cause**
 
-PyCardano uses `cbor2 <https://github.com/agronholm/cbor2/tree/master>`_ for CBOR encoding and decoding. The library has two implementations:
-
-- **C implementation** (default): Faster but less deterministic
-- **Pure Python implementation**: Slightly slower but produces consistent, deterministic encodings
-
-The C implementation does not guarantee that the order and structure of certain CBOR elements (such as map keys, array elements, or encoding choices for indefinite vs definite length arrays) will be preserved during deserialization and re-serialization. This can cause:
+The encoding choices for certain CBOR elements, particularly definite versus indefinite length arrays, must be preserved during deserialization and re-serialization. Otherwise this can cause:
 
 - **Transaction input order changes** - resulting in a different transaction hash and invalidating signatures (see `issue #311 <https://github.com/Python-Cardano/pycardano/issues/311>`_)
 - **Plutus data encoding changes** - altering datum hashes and breaking script validation (see `issue #466 <https://github.com/Python-Cardano/pycardano/issues/466>`_)
 
 **Solution**
 
-Use the **pure Python implementation** of cbor2, which provides deterministic encoding. PyCardano provides a convenience script to ensure the pure Python implementation is installed:
-
-.. code-block:: bash
-
-   ./ensure_pure_cbor2.sh
-
-Or manually install it with:
-
-.. code-block:: bash
-
-   pip uninstall -y cbor2
-   pip install --no-binary cbor2 cbor2
+Use a current PyCardano release with cbor2 6 or later. PyCardano preserves the required CBOR container representation when decoding.
 
 **Best Practices**
 
-- Always use the pure Python cbor2 implementation when working with pre-signed transactions or Plutus scripts
 - Avoid decoding and re-encoding signed transactions unless absolutely necessary
 - Test serialization round-trips if working with complex transactions
 - Keep the original CBOR bytes when you need to preserve the exact transaction structure
-
 
 
