@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [Unreleased]
+
+**Security:**
+
+- `repr()`/`str()` of signing keys no longer expose private key material; use `.to_json()` or `.save()` to export deliberately.
+
 ## [0.8.1] - 2023-04-06
 
 This patch contains a number of bug fixes to `v0.8.0`.
