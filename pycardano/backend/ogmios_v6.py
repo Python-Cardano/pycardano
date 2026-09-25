@@ -162,18 +162,26 @@ class OgmiosV6ChainContext(ChainContext):
                 ),
                 key_deposit=protocol_parameters.stake_credential_deposit.lovelace,
                 pool_deposit=protocol_parameters.stake_pool_deposit.lovelace,
-                pool_influence=eval(protocol_parameters.stake_pool_pledge_influence),
-                monetary_expansion=eval(protocol_parameters.monetary_expansion),
-                treasury_expansion=eval(protocol_parameters.treasury_expansion),
+                pool_influence=self._fraction_parser(
+                    protocol_parameters.stake_pool_pledge_influence
+                ),
+                monetary_expansion=self._fraction_parser(
+                    protocol_parameters.monetary_expansion
+                ),
+                treasury_expansion=self._fraction_parser(
+                    protocol_parameters.treasury_expansion
+                ),
                 decentralization_param=None,  # type: ignore[arg-type]
                 extra_entropy=protocol_parameters.extra_entropy,
                 protocol_major_version=protocol_parameters.version.get("major"),
                 protocol_minor_version=protocol_parameters.version.get("minor"),
                 min_utxo=None,  # type: ignore[arg-type]
-                price_mem=eval(
+                price_mem=self._fraction_parser(
                     protocol_parameters.script_execution_prices.get("memory")
                 ),
-                price_step=eval(protocol_parameters.script_execution_prices.get("cpu")),
+                price_step=self._fraction_parser(
+                    protocol_parameters.script_execution_prices.get("cpu")
+                ),
                 max_tx_ex_mem=protocol_parameters.max_execution_units_per_transaction.get(
                     "memory"
                 ),
