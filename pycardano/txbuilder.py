@@ -206,6 +206,10 @@ class TransactionBuilder:
         init=False, default_factory=lambda: []
     )
 
+    _reference_script_inputs: Set[TransactionInput] = field(
+        init=False, default_factory=lambda: set()
+    )
+
     _should_estimate_execution_units: Optional[bool] = field(init=False, default=None)
 
     def add_input(self, utxo: UTxO) -> TransactionBuilder:
@@ -219,8 +223,22 @@ class TransactionBuilder:
         """
         self.inputs.append(utxo)
         if utxo.output.script:
-            self._reference_scripts.append(utxo.output.script)
+            self._add_reference_script(utxo)
         return self
+
+    def _add_reference_script(self, utxo: UTxO):
+        """Count ``utxo``'s script toward the reference script fee.
+
+        The ledger charges the scripts held by a transaction's inputs and reference
+        inputs once per UTxO, however many redeemers resolve their script from it, so
+        a UTxO that is already counted is skipped. The same script held by two
+        different UTxOs still counts twice.
+        """
+        assert utxo.output.script is not None
+        if utxo.input in self._reference_script_inputs:
+            return
+        self._reference_script_inputs.add(utxo.input)
+        self._reference_scripts.append(utxo.output.script)
 
     def _consolidate_redeemer(self, redeemer):
         if self._should_estimate_execution_units is None:
@@ -342,7 +360,7 @@ class TransactionBuilder:
 
             if candidate_utxo is not None and candidate_utxo != utxo:
                 self.reference_inputs.add(candidate_utxo)
-                self._reference_scripts.append(candidate_script)
+                self._add_reference_script(candidate_utxo)
             break
         if not found_valid_script:
             raise InvalidArgumentException(
@@ -380,7 +398,7 @@ class TransactionBuilder:
             assert script.output.script is not None
             self._minting_script_to_redeemers.append((script.output.script, redeemer))
             self.reference_inputs.add(script)
-            self._reference_scripts.append(script.output.script)
+            self._add_reference_script(script)
         else:
             self._minting_script_to_redeemers.append((script, redeemer))
         return self
@@ -414,7 +432,7 @@ class TransactionBuilder:
                 (script.output.script, redeemer)
             )
             self.reference_inputs.add(script)
-            self._reference_scripts.append(script.output.script)
+            self._add_reference_script(script)
         else:
             self._withdrawal_script_to_redeemers.append((script, redeemer))
         return self
@@ -455,7 +473,7 @@ class TransactionBuilder:
                 (script.output.script, redeemer)
             )
             self.reference_inputs.add(script)
-            self._reference_scripts.append(script.output.script)
+            self._add_reference_script(script)
         else:
             self._certificate_script_to_redeemers.append((script, redeemer))
         return self

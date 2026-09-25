@@ -2932,6 +2932,80 @@ def test_add_withdrawal_script_from_utxo(chain_context):
     assert existing_script_utxo.input in tx_body.reference_inputs
 
 
+def test_reference_script_shared_by_spend_and_withdrawal_counted_once(chain_context):
+    """A reference script UTxO used by several redeemers is a single reference input,
+    so the ledger charges its size once toward the reference script fee."""
+    tx_builder = TransactionBuilder(chain_context)
+    plutus_script = PlutusV2Script(b"dummy shared script")
+    script_hash = plutus_script_hash(plutus_script)
+    datum = PlutusData()
+    script_utxo = UTxO(
+        TransactionInput.from_primitive(
+            ["18cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad21431590f7e6643438ef", 0]
+        ),
+        TransactionOutput(Address(script_hash), 10000000, datum_hash=datum.hash()),
+    )
+    reference_utxo = UTxO(
+        TransactionInput.from_primitive(
+            ["41cb004bec7051621b19b46aea28f0657a586a05ce2013152ea9b9f1a5614cc7", 1]
+        ),
+        TransactionOutput(Address(script_hash), 1234567, script=plutus_script),
+    )
+    tx_builder.add_script_input(
+        script_utxo,
+        script=reference_utxo,
+        datum=datum,
+        redeemer=Redeemer(PlutusData(), ExecutionUnits(1000000, 1000000)),
+    )
+    stake_address = Address(
+        payment_part=None, staking_part=script_hash, network=chain_context.network
+    )
+    tx_builder.withdrawals = Withdrawals({bytes(stake_address): 0})
+    tx_builder.add_withdrawal_script(
+        reference_utxo, Redeemer(PlutusData(), ExecutionUnits(1000000, 1000000))
+    )
+
+    assert tx_builder.reference_inputs == {reference_utxo}
+    assert tx_builder._ref_script_size() == len(plutus_script)
+
+
+def test_same_script_in_two_reference_utxos_counted_per_utxo(chain_context):
+    """The ledger charges every reference input, so one script held by two reference
+    UTxOs counts twice."""
+    tx_builder = TransactionBuilder(chain_context)
+    plutus_script = PlutusV2Script(b"dummy shared script")
+    script_hash = plutus_script_hash(plutus_script)
+    datum = PlutusData()
+    for index in (0, 1):
+        tx_builder.add_script_input(
+            UTxO(
+                TransactionInput.from_primitive(
+                    [
+                        "18cbe6cadecd3f89b60e08e68e5e6c7d72d730aaa1ad21431590f7e6643438ef",
+                        index,
+                    ]
+                ),
+                TransactionOutput(
+                    Address(script_hash), 10000000, datum_hash=datum.hash()
+                ),
+            ),
+            script=UTxO(
+                TransactionInput.from_primitive(
+                    [
+                        "41cb004bec7051621b19b46aea28f0657a586a05ce2013152ea9b9f1a5614cc7",
+                        index,
+                    ]
+                ),
+                TransactionOutput(Address(script_hash), 1234567, script=plutus_script),
+            ),
+            datum=datum,
+            redeemer=Redeemer(PlutusData(), ExecutionUnits(1000000, 1000000)),
+        )
+
+    assert len(tx_builder.reference_inputs) == 2
+    assert tx_builder._ref_script_size() == 2 * len(plutus_script)
+
+
 def test_withdrawal_script_wrong_redeemer_tag(chain_context):
     """Test that withdrawal script with wrong redeemer tag raises exception."""
     plutus_script = PlutusV2Script(b"dummy withdrawal script")
