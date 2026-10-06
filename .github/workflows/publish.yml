@@ -4,6 +4,10 @@ on:
     tags:
       - "v[0-9]+.[0-9]+.[0-9]+" # Push events to matching *, i.e. 1.0, 20.15.10
 
+env:
+  # Keep in sync with the generator recorded in the first line of poetry.lock.
+  POETRY_VERSION: "2.4.2"
+
 jobs:
   publish:
     strategy:
@@ -15,7 +19,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Install poetry
-        run: pipx install poetry
+        run: pipx install poetry==${{ env.POETRY_VERSION }}
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
