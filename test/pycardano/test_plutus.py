@@ -497,6 +497,24 @@ def test_plutus_data_long_bytes():
     ), "Long metadata bytestring is encoded incorrectly."
 
 
+def test_raw_plutus_data_preserves_long_bytes_chunking():
+    """Regression for https://github.com/Python-Cardano/pycardano/issues/507
+
+    The ledger rejects a definite-length bytestring longer than 64 bytes, so a datum
+    holding one is encoded in chunks. TransactionBuilder deep-copies its outputs and
+    RawPlutusData.__deepcopy__ goes through CBOR, so the chunking has to survive both
+    a copy and a round trip, or the builder emits a datum the node refuses.
+    """
+    datum = RawPlutusData.from_dict(
+        {"constructor": 0, "fields": [{"bytes": "ab" * 182}]}
+    )
+    encoded = datum.to_cbor()
+
+    assert bytes.fromhex("5f5840") in encoded, "long bytes were not chunked"
+    assert copy.deepcopy(datum).to_cbor() == encoded
+    assert RawPlutusData.from_cbor(encoded).to_cbor() == encoded
+
+
 def test_plutus_raw_plutus_data():
 
     @dataclass

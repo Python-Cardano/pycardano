@@ -12,6 +12,7 @@ from cose.messages import Sign1Message
 
 from pycardano.address import Address
 from pycardano.crypto import BIP32ED25519PublicKey
+from pycardano.exception import DeserializeException
 from pycardano.key import (
     ExtendedSigningKey,
     ExtendedVerificationKey,
@@ -162,7 +163,15 @@ def verify(
         signed_message, str
     ), "signed_message must be a hex string at this point"
     decoded = loads(bytes.fromhex("d2" + signed_message))
-    assert isinstance(decoded, CBORTag) and decoded.tag == Sign1Message.cbor_tag
+    if (
+        not isinstance(decoded, CBORTag)
+        or decoded.tag != Sign1Message.cbor_tag
+        or not isinstance(decoded.value, list)
+    ):
+        raise DeserializeException(
+            f"Expected a COSE_Sign1 message tagged {Sign1Message.cbor_tag} with an "
+            f"array body, got {decoded!r}."
+        )
     decoded_message = Sign1Message.from_cose_obj(
         decoded.value, allow_unknown_attributes=True
     )
