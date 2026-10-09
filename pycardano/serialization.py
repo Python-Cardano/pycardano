@@ -836,6 +836,19 @@ def _restore_typed_primitive(
             raise DeserializeException(f"Expected type list but got {type(v)}")
         v_list = [_restore_typed_primitive(t_subtype, w) for w in v]
         return v.__class__(v_list)
+    elif hasattr(t, "__origin__") and (t.__origin__ is tuple):
+        t_args = t.__args__
+        if not isinstance(v, (list, IndefiniteList)):
+            raise DeserializeException(f"Expected type list but got {type(v)}")
+        if len(t_args) == 2 and t_args[1] is Ellipsis:
+            return tuple(_restore_typed_primitive(t_args[0], w) for w in v)
+        if len(t_args) != len(v):
+            raise DeserializeException(
+                f"Tuple types need exactly {len(v)} type arguments, but got {t_args}"
+            )
+        return tuple(
+            _restore_typed_primitive(t_subtype, w) for t_subtype, w in zip(t_args, v)
+        )
     elif isclass(t) and t == ByteString:
         if not isinstance(v, bytes):
             raise DeserializeException(f"Expected type bytes but got {type(v)}")

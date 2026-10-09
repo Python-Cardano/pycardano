@@ -373,11 +373,33 @@ class TestHardForkInitiationAction:
         gov_action_id = GovActionId(transaction_id=tx_id, gov_action_index=1)
 
         with pytest.raises(
-            ValueError, match="Major protocol version must be between 1 and 10"
+            ValueError, match="Major protocol version must be between 0 and 12"
         ):
             HardForkInitiationAction(
-                gov_action_id=gov_action_id, protocol_version=(11, 0)
+                gov_action_id=gov_action_id, protocol_version=(13, 0)
             )
+
+    def test_hard_fork_action_cbor_round_trip(self):
+        # The ledger encodes protocol_version as a [major, minor] array
+        # (Conway CDDL: protocol_version = [major_protocol_version,
+        # uint .size 4], major in 0..12). Protocol version 11 is the
+        # version live on mainnet, so it must be constructible.
+        action = HardForkInitiationAction(
+            gov_action_id=None, protocol_version=(11, 0)
+        )
+
+        assert action.to_cbor_hex() == "8301f6820b00"
+        assert HardForkInitiationAction.from_cbor(action.to_cbor()) == action
+
+    def test_hard_fork_action_cbor_round_trip_with_gov_action_id(self):
+        tx_id = TransactionId(bytes.fromhex("ff" * TRANSACTION_HASH_SIZE))
+        gov_action_id = GovActionId(transaction_id=tx_id, gov_action_index=65535)
+
+        action = HardForkInitiationAction(
+            gov_action_id=gov_action_id, protocol_version=(10, 0)
+        )
+
+        assert HardForkInitiationAction.from_cbor(action.to_cbor()) == action
 
 
 class TestUpdateCommittee:
