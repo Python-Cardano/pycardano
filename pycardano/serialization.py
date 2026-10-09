@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import types
 import typing
 from collections import OrderedDict, UserList, defaultdict
 from copy import deepcopy
@@ -854,9 +855,10 @@ def _restore_typed_primitive(
             _restore_typed_primitive(key_t, key): _restore_typed_primitive(val_t, val)
             for key, val in v.items()
         }
-    elif hasattr(t, "__origin__") and (
-        t.__origin__ is Union or t.__origin__ is Optional
-    ):
+    elif (
+        hasattr(t, "__origin__")
+        and (t.__origin__ is Union or t.__origin__ is Optional)
+    ) or typing.get_origin(t) is types.UnionType:
         t_args = t.__args__
         for t in t_args:
             try:
