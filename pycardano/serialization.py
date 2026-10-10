@@ -47,8 +47,10 @@ from pycardano.types import check_type, typechecked
 
 __all__ = [
     "default_encoder",
+    "Indefinite",
     "IndefiniteList",
     "IndefiniteFrozenList",
+    "IndefiniteString",
     "IndefiniteByteString",
     "IndefiniteTextString",
     "IndefiniteDict",
@@ -74,7 +76,16 @@ def _identity(x):
     return x
 
 
-class IndefiniteList(UserList):
+class Indefinite:
+    """Marker for a value whose CBOR encoding used an indefinite-length header.
+
+    The choice between a definite and an indefinite header is part of the encoding,
+    and therefore part of every hash computed over it, so PyCardano carries it on the
+    decoded value instead of discarding it.
+    """
+
+
+class IndefiniteList(Indefinite, UserList):
     def __init__(self, li: Primitive):  # type: ignore
         if isinstance(li, FrozenList):
             super().__init__(list(li))  # type: ignore
@@ -86,30 +97,72 @@ class IndefiniteFrozenList(FrozenList, IndefiniteList):  # type: ignore
     pass
 
 
-class IndefiniteByteString(bytes):
-    """A byte string that was CBOR encoded as indefinite length chunks.
+class IndefiniteString(Indefinite):
+    """Shared chunk bookkeeping for the two indefinite-length string types.
 
-    Cardano splits byte strings longer than 64 bytes into 64 byte chunks, so the
-    chunk lengths are part of the encoding and therefore part of the hash. Decoding
-    records the original lengths so the value re-encodes to the bytes it came from.
+    An indefinite string is written as a header, a run of definite-length chunks and
+    a break marker. The chunk lengths are part of the encoding, so they are recorded
+    on decode and replayed on encode rather than renormalised.
     """
 
+    CBOR_HEADER: ClassVar[bytes]
     chunks: tuple
+
+    @classmethod
+    def _default_chunks(cls, payload: bytes) -> tuple:
+        """Chunking to use when a value is constructed without explicit lengths."""
+        raise NotImplementedError
+
+    @classmethod
+    def _resolve_chunks(cls, payload: bytes, chunks: Optional[Iterable[int]]) -> tuple:
+        resolved = cls._default_chunks(payload) if chunks is None else tuple(chunks)
+        if sum(resolved) != len(payload):
+            raise ValueError(
+                f"Chunk lengths {resolved} do not add up to the {len(payload)} byte "
+                f"value they describe."
+            )
+        return resolved
+
+    def cbor_payload(self) -> bytes:
+        """The bytes the chunk lengths are measured against."""
+        raise NotImplementedError
+
+    @staticmethod
+    def _as_chunk(raw: bytes) -> Any:
+        """One slice of the payload, in the form the encoder should write."""
+        raise NotImplementedError
+
+    def cbor_chunks(self) -> Iterable[Any]:
+        payload = self.cbor_payload()
+        start = 0
+        for length in self.chunks:
+            yield self._as_chunk(payload[start : start + length])
+            start += length
+
+
+class IndefiniteByteString(IndefiniteString, bytes):
+    """A byte string that was CBOR encoded as indefinite length chunks."""
+
+    CBOR_HEADER = b"\x5f"
 
     def __new__(cls, value: bytes, chunks: Optional[Iterable[int]] = None):
         self = super().__new__(cls, value)
-        if chunks is None:
-            self.chunks = tuple(
-                min(64, len(value) - start) for start in range(0, len(value), 64)
-            )
-        else:
-            self.chunks = tuple(chunks)
-        if sum(self.chunks) != len(value):
-            raise ValueError(
-                f"Chunk lengths {self.chunks} do not add up to the {len(value)} byte "
-                f"value they describe."
-            )
+        self.chunks = cls._resolve_chunks(bytes(value), chunks)
         return self
+
+    @classmethod
+    def _default_chunks(cls, payload: bytes) -> tuple:
+        # Cardano splits byte strings longer than 64 bytes into 64 byte chunks.
+        return tuple(
+            min(64, len(payload) - start) for start in range(0, len(payload), 64)
+        )
+
+    def cbor_payload(self) -> bytes:
+        return bytes(self)
+
+    @staticmethod
+    def _as_chunk(raw: bytes) -> bytes:
+        return raw
 
     def __repr__(self):
         return f"IndefiniteByteString({bytes(self)!r}, chunks={self.chunks})"
@@ -121,27 +174,29 @@ class IndefiniteByteString(bytes):
         return (IndefiniteByteString, (bytes(self), self.chunks))
 
 
-class IndefiniteTextString(str):
+class IndefiniteTextString(IndefiniteString, str):
     """A text string that was CBOR encoded as indefinite length chunks.
 
     Chunk lengths count UTF-8 bytes, matching how the chunks appear on the wire.
     """
 
-    chunks: tuple
+    CBOR_HEADER = b"\x7f"
 
     def __new__(cls, value: str, chunks: Optional[Iterable[int]] = None):
         self = super().__new__(cls, value)
-        encoded = value.encode("utf-8")
-        if chunks is None:
-            self.chunks = (len(encoded),) if encoded else ()
-        else:
-            self.chunks = tuple(chunks)
-        if sum(self.chunks) != len(encoded):
-            raise ValueError(
-                f"Chunk lengths {self.chunks} do not add up to the {len(encoded)} byte "
-                f"value they describe."
-            )
+        self.chunks = cls._resolve_chunks(str(value).encode("utf-8"), chunks)
         return self
+
+    @classmethod
+    def _default_chunks(cls, payload: bytes) -> tuple:
+        return (len(payload),) if payload else ()
+
+    def cbor_payload(self) -> bytes:
+        return str(self).encode("utf-8")
+
+    @staticmethod
+    def _as_chunk(raw: bytes) -> str:
+        return raw.decode("utf-8")
 
     def __repr__(self):
         return f"IndefiniteTextString({str(self)!r}, chunks={self.chunks})"
@@ -153,7 +208,7 @@ class IndefiniteTextString(str):
         return (IndefiniteTextString, (str(self), self.chunks))
 
 
-class IndefiniteDict(dict):
+class IndefiniteDict(Indefinite, dict):
     """A map that was CBOR encoded with an indefinite length header."""
 
     def __repr__(self):
@@ -181,6 +236,18 @@ class IndefiniteFrozenDict(IndefiniteDict):
     popitem = _immutable  # type: ignore[assignment]
     setdefault = _immutable  # type: ignore[assignment]
     update = _immutable  # type: ignore[assignment]
+
+
+# cbor2 looks encoders up by exact type, so every concrete class has to be claimed
+# for its representation to survive; the base classes above are not enough.
+_INDEFINITE_TYPES = (
+    IndefiniteList,
+    IndefiniteFrozenList,
+    IndefiniteByteString,
+    IndefiniteTextString,
+    IndefiniteDict,
+    IndefiniteFrozenDict,
+)
 
 
 @dataclass
@@ -295,20 +362,11 @@ def limit_primitive_type(*allowed_types):
 CBORBase = TypeVar("CBORBase", bound="CBORSerializable")
 
 
-def _write_indefinite_chunks(
-    encoder: CBOREncoder,
-    header: bytes,
-    payload: bytes,
-    chunks: Iterable[int],
-    text: bool,
-) -> None:
-    """Write one indefinite-length string as the exact chunks it was encoded with."""
-    encoder.write(header)
-    start = 0
-    for length in chunks:
-        chunk = payload[start : start + length]
-        encoder.encode(chunk.decode("utf-8") if text else chunk)
-        start += length
+def _write_indefinite_string(encoder: CBOREncoder, value: IndefiniteString) -> None:
+    """Write an indefinite-length string as the exact chunks it was encoded with."""
+    encoder.write(value.CBOR_HEADER)
+    for chunk in value.cbor_chunks():
+        encoder.encode(chunk)
     encoder.write(b"\xff")
 
 
@@ -321,14 +379,10 @@ def default_encoder(
         (
             ByteString,
             CBORSerializable,
-            IndefiniteList,
+            Indefinite,
             RawCBOR,
             FrozenList,
-            IndefiniteFrozenList,
             FrozenDict,
-            IndefiniteByteString,
-            IndefiniteTextString,
-            IndefiniteDict,
         ),
     ), (
         f"Type of input value is not CBORSerializable, " f"got {type(value)} instead."
@@ -340,14 +394,8 @@ def default_encoder(
         for item in value:
             encoder.encode(item)
         encoder.write(b"\xff")
-    elif isinstance(value, IndefiniteByteString):
-        _write_indefinite_chunks(
-            encoder, b"\x5f", bytes(value), value.chunks, text=False
-        )
-    elif isinstance(value, IndefiniteTextString):
-        _write_indefinite_chunks(
-            encoder, b"\x7f", str(value).encode("utf-8"), value.chunks, text=True
-        )
+    elif isinstance(value, IndefiniteString):
+        _write_indefinite_string(encoder, value)
     elif isinstance(value, IndefiniteDict):
         encoder.write(b"\xbf")
         for item_key, item_value in value.items():
@@ -358,17 +406,11 @@ def default_encoder(
         inner = value.value
         if isinstance(inner, IndefiniteByteString):
             # The wrapped value remembers how it arrived, so reuse those chunks.
-            _write_indefinite_chunks(
-                encoder, b"\x5f", bytes(inner), inner.chunks, text=False
-            )
+            _write_indefinite_string(encoder, inner)
         elif len(inner) > 64:
-            _write_indefinite_chunks(
-                encoder,
-                b"\x5f",
-                inner,
-                (min(64, len(inner) - i) for i in range(0, len(inner), 64)),
-                text=False,
-            )
+            # Too long for a definite byte string, so fall back to the 64 byte
+            # chunks Cardano uses.
+            _write_indefinite_string(encoder, IndefiniteByteString(inner))
         else:
             encoder.encode(inner)
     elif isinstance(value, RawCBOR):
@@ -385,14 +427,7 @@ def dumps(obj: Any, **kwargs: Any) -> bytes:
     """Encode CBOR while preserving PyCardano's indefinite-list types."""
     encoders = dict(kwargs.pop("encoders", {}))
     encoder = kwargs.get("default", default_encoder)
-    for indefinite_type in (
-        IndefiniteList,
-        IndefiniteFrozenList,
-        IndefiniteByteString,
-        IndefiniteTextString,
-        IndefiniteDict,
-        IndefiniteFrozenDict,
-    ):
+    for indefinite_type in _INDEFINITE_TYPES:
         # cbor2 encodes these natively as their definite-length base types, so each
         # one has to be claimed explicitly for the representation to survive.
         encoders.setdefault(indefinite_type, encoder)
@@ -529,15 +564,14 @@ def _apply_cbor_shape(value: Any, shape: _CBORShape, immutable: bool = False) ->
             return value
 
         if len(value) != len(shape.children):
-            # Entries were lost on the way in, most likely to duplicate keys, so the
-            # scanned shapes can no longer be matched to the values they came from.
-            # Guessing would silently re-encode the map to different bytes.
-            raise DeserializeException(
-                f"CBOR map was encoded with {len(shape.children)} entries but decoded "
-                f"to {len(value)}. Duplicate keys prevent PyCardano from restoring the "
-                f"original encoding; decode with allow_duplicate_keys=False to reject "
-                f"such payloads up front."
-            )
+            # Entries were lost on the way in, which is what duplicate keys do: a
+            # decoded map holds one entry per distinct key, so the scanned shapes can
+            # no longer be matched to the values they came from. The keys are still
+            # correct, so hand the map back as decoded rather than guessing, which
+            # would attribute a shape to the wrong value. The representation of what
+            # is nested inside is not recoverable either way, which is why loads()
+            # rejects duplicate keys unless a caller opts in.
+            return value
 
         paired_items = zip(value.items(), shape.children)
         mapped_items = {
@@ -570,7 +604,14 @@ def _apply_cbor_shape(value: Any, shape: _CBORShape, immutable: bool = False) ->
 
 
 def loads(payload: bytes, **kwargs: Any) -> Any:
-    """Decode CBOR while preserving order and indefinite-length arrays."""
+    """Decode CBOR while preserving order and indefinite-length containers.
+
+    Duplicate map keys are rejected by default. They collapse into a single entry on
+    decode, which loses data and makes the original encoding impossible to reproduce.
+    Pass ``allow_duplicate_keys=True`` to decode such a payload anyway; the keys come
+    back correct, but the representation of that map and anything nested inside it is
+    not preserved, so re-encoding will not reproduce the input bytes.
+    """
     semantic_decoders = dict(kwargs.pop("semantic_decoders", {}))
     semantic_decoders.setdefault(258, _decode_ordered_set)
     # Duplicate keys collapse into a single entry on decode, which loses data and

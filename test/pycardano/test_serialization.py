@@ -50,6 +50,7 @@ from pycardano.serialization import (
     CBORSerializable,
     CodedSerializable,
     DictCBORSerializable,
+    Indefinite,
     IndefiniteByteString,
     IndefiniteList,
     IndefiniteTextString,
@@ -1184,12 +1185,19 @@ def test_duplicate_map_keys_are_rejected():
         loads(encoded)
 
 
-def test_duplicate_map_keys_allowed_explicitly_still_refuse_to_guess():
-    """Opting back into duplicate keys must not silently mis-apply array shapes."""
+def test_duplicate_map_keys_allowed_explicitly_keep_their_keys():
+    """Opting into duplicate keys yields the decoded map, not a mis-shaped one.
+
+    The dropped entry makes the original encoding unrecoverable, so the surviving
+    value keeps no array shape and re-encoding does not reproduce the input.
+    """
+    # {1: [2], 1: [2 indefinite]} -- one entry survives, carrying the later value.
     encoded = bytes.fromhex("a2018102019f02ff")
 
-    with pytest.raises(DeserializeException, match="Duplicate keys"):
-        loads(encoded, allow_duplicate_keys=True)
+    decoded = loads(encoded, allow_duplicate_keys=True)
+
+    assert decoded == {1: [2]}
+    assert dumps(decoded) == bytes.fromhex("a1018102")
 
 
 def test_trailing_bytes_raise_deserialize_exception():
@@ -1267,6 +1275,20 @@ def test_indefinite_byte_string_behaves_like_bytes():
     assert decoded == b"\x01\x02"
     assert hash(decoded) == hash(b"\x01\x02")
     assert decoded.chunks == (1, 1)
+
+
+@pytest.mark.parametrize(
+    "cbor_hex",
+    [
+        pytest.param("9f01ff", id="list"),
+        pytest.param("5f4101ff", id="byte-string"),
+        pytest.param("7f6161ff", id="text-string"),
+        pytest.param("bf0102ff", id="map"),
+    ],
+)
+def test_every_indefinite_type_shares_the_marker_base(cbor_hex):
+    """default_encoder dispatches on Indefinite, so each type must carry it."""
+    assert isinstance(loads(bytes.fromhex(cbor_hex)), Indefinite)
 
 
 def test_indefinite_map_key_is_hashable_and_immutable():
