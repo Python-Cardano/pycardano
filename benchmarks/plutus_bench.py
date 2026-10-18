@@ -13,14 +13,31 @@ import time
 from dataclasses import dataclass
 from typing import Dict, List
 
+from pycardano.address import Address
 from pycardano.cbor import cbor2
+from pycardano.hash import TransactionId, VerificationKeyHash
 from pycardano.plutus import PlutusData, RawPlutusData
-from pycardano.serialization import IndefiniteList, default_encoder
+from pycardano.serialization import (
+    IndefiniteList,
+    NonEmptyOrderedSet,
+    OrderedSet,
+    default_encoder,
+    dumps,
+)
+from pycardano.transaction import (
+    MultiAsset,
+    Transaction,
+    TransactionBody,
+    TransactionInput,
+    TransactionOutput,
+    Value,
+)
+from pycardano.witness import TransactionWitnessSet
 
 try:
     from importlib.metadata import version
 
-    BACKEND = f"{cbor2.__name__} {version('cbor2pure') if cbor2.__name__=='cbor2pure' else version('cbor2')}"
+    BACKEND = f"cbor2 {version('cbor2')}"
 except Exception:
     BACKEND = cbor2.__name__
 
@@ -81,7 +98,7 @@ SYNTH = {
 
 
 def encode_datum(obj):
-    return cbor2.dumps(obj, default=default_encoder)
+    return dumps(obj, default=default_encoder)
 
 
 def run_section(title, items, iters):
@@ -142,6 +159,45 @@ def run_typed(iters):
         print(f"  {n:>8} {len(raw):>7} {td:>13.1f} {rd:>11.1f} {td/rd:>9.1f}x")
 
 
+def build_set_heavy_tx(n_inputs=40, n_signers=10):
+    addr = Address(VerificationKeyHash(b"\x01" * 28))
+    ma = MultiAsset.from_primitive(
+        {
+            bytes([p]) * 28: {f"tok{i}".encode(): 1000 + i for i in range(3)}
+            for p in range(3)
+        }
+    )
+    body = TransactionBody(
+        inputs=OrderedSet(
+            [
+                TransactionInput(TransactionId(bytes([i]) * 32), i)
+                for i in range(n_inputs)
+            ]
+        ),
+        outputs=[
+            TransactionOutput(addr, Value(2_000_000, ma)),
+            TransactionOutput(addr, 5_000_000),
+        ],
+        fee=200_000,
+        required_signers=NonEmptyOrderedSet(
+            [VerificationKeyHash(bytes([i]) * 28) for i in range(n_signers)]
+        ),
+    )
+    return Transaction(body, TransactionWitnessSet()), ma
+
+
+def run_tx(iters):
+    print("\n=== Typed PlutusData encode, Transaction decode, MultiAsset encode ===")
+    obj = build_typed(200)
+    print(f"  typed encode (n=200)          {best_us(obj.to_cbor, iters):>9.1f} us")
+    tx, ma = build_set_heavy_tx()
+    raw = tx.to_cbor()
+    tx_dec = best_us(lambda: Transaction.from_cbor(raw), iters)
+    print(f"  set-heavy tx decode ({len(raw)}B)  {tx_dec:>9.1f} us")
+    ma_enc = best_us(ma.to_shallow_primitive, iters)
+    print(f"  MultiAsset.to_shallow_primitive {ma_enc:>7.1f} us")
+
+
 def main():
     iters = int(sys.argv[1]) if len(sys.argv) > 1 else 1000
     print(
@@ -151,6 +207,7 @@ def main():
     synth_items = [(n, encode_datum(o)) for n, o in SYNTH.items()]
     run_section("RawPlutusData (untyped - typical indexer path)", synth_items, iters)
     run_typed(iters)
+    run_tx(iters)
 
     heaviest = max(synth_items, key=lambda kv: len(kv[1]))
     print(
