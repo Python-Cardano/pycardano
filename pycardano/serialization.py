@@ -1118,7 +1118,7 @@ def _array_field_plan(
         return plan
     type_hints = _cached_type_hints(cls)
     plan = []
-    for f in fields(cls):
+    for f in _cached_fields(cls):
         if not f.init:
             continue
         # Preserve the original lazy resolution of the (possibly string) annotation to a
@@ -1153,7 +1153,7 @@ def _map_field_plan(
         return plan
     type_hints = _cached_type_hints(cls)
     plan = {}
-    for f in fields(cls):
+    for f in _cached_fields(cls):
         if not f.init:  # pragma: no cover - map serializable fields are init fields
             continue
         key = f.metadata.get("key", f.name)
