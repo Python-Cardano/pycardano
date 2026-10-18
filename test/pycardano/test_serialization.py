@@ -701,6 +701,17 @@ def test_ordered_set_dedup_unhashable_and_mixed():
     assert list(s) == [{"b": 2}]
 
 
+def test_ordered_set_dedup_tag_with_unhashable_value():
+    # cbor2 6 raises RuntimeError (not TypeError) when hashing a CBORTag whose value
+    # is unhashable, e.g. a constructor-tagged plutus datum with a list payload.
+    datum = CBORTag(121, [1, b"x"])
+    s = OrderedSet([datum, CBORTag(121, [1, b"x"]), CBORTag(122, [])])
+    assert list(s) == [datum, CBORTag(122, [])]
+    assert CBORTag(121, [1, b"x"]) in s
+    s.remove(CBORTag(121, [1, b"x"]))
+    assert list(s) == [CBORTag(122, [])]
+
+
 def test_restore_typed_primitive_direct():
     from pycardano.serialization import _restore_typed_primitive
 

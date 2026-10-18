@@ -1555,7 +1555,9 @@ class OrderedSet(Generic[T], CBORSerializable):
         a sentinel so they cannot collide with a hashable key."""
         try:
             hash(item)
-        except TypeError:
+        except (TypeError, RuntimeError):
+            # TypeError: ordinary unhashable value. RuntimeError: cbor2 6 raises this
+            # when hashing a CBORTag whose value is not hashable.
             return (self._CBOR_KEY, dumps(item, default=default_encoder))
         return item
 
