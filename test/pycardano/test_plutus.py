@@ -515,6 +515,42 @@ def test_raw_plutus_data_preserves_long_bytes_chunking():
     assert RawPlutusData.from_cbor(encoded).to_cbor() == encoded
 
 
+def test_raw_plutus_data_nested_long_bytes_stay_chunked():
+    """The chunking has to survive wherever the bytes sit, not just in a field.
+
+    From https://github.com/Python-Cardano/pycardano/pull/509, which reported the
+    same defect as #507 for bytes nested in a map key, a map value and a list.
+    """
+    map_datum = RawPlutusData.from_dict(
+        {"map": [{"k": {"bytes": "cd" * 100}, "v": {"bytes": "ef" * 100}}]}
+    )
+    list_datum = RawPlutusData.from_dict({"list": [{"bytes": "ab" * 65}]})
+
+    for datum in (map_datum, list_datum):
+        encoded = datum.to_cbor()
+        assert bytes.fromhex("5f5840") in encoded, "long bytes were not chunked"
+        assert RawPlutusData.from_cbor(encoded).to_cbor() == encoded
+        assert copy.deepcopy(datum).to_cbor() == encoded
+
+
+def test_raw_plutus_data_short_bytes_stay_definite():
+    """Bytes the ledger does not require chunking for are left alone.
+
+    From https://github.com/Python-Cardano/pycardano/pull/509. Preserving the
+    chunked encoding must not turn into wrapping everything: a 32 byte string
+    encoded with an indefinite header would change the datum hash just as
+    surely as dropping the header from a long one.
+    """
+    datum = RawPlutusData.from_dict(
+        {"constructor": 1, "fields": [{"bytes": "ab" * 32}, {"int": 42}]}
+    )
+    encoded = datum.to_cbor()
+
+    assert b"\x5f" not in encoded, "short bytes were chunked"
+    assert RawPlutusData.from_cbor(encoded).to_cbor() == encoded
+    assert copy.deepcopy(datum).to_cbor() == encoded
+
+
 def test_plutus_raw_plutus_data():
 
     @dataclass
