@@ -760,7 +760,9 @@ def test_repeated_serialization_does_not_recompute_per_class(monkeypatch):
     field_calls: List[type] = []
     real_hints, real_fields = ser.get_type_hints, ser.fields
     monkeypatch.setattr(
-        ser, "get_type_hints", lambda c, *a, **k: (hint_calls.append(c), real_hints(c, *a, **k))[1]
+        ser,
+        "get_type_hints",
+        lambda c, *a, **k: (hint_calls.append(c), real_hints(c, *a, **k))[1],
     )
     monkeypatch.setattr(
         ser, "fields", lambda c: (field_calls.append(c), real_fields(c))[1]
