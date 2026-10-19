@@ -712,6 +712,15 @@ def test_ordered_set_dedup_tag_with_unhashable_value():
     assert list(s) == [CBORTag(122, [])]
 
 
+def test_ordered_set_dedup_propagates_recursion_error():
+    class _DeepHash:
+        def __hash__(self):
+            raise RecursionError("maximum recursion depth exceeded")
+
+    with pytest.raises(RecursionError):
+        OrderedSet([_DeepHash()])
+
+
 @pytest.mark.parametrize("first", [0, 1])
 def test_union_member_order_is_per_field(first):
     """Union[A, B] == Union[B, A], so decode plans must not be shared between fields
