@@ -14,6 +14,7 @@ from decimal import Decimal
 from fractions import Fraction
 from functools import wraps
 from inspect import getfullargspec, isclass
+from types import UnionType
 from typing import (
     Any,
     Callable,
@@ -865,6 +866,12 @@ def _cached_fields(cls: type) -> tuple:
 # classes (and the typing aliases that reference them, e.g. ``List[SomeClass]``) are
 # collected with their owning class. Types that are not weakly referenceable fall back
 # to building the plan on the fly without caching, preserving behavior exactly.
+#
+# Types that contain a Union anywhere in their argument tree are never cached: Union
+# equality and hashing ignore member order (``Union[A, B] == Union[B, A]``), so a
+# type-keyed cache would let the first-decoded field fix the fallback order for every
+# field declaring the same members in another order (also through containers such as
+# ``list[Union[A, B]]``). Each field's handler still memoizes its own plan.
 _DECODE_PLAN_CACHE: "WeakKeyDictionary[Any, Callable[[Any], Any]]" = WeakKeyDictionary()
 
 
@@ -1048,8 +1055,23 @@ def _build_decode_plan(t: typing.Type) -> Callable[[Any], Any]:
     return plan_unsupported
 
 
+_UNION_ORIGINS = (Union, UnionType)
+
+
+def _contains_union(t: Any) -> bool:
+    """Whether ``t`` is, or has anywhere among its type arguments, a Union."""
+    if typing.get_origin(t) in _UNION_ORIGINS:
+        return True
+    return any(_contains_union(a) for a in typing.get_args(t))
+
+
 def _decode_plan(t: typing.Type) -> Callable[[Any], Any]:
-    """Return a memoized decode plan for ``t``, building it on first use."""
+    """Return a memoized decode plan for ``t``, building it on first use.
+
+    Types containing a Union are built uncached; see ``_DECODE_PLAN_CACHE``.
+    """
+    if _contains_union(t):
+        return _build_decode_plan(t)
     try:
         plan = _DECODE_PLAN_CACHE.get(t)
     except TypeError:  # pragma: no cover - real field types are hashable

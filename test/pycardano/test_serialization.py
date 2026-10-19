@@ -712,6 +712,39 @@ def test_ordered_set_dedup_tag_with_unhashable_value():
     assert list(s) == [CBORTag(122, [])]
 
 
+@pytest.mark.parametrize("first", [0, 1])
+def test_union_member_order_is_per_field(first):
+    """Union[A, B] == Union[B, A], so decode plans must not be shared between fields
+    that list the same members in a different order: each field tries its own members
+    in its own declared order, whichever field is decoded first."""
+
+    @dataclass
+    class _A(ArrayCBORSerializable):
+        x: int
+
+    @dataclass
+    class _B(ArrayCBORSerializable):
+        x: int
+
+    @dataclass
+    class _AB(ArrayCBORSerializable):
+        v: Union[_A, _B]
+        vs: list[Union[_A, _B]]
+
+    @dataclass
+    class _BA(ArrayCBORSerializable):
+        v: Union[_B, _A]
+        vs: list[Union[_B, _A]]
+
+    primitive = [[5], [[6]]]
+    expected = {_AB: _A, _BA: _B}
+    holders = [_AB, _BA] if first == 0 else [_BA, _AB]
+    for holder in holders:
+        restored = holder.from_primitive(primitive)
+        assert type(restored.v) is expected[holder]
+        assert type(restored.vs[0]) is expected[holder]
+
+
 def test_restore_typed_primitive_direct():
     from pycardano.serialization import _restore_typed_primitive
 
