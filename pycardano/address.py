@@ -30,6 +30,11 @@ from pycardano.serialization import CBORSerializable, limit_primitive_type
 
 __all__ = ["AddressType", "PointerAddress", "Address"]
 
+# A Byron address is a 2-element CBOR array whose first element is tag 24, so its
+# serialized bytes start with array(2) + tag(24). Guarding on this prefix avoids a
+# speculative ``cbor2.loads`` on every (Shelley) address.
+_BYRON_ADDRESS_CBOR_PREFIX = b"\x82\xd8\x18"
+
 
 class AddressType(Enum):
     """
@@ -417,20 +422,22 @@ class Address(CBORSerializable):
                 except Exception as e:
                     raise DecodingException(f"Failed to decode address string: {e}")
 
-        # At this point, value is always bytes
-        # Check if it's a Byron address (CBOR with tag 24)
-        try:
-            decoded = cbor2.loads(value)
-            if isinstance(decoded, (tuple, list)) and len(decoded) == 2:
-                if isinstance(decoded[0], CBORTag) and decoded[0].tag == 24:
-                    # This is definitely a Byron address - validate and decode it
-                    return cls._from_byron_cbor(value)
-        except DecodingException:
-            # Byron decoding failed with validation error - re-raise it
-            raise
-        except Exception:
-            # Not Byron CBOR (general CBOR decode error), continue with Shelley decoding
-            pass
+        # At this point, value is always bytes. Check if it's a Byron address (CBOR
+        # with tag 24) by its prefix before any speculative ``cbor2.loads`` — see
+        # ``_BYRON_ADDRESS_CBOR_PREFIX``.
+        if value[:3] == _BYRON_ADDRESS_CBOR_PREFIX:
+            try:
+                decoded = cbor2.loads(value)
+                if isinstance(decoded, (tuple, list)) and len(decoded) == 2:
+                    if isinstance(decoded[0], CBORTag) and decoded[0].tag == 24:
+                        # This is definitely a Byron address - validate and decode it
+                        return cls._from_byron_cbor(value)
+            except DecodingException:
+                # Byron decoding failed with validation error - re-raise it
+                raise
+            except Exception:
+                # Not Byron CBOR (general CBOR decode error), continue with Shelley
+                pass
 
         # Shelley address decoding (existing logic)
         header = value[0]

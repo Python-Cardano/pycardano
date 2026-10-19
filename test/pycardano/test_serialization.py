@@ -683,6 +683,143 @@ def test_ordered_set_with_complex_types():
     assert restored == witness_set
 
 
+def test_ordered_set_dedup_unhashable_and_mixed():
+    # Unhashable elements (e.g. plain dicts) de-duplicate via their CBOR bytes — the
+    # fallback path for the native-hash de-dup key.
+    s = OrderedSet([{"a": 1}, {"a": 1}, {"b": 2}])
+    assert len(list(s)) == 2
+    assert {"a": 1} in s
+    assert {"c": 3} not in s
+
+    # Mixing hashable and unhashable elements must not produce false collisions.
+    mixed = OrderedSet([1, {"a": 1}, 1, {"a": 1}])
+    assert len(list(mixed)) == 2
+    assert 1 in mixed and {"a": 1} in mixed
+
+    # remove() works on the unhashable (CBOR-keyed) path and preserves order.
+    s.remove({"a": 1})
+    assert list(s) == [{"b": 2}]
+
+
+def test_ordered_set_dedup_tag_with_unhashable_value():
+    # cbor2 6 raises RuntimeError (not TypeError) when hashing a CBORTag whose value
+    # is unhashable, e.g. a constructor-tagged plutus datum with a list payload.
+    datum = CBORTag(121, [1, b"x"])
+    s = OrderedSet([datum, CBORTag(121, [1, b"x"]), CBORTag(122, [])])
+    assert list(s) == [datum, CBORTag(122, [])]
+    assert CBORTag(121, [1, b"x"]) in s
+    s.remove(CBORTag(121, [1, b"x"]))
+    assert list(s) == [CBORTag(122, [])]
+
+
+def test_ordered_set_dedup_propagates_recursion_error():
+    class _DeepHash:
+        def __hash__(self):
+            raise RecursionError("maximum recursion depth exceeded")
+
+    with pytest.raises(RecursionError):
+        OrderedSet([_DeepHash()])
+
+
+@pytest.mark.parametrize("first", [0, 1])
+def test_union_member_order_is_per_field(first):
+    """Union[A, B] == Union[B, A], so decode plans must not be shared between fields
+    that list the same members in a different order: each field tries its own members
+    in its own declared order, whichever field is decoded first."""
+
+    @dataclass
+    class _A(ArrayCBORSerializable):
+        x: int
+
+    @dataclass
+    class _B(ArrayCBORSerializable):
+        x: int
+
+    @dataclass
+    class _AB(ArrayCBORSerializable):
+        v: Union[_A, _B]
+        vs: list[Union[_A, _B]]
+
+    @dataclass
+    class _BA(ArrayCBORSerializable):
+        v: Union[_B, _A]
+        vs: list[Union[_B, _A]]
+
+    primitive = [[5], [[6]]]
+    expected = {_AB: _A, _BA: _B}
+    holders = [_AB, _BA] if first == 0 else [_BA, _AB]
+    for holder in holders:
+        restored = holder.from_primitive(primitive)
+        assert type(restored.v) is expected[holder]
+        assert type(restored.vs[0]) is expected[holder]
+
+
+def test_restore_typed_primitive_direct():
+    from pycardano.serialization import _restore_typed_primitive
+
+    # Direct entry point: a primitive value passes straight through.
+    assert _restore_typed_primitive(int, 5) == 5
+    # ByteString: a raw bytes value is wrapped; an already-ByteString value passes through.
+    bs = ByteString(b"hello")
+    assert _restore_typed_primitive(ByteString, b"hello") == bs
+    assert _restore_typed_primitive(ByteString, bs) is bs
+
+
+def test_per_class_caches_memoize():
+    """The per-class introspection caches return the same object on repeat lookups
+    and populate their backing store."""
+    import pycardano.serialization as ser
+
+    @dataclass
+    class _Probe(ArrayCBORSerializable):
+        a: int
+        b: str
+
+    ser._TYPE_HINTS_CACHE.pop(_Probe, None)
+    ser._FIELDS_CACHE.pop(_Probe, None)
+
+    assert ser._cached_type_hints(_Probe) is ser._cached_type_hints(_Probe)
+    assert ser._cached_fields(_Probe) is ser._cached_fields(_Probe)
+    assert _Probe in ser._TYPE_HINTS_CACHE
+    assert _Probe in ser._FIELDS_CACHE
+
+
+def test_repeated_serialization_does_not_recompute_per_class(monkeypatch):
+    """Encoding/decoding the same class repeatedly must reuse the per-class caches
+    rather than recomputing type hints / fields each time. Guards against a future
+    change that bypasses the memoization and silently regresses the optimization."""
+    import pycardano.serialization as ser
+
+    @dataclass
+    class _Probe(ArrayCBORSerializable):
+        a: int
+        b: str
+
+    ser._TYPE_HINTS_CACHE.pop(_Probe, None)
+    ser._FIELDS_CACHE.pop(_Probe, None)
+
+    hint_calls: List[type] = []
+    field_calls: List[type] = []
+    real_hints, real_fields = ser.get_type_hints, ser.fields
+    monkeypatch.setattr(
+        ser,
+        "get_type_hints",
+        lambda c, *a, **k: (hint_calls.append(c), real_hints(c, *a, **k))[1],
+    )
+    monkeypatch.setattr(
+        ser, "fields", lambda c: (field_calls.append(c), real_fields(c))[1]
+    )
+
+    primitive = _Probe(1, "x").to_primitive()
+    assert _Probe.from_primitive(primitive) == _Probe(1, "x")
+    assert _Probe.from_primitive(primitive) == _Probe(1, "x")
+
+    # Each expensive per-class computation runs at most once for the class, no matter
+    # how many times it is (de)serialized.
+    assert hint_calls.count(_Probe) <= 1
+    assert field_calls.count(_Probe) <= 1
+
+
 def test_non_empty_ordered_set():
     # Test basic functionality
     s = NonEmptyOrderedSet([1, 2, 3])
