@@ -1,5 +1,8 @@
+import pytest
+
 from pycardano.cip.cip8 import sign, verify
 from pycardano.crypto.bip32 import BIP32ED25519PrivateKey, HDWallet
+from pycardano.exception import DeserializeException
 from pycardano.key import (
     ExtendedSigningKey,
     ExtendedVerificationKey,
@@ -46,6 +49,12 @@ STAKE_VK = StakeVerificationKey.from_json("""{
         "description": "Stake Verification Key",
         "cborHex": "58205edaa384c658c2bd8945ae389edac0a5bd452d0cfd5d1245e3ecd540030d1e3c"
     }""")
+
+
+def test_verify_non_cose_message_raises():
+    """A payload that is not a COSE_Sign1 array must fail with a clear error."""
+    with pytest.raises(DeserializeException, match="COSE_Sign1"):
+        verify("01")
 
 
 def test_verify_message():

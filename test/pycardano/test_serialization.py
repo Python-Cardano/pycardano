@@ -4,6 +4,8 @@ import tempfile
 from collections import defaultdict, deque
 from copy import deepcopy
 from dataclasses import dataclass, field
+from decimal import Decimal
+from fractions import Fraction
 from test.pycardano.util import check_two_way_cbor
 from typing import (
     Any,
@@ -27,6 +29,7 @@ from pycardano import (
     CBORBase,
     Datum,
     IndefiniteFrozenList,
+    Metadata,
     MultiAsset,
     Primitive,
     RawPlutusData,
@@ -48,7 +51,12 @@ from pycardano.serialization import (
     CBORSerializable,
     CodedSerializable,
     DictCBORSerializable,
+    Indefinite,
+    IndefiniteByteString,
+    IndefiniteDict,
+    IndefiniteFrozenDict,
     IndefiniteList,
+    IndefiniteTextString,
     MapCBORSerializable,
     NonEmptyOrderedSet,
     OrderedSet,
@@ -1171,6 +1179,152 @@ def test_indefinite_array_item_count_byte_exact_round_trip(length):
     assert dumps(decoded) == encoded
 
 
+def test_duplicate_map_keys_are_rejected():
+    """A collapsed duplicate key cannot be re-encoded to the original bytes."""
+    # {1: [2], 1: [2 indefinite]} -- decoding keeps one entry, losing the other.
+    encoded = bytes.fromhex("a2018102019f02ff")
+
+    with pytest.raises(cbor2.CBORDecodeError):
+        loads(encoded)
+
+
+def test_duplicate_map_keys_allowed_explicitly_keep_their_keys():
+    """Opting into duplicate keys yields the decoded map, not a mis-shaped one.
+
+    The dropped entry makes the original encoding unrecoverable, so the surviving
+    value keeps no array shape and re-encoding does not reproduce the input.
+    """
+    # {1: [2], 1: [2 indefinite]} -- one entry survives, carrying the later value.
+    encoded = bytes.fromhex("a2018102019f02ff")
+
+    decoded = loads(encoded, allow_duplicate_keys=True)
+
+    assert decoded == {1: [2]}
+    assert dumps(decoded) == bytes.fromhex("a1018102")
+
+
+def test_trailing_bytes_raise_deserialize_exception():
+    with pytest.raises(DeserializeException, match="Trailing CBOR data"):
+        loads(bytes.fromhex("0102"))
+
+
+def test_self_describe_tag_content_is_mutable():
+    """cbor2 6 decodes tag content as immutable; the shape pass restores it."""
+    decoded = loads(bytes.fromhex("d9d9f7820102"))
+
+    assert isinstance(decoded, list)
+    assert decoded == [1, 2]
+
+
+def test_self_describe_tag_preserves_indefinite_array():
+    decoded = loads(bytes.fromhex("d9d9f79f0102ff"))
+
+    assert isinstance(decoded, IndefiniteList)
+    assert dumps(decoded) == bytes.fromhex("9f0102ff")
+
+
+@pytest.mark.parametrize(
+    ("cbor_hex", "expected"),
+    [
+        pytest.param("d81e820102", Fraction(1, 2), id="tag30-fraction"),
+        pytest.param("c249010000000000000000", 2**64, id="tag2-bignum"),
+        pytest.param("c48221196ab3", Decimal("273.15"), id="tag4-decimal"),
+    ],
+)
+def test_consumed_tags_keep_their_decoded_value(cbor_hex, expected):
+    """A semantic decoder replaces the tag content, so no array shape applies."""
+    assert loads(bytes.fromhex(cbor_hex)) == expected
+
+
+@pytest.mark.parametrize(
+    "cbor_hex",
+    [
+        pytest.param("5f4101ff", id="indefinite-byte-string"),
+        pytest.param("5fff", id="empty-indefinite-byte-string"),
+        pytest.param("5f41014102ff", id="multi-chunk-byte-string"),
+        pytest.param("7f6161ff", id="indefinite-text-string"),
+        pytest.param("7f62c3a96162ff", id="indefinite-text-string-multibyte"),
+        pytest.param("bf0102ff", id="indefinite-map"),
+        pytest.param("bfff", id="empty-indefinite-map"),
+        pytest.param("bf01bf0203ffff", id="nested-indefinite-maps"),
+        pytest.param("a15f4101ff02", id="indefinite-byte-string-as-map-key"),
+        pytest.param("a1bf0102ff03", id="indefinite-map-as-map-key"),
+        pytest.param("81bf0102ff", id="indefinite-map-in-array"),
+        pytest.param("d8799f5f4101ffff", id="chunked-byte-string-in-plutus-tag"),
+    ],
+)
+def test_indefinite_string_and_map_byte_exact_round_trip(cbor_hex):
+    """Indefinite strings and maps must survive a decode/encode cycle unchanged."""
+    encoded = bytes.fromhex(cbor_hex)
+
+    assert dumps(loads(encoded)) == encoded
+
+
+def test_chunked_datum_keeps_its_ledger_hash():
+    """A >64 byte Plutus byte string arrives chunked; re-encoding must not move it."""
+    chunked = bytes.fromhex(
+        "d8799f5f5840" + bytes(range(64)).hex() + "48" + "00" * 8 + "ffff"
+    )
+
+    restored = RawPlutusData.from_cbor(chunked)
+
+    assert restored.to_cbor() == chunked
+
+
+def test_indefinite_byte_string_behaves_like_bytes():
+    decoded = loads(bytes.fromhex("5f41014102ff"))
+
+    assert isinstance(decoded, bytes)
+    assert decoded == b"\x01\x02"
+    assert hash(decoded) == hash(b"\x01\x02")
+    assert decoded.chunks == (1, 1)
+
+
+@pytest.mark.parametrize(
+    "cbor_hex",
+    [
+        pytest.param("9f01ff", id="list"),
+        pytest.param("5f4101ff", id="byte-string"),
+        pytest.param("7f6161ff", id="text-string"),
+        pytest.param("bf0102ff", id="map"),
+    ],
+)
+def test_every_indefinite_type_shares_the_marker_base(cbor_hex):
+    """default_encoder dispatches on Indefinite, so each type must carry it."""
+    assert isinstance(loads(bytes.fromhex(cbor_hex)), Indefinite)
+
+
+def test_indefinite_map_key_is_hashable_and_immutable():
+    decoded = loads(bytes.fromhex("a1bf0102ff03"))
+    key = next(iter(decoded))
+
+    assert isinstance(key, dict)
+    assert key == {1: 2}
+    with pytest.raises(TypeError):
+        key[3] = 4
+
+
+def test_indefinite_strings_survive_deep_copy():
+    byte_string = IndefiniteByteString(b"\x01\x02", (1, 1))
+    text_string = IndefiniteTextString("ab", (1, 1))
+
+    assert deepcopy(byte_string).chunks == (1, 1)
+    assert deepcopy(text_string).chunks == (1, 1)
+
+
+def test_chunk_lengths_must_match_the_value():
+    with pytest.raises(ValueError, match="do not add up"):
+        IndefiniteByteString(b"\x01\x02", (1,))
+
+
+def test_byte_string_field_reuses_the_chunks_it_was_decoded_with():
+    """ByteString defaults to 64 byte chunks, but must honour an unusual encoding."""
+    original = bytes.fromhex("5f41014102ff")
+    wrapped = ByteString(loads(original))
+
+    assert dumps(wrapped, default=default_encoder) == original
+
+
 def test_ordered_set_as_key_in_dict_indefinite_list():
     a = NonEmptyOrderedSet(IndefiniteList([1, 2, 3]))
 
@@ -1236,3 +1390,53 @@ def test_liqwid_tx():
         cbor_hex = json.load(f).get("cborHex")
     tx = Transaction.load("test/resources/cbors/liqwid.json")
     assert tx.to_cbor().hex() == cbor_hex
+
+
+def test_map_used_as_a_map_key_round_trips():
+    """A map nested in a map key decodes to IndefiniteFrozenDict, which is immutable.
+
+    ``to_primitive`` rebuilds maps by assigning into ``type(value)()``, so without a
+    branch for these it raises ``TypeError`` instead of re-encoding. Reported against
+    this branch in #508.
+    """
+    encoded = bytes.fromhex("a101a1bf0102ff03")
+
+    assert Metadata.from_cbor(encoded).to_cbor() == encoded
+
+
+def test_indefinite_frozen_dict_hashes_like_a_frozen_map():
+    """It compares equal to the frozendict a definite map key decodes to.
+
+    So it has to hash like one, or a lookup with either framing of the same key
+    misses, in violation of the hash/eq contract.
+    """
+    definite = cbor2.loads(bytes.fromhex("a10102"), immutable=True)
+    indefinite = IndefiniteFrozenDict({1: 2})
+
+    assert indefinite == definite
+    assert hash(indefinite) == hash(definite)
+    assert {indefinite: "v"}[definite] == "v"
+
+
+def test_indefinite_frozen_dict_rejects_in_place_union():
+    """``|=`` would mutate it, and so change its hash while it sits in a dict."""
+    frozen = IndefiniteFrozenDict({1: 2})
+
+    with pytest.raises(TypeError):
+        frozen |= {3: 4}
+
+    assert dict(frozen) == {1: 2}
+
+
+def test_indefinite_dict_stays_mutable_through_to_primitive():
+    """An indefinite map outside a key position keeps its class without freezing."""
+
+    @dataclass
+    class Holder(MapCBORSerializable):
+        value: dict = field(default_factory=dict)
+
+    holder = Holder(value=IndefiniteDict({1: 2}))
+    primitive = holder.to_primitive()
+
+    assert isinstance(primitive["value"], IndefiniteDict)
+    assert not isinstance(primitive["value"], IndefiniteFrozenDict)
