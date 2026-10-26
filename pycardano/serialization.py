@@ -92,6 +92,12 @@ class IndefiniteList(Indefinite, UserList):
         else:
             super().__init__(li)  # type: ignore
 
+    def __iter__(self):
+        # UserList inherits Sequence.__iter__, which indexes one item at a time.
+        # Constructor fields of a typed PlutusData are IndefiniteLists, so this
+        # runs on every decoded datum.
+        return iter(self.data)
+
 
 class IndefiniteFrozenList(FrozenList, IndefiniteList):  # type: ignore
     pass
@@ -221,10 +227,16 @@ class IndefiniteDict(Indefinite, dict):
 
 
 class IndefiniteFrozenDict(IndefiniteDict):
-    """Hashable counterpart of :class:`IndefiniteDict`, used for map keys."""
+    """Hashable counterpart of :class:`IndefiniteDict`, used for map keys.
+
+    A definite map in a map key decodes to a ``frozendict``, and this compares equal
+    to one, so it has to hash like one too: on the wire the two framings are the same
+    key, and a map that hashed by its header would be missed by a lookup with the
+    other framing.
+    """
 
     def __hash__(self):  # type: ignore[override]
-        return hash(frozenset(self.items()))
+        return hash(FrozenDict(self))
 
     def _immutable(self, *args, **kwargs):
         raise TypeError(f"{type(self).__name__} is immutable")
@@ -236,6 +248,7 @@ class IndefiniteFrozenDict(IndefiniteDict):
     popitem = _immutable  # type: ignore[assignment]
     setdefault = _immutable  # type: ignore[assignment]
     update = _immutable  # type: ignore[assignment]
+    __ior__ = _immutable  # type: ignore[assignment]
 
 
 # cbor2 looks encoders up by exact type, so every concrete class has to be claimed
@@ -679,6 +692,17 @@ class CBORSerializable:
         def _dfs(value, freeze=False):
             if isinstance(value, CBORSerializable):
                 return _dfs(value.to_primitive(), freeze)
+            elif isinstance(value, IndefiniteDict):
+                # Rebuilt through a plain dict comprehension rather than the branch
+                # below: that one assigns into ``type(value)()``, which an
+                # IndefiniteFrozenDict rejects. Keeping the class preserves the
+                # indefinite header, and a map used as a map key stays frozen.
+                _items = {
+                    _dfs(k, freeze=True): _dfs(v, freeze) for k, v in value.items()
+                }
+                if freeze or isinstance(value, IndefiniteFrozenDict):
+                    return IndefiniteFrozenDict(_items)
+                return IndefiniteDict(_items)
             elif isinstance(value, (dict, OrderedDict, defaultdict)):
                 _dict = type(value)()
                 if hasattr(value, "default_factory"):

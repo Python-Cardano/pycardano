@@ -533,6 +533,43 @@ def test_raw_plutus_data_nested_long_bytes_stay_chunked():
         assert copy.deepcopy(datum).to_cbor() == encoded
 
 
+def test_raw_plutus_data_chunks_long_bytes_built_by_hand():
+    """A datum built programmatically holds plain bytes, not ByteString.
+
+    ``from_dict`` wraps long values, and a decode carries the chunk lengths, but a
+    datum assembled in code has neither, and the ledger refuses a definite-length
+    bytestring longer than 64 bytes in Plutus data.
+    """
+    datum = RawPlutusData(CBORTag(121, [b"\xab" * 182]))
+    encoded = datum.to_cbor()
+
+    assert bytes.fromhex("5f5840") in encoded, "long bytes were not chunked"
+    assert RawPlutusData.from_cbor(encoded).to_cbor() == encoded
+    assert copy.deepcopy(datum).to_cbor() == encoded
+
+
+def test_raw_plutus_data_keeps_chunk_widths_it_was_decoded_with():
+    """Chunking a datum built by hand must not renormalise one that arrived chunked.
+
+    The ledger requires each chunk to be at most 64 bytes, not exactly 64, so a datum
+    another tool chunked at 60/60/62 is valid on chain. Re-wrapping it would change
+    its hash, and the signature over it with that.
+    """
+    payload = bytes(range(182))
+    widths = (60, 60, 62)
+    start = 0
+    body = b""
+    for width in widths:
+        body += b"\x58" + bytes([width]) + payload[start : start + width]
+        start += width
+    wire = b"\xd8\x79\x9f" + b"\x5f" + body + b"\xff" + b"\xff"
+
+    datum = RawPlutusData.from_cbor(wire)
+
+    assert datum.to_cbor() == wire
+    assert copy.deepcopy(datum).to_cbor() == wire
+
+
 def test_raw_plutus_data_short_bytes_stay_definite():
     """Bytes the ledger does not require chunking for are left alone.
 

@@ -29,6 +29,7 @@ from pycardano import (
     CBORBase,
     Datum,
     IndefiniteFrozenList,
+    Metadata,
     MultiAsset,
     Primitive,
     RawPlutusData,
@@ -52,6 +53,8 @@ from pycardano.serialization import (
     DictCBORSerializable,
     Indefinite,
     IndefiniteByteString,
+    IndefiniteDict,
+    IndefiniteFrozenDict,
     IndefiniteList,
     IndefiniteTextString,
     MapCBORSerializable,
@@ -1387,3 +1390,53 @@ def test_liqwid_tx():
         cbor_hex = json.load(f).get("cborHex")
     tx = Transaction.load("test/resources/cbors/liqwid.json")
     assert tx.to_cbor().hex() == cbor_hex
+
+
+def test_map_used_as_a_map_key_round_trips():
+    """A map nested in a map key decodes to IndefiniteFrozenDict, which is immutable.
+
+    ``to_primitive`` rebuilds maps by assigning into ``type(value)()``, so without a
+    branch for these it raises ``TypeError`` instead of re-encoding. Reported against
+    this branch in #508.
+    """
+    encoded = bytes.fromhex("a101a1bf0102ff03")
+
+    assert Metadata.from_cbor(encoded).to_cbor() == encoded
+
+
+def test_indefinite_frozen_dict_hashes_like_a_frozen_map():
+    """It compares equal to the frozendict a definite map key decodes to.
+
+    So it has to hash like one, or a lookup with either framing of the same key
+    misses, in violation of the hash/eq contract.
+    """
+    definite = cbor2.loads(bytes.fromhex("a10102"), immutable=True)
+    indefinite = IndefiniteFrozenDict({1: 2})
+
+    assert indefinite == definite
+    assert hash(indefinite) == hash(definite)
+    assert {indefinite: "v"}[definite] == "v"
+
+
+def test_indefinite_frozen_dict_rejects_in_place_union():
+    """``|=`` would mutate it, and so change its hash while it sits in a dict."""
+    frozen = IndefiniteFrozenDict({1: 2})
+
+    with pytest.raises(TypeError):
+        frozen |= {3: 4}
+
+    assert dict(frozen) == {1: 2}
+
+
+def test_indefinite_dict_stays_mutable_through_to_primitive():
+    """An indefinite map outside a key position keeps its class without freezing."""
+
+    @dataclass
+    class Holder(MapCBORSerializable):
+        value: dict = field(default_factory=dict)
+
+    holder = Holder(value=IndefiniteDict({1: 2}))
+    primitive = holder.to_primitive()
+
+    assert isinstance(primitive["value"], IndefiniteDict)
+    assert not isinstance(primitive["value"], IndefiniteFrozenDict)

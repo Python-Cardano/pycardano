@@ -23,6 +23,7 @@ from pycardano.serialization import (
     ByteString,
     CBORSerializable,
     DictCBORSerializable,
+    IndefiniteByteString,
     IndefiniteList,
     Primitive,
     RawCBOR,
@@ -815,6 +816,17 @@ class RawPlutusData(CBORSerializable):
                 else:
                     value = [_dfs(item) for item in obj.value]
                 return CBORTag(tag=obj.tag, value=value)
+            elif isinstance(obj, IndefiniteByteString):
+                # Decoded from the wire, so it already carries the chunk lengths it
+                # arrived with. Re-wrapping would renormalise those to 64 bytes and
+                # change the datum hash, which is the defect this guards against.
+                return obj
+            elif isinstance(obj, bytes) and len(obj) > 64:
+                # The ledger rejects a definite-length bytestring longer than 64 bytes
+                # in Plutus data. from_dict wraps such values in ByteString, but a
+                # datum built by hand holds plain bytes, and without this it would be
+                # encoded definite and refused by the node.
+                return ByteString(obj)
             return obj
 
         return _dfs(self.data)
