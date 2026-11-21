@@ -856,8 +856,7 @@ def _restore_typed_primitive(
             for key, val in v.items()
         }
     elif (
-        hasattr(t, "__origin__")
-        and (t.__origin__ is Union or t.__origin__ is Optional)
+        hasattr(t, "__origin__") and (t.__origin__ is Union or t.__origin__ is Optional)
     ) or typing.get_origin(t) is types.UnionType:
         t_args = t.__args__
         for t in t_args:
