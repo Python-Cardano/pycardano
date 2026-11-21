@@ -98,6 +98,19 @@ FAKE_TX_SIGNATURE = bytes.fromhex(
 )
 
 
+def _ledger_reward_account_order(reward_account: bytes) -> Tuple[int, int, bytes]:
+    """Sort key that orders reward accounts the way the ledger does.
+
+    The ledger orders reward accounts by network, then by credential, and a script
+    credential sorts before a key credential. Raw address bytes put key credentials
+    (header ``0xe_``) before script credentials (``0xf_``), so withdrawal redeemer
+    indexes must not be taken from a plain byte sort.
+    """
+    header = reward_account[0]
+    credential_rank = 0 if header >> 4 == 0b1111 else 1
+    return header & 0x0F, credential_rank, reward_account[1:]
+
+
 @dataclass
 class TransactionBuilder:
     """A class builder that makes it easy to build a transaction."""
@@ -1012,7 +1025,9 @@ class TransactionBuilder:
         else:
             sorted_mint_policies = []
         if self.withdrawals:
-            sorted_withdrawals = sorted(self.withdrawals.keys())
+            sorted_withdrawals = sorted(
+                self.withdrawals.keys(), key=_ledger_reward_account_order
+            )
         else:
             sorted_withdrawals = []
 
