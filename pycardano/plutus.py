@@ -804,17 +804,43 @@ class RawPlutusData(CBORSerializable):
     data: RawDatum
 
     def to_primitive(self) -> Primitive:
-        def _dfs(obj):
-            if isinstance(obj, list) and obj:
+        def _dfs(obj, preserve=False):
+            # `preserve` tracks decoded structures: a CBOR round trip marks
+            # indefinite lists as IndefiniteList while definite lists stay
+            # plain lists, and re-encoding must keep that distinction or a
+            # restored datum no longer matches its original bytes. Inside an
+            # IndefiniteList, children are therefore visited in preserve
+            # mode; structures built by from_dict or by hand keep the
+            # historical behaviour of wrapping plain lists as indefinite.
+            if isinstance(obj, IndefiniteList) and obj:
+                return IndefiniteList([_dfs(item, True) for item in obj])
+            elif isinstance(obj, list) and obj:
+                if preserve:
+                    return [_dfs(item, True) for item in obj]
                 return IndefiniteList([_dfs(item) for item in obj])
             elif isinstance(obj, dict):
-                return {_dfs(k): _dfs(v) for k, v in obj.items()}
-            elif isinstance(obj, CBORTag) and isinstance(obj.value, list) and obj.value:
+                return {_dfs(k, preserve): _dfs(v, preserve) for k, v in obj.items()}
+            elif (
+                isinstance(obj, CBORTag)
+                and isinstance(obj.value, (list, IndefiniteList))
+                and obj.value
+            ):
+                child_preserve = preserve or isinstance(obj.value, IndefiniteList)
                 if obj.tag != 102:
-                    value = IndefiniteList([_dfs(item) for item in obj.value])
+                    value = IndefiniteList(
+                        [_dfs(item, child_preserve) for item in obj.value]
+                    )
                 else:
-                    value = [_dfs(item) for item in obj.value]
+                    value = [_dfs(item, child_preserve) for item in obj.value]
                 return CBORTag(tag=obj.tag, value=value)
+            elif isinstance(obj, bytes) and len(obj) > 64:
+                # The ledger requires byte strings longer than 64 bytes in
+                # Plutus data to be chunked (indefinite-length encoding).
+                # from_dict wraps such bytes in ByteString, but a round trip
+                # through CBOR (e.g. deepcopy or from_cbor) decodes them back
+                # to plain bytes, so re-wrap them here to keep the chunked
+                # encoding stable across copies.
+                return ByteString(obj)
             return obj
 
         return _dfs(self.data)

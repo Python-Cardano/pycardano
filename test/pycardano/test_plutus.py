@@ -353,6 +353,37 @@ def test_clone_raw_plutus_data():
     assert cloned_tag != tag
 
 
+def test_raw_plutus_data_long_bytes_stay_chunked():
+    # Byte strings longer than 64 bytes must keep their chunked
+    # (indefinite-length) encoding through deepcopy and CBOR round trips,
+    # otherwise the ledger rejects the datum.
+    data = RawPlutusData.from_dict(
+        {"constructor": 0, "fields": [{"bytes": "ab" * 182}]}
+    )
+    assert bytes.fromhex("5f5840") in data.to_cbor()
+    assert copy.deepcopy(data).to_cbor() == data.to_cbor()
+    assert RawPlutusData.from_cbor(data.to_cbor()).to_cbor() == data.to_cbor()
+
+
+def test_raw_plutus_data_long_bytes_nested_stay_chunked():
+    map_data = RawPlutusData.from_dict(
+        {"map": [{"k": {"bytes": "cd" * 100}, "v": {"bytes": "ef" * 100}}]}
+    )
+    list_data = RawPlutusData.from_dict({"list": [{"bytes": "ab" * 65}]})
+    for datum in (map_data, list_data):
+        assert RawPlutusData.from_cbor(datum.to_cbor()).to_cbor() == datum.to_cbor()
+        assert copy.deepcopy(datum).to_cbor() == datum.to_cbor()
+
+
+def test_raw_plutus_data_short_bytes_stay_definite():
+    data = RawPlutusData.from_dict(
+        {"constructor": 1, "fields": [{"bytes": "ab" * 32}, {"int": 42}]}
+    )
+    assert b"\x5f" not in data.to_cbor()
+    assert RawPlutusData.from_cbor(data.to_cbor()).to_cbor() == data.to_cbor()
+    assert copy.deepcopy(data).to_cbor() == data.to_cbor()
+
+
 def test_clone_plutus_data():
     key_hash = bytes.fromhex("c2ff616e11299d9094ce0a7eb5b7284b705147a822f4ffbd471f971a")
     deadline = 1643235300000
