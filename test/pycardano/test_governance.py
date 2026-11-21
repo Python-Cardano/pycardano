@@ -384,9 +384,7 @@ class TestHardForkInitiationAction:
         # (Conway CDDL: protocol_version = [major_protocol_version,
         # uint .size 4], major in 0..12). Protocol version 11 is the
         # version live on mainnet, so it must be constructible.
-        action = HardForkInitiationAction(
-            gov_action_id=None, protocol_version=(11, 0)
-        )
+        action = HardForkInitiationAction(gov_action_id=None, protocol_version=(11, 0))
 
         assert action.to_cbor_hex() == "8301f6820b00"
         assert HardForkInitiationAction.from_cbor(action.to_cbor()) == action
