@@ -1,4 +1,5 @@
 import time
+from fractions import Fraction
 from typing import Dict, List, Optional, Union
 
 from cachetools import Cache, LRUCache, TTLCache, func
@@ -134,9 +135,8 @@ class OgmiosV6ChainContext(ChainContext):
             return False
 
     @staticmethod
-    def _fraction_parser(fraction: str) -> float:
-        x, y = fraction.split("/")
-        return int(x) / int(y)
+    def _fraction_parser(fraction: str) -> Fraction:
+        return Fraction(fraction)
 
     @property
     def protocol_param(self) -> ProtocolParameters:

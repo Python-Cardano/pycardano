@@ -1,3 +1,4 @@
+from fractions import Fraction
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -52,5 +53,5 @@ def test_protocol_ratio_rejects_a_python_expression():
 
 def test_protocol_ratio_parses_a_fraction():
     parsed = _fetch(_ogmios_params())
-    assert parsed.monetary_expansion == 0.1
-    assert parsed.price_mem == 721 / 10000000
+    assert parsed.monetary_expansion == Fraction(1, 10)
+    assert parsed.price_mem == Fraction(721, 10000000)
