@@ -416,13 +416,13 @@ class HardForkInitiationAction(CodedSerializable):
     gov_action_id: Optional[GovActionId]
     """Optional reference to a previous governance action"""
 
-    protocol_version: Fraction
+    protocol_version: Tuple[int, int]
     """The target protocol version as (major, minor) version numbers"""
 
     def __post_init__(self):
         major, minor = self.protocol_version
-        if not 1 <= major <= 10:
-            raise ValueError("Major protocol version must be between 1 and 10")
+        if not 0 <= major <= 12:
+            raise ValueError("Major protocol version must be between 0 and 12")
 
 
 class TreasuryWithdrawal(DictCBORSerializable):
