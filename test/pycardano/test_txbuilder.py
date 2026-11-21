@@ -2892,6 +2892,50 @@ def test_add_withdrawal_script(chain_context):
     assert len(tx_builder._withdrawal_script_to_redeemers) == 1
 
 
+def test_withdrawal_redeemer_index_puts_script_credentials_first(chain_context):
+    """A script withdrawal sorts before a key withdrawal, as in the ledger."""
+    sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
+    sender_address = Address.from_primitive(sender)
+
+    tx_builder = TransactionBuilder(chain_context, [RandomImproveMultiAsset([0, 0])])
+    tx_builder.add_input_address(sender)
+    tx_builder.add_output(TransactionOutput(sender_address, Value(500000)))
+
+    plutus_script = PlutusV2Script(b"dummy withdrawal script")
+    script_address = Address(
+        staking_part=plutus_script_hash(plutus_script), network=chain_context.network
+    )
+    key_address = Address(
+        staking_part=VerificationKeyHash(b"\xff" * 28), network=chain_context.network
+    )
+    # By bytes the key reward address (0xe0 header) sorts before the script one
+    # (0xf0 header); the ledger puts script credentials first.
+    assert bytes(key_address) < bytes(script_address)
+    tx_builder.withdrawals = Withdrawals(
+        {bytes(key_address): 0, bytes(script_address): 0}
+    )
+    redeemer = Redeemer(PlutusData(), ExecutionUnits(1000000, 1000000))
+    tx_builder.add_withdrawal_script(plutus_script, redeemer)
+
+    tx_builder.build(change_address=sender_address)
+
+    assert redeemer.index == 0
+
+
+def test_ledger_reward_account_order():
+    from pycardano.txbuilder import _ledger_reward_account_order
+
+    key_low = bytes([0xE1]) + b"\x00" * 28
+    key_high = bytes([0xE1]) + b"\xff" * 28
+    script_low = bytes([0xF1]) + b"\x00" * 28
+    script_high = bytes([0xF1]) + b"\xff" * 28
+    testnet_key = bytes([0xE0]) + b"\xff" * 28
+    assert sorted(
+        [key_high, script_high, key_low, script_low, testnet_key],
+        key=_ledger_reward_account_order,
+    ) == [testnet_key, script_low, script_high, key_low, key_high]
+
+
 def test_add_withdrawal_script_from_utxo(chain_context):
     """Test adding withdrawal script from reference UTxO."""
     sender = "addr_test1vrm9x2zsux7va6w892g38tvchnzahvcd9tykqf3ygnmwtaqyfg52x"
