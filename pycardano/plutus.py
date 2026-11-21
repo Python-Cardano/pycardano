@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import inspect
 import json
+import types
 import typing
 from dataclasses import dataclass, field, fields
 from enum import Enum
@@ -489,6 +490,11 @@ def id_map(cls, skip_constructor=False):
         return "any"
     if cls == IndefiniteList:
         return "list"
+    if isinstance(cls, types.UnionType):
+        # PEP 604 union (e.g. `bytes | int`) has no __origin__, but it is
+        # equivalent to typing.Union[...] — map it identically so the
+        # constructor ID does not depend on which spelling the author used.
+        return "union<" + ",".join(id_map(a) for a in cls.__args__) + ">"
     if hasattr(cls, "__origin__"):
         origin = getattr(cls, "__origin__")
         if origin == list:
@@ -694,7 +700,7 @@ class PlutusData(ArrayCBORSerializable):
                         elif (
                             hasattr(f_info.type, "__origin__")
                             and f_info.type.__origin__ is Union
-                        ):
+                        ) or typing.get_origin(f_info.type) is types.UnionType:
                             t_args = f_info.type.__args__
                             found_match = False
                             for t in t_args:

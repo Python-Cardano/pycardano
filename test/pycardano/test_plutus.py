@@ -478,6 +478,52 @@ def test_id_map_supports_all():
     )
 
 
+def test_plutus_data_pep604_union():
+    # A PEP 604 union (`X | Y`) is the modern spelling of typing.Union[X, Y];
+    # the two spellings must behave identically, including the automatic
+    # constructor ID, so a datum's encoding never depends on spelling.
+    @dataclass
+    class Classic(PlutusData):
+        CONSTR_ID = 0
+        a: Union[bytes, int]
+
+    @dataclass
+    class Modern(PlutusData):
+        CONSTR_ID = 0
+        a: bytes | int
+
+    assert id_map(Union[bytes, int]) == id_map(bytes | int) == "union<bytes,int>"
+
+    for v in (b"hello", 42):
+        classic = Classic(a=v)
+        modern = Modern(a=v)
+        assert classic.to_cbor() == modern.to_cbor()
+        assert Modern.from_cbor(modern.to_cbor()) == modern
+        assert Classic.from_cbor(modern.to_cbor()).a == v
+
+
+def test_plutus_data_pep604_union_of_plutus_data():
+    @dataclass
+    class A(PlutusData):
+        CONSTR_ID = 0
+        x: int
+
+    @dataclass
+    class B(PlutusData):
+        CONSTR_ID = 1
+        y: bytes
+
+    @dataclass
+    class Modern(PlutusData):
+        CONSTR_ID = 2
+        u: A | B
+
+    for v in (A(x=1), B(y=b"z")):
+        datum = Modern(u=v)
+        assert Modern.from_cbor(datum.to_cbor()) == datum
+        assert Modern.from_dict(datum.to_dict()) == datum
+
+
 def test_plutus_data_long_bytes():
     @dataclass
     class A(PlutusData):
