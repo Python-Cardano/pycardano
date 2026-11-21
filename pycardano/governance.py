@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum, unique
 from fractions import Fraction
-from typing import Dict, Optional, Tuple, Type, Union
+from typing import Dict, List, Optional, Tuple, Type, Union
 
 from pycardano.certificate import Anchor, GovernanceCredential, GovernanceKeyType
 from pycardano.crypto.bech32 import bech32_decode, convertbits, encode
@@ -312,10 +312,10 @@ class ProtocolParamUpdate(MapCBORSerializable):
     )
     """Ada per UTxO byte"""
 
-    cost_models: Optional[Dict] = field(
+    cost_models: Optional[Dict[int, List[int]]] = field(
         default=None, metadata={"key": 18, "optional": True}
     )
-    """Cost models for script languages"""
+    """Cost models for script languages, as a map of language (0, 1, 2) to its list of cost values"""
 
     execution_costs: Optional[ExUnitPrices] = field(
         default=None, metadata={"key": 19, "optional": True}

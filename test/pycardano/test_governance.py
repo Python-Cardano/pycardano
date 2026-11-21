@@ -18,6 +18,7 @@ from pycardano.governance import (
     NoConfidence,
     ParameterChangeAction,
     ProposalProcedure,
+    ProtocolParamUpdate,
     TreasuryWithdrawal,
     TreasuryWithdrawalsAction,
     UpdateCommittee,
@@ -353,6 +354,54 @@ class TestParameterChangeAction:
         assert action.gov_action_id == gov_action_id
         assert action.protocol_param_update == protocol_params
         assert action.policy_hash == policy_hash
+
+    def test_cost_models_update_serializes_and_round_trips(self):
+        # cost_models is a map of language -> list of cost values (CDDL:
+        # cost_models = { * language => [* int64] }). Typing the field as a
+        # bare Dict crashed validation and parsing with AttributeError:
+        # __args__, because a bare typing.Dict carries no type arguments.
+        update = ProtocolParamUpdate(cost_models={0: [100788, 420, -1], 2: [200000, 300]})
+        action = ParameterChangeAction(
+            gov_action_id=None, protocol_param_update=update, policy_hash=None
+        )
+
+        assert update.to_cbor_hex() == "a112a200831a000189b41901a42002821a00030d4019012c"
+        restored = ParameterChangeAction.from_cbor(action.to_cbor_hex())
+        assert restored == action
+        assert restored.protocol_param_update.cost_models == {
+            0: [100788, 420, -1],
+            2: [200000, 300],
+        }
+
+    def test_cost_models_update_parses_cddl_built_proposal(self):
+        # A proposal procedure built straight from the CDDL (deposit,
+        # reward account, parameter-change action whose only update is
+        # cost_models at key 18, anchor) must parse and re-serialise
+        # byte-for-byte.
+        procedure_hex = (
+            "841b000000174876e800581de1ed9793beeadf05284aa53bf2d2fcede5e3664bf2"
+            "d5edcaa0fe862c828400f6a112a200831a000189b41901a42002821a00030d40"
+            "19012cf682782168747470733a2f2f6578616d706c652e636f6d2f70726f706f"
+            "73616c2e6a736f6e5820000102030405060708090a0b0c0d0e0f101112131415"
+            "161718191a1b1c1d1e1f"
+        )
+        procedure = ProposalProcedure.from_cbor(procedure_hex)
+
+        assert procedure.gov_action.protocol_param_update.cost_models == {
+            0: [100788, 420, -1],
+            2: [200000, 300],
+        }
+        assert procedure.to_cbor_hex() == procedure_hex
+
+    def test_cost_models_update_accepts_cost_models_object(self):
+        # The CostModels container used elsewhere in the library must keep
+        # serialising as before.
+        from pycardano.plutus import CostModels
+
+        update = ProtocolParamUpdate(
+            cost_models=CostModels({0: {0: 100788, 1: 420, 2: -1}})
+        )
+        assert update.to_cbor_hex() == "a112a141004b9f1a000189b41901a420ff"
 
 
 class TestHardForkInitiationAction:
