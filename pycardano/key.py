@@ -42,6 +42,7 @@ class Key(CBORSerializable):
 
     KEY_TYPE = ""
     DESCRIPTION = ""
+    _IS_SECRET = False  # overridden to True on signing keys
 
     def __init__(
         self,
@@ -77,6 +78,12 @@ class Key(CBORSerializable):
         """Serialize the key to JSON.
 
         The json output has three fields: "type", "description", and "cborHex".
+
+        .. warning::
+            For signing keys, the output contains the **raw private key material**
+            (in the ``cborHex`` field). This is a deliberate export path; do not log
+            or otherwise expose its return value for a signing key. Implicit string
+            conversions (``repr``/``str``) are redacted, but ``to_json`` is not.
 
         Returns:
             str: JSON representation of the key.
@@ -135,14 +142,38 @@ class Key(CBORSerializable):
                 and self.key_type == other.key_type
             )
 
+    def _public_fingerprint(self) -> str:
+        """Return a short, non-reversible identifier for diagnostics.
+
+        For a signing key this is derived from the *verification* key hash, which is
+        public on-chain anyway, so it never exposes secret material. Guaranteed not to
+        raise (a repr that throws breaks debuggers and logging).
+        """
+        try:
+            vkh = self.to_verification_key().hash().payload  # type: ignore[attr-defined]
+            return vkh.hex()[:16]
+        except Exception:
+            return "unknown"
+
     def __repr__(self) -> str:
+        if self._IS_SECRET:
+            return (
+                f"<{type(self).__name__} "
+                f"type={self.key_type!r} "
+                f"hash={self._public_fingerprint()} [REDACTED]>"
+            )
         return self.to_json()
+
+    def __str__(self) -> str:
+        return self.__repr__()
 
     def __hash__(self):
         return hash(self.payload)
 
 
 class SigningKey(Key):
+    _IS_SECRET = True
+
     def sign(self, data: bytes) -> bytes:
         signed_message = NACLSigningKey(self.payload).sign(data)
         return signed_message.signature
@@ -178,6 +209,8 @@ class VerificationKey(Key):
 
 
 class ExtendedSigningKey(Key):
+    _IS_SECRET = True
+
     def sign(self, data: bytes) -> bytes:
         private_key = BIP32ED25519PrivateKey(self.payload[:64], self.payload[96:])
         return private_key.sign(data)
