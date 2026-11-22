@@ -15,7 +15,13 @@ from pycardano.exception import InvalidDataException, InvalidOperationException
 from pycardano.hash import SCRIPT_HASH_SIZE, ScriptHash, TransactionId
 from pycardano.key import PaymentKeyPair, PaymentSigningKey, VerificationKey
 from pycardano.nativescript import ScriptPubkey
-from pycardano.plutus import PlutusData, PlutusV1Script, PlutusV2Script, datum_hash
+from pycardano.plutus import (
+    PlutusData,
+    PlutusV1Script,
+    PlutusV2Script,
+    RawPlutusData,
+    datum_hash,
+)
 from pycardano.transaction import (
     Asset,
     AssetName,
@@ -743,6 +749,53 @@ def test_sign_dex_transaction_with_raw_plutus_data_inline_datum():
     # Verify the signature is valid against the body hash using nacl directly.
     nacl_vk = NACLSigningKey(sk.payload).verify_key
     nacl_vk.verify(body_hash, signature)
+
+
+def test_sign_round_tripped_transaction_with_chunked_datum_bytestring():
+    # Regression for https://github.com/python-cardano/pycardano/issues/402
+    #
+    # The fixture above covers a datum whose byte strings all fit in a single
+    # definite-length chunk. Real DEX and escrow datums carry longer values - a COSE
+    # signature, a long hash - and the ledger rejects a definite-length byte string
+    # over 64 bytes, so those arrive split into chunks. Decoding used to drop the chunk
+    # boundaries, so re-encoding the body moved its hash and any signature computed
+    # over the original body no longer verified.
+    address = Address.from_primitive(
+        "addr_test1qqqt0pru382hy9vjlsxv3ye02z50sfvt8xunscg5pgden77z73dpdfng2ctw2ekqp"
+        "lqgrljelz7h4dneac27nn3qx3rqqpavzj"
+    )
+    datum = RawPlutusData.from_dict(
+        {"constructor": 0, "fields": [{"bytes": "ab" * 182}]}
+    )
+    body = TransactionBody(
+        inputs=[TransactionInput(TransactionId(b"\x11" * 32), 0)],
+        outputs=[
+            TransactionOutput(address, Value(5000000), datum=datum, post_alonzo=True)
+        ],
+        fee=200000,
+    )
+
+    # A wallet exports the unsigned transaction; the signature is made over the body
+    # hash as it stands at that point.
+    unsigned_cbor_hex = Transaction(body, TransactionWitnessSet()).to_cbor_hex()
+    sk = PaymentSigningKey.from_json("""{
+        "type": "GenesisUTxOSigningKey_ed25519",
+        "description": "Genesis Initial UTxO Signing Key",
+        "cborHex": "5820093be5cd3987d0c9fd8854ef908f7746b69e2d73320db6dc0f780d81585b84c2"
+    }""")
+    signature = sk.sign(body.hash())
+
+    restored = Transaction.from_cbor(unsigned_cbor_hex)
+
+    assert bytes.fromhex("5f5840") in bytes.fromhex(
+        unsigned_cbor_hex
+    ), "long bytes were not chunked"
+    assert restored.to_cbor_hex() == unsigned_cbor_hex
+    assert restored.transaction_body.hash() == body.hash()
+
+    # The signature made before the round trip must still verify afterwards.
+    nacl_vk = NACLSigningKey(sk.payload).verify_key
+    nacl_vk.verify(restored.transaction_body.hash(), signature)
 
 
 def test_decode_byron_transaction():

@@ -7,6 +7,11 @@ on:
     branches: ["main", "chang"]
     types: [opened, reopened, edited, synchronize]
 
+env:
+  # Keep in sync with the generator recorded in the first line of poetry.lock.
+  # An older Poetry rejects the lock file's content hash; a newer one may rewrite it.
+  POETRY_VERSION: "2.4.2"
+
 jobs:
   build:
 
@@ -19,7 +24,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install poetry
-        run: pipx install poetry
+        run: pipx install poetry==${{ env.POETRY_VERSION }}
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
@@ -52,7 +57,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install poetry
-        run: pipx install poetry
+        run: pipx install poetry==${{ env.POETRY_VERSION }}
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
